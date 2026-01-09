@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/recurring-payments/generate",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/whatsapp",
+      "schedule": "0 10 * * *"
+    }
+  ]
+}

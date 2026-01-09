@@ -1,0 +1,566 @@
+import { NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/auth"
+import { getAccountBalance } from "@/lib/accounting/ledger"
+
+/**
+ * GET /api/accounting/monthly-position
+ * Obtiene la posición contable mensual (Balance Sheet) agrupada por rubros del plan de cuentas
+ */
+export async function GET(request: Request) {
+  try {
+    const { user } = await getCurrentUser()
+    const supabase = await createServerClient()
+    const { searchParams } = new URL(request.url)
+    
+    const year = parseInt(searchParams.get("year") || new Date().getFullYear().toString())
+    const month = parseInt(searchParams.get("month") || (new Date().getMonth() + 1).toString())
+    const agencyId = searchParams.get("agencyId") || "ALL"
+
+    console.log(`[MonthlyPosition API] Request received: year=${year}, month=${month}, agencyId=${agencyId}`)
+
+    // Validar mes y año
+    if (month < 1 || month > 12) {
+      return NextResponse.json({ error: "Mes inválido" }, { status: 400 })
+    }
+
+    // Calcular fecha de corte (último día del mes)
+    const lastDay = new Date(year, month, 0).getDate()
+    const dateTo = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+
+    // Obtener todas las cuentas del plan de cuentas activas
+    const { data: chartAccounts, error: chartError } = await (supabase.from("chart_of_accounts") as any)
+      .select("*")
+      .eq("is_active", true)
+      .order("category", { ascending: true })
+      .order("display_order", { ascending: true })
+
+    if (chartError) {
+      console.error("Error fetching chart of accounts:", chartError)
+      return NextResponse.json({ error: "Error al obtener plan de cuentas" }, { status: 500 })
+    }
+
+    // Obtener todas las cuentas financieras relacionadas con el plan de cuentas
+    let financialAccountsQuery = supabase
+      .from("financial_accounts")
+      .select(`
+        *,
+        chart_of_accounts:chart_account_id(
+          id,
+          account_code,
+          account_name,
+          category,
+          subcategory,
+          account_type
+        )
+      `)
+      .eq("is_active", true)
+      .not("chart_account_id", "is", null) // Solo cuentas vinculadas al plan de cuentas
+
+    if (agencyId !== "ALL") {
+      // Filtrar por agencia, pero también incluir cuentas sin agency_id (cuentas globales como "Cuentas por Pagar")
+      financialAccountsQuery = financialAccountsQuery.or(`agency_id.eq.${agencyId},agency_id.is.null`)
+    }
+    // Si es "ALL", incluir todas las cuentas (con y sin agency_id)
+
+    const { data: financialAccounts, error: faError } = await financialAccountsQuery
+
+    if (faError) {
+      console.error("Error fetching financial accounts:", faError)
+      return NextResponse.json({ error: "Error al obtener cuentas financieras" }, { status: 500 })
+    }
+
+    // Obtener movimientos del ledger hasta la fecha de corte
+    let ledgerQuery = supabase
+      .from("ledger_movements")
+      .select(`
+        *,
+        financial_accounts:account_id(
+          id,
+          chart_account_id,
+          chart_of_accounts:chart_account_id(
+            category,
+            account_type
+          )
+        )
+      `)
+      .lte("created_at", `${dateTo}T23:59:59`)
+
+    if (agencyId !== "ALL") {
+      // Filtrar por agencia a través de las cuentas financieras
+      const financialAccountsArray = (financialAccounts || []) as any[]
+      const accountIds = financialAccountsArray
+        .filter((fa: any) => fa.agency_id === agencyId)
+        .map((fa: any) => fa.id)
+      
+      if (accountIds.length > 0) {
+        ledgerQuery = ledgerQuery.in("account_id", accountIds)
+      } else {
+        // Si no hay cuentas, retornar estructura vacía
+        return NextResponse.json({
+          year,
+          month,
+          dateTo,
+          activo: { corriente: 0, no_corriente: 0, total: 0 },
+          pasivo: { corriente: 0, no_corriente: 0, total: 0 },
+          patrimonio_neto: { total: 0 },
+          resultado: { ingresos: 0, costos: 0, gastos: 0, total: 0 },
+          accounts: []
+        })
+      }
+    }
+
+    const { data: movements, error: movementsError } = await ledgerQuery
+
+    if (movementsError) {
+      console.error("Error fetching ledger movements:", movementsError)
+      return NextResponse.json({ error: "Error al obtener movimientos contables" }, { status: 500 })
+    }
+
+    // Calcular balances por categoría y moneda
+    const balances: Record<string, number> = {}
+    const balancesByCurrency: Record<string, { ars: number; usd: number }> = {}
+
+    // Calcular balances de cuentas financieras
+    const financialAccountsArrayForBalance = (financialAccounts || []) as any[]
+    console.log(`[MonthlyPosition] Procesando ${financialAccountsArrayForBalance.length} cuentas financieras con chart_account_id`)
+    
+    for (const account of financialAccountsArrayForBalance) {
+      try {
+        const balance = await getAccountBalance(account.id, supabase)
+        const chartAccount = account.chart_of_accounts
+        if (chartAccount) {
+          const key = `${chartAccount.category}_${chartAccount.subcategory || "NONE"}`
+          balances[key] = (balances[key] || 0) + balance
+          
+          // Separar por moneda - obtener movimientos y calcular balance por moneda
+          if (!balancesByCurrency[key]) {
+            balancesByCurrency[key] = { ars: 0, usd: 0 }
+          }
+          
+          // Obtener movimientos para separar por moneda
+          const { data: movements } = await supabase
+            .from("ledger_movements")
+            .select("amount_original, currency, type, amount_ars_equivalent")
+            .eq("account_id", account.id)
+            .lte("created_at", `${dateTo}T23:59:59`) // IMPORTANTE: Filtrar hasta la fecha de corte
+          
+          if (movements && movements.length > 0) {
+            const movementsArray = movements as any[]
+            let balanceARS = 0
+            let balanceUSD = 0
+            
+            // Calcular balance por moneda usando la misma lógica que getAccountBalance
+            const initialBalance = parseFloat(account.initial_balance || "0")
+            const accountCurrency = account.currency
+            
+            // Si la cuenta tiene moneda específica, el initial_balance está en esa moneda
+            if (accountCurrency === "ARS") {
+              balanceARS = initialBalance
+            } else if (accountCurrency === "USD") {
+              balanceUSD = initialBalance
+            } else {
+              balanceARS = initialBalance // Fallback
+            }
+            
+            for (const m of movementsArray) {
+              const amountOriginal = parseFloat(m.amount_original || "0")
+              
+              // Para PASIVOS: EXPENSE aumenta, INCOME disminuye
+              if (chartAccount.category === "PASIVO") {
+                if (m.type === "EXPENSE" || m.type === "OPERATOR_PAYMENT" || m.type === "FX_LOSS") {
+                  // Aumenta el pasivo
+                  if (m.currency === "ARS") {
+                    balanceARS += amountOriginal
+                  } else if (m.currency === "USD") {
+                    balanceUSD += amountOriginal
+                  }
+                } else if (m.type === "INCOME" || m.type === "FX_GAIN") {
+                  // Disminuye el pasivo
+                  if (m.currency === "ARS") {
+                    balanceARS -= amountOriginal
+                  } else if (m.currency === "USD") {
+                    balanceUSD -= amountOriginal
+                  }
+                }
+              } else {
+                // Para ACTIVOS y otros: INCOME aumenta, EXPENSE disminuye
+                if (m.type === "INCOME" || m.type === "FX_GAIN") {
+                  if (m.currency === "ARS") {
+                    balanceARS += amountOriginal
+                  } else if (m.currency === "USD") {
+                    balanceUSD += amountOriginal
+                  }
+                } else if (m.type === "EXPENSE" || m.type === "OPERATOR_PAYMENT" || m.type === "FX_LOSS") {
+                  if (m.currency === "ARS") {
+                    balanceARS -= amountOriginal
+                  } else if (m.currency === "USD") {
+                    balanceUSD -= amountOriginal
+                  }
+                }
+              }
+            }
+            
+            balancesByCurrency[key].ars += balanceARS
+            balancesByCurrency[key].usd += balanceUSD
+          } else {
+            // Si no hay movimientos, usar el balance total según la moneda de la cuenta
+            if (account.currency === "ARS") {
+              balancesByCurrency[key].ars += balance
+            } else if (account.currency === "USD") {
+              balancesByCurrency[key].usd += balance
+            } else {
+              balancesByCurrency[key].ars += balance // Fallback
+            }
+          }
+          
+          console.log(`[MonthlyPosition] Cuenta ${account.name} (${chartAccount.account_code}, ${chartAccount.category}): balance=${balance}, key=${key}, ARS=${balancesByCurrency[key].ars}, USD=${balancesByCurrency[key].usd}, agency=${account.agency_id || "null"}`)
+        } else {
+          console.warn(`[MonthlyPosition] Cuenta ${account.id} (${account.name}) no tiene chart_of_accounts vinculado`)
+        }
+      } catch (error) {
+        console.error(`Error calculating balance for account ${account.id}:`, error)
+      }
+    }
+    
+    console.log(`[MonthlyPosition] Balances calculados después de cuentas financieras:`, balances)
+    console.log(`[MonthlyPosition] Balances por moneda después de cuentas financieras:`, balancesByCurrency)
+    
+    // Agregar pagos pendientes como pasivos corrientes
+    try {
+      // 1. Pagos recurrentes pendientes (que aún no se han generado)
+      const { data: recurringPayments } = await supabase
+        .from("recurring_payments")
+        .select("amount, currency, next_due_date, is_active, agency_id")
+        .eq("is_active", true)
+        .lte("next_due_date", dateTo)
+      
+      // 2. Operator payments pendientes (pueden venir de pagos recurrentes o operaciones)
+      let operatorPaymentsQuery = supabase
+        .from("operator_payments")
+        .select("amount, currency, operations:operation_id(agency_id)")
+        .eq("status", "PENDING")
+        .lte("due_date", dateTo)
+      
+      if (agencyId !== "ALL") {
+        // Filtrar por agencia a través de la operación
+        operatorPaymentsQuery = operatorPaymentsQuery.eq("operations.agency_id", agencyId)
+      }
+      
+      const { data: operatorPayments } = await operatorPaymentsQuery
+      
+      // 3. Payments pendientes de tipo EXPENSE (pagos a operadores)
+      let paymentsQuery = supabase
+        .from("payments")
+        .select("amount, currency, direction, operations:operation_id(agency_id)")
+        .eq("status", "PENDING")
+        .eq("direction", "EXPENSE")
+        .lte("date_due", dateTo)
+      
+      if (agencyId !== "ALL") {
+        paymentsQuery = paymentsQuery.eq("operations.agency_id", agencyId)
+      }
+      
+      const { data: pendingPayments } = await paymentsQuery
+      
+      let pendingARS = 0
+      let pendingUSD = 0
+      
+      // Sumar pagos recurrentes
+      if (recurringPayments && recurringPayments.length > 0) {
+        for (const rp of recurringPayments as any[]) {
+          if (agencyId !== "ALL" && rp.agency_id !== agencyId) {
+            continue
+          }
+          const amount = parseFloat(rp.amount || "0")
+          if (rp.currency === "ARS") {
+            pendingARS += amount
+          } else if (rp.currency === "USD") {
+            pendingUSD += amount
+          }
+        }
+      }
+      
+      // Sumar operator payments pendientes
+      if (operatorPayments && operatorPayments.length > 0) {
+        for (const op of operatorPayments as any[]) {
+          const amount = parseFloat(op.amount || "0")
+          if (op.currency === "ARS") {
+            pendingARS += amount
+          } else if (op.currency === "USD") {
+            pendingUSD += amount
+          }
+        }
+      }
+      
+      // Sumar payments pendientes de tipo EXPENSE
+      if (pendingPayments && pendingPayments.length > 0) {
+        for (const p of pendingPayments as any[]) {
+          const amount = parseFloat(p.amount || "0")
+          if (p.currency === "ARS") {
+            pendingARS += amount
+          } else if (p.currency === "USD") {
+            pendingUSD += amount
+          }
+        }
+      }
+      
+      // Agregar a PASIVO_CORRIENTE (pagos pendientes son pasivos corrientes)
+      if (pendingARS > 0 || pendingUSD > 0) {
+        if (!balancesByCurrency["PASIVO_CORRIENTE"]) {
+          balancesByCurrency["PASIVO_CORRIENTE"] = { ars: 0, usd: 0 }
+        }
+        balancesByCurrency["PASIVO_CORRIENTE"].ars += pendingARS
+        balancesByCurrency["PASIVO_CORRIENTE"].usd += pendingUSD
+        
+        // También agregar al balance total (aproximado)
+        balances["PASIVO_CORRIENTE"] = (balances["PASIVO_CORRIENTE"] || 0) + pendingARS + (pendingUSD * 1000)
+        
+        console.log(`[MonthlyPosition] Pagos pendientes (recurrentes + operator_payments + payments): ARS=${pendingARS}, USD=${pendingUSD}`)
+      }
+    } catch (error) {
+      console.error("Error obteniendo pagos pendientes:", error)
+    }
+    
+    console.log(`[MonthlyPosition] Balances calculados:`, balances)
+    console.log(`[MonthlyPosition] Balances por moneda:`, balancesByCurrency)
+
+    // Calcular resultados del mes (solo movimientos del mes)
+    const monthStart = `${year}-${String(month).padStart(2, "0")}-01`
+    const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+
+    // Buscar TODOS los movimientos de ledger vinculados a pagos que fueron pagados en este mes
+    // Esto incluye movimientos creados en cualquier momento pero pagados en diciembre
+    const { data: paymentsInMonth } = await supabase
+      .from("payments")
+      .select("ledger_movement_id, date_paid, status")
+      .not("ledger_movement_id", "is", null)
+      .eq("status", "PAID")
+      .gte("date_paid", monthStart)
+      .lte("date_paid", monthEnd)
+    
+    console.log(`[MonthlyPosition] Pagos pagados en el mes: ${(paymentsInMonth || []).length}`)
+    
+    // Obtener los IDs de los movimientos de ledger vinculados a estos pagos
+    const ledgerMovementIdsFromPayments = (paymentsInMonth || [])
+      .map((p: any) => p.ledger_movement_id)
+      .filter(Boolean)
+    
+    console.log(`[MonthlyPosition] IDs de movimientos de ledger vinculados a pagos: ${ledgerMovementIdsFromPayments.length}`)
+    
+    // También buscar movimientos creados directamente en el mes (sin pago asociado o con pago en el mes)
+    const { data: monthMovements } = await supabase
+      .from("ledger_movements")
+      .select(`
+        *,
+        financial_accounts:account_id(
+          id,
+          chart_account_id,
+          chart_of_accounts:chart_account_id(
+            category,
+            subcategory,
+            account_type
+          )
+        )
+      `)
+      .gte("created_at", `${monthStart}T00:00:00`)
+      .lte("created_at", `${monthEnd}T23:59:59`)
+    
+    console.log(`[MonthlyPosition] Movimientos creados en el mes: ${(monthMovements || []).length}`)
+    
+    // Obtener los movimientos de ledger vinculados a pagos del mes
+    let additionalMovements: any[] = []
+    if (ledgerMovementIdsFromPayments.length > 0) {
+      const { data: movementsFromPayments } = await supabase
+        .from("ledger_movements")
+        .select(`
+          *,
+          financial_accounts:account_id(
+            id,
+            chart_account_id,
+            chart_of_accounts:chart_account_id(
+              category,
+              subcategory,
+              account_type
+            )
+          )
+        `)
+        .in("id", ledgerMovementIdsFromPayments)
+      
+      if (movementsFromPayments) {
+        additionalMovements = movementsFromPayments
+        console.log(`[MonthlyPosition] Movimientos obtenidos desde pagos: ${additionalMovements.length}`)
+      }
+    }
+    
+    // Combinar ambos conjuntos de movimientos (evitar duplicados)
+    const allMovements: any[] = []
+    const existingIds = new Set<string>()
+    
+    // Agregar movimientos creados en el mes
+    if (monthMovements) {
+      const movementsArray = monthMovements as any[]
+      for (const m of movementsArray) {
+        if (!existingIds.has(m.id)) {
+          allMovements.push(m)
+          existingIds.add(m.id)
+        }
+      }
+    }
+    
+    // Agregar movimientos vinculados a pagos del mes (evitar duplicados)
+    for (const m of additionalMovements) {
+      if (!existingIds.has(m.id)) {
+        allMovements.push(m)
+        existingIds.add(m.id)
+      }
+    }
+    
+    const monthMovementsArray = allMovements
+    console.log(`[MonthlyPosition] Total de movimientos únicos a procesar: ${monthMovementsArray.length}`)
+
+    // Separar por moneda para mostrar correctamente
+    let ingresosARS = 0
+    let ingresosUSD = 0
+    let costosARS = 0
+    let costosUSD = 0
+    let gastosARS = 0
+    let gastosUSD = 0
+
+    console.log(`[MonthlyPosition] Procesando ${monthMovementsArray.length} movimientos del mes`)
+    
+    // Debug: mostrar todos los movimientos para entender qué está pasando
+    let movimientosSinChartAccount = 0
+    let movimientosConChartAccount = 0
+    
+    for (const movement of monthMovementsArray) {
+      const financialAccount = movement.financial_accounts as any
+      const chartAccount = financialAccount?.chart_of_accounts
+      
+      if (!chartAccount) {
+        movimientosSinChartAccount++
+        console.warn(`[MonthlyPosition] ⚠️ Movimiento ${movement.id} no tiene chart_account vinculado. financial_account_id=${movement.account_id}, financial_account_chart_id=${financialAccount?.chart_account_id || "null"}`)
+        continue
+      }
+      
+      movimientosConChartAccount++
+      console.log(`[MonthlyPosition] Movimiento ${movement.id}: type=${movement.type}, currency=${movement.currency}, amount_original=${movement.amount_original}, chart_category=${chartAccount?.category}, chart_subcategory=${chartAccount?.subcategory}`)
+      
+      if (chartAccount?.category === "RESULTADO") {
+        const amountOriginal = parseFloat(movement.amount_original || "0")
+        const currency = movement.currency || "ARS"
+        
+        if (chartAccount.subcategory === "INGRESOS" && movement.type === "INCOME") {
+          if (currency === "USD") {
+            ingresosUSD += amountOriginal
+          } else {
+            ingresosARS += amountOriginal
+          }
+          console.log(`[MonthlyPosition] ✅ INGRESO: ${amountOriginal} ${currency} (movement ${movement.id})`)
+        } else if (chartAccount.subcategory === "COSTOS" && (movement.type === "EXPENSE" || movement.type === "OPERATOR_PAYMENT")) {
+          if (currency === "USD") {
+            costosUSD += amountOriginal
+          } else {
+            costosARS += amountOriginal
+          }
+          console.log(`[MonthlyPosition] ✅ COSTO: ${amountOriginal} ${currency} (movement ${movement.id})`)
+        } else if (chartAccount.subcategory === "GASTOS" && movement.type === "EXPENSE") {
+          if (currency === "USD") {
+            gastosUSD += amountOriginal
+          } else {
+            gastosARS += amountOriginal
+          }
+          console.log(`[MonthlyPosition] ✅ GASTO: ${amountOriginal} ${currency} (movement ${movement.id})`)
+        } else {
+          console.warn(`[MonthlyPosition] ⚠️ Movimiento ${movement.id} es RESULTADO pero no coincide con INGRESOS/COSTOS/GASTOS: subcategory=${chartAccount.subcategory}, type=${movement.type}`)
+        }
+      } else if (chartAccount) {
+        console.log(`[MonthlyPosition] ⚠️ Movimiento ${movement.id} no es RESULTADO: category=${chartAccount.category}`)
+      }
+    }
+    
+    console.log(`[MonthlyPosition] Resumen: ${movimientosConChartAccount} movimientos con chart_account, ${movimientosSinChartAccount} sin chart_account`)
+    
+    // Para compatibilidad, sumar todo en ARS (usando amount_ars_equivalent)
+    // Pero también devolver desglose por moneda
+    let ingresos = 0
+    let costos = 0
+    let gastos = 0
+    
+    for (const movement of monthMovementsArray) {
+      const chartAccount = (movement.financial_accounts as any)?.chart_of_accounts
+      if (chartAccount?.category === "RESULTADO") {
+        const amountARS = parseFloat(movement.amount_ars_equivalent || "0")
+        if (chartAccount.subcategory === "INGRESOS" && movement.type === "INCOME") {
+          ingresos += amountARS
+        } else if (chartAccount.subcategory === "COSTOS" && (movement.type === "EXPENSE" || movement.type === "OPERATOR_PAYMENT")) {
+          costos += amountARS
+        } else if (chartAccount.subcategory === "GASTOS" && movement.type === "EXPENSE") {
+          gastos += amountARS
+        }
+      }
+    }
+    
+    console.log(`[MonthlyPosition] Resultados del mes (ARS): ingresos=${ingresos}, costos=${costos}, gastos=${gastos}`)
+    console.log(`[MonthlyPosition] Resultados del mes (desglose): ingresos ARS=${ingresosARS}, USD=${ingresosUSD}, costos ARS=${costosARS}, USD=${costosUSD}`)
+
+    // Estructurar respuesta
+    // Obtener balances de activos por moneda
+    const activoCorriente = balancesByCurrency["ACTIVO_CORRIENTE"] || { ars: 0, usd: 0 }
+    const activoNoCorriente = balancesByCurrency["ACTIVO_NO_CORRIENTE"] || { ars: 0, usd: 0 }
+    
+    const activo_corriente = balances["ACTIVO_CORRIENTE"] || 0
+    const activo_no_corriente = balances["ACTIVO_NO_CORRIENTE"] || 0
+    
+    // Obtener balances de pasivos por moneda
+    const pasivoCorriente = balancesByCurrency["PASIVO_CORRIENTE"] || { ars: 0, usd: 0 }
+    const pasivoNoCorriente = balancesByCurrency["PASIVO_NO_CORRIENTE"] || { ars: 0, usd: 0 }
+    
+    const pasivo_corriente = balances["PASIVO_CORRIENTE"] || 0
+    const pasivo_no_corriente = balances["PASIVO_NO_CORRIENTE"] || 0
+    const patrimonio_neto = balances["PATRIMONIO_NETO_NONE"] || 0
+
+    const resultado_mes = ingresos - costos - gastos
+    const resultado_mes_ars = ingresosARS - costosARS - gastosARS
+    const resultado_mes_usd = ingresosUSD - costosUSD - gastosUSD
+
+    return NextResponse.json({
+      year,
+      month,
+      dateTo,
+      activo: {
+        corriente: { ars: Math.round(activoCorriente.ars * 100) / 100, usd: Math.round(activoCorriente.usd * 100) / 100 },
+        no_corriente: { ars: Math.round(activoNoCorriente.ars * 100) / 100, usd: Math.round(activoNoCorriente.usd * 100) / 100 },
+        total: { ars: Math.round((activoCorriente.ars + activoNoCorriente.ars) * 100) / 100, usd: Math.round((activoCorriente.usd + activoNoCorriente.usd) * 100) / 100 },
+      },
+      pasivo: {
+        corriente: { ars: Math.round(pasivoCorriente.ars * 100) / 100, usd: Math.round(pasivoCorriente.usd * 100) / 100 },
+        no_corriente: { ars: Math.round(pasivoNoCorriente.ars * 100) / 100, usd: Math.round(pasivoNoCorriente.usd * 100) / 100 },
+        total: { ars: Math.round((pasivoCorriente.ars + pasivoNoCorriente.ars) * 100) / 100, usd: Math.round((pasivoCorriente.usd + pasivoNoCorriente.usd) * 100) / 100 },
+      },
+      patrimonio_neto: {
+        total: Math.round(patrimonio_neto * 100) / 100,
+      },
+      resultado: {
+        ingresos: Math.round(ingresos * 100) / 100,
+        costos: Math.round(costos * 100) / 100,
+        gastos: Math.round(gastos * 100) / 100,
+        total: Math.round(resultado_mes * 100) / 100,
+        // Desglose por moneda para mostrar correctamente
+        ingresosARS: Math.round(ingresosARS * 100) / 100,
+        ingresosUSD: Math.round(ingresosUSD * 100) / 100,
+        costosARS: Math.round(costosARS * 100) / 100,
+        costosUSD: Math.round(costosUSD * 100) / 100,
+        gastosARS: Math.round(gastosARS * 100) / 100,
+        gastosUSD: Math.round(gastosUSD * 100) / 100,
+        resultadoARS: Math.round(resultado_mes_ars * 100) / 100,
+        resultadoUSD: Math.round(resultado_mes_usd * 100) / 100,
+      },
+      accounts: chartAccounts || [],
+    })
+  } catch (error: any) {
+    console.error("Error in GET /api/accounting/monthly-position:", error)
+    return NextResponse.json({ error: error.message || "Error al obtener posición contable" }, { status: 500 })
+  }
+}
+
