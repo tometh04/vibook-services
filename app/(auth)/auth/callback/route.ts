@@ -56,109 +56,107 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/login?error=get_user_error`)
     }
 
-    if (authUser) {
-      // Verificar si el usuario ya existe en nuestra BD
-      const { data: existingUser } = await supabaseAdmin
-        .from("users")
-        .select("id, role, is_active")
-        .eq("auth_id", authUser.id)
-        .maybeSingle()
+    // Verificar si el usuario ya existe en nuestra BD
+    const { data: existingUser } = await supabaseAdmin
+      .from("users")
+      .select("id, role, is_active")
+      .eq("auth_id", authUser.id)
+      .maybeSingle()
 
-        // Si el usuario no existe (primera vez con OAuth), crear agencia automáticamente
-        if (!existingUser) {
-          // Obtener información del usuario desde metadata o email
-          const userName = authUser.user_metadata?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "Usuario"
-          const userEmail = authUser.email!
-          
-          // Crear agencia con nombre default (se puede cambiar en onboarding)
-          const { data: agencyData, error: agencyError } = await supabaseAdmin
-            .from("agencies")
-            .insert({
-              name: `${userName}'s Agency`,
-              city: "Buenos Aires",
-              timezone: "America/Argentina/Buenos_Aires",
-            })
-            .select()
-            .single()
+    // Si el usuario no existe (primera vez con OAuth), crear agencia automáticamente
+    if (!existingUser) {
+      // Obtener información del usuario desde metadata o email
+      const userName = authUser.user_metadata?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "Usuario"
+      const userEmail = authUser.email!
+      
+      // Crear agencia con nombre default (se puede cambiar en onboarding)
+      const { data: agencyData, error: agencyError } = await supabaseAdmin
+        .from("agencies")
+        .insert({
+          name: `${userName}'s Agency`,
+          city: "Buenos Aires",
+          timezone: "America/Argentina/Buenos_Aires",
+        })
+        .select()
+        .single()
 
-          if (!agencyError && agencyData) {
-            // Crear usuario como SUPER_ADMIN
-            const { data: userData, error: userError } = await supabaseAdmin
-              .from("users")
-              .insert({
-                auth_id: authUser.id,
-                name: userName,
-                email: userEmail,
-                role: "SUPER_ADMIN",
-                is_active: true,
-              })
-              .select()
-              .single()
+      if (!agencyError && agencyData) {
+        // Crear usuario como SUPER_ADMIN
+        const { data: userData, error: userError } = await supabaseAdmin
+          .from("users")
+          .insert({
+            auth_id: authUser.id,
+            name: userName,
+            email: userEmail,
+            role: "SUPER_ADMIN",
+            is_active: true,
+          })
+          .select()
+          .single()
 
-            if (!userError && userData) {
-              // Vincular usuario a agencia
-              const { error: linkError } = await supabaseAdmin.from("user_agencies").insert({
-                user_id: userData.id,
-                agency_id: agencyData.id,
-              })
+        if (!userError && userData) {
+          // Vincular usuario a agencia
+          const { error: linkError } = await supabaseAdmin.from("user_agencies").insert({
+            user_id: userData.id,
+            agency_id: agencyData.id,
+          })
 
-              if (linkError) {
-                console.error("❌ Error linking user to agency:", linkError)
-              }
-
-              // Crear tenant_branding, settings, etc. (similar a signup)
-              try {
-                const { error: brandingError } = await supabaseAdmin.from("tenant_branding").insert({
-                  agency_id: agencyData.id,
-                  brand_name: `${userName}'s Agency`,
-                })
-                if (brandingError) console.error("⚠️ Error creating branding:", brandingError)
-              } catch (err) {
-                console.error("⚠️ Error creating branding:", err)
-              }
-
-              try {
-                const { error: customerSettingsError } = await supabaseAdmin.from("customer_settings").insert({ agency_id: agencyData.id })
-                if (customerSettingsError) console.error("⚠️ Error creating customer settings:", customerSettingsError)
-              } catch (err) {
-                console.error("⚠️ Error creating customer settings:", err)
-              }
-              
-              try {
-                const { error: operationSettingsError } = await supabaseAdmin.from("operation_settings").insert({ agency_id: agencyData.id })
-                if (operationSettingsError) console.error("⚠️ Error creating operation settings:", operationSettingsError)
-              } catch (err) {
-                console.error("⚠️ Error creating operation settings:", err)
-              }
-              
-              try {
-                const { error: financialSettingsError } = await supabaseAdmin.from("financial_settings").insert({ agency_id: agencyData.id })
-                if (financialSettingsError) console.error("⚠️ Error creating financial settings:", financialSettingsError)
-              } catch (err) {
-                console.error("⚠️ Error creating financial settings:", err)
-              }
-
-              // Redirigir a onboarding para completar la configuración
-              return NextResponse.redirect(`${origin}/onboarding`)
-            } else {
-              console.error("❌ Error creating user:", userError)
-            }
-          } else {
-            console.error("❌ Error creating agency:", agencyError)
+          if (linkError) {
+            console.error("❌ Error linking user to agency:", linkError)
           }
-        } else if (existingUser && existingUser.is_active) {
-          // Usuario existe y está activo, redirigir al dashboard
-          return NextResponse.redirect(`${origin}/dashboard`)
-        } else if (existingUser && !existingUser.is_active) {
-          return NextResponse.redirect(`${origin}/login?error=account_inactive`)
+
+          // Crear tenant_branding, settings, etc. (similar a signup)
+          try {
+            const { error: brandingError } = await supabaseAdmin.from("tenant_branding").insert({
+              agency_id: agencyData.id,
+              brand_name: `${userName}'s Agency`,
+            })
+            if (brandingError) console.error("⚠️ Error creating branding:", brandingError)
+          } catch (err) {
+            console.error("⚠️ Error creating branding:", err)
+          }
+
+          try {
+            const { error: customerSettingsError } = await supabaseAdmin.from("customer_settings").insert({ agency_id: agencyData.id })
+            if (customerSettingsError) console.error("⚠️ Error creating customer settings:", customerSettingsError)
+          } catch (err) {
+            console.error("⚠️ Error creating customer settings:", err)
+          }
+          
+          try {
+            const { error: operationSettingsError } = await supabaseAdmin.from("operation_settings").insert({ agency_id: agencyData.id })
+            if (operationSettingsError) console.error("⚠️ Error creating operation settings:", operationSettingsError)
+          } catch (err) {
+            console.error("⚠️ Error creating operation settings:", err)
+          }
+          
+          try {
+            const { error: financialSettingsError } = await supabaseAdmin.from("financial_settings").insert({ agency_id: agencyData.id })
+            if (financialSettingsError) console.error("⚠️ Error creating financial settings:", financialSettingsError)
+          } catch (err) {
+            console.error("⚠️ Error creating financial settings:", err)
+          }
+
+          // Redirigir a onboarding para completar la configuración
+          return NextResponse.redirect(`${origin}/onboarding`)
+        } else {
+          console.error("❌ Error creating user:", userError)
         }
+      } else {
+        console.error("❌ Error creating agency:", agencyError)
       }
+    } else if (existingUser && existingUser.is_active) {
+      // Usuario existe y está activo, redirigir al dashboard
+      return NextResponse.redirect(`${origin}/dashboard`)
+    } else if (existingUser && !existingUser.is_active) {
+      return NextResponse.redirect(`${origin}/login?error=account_inactive`)
     }
+
+    // Si llegamos aquí sin redirigir, algo salió mal
+    return NextResponse.redirect(`${origin}/login?error=auth_failed`)
   } catch (error: any) {
     console.error("❌ Unexpected error in callback:", error)
+    const origin = new URL(request.url).origin
     return NextResponse.redirect(`${origin}/login?error=unexpected_error&message=${encodeURIComponent(error?.message || 'Error desconocido')}`)
   }
-
-  // Si hay error o el flujo no se completó, redirigir al login
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
