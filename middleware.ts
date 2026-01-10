@@ -75,36 +75,36 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Verificar sesión de usuario
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    
-    if (error || !user) {
-      // Redirigir a login si no hay sesión válida
-      if (!pathname.startsWith('/api/')) {
-        return NextResponse.redirect(new URL('/login', req.url))
+    // Verificar sesión de usuario
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      
+      if (error || !user) {
+        // Redirigir a login si no hay sesión válida
+        if (!pathname.startsWith('/api/')) {
+          return NextResponse.redirect(new URL('/login', req.url))
+        }
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-  } catch (error: any) {
-    // Silenciar errores de refresh token
-    if (error?.message?.includes('Refresh Token') || 
-        error?.message?.includes('JWT') ||
-        error?.status === 401) {
-      if (!pathname.startsWith('/api/')) {
-        return NextResponse.redirect(new URL('/login', req.url))
+    } catch (error: any) {
+      // Silenciar errores de refresh token
+      if (error?.message?.includes('Refresh Token') || 
+          error?.message?.includes('JWT') ||
+          error?.status === 401) {
+        if (!pathname.startsWith('/api/')) {
+          return NextResponse.redirect(new URL('/login', req.url))
+        }
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.warn('Middleware auth error:', error)
+      // Si hay un error inesperado, redirigir a login en lugar de fallar
+      if (!pathname.startsWith('/api/')) {
+        return NextResponse.redirect(new URL('/login?error=auth', req.url))
+      }
+      return NextResponse.json({ error: 'Authentication error' }, { status: 401 })
     }
-    console.warn('Middleware auth error:', error)
-    // Si hay un error inesperado, redirigir a login en lugar de fallar
-    if (!pathname.startsWith('/api/')) {
-      return NextResponse.redirect(new URL('/login?error=auth', req.url))
-    }
-    return NextResponse.json({ error: 'Authentication error' }, { status: 401 })
-  }
 
-  return response
+    return response
   } catch (error: any) {
     // Capturar cualquier error inesperado en el middleware
     console.error('❌ Middleware unexpected error:', error)
