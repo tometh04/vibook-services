@@ -108,36 +108,42 @@ export async function PUT(request: Request) {
       .eq('agency_id', agency_id)
       .maybeSingle()
 
-    let result
     if (existingBranding) {
       // Update
-      result = await supabase
+      const { data, error } = await supabase
         .from('tenant_branding')
         .update({
           ...brandingData,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('agency_id', agency_id)
         .select()
         .single()
+
+      if (error) {
+        console.error('Error saving branding:', error)
+        return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
+      }
+
+      return NextResponse.json({ branding: data })
     } else {
       // Insert
-      result = await supabase
+      const { data, error } = await supabase
         .from('tenant_branding')
         .insert({
           agency_id,
           ...brandingData,
-        })
+        } as any)
         .select()
         .single()
-    }
 
-    if (result.error) {
-      console.error('Error saving branding:', result.error)
-      return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
-    }
+      if (error) {
+        console.error('Error saving branding:', error)
+        return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
+      }
 
-    return NextResponse.json({ branding: result.data })
+      return NextResponse.json({ branding: data })
+    }
   } catch (error) {
     console.error('Error in PUT /api/settings/branding:', error)
     return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
