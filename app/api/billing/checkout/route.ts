@@ -101,15 +101,17 @@ export async function POST(request: Request) {
 
     // Guardar preference_id en la suscripción (si existe) o crear una nueva
     if (existingSubscription) {
+      // @ts-ignore - subscriptions table no está en tipos generados todavía
       await supabase
         .from("subscriptions")
         .update({
           mp_preference_id: preference.id,
           updated_at: new Date().toISOString()
-        })
-        .eq("id", existingSubscription.id)
+        } as any)
+        .eq("id", (existingSubscription as any).id)
     } else {
       // Crear suscripción pendiente
+      // @ts-ignore - subscriptions table no está en tipos generados todavía
       await supabase
         .from("subscriptions")
         .insert({
@@ -120,7 +122,7 @@ export async function POST(request: Request) {
           current_period_start: new Date().toISOString(),
           current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           billing_cycle: 'MONTHLY'
-        })
+        } as any)
     }
 
     return NextResponse.json({ 
