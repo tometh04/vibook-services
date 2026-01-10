@@ -23,17 +23,18 @@ const API_WITH_OWN_AUTH = [
 ]
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl
+  try {
+    const { pathname } = req.nextUrl
 
-  // Permitir rutas públicas
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    return NextResponse.next()
-  }
+    // Permitir rutas públicas - RETORNAR TEMPRANO
+    if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+      return NextResponse.next()
+    }
 
-  // Permitir APIs con autenticación propia
-  if (API_WITH_OWN_AUTH.some(route => pathname.startsWith(route))) {
-    return NextResponse.next()
-  }
+    // Permitir APIs con autenticación propia - RETORNAR TEMPRANO
+    if (API_WITH_OWN_AUTH.some(route => pathname.startsWith(route))) {
+      return NextResponse.next()
+    }
 
   // Validar variables de entorno - REQUERIDAS
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -96,9 +97,27 @@ export async function middleware(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     console.warn('Middleware auth error:', error)
+    // Si hay un error inesperado, redirigir a login en lugar de fallar
+    if (!pathname.startsWith('/api/')) {
+      return NextResponse.redirect(new URL('/login?error=auth', req.url))
+    }
+    return NextResponse.json({ error: 'Authentication error' }, { status: 401 })
   }
 
   return response
+  } catch (error: any) {
+    // Capturar cualquier error inesperado en el middleware
+    console.error('❌ Middleware unexpected error:', error)
+    // Para rutas de página, redirigir a login
+    if (!req.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.redirect(new URL('/login?error=server', req.url))
+    }
+    // Para APIs, retornar error 500
+    return NextResponse.json(
+      { error: 'Internal server error', message: error?.message },
+      { status: 500 }
+    )
+  }
 }
 
 export const config = {
