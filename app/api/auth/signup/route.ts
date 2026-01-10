@@ -41,18 +41,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verificar si el email ya existe en Supabase Auth primero
-    const { data: existingAuthUser } = await supabaseAdmin.auth.admin.listUsers()
-    const emailExists = existingAuthUser?.users?.some(u => u.email === email)
-    
-    if (emailExists) {
-      return NextResponse.json(
-        { error: "Este email ya está registrado. Por favor, inicia sesión o usa otro email." },
-        { status: 400 }
-      )
-    }
-
-    // También verificar en la tabla users por si acaso
+    // Verificar si el email ya existe en la tabla users
     const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id, email")
@@ -67,6 +56,7 @@ export async function POST(request: Request) {
     }
 
     // Crear usuario en Supabase Auth
+    // Intentamos crear el usuario directamente - si ya existe, Supabase nos lo dirá
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -78,11 +68,39 @@ export async function POST(request: Request) {
       },
     })
 
-    if (authError || !authData.user) {
+    if (authError) {
       console.error("❌ Error creating auth user:", authError)
+      
+      // Si el error es que el usuario ya existe
+      if (authError.message?.includes("already registered") || authError.message?.includes("already been registered")) {
+        return NextResponse.json(
+          { error: "Este email ya está registrado. Por favor, inicia sesión o usa otro email." },
+          { status: 400 }
+        )
+      }
+      
+      // Si el error es de JSON parsing (respuesta vacía/inválida)
+      if (authError.message?.includes("Unexpected end of JSON input") || authError.message?.includes("JSON")) {
+        console.error("❌ Supabase Auth returned invalid response. Check environment variables:")
+        console.error("   NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl ? "Set" : "Missing")
+        console.error("   SUPABASE_SERVICE_ROLE_KEY:", supabaseServiceKey ? "Set (length: " + supabaseServiceKey.length + ")" : "Missing")
+        return NextResponse.json(
+          { error: "Error de configuración del servidor. Por favor contacta al administrador." },
+          { status: 500 }
+        )
+      }
+      
       return NextResponse.json(
-        { error: authError?.message || "Error al crear el usuario" },
+        { error: authError.message || "Error al crear el usuario. Verifica que el email no esté registrado." },
         { status: 400 }
+      )
+    }
+    
+    if (!authData?.user) {
+      console.error("❌ Auth data is missing user:", authData)
+      return NextResponse.json(
+        { error: "Error al crear el usuario. No se recibió respuesta del servidor." },
+        { status: 500 }
       )
     }
 
