@@ -149,7 +149,7 @@ export async function checkFeatureAccess(
       }
     }
 
-    const plan = subscriptionData.plan
+    const plan = subscription.plan
     const features = plan.features || {}
 
     const hasAccess = features[feature] === true
