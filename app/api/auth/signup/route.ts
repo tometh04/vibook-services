@@ -3,23 +3,49 @@ import { createClient } from "@supabase/supabase-js"
 
 export const runtime = 'nodejs'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Validar variables de entorno al inicio
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("Missing Supabase environment variables")
+  console.error("❌ Missing Supabase environment variables")
+  console.error("   NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl ? "Set" : "Missing")
+  console.error("   SUPABASE_SERVICE_ROLE_KEY:", supabaseServiceKey ? "Set" : "Missing")
 }
 
-// Cliente admin para operaciones server-side
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+// Cliente admin para operaciones server-side (solo si tenemos las variables)
+let supabaseAdmin: ReturnType<typeof createClient> | null = null
+
+if (supabaseUrl && supabaseServiceKey) {
+  try {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      global: {
+        headers: {
+          'x-client-info': 'vibook-gestion@1.0.0',
+        },
+      },
+    })
+  } catch (error) {
+    console.error("❌ Error creating Supabase admin client:", error)
+    supabaseAdmin = null
+  }
+}
 
 export async function POST(request: Request) {
   try {
+    // Verificar configuración de Supabase primero
+    if (!supabaseAdmin) {
+      console.error("❌ Supabase admin client not initialized")
+      return NextResponse.json(
+        { error: "Error de configuración del servidor. Por favor contacta al administrador." },
+        { status: 500 }
+      )
+    }
+
     let body
     try {
       body = await request.json()
