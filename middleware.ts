@@ -4,8 +4,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Rutas públicas que no requieren autenticación
 const PUBLIC_ROUTES = [
   '/login',
+  '/signup',
   '/forgot-password',
   '/auth/accept-invite',
+  '/auth/verify-email',
+  '/auth/callback',
+  '/auth/reset-password',
 ]
 
 // Rutas de API que tienen su propia autenticación
@@ -13,6 +17,7 @@ const API_WITH_OWN_AUTH = [
   '/api/webhooks/manychat',
   '/api/trello/webhook',
   '/api/cron/',
+  '/api/auth/signup',
 ]
 
 export async function middleware(req: NextRequest) {

@@ -15,75 +15,67 @@ import { Separator } from "@/components/ui/separator"
 import { Loader2 } from "lucide-react"
 import Link from "next/link"
 
-const loginSchema = z.object({
+const signupSchema = z.object({
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   email: z.string().email("Email inválido"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  password: z.string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+    .regex(/[a-z]/, "Debe contener al menos una minúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número"),
+  agencyName: z.string().min(2, "El nombre de la agencia debe tener al menos 2 caracteres"),
+  city: z.string().min(2, "La ciudad debe tener al menos 2 caracteres"),
 })
 
-type LoginFormValues = z.infer<typeof loginSchema>
+type SignupFormValues = z.infer<typeof signupSchema>
 
-export function LoginForm() {
+export function SignupForm() {
   const router = useRouter()
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [socialLoading, setSocialLoading] = React.useState<string | null>(null)
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
+      agencyName: "",
+      city: "",
     },
   })
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (data: SignupFormValues) => {
     setError(null)
     setLoading(true)
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      // Llamar a nuestra API route para manejar el signup completo
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          agencyName: data.agencyName,
+          city: data.city,
+        }),
       })
 
-      if (authError) throw authError
+      const result = await response.json()
 
-      if (authData.user) {
-        // Get user role from database
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("role, is_active")
-          .eq("auth_id", authData.user.id)
-          .maybeSingle()
-
-        if (userError) {
-          // Check if the error is because the table doesn't exist
-          if (userError.code === 'PGRST205' || userError.message?.includes("Could not find the table")) {
-            throw new Error(
-              "La tabla 'users' no existe en la base de datos. " +
-              "Por favor ejecuta el SQL de migración en Supabase Dashboard: " +
-              "https://supabase.com/dashboard/project/pmqvplyyxiobkllapgjp/sql/new"
-            )
-          }
-          
-          throw new Error(`Error al buscar usuario: ${userError.message}`)
-        }
-
-        if (!userData) {
-          throw new Error("Usuario no encontrado en la base de datos. Contacta al administrador.")
-        }
-
-        const user = userData as { role: string; is_active: boolean }
-        if (!user.is_active) {
-          throw new Error("Tu cuenta está desactivada. Contacta al administrador.")
-        }
-
-        // Refresh to ensure cookies are set
-        router.refresh()
-        router.push("/dashboard")
+      if (!response.ok) {
+        throw new Error(result.error || "Error al crear la cuenta")
       }
+
+      // Si el signup fue exitoso, el usuario necesita verificar su email
+      router.push("/auth/verify-email?email=" + encodeURIComponent(data.email))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión")
+      setError(err instanceof Error ? err.message : "Error al crear la cuenta")
     } finally {
       setLoading(false)
     }
@@ -118,9 +110,9 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
+        <CardTitle className="text-2xl font-bold">Crear cuenta</CardTitle>
         <CardDescription>
-          Ingresa tus credenciales para acceder al sistema
+          Comenzá tu prueba gratuita y gestioná tu agencia de viajes
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -191,10 +183,26 @@ export function LoginForm() {
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {error && (
-            <Alert className="text-red-600">
+            <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="name">Nombre completo</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Juan Pérez"
+              {...form.register("name")}
+              disabled={loading || !!socialLoading}
+              autoComplete="name"
+            />
+            {form.formState.errors.name && (
+              <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -209,40 +217,82 @@ export function LoginForm() {
               <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
             )}
           </div>
+
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Contraseña</Label>
-              <Link
-                href="/forgot-password"
-                className="text-xs text-primary hover:underline"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
+            <Label htmlFor="password">Contraseña</Label>
             <Input
               id="password"
               type="password"
               {...form.register("password")}
               disabled={loading || !!socialLoading}
-              autoComplete="current-password"
+              autoComplete="new-password"
             />
             {form.formState.errors.password && (
               <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
             )}
+            <p className="text-xs text-muted-foreground">
+              Mínimo 8 caracteres con mayúscula, minúscula y número
+            </p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="agencyName">Nombre de tu agencia</Label>
+            <Input
+              id="agencyName"
+              type="text"
+              placeholder="Mi Agencia de Viajes"
+              {...form.register("agencyName")}
+              disabled={loading || !!socialLoading}
+            />
+            {form.formState.errors.agencyName && (
+              <p className="text-sm text-destructive">{form.formState.errors.agencyName.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="city">Ciudad</Label>
+            <Input
+              id="city"
+              type="text"
+              placeholder="Buenos Aires"
+              {...form.register("city")}
+              disabled={loading || !!socialLoading}
+            />
+            {form.formState.errors.city && (
+              <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>
+            )}
+          </div>
+
           <Button type="submit" className="w-full" disabled={loading || !!socialLoading}>
-            {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creando cuenta...
+              </>
+            ) : (
+              "Crear cuenta"
+            )}
           </Button>
         </form>
 
         <div className="text-center text-sm text-muted-foreground">
-          ¿No tenés una cuenta?{" "}
-          <Link href="/signup" className="text-primary hover:underline font-medium">
-            Crear cuenta
+          ¿Ya tenés una cuenta?{" "}
+          <Link href="/login" className="text-primary hover:underline font-medium">
+            Iniciar sesión
           </Link>
         </div>
+
+        <p className="text-xs text-center text-muted-foreground">
+          Al crear una cuenta, aceptás nuestros{" "}
+          <Link href="/terms" className="text-primary hover:underline">
+            Términos de servicio
+          </Link>{" "}
+          y{" "}
+          <Link href="/privacy" className="text-primary hover:underline">
+            Política de privacidad
+          </Link>
+        </p>
       </CardContent>
     </Card>
   )
 }
-
