@@ -24,22 +24,60 @@ import { es } from "date-fns/locale"
 
 export default function BillingPage() {
   const { subscription, usage, loading } = useSubscription()
-  const [openingPortal, setOpeningPortal] = useState(false)
+  const [canceling, setCanceling] = useState(false)
+  const [pausing, setPausing] = useState(false)
 
-  const handleOpenPortal = async () => {
-    setOpeningPortal(true)
+  const handleCancel = async () => {
+    if (!confirm('¿Estás seguro que querés cancelar tu suscripción? Perderás acceso a las features premium cuando termine el período actual.')) {
+      return
+    }
+
+    setCanceling(true)
     try {
       const response = await fetch('/api/billing/portal', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel' })
       })
       const data = await response.json()
-      if (data.url) {
-        window.location.href = data.url
+      if (data.success) {
+        alert('Suscripción cancelada exitosamente')
+        window.location.reload()
+      } else {
+        alert('Error al cancelar la suscripción: ' + (data.error || 'Error desconocido'))
       }
     } catch (error) {
-      console.error('Error opening portal:', error)
+      console.error('Error canceling subscription:', error)
+      alert('Error al cancelar la suscripción. Por favor intenta nuevamente.')
     } finally {
-      setOpeningPortal(false)
+      setCanceling(false)
+    }
+  }
+
+  const handlePause = async () => {
+    if (!confirm('¿Estás seguro que querés pausar tu suscripción? No se realizarán más cobros hasta que la reactives.')) {
+      return
+    }
+
+    setPausing(true)
+    try {
+      const response = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pause' })
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert('Suscripción pausada exitosamente')
+        window.location.reload()
+      } else {
+        alert('Error al pausar la suscripción: ' + (data.error || 'Error desconocido'))
+      }
+    } catch (error) {
+      console.error('Error pausing subscription:', error)
+      alert('Error al pausar la suscripción. Por favor intenta nuevamente.')
+    } finally {
+      setPausing(false)
     }
   }
 
@@ -47,8 +85,9 @@ export default function BillingPage() {
     if (price === null || price === 0) return 'Gratis'
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'ARS',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(price)
   }
 
@@ -138,12 +177,10 @@ export default function BillingPage() {
             <div>
               <p className="text-sm text-muted-foreground">Precio</p>
               <p className="text-2xl font-bold">
-                {formatPrice(subscription.billing_cycle === 'YEARLY' && plan.price_yearly !== null 
-                  ? plan.price_yearly 
-                  : plan.price_monthly)}
+                {formatPrice(plan.price_monthly)}
               </p>
               <p className="text-xs text-muted-foreground">
-                /{subscription.billing_cycle === 'YEARLY' ? 'año' : 'mes'}
+                /mes
               </p>
             </div>
             <div>
@@ -174,31 +211,50 @@ export default function BillingPage() {
             )}
             <div>
               <p className="text-sm text-muted-foreground">Ciclo de Facturación</p>
-              <p className="text-lg font-semibold capitalize">
-                {subscription.billing_cycle === 'YEARLY' ? 'Anual' : 'Mensual'}
+              <p className="text-lg font-semibold">
+                Mensual
               </p>
             </div>
           </div>
 
-          <div className="flex gap-2 pt-4 border-t">
-            <Button onClick={handleOpenPortal} disabled={openingPortal}>
-              {openingPortal ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Abriendo...
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Gestionar Suscripción
-                </>
-              )}
-            </Button>
+          <div className="flex gap-2 pt-4 border-t flex-wrap">
             <Button variant="outline" asChild>
               <a href="/pricing">
                 Cambiar Plan
               </a>
             </Button>
+            {subscription.status === 'ACTIVE' && (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={handlePause}
+                  disabled={pausing || canceling}
+                >
+                  {pausing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Pausando...
+                    </>
+                  ) : (
+                    'Pausar Suscripción'
+                  )}
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleCancel}
+                  disabled={pausing || canceling}
+                >
+                  {canceling ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Cancelando...
+                    </>
+                  ) : (
+                    'Cancelar Suscripción'
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -248,41 +304,30 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* Métodos de Pago */}
+      {/* Información de Mercado Pago */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            Métodos de Pago
+            Información de Pago
           </CardTitle>
           <CardDescription>
-            Gestiona tus métodos de pago desde el portal de Stripe
+            Tus pagos se procesan a través de Mercado Pago
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={handleOpenPortal} disabled={openingPortal}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            Gestionar Métodos de Pago
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Facturas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Facturas
-          </CardTitle>
-          <CardDescription>
-            Accede a tu historial de facturas desde el portal de Stripe
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={handleOpenPortal} disabled={openingPortal}>
-            <FileText className="mr-2 h-4 w-4" />
-            Ver Facturas
-          </Button>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Para gestionar tus métodos de pago, facturas y detalles de tu cuenta de Mercado Pago, ingresá a tu cuenta en{' '}
+            <a href="https://www.mercadopago.com.ar" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+              mercadopago.com.ar
+            </a>
+          </p>
+          {subscription.mp_preapproval_id && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">ID de Preaprobación:</p>
+              <p className="text-sm font-mono">{subscription.mp_preapproval_id}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -295,7 +340,7 @@ export default function BillingPage() {
             <strong>{trialEndsAt.toLocaleDateString('es-AR')}</strong>.
             {trialEndsAt < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) && (
               <span className="block mt-2">
-                Tu tarjeta será cobrada automáticamente cuando termine la prueba.
+                Tu cuenta de Mercado Pago será cobrada automáticamente cuando termine la prueba.
               </span>
             )}
           </AlertDescription>
