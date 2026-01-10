@@ -1,5 +1,6 @@
 import { GalleryVerticalEnd } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import { SignupForm } from "@/components/auth/signup-form"
 
 export default function SignupPage() {
@@ -25,12 +26,12 @@ export default function SignupPage() {
       <div className="flex flex-1 items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-md">
           <div className="flex justify-center gap-2 mb-8">
-            <a href="/" className="flex items-center gap-2 font-medium text-xl">
+            <Link href="/" className="flex items-center gap-2 font-medium text-xl">
               <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
                 <GalleryVerticalEnd className="size-5" />
               </div>
               Vibook Gestión
-            </a>
+            </Link>
           </div>
           <SignupForm />
         </div>
