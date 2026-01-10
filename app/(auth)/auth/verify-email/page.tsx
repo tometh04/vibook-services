@@ -13,19 +13,64 @@ function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const email = searchParams.get("email")
-  const [loading, setLoading] = useState(false)
+  const token = searchParams.get("token")
+  const type = searchParams.get("type")
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [verified, setVerified] = useState(false)
 
   useEffect(() => {
-    // Verificar si el usuario ya está verificado
-    const checkVerification = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.email_confirmed_at) {
-        router.push("/dashboard")
+    // Verificar si viene con token de verificación (desde el link del email)
+    const handleVerification = async () => {
+      try {
+        // Si hay un hash en la URL, Supabase ya procesó el token
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get("access_token")
+        const refreshToken = hashParams.get("refresh_token")
+        const typeFromHash = hashParams.get("type")
+
+        if (accessToken && refreshToken && typeFromHash === "signup") {
+          // Establecer la sesión con los tokens
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+
+          if (sessionError) {
+            console.error("Error setting session:", sessionError)
+            setError("Error al verificar el email. El enlace puede haber expirado.")
+            setLoading(false)
+            return
+          }
+
+          if (data.user?.email_confirmed_at) {
+            // Email verificado exitosamente - redirigir a onboarding
+            setVerified(true)
+            setTimeout(() => {
+              router.push("/onboarding")
+            }, 2000)
+          }
+        } else {
+          // Verificar si el usuario ya está verificado (página normal de verify-email)
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user?.email_confirmed_at) {
+            setVerified(true)
+            setTimeout(() => {
+              router.push("/onboarding")
+            }, 2000)
+          } else {
+            setLoading(false)
+          }
+        }
+      } catch (err: any) {
+        console.error("Error in verification:", err)
+        setError(err.message || "Error al verificar el email")
+        setLoading(false)
       }
     }
-    checkVerification()
+
+    handleVerification()
   }, [router])
 
   const handleResendEmail = async () => {
@@ -42,7 +87,7 @@ function VerifyEmailContent() {
         type: "signup",
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/verify-email`,
+          emailRedirectTo: `${window.location.origin}/auth/verify-email?email=${encodeURIComponent(email)}`,
         },
       })
 
@@ -55,6 +100,49 @@ function VerifyEmailContent() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Si el email ya fue verificado, mostrar mensaje de éxito
+  if (verified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+            </div>
+            <CardTitle className="text-2xl">¡Email verificado!</CardTitle>
+            <CardDescription>
+              Tu cuenta ha sido verificada exitosamente
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800 dark:text-green-200">
+                Redirigiendo al onboarding...
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            </div>
+            <CardTitle className="text-2xl">Verificando email...</CardTitle>
+            <CardDescription>Por favor espera</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
   }
 
   return (

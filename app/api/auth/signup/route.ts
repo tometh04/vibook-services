@@ -261,14 +261,9 @@ export async function POST(request: Request) {
 
     // Generar y enviar link de verificación (usamos password aquí porque aún lo tenemos)
     try {
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: "signup",
-        email,
-        password, // Tenemos el password aquí, lo usamos para generar el link
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/verify-email`,
-        },
-      })
+      // No necesitamos generar link manualmente - Supabase envía el email automáticamente
+      // cuando creamos el usuario con email_confirm: false
+      // El email de verificación usará la redirect URL configurada en Supabase Dashboard
 
       if (linkError) {
         console.error("⚠️  Error generating verification link:", linkError)

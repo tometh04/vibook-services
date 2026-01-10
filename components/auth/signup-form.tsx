@@ -97,9 +97,9 @@ export function SignupForm() {
       const origin = window.location.origin
       // IMPORTANTE: El redirectTo debe ser la URL de nuestra app, NO la de Supabase
       // Supabase manejará la redirección internamente
+      // IMPORTANTE: El redirectTo debe ser la URL de nuestra app donde queremos que vuelva
+      // Supabase manejará internamente la redirección a Google y luego de vuelta a nuestra app
       const redirectTo = `${origin}/auth/callback`
-
-      console.log("🔐 Iniciando OAuth con redirectTo:", redirectTo)
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
