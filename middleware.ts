@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
 // Rutas públicas que no requieren autenticación
 const PUBLIC_ROUTES = [
@@ -59,6 +58,9 @@ export async function middleware(req: NextRequest) {
   })
 
   try {
+    // Importar createServerClient dinámicamente solo cuando sea necesario
+    const { createServerClient } = await import('@supabase/ssr')
+    
     // Crear cliente de Supabase solo para rutas protegidas
     const supabase = createServerClient(
       supabaseUrl,
