@@ -19,6 +19,7 @@ const API_WITH_OWN_AUTH = [
   '/api/trello/webhook',
   '/api/cron/',
   '/api/auth/signup',
+  '/api/health',
 ]
 
 export async function middleware(req: NextRequest) {
