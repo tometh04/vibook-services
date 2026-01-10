@@ -18,6 +18,7 @@ Agregar todas estas URLs, una por línea:
 ```
 https://vibookservicessaas.vercel.app/auth/callback
 https://vibookservicessaas.vercel.app/auth/verify-email
+https://vibookservicessaas.vercel.app/auth/verified
 https://vibookservicessaas.vercel.app/auth/reset-password
 https://vibookservicessaas.vercel.app/dashboard
 https://vibookservicessaas.vercel.app/onboarding
@@ -25,12 +26,15 @@ https://vibookservicessaas.vercel.app/login
 https://vibookservicessaas.vercel.app/signup
 http://localhost:3000/auth/callback
 http://localhost:3000/auth/verify-email
+http://localhost:3000/auth/verified
 http://localhost:3000/auth/reset-password
 http://localhost:3000/dashboard
 http://localhost:3000/onboarding
 http://localhost:3000/login
 http://localhost:3000/signup
 ```
+
+⚠️ **IMPORTANTE**: Agrega especialmente `https://vibookservicessaas.vercel.app/auth/verified` porque es donde Supabase redirige después de verificar el email.
 
 ---
 

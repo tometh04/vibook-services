@@ -48,8 +48,23 @@ export default function OnboardingPage() {
   })
 
   const handleNext = async () => {
-    const isValid = await form.trigger()
-    if (!isValid) return
+    // Validar solo los campos del step actual
+    let fieldsToValidate: (keyof OnboardingFormValues)[] = []
+    
+    if (step === 1) {
+      fieldsToValidate = ["agencyName", "city", "timezone"]
+    } else if (step === 2) {
+      fieldsToValidate = ["brandName"]
+    } else {
+      // Step 3 - validar todo antes de submit
+      fieldsToValidate = ["agencyName", "city", "timezone", "brandName"]
+    }
+    
+    const isValid = await form.trigger(fieldsToValidate)
+    if (!isValid) {
+      console.log("Validation errors:", form.formState.errors)
+      return
+    }
 
     if (step < totalSteps) {
       setStep(step + 1)
