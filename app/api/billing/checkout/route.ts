@@ -102,9 +102,8 @@ export async function POST(request: Request) {
     // Guardar preference_id en la suscripción (si existe) o crear una nueva
     if (existingSubscription) {
       // @ts-expect-error - subscriptions table no está en tipos generados todavía
-      await supabase
-        .from("subscriptions")
-        // @ts-expect-error
+      await (supabase
+        .from("subscriptions") as any)
         .update({
           mp_preference_id: preference.id,
           updated_at: new Date().toISOString()
@@ -113,9 +112,8 @@ export async function POST(request: Request) {
     } else {
       // Crear suscripción pendiente
       // @ts-expect-error - subscriptions table no está en tipos generados todavía
-      await supabase
-        .from("subscriptions")
-        // @ts-expect-error
+      await (supabase
+        .from("subscriptions") as any)
         .insert({
           agency_id: agencyId,
           plan_id: planId,
