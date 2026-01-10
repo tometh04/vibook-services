@@ -20,18 +20,21 @@ export async function POST(request: Request) {
     }
 
     // Obtener el plan
-    const { data: plan, error: planError } = await supabase
+    // @ts-ignore - subscription_plans no está en los tipos generados todavía
+    const { data: planData, error: planError } = await supabase
       .from("subscription_plans")
       .select("*")
       .eq("id", planId)
       .single()
 
-    if (planError || !plan) {
+    if (planError || !planData) {
       return NextResponse.json(
         { error: "Plan no encontrado" },
         { status: 404 }
       )
     }
+
+    const plan = planData as any // Cast porque los tipos no están generados todavía
 
     // Plan FREE no requiere pago
     if (plan.name === 'FREE') {

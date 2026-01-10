@@ -89,7 +89,9 @@ async function handlePreApprovalNotification(preapprovalId: string) {
 
   try {
     // Obtener información del preapproval de Mercado Pago
-    const preapproval = await getPreApproval(preapprovalId)
+    const preapprovalResponse = await getPreApproval(preapprovalId)
+    // @ts-ignore - El tipo de respuesta de Mercado Pago puede variar
+    const preapproval = preapprovalResponse as any
 
     // Buscar la suscripción por preapproval_id
     const { data: subscription, error } = await supabaseAdmin
@@ -104,22 +106,23 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     }
 
     // Mapear estados de Mercado Pago a nuestros estados
+    const mpStatus = preapproval.status as string
     let status: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'ACTIVE'
     
-    if (preapproval.status === 'cancelled') {
+    if (mpStatus === 'cancelled') {
       status = 'CANCELED'
-    } else if (preapproval.status === 'paused') {
+    } else if (mpStatus === 'paused') {
       status = 'SUSPENDED'
-    } else if (preapproval.status === 'authorized') {
+    } else if (mpStatus === 'authorized') {
       status = 'ACTIVE'
-    } else if (preapproval.status === 'pending') {
+    } else if (mpStatus === 'pending') {
       status = 'TRIAL'
     }
 
     const updateData: any = {
-      mp_status: preapproval.status,
+      mp_status: mpStatus,
       status: status,
-      mp_payer_id: preapproval.payer_id?.toString(),
+      mp_payer_id: preapproval.payer_id?.toString() || preapproval.payer_id,
       updated_at: new Date().toISOString()
     }
 
@@ -149,7 +152,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           subscription_id: subscription.id,
           event_type: status === 'ACTIVE' ? 'SUBSCRIPTION_UPDATED' : 'SUBSCRIPTION_CANCELED',
           mp_notification_id: preapprovalId,
-          metadata: { status: preapproval.status, mp_data: preapproval }
+          metadata: { status: mpStatus, mp_data: preapproval }
         })
     } else {
       // Si no existe, buscar por external_reference en el pago inicial
@@ -161,7 +164,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
         .insert({
           event_type: "SUBSCRIPTION_CREATED",
           mp_notification_id: preapprovalId,
-          metadata: { status: preapproval.status, mp_data: preapproval }
+          metadata: { status: mpStatus, mp_data: preapproval }
         })
     }
   } catch (error: any) {

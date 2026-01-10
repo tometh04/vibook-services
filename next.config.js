@@ -19,10 +19,8 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: process.env.NODE_ENV === 'production',
-  // Forzar Node.js Runtime para evitar problemas con Edge Runtime
-  experimental: {
-    serverComponentsExternalPackages: [],
-  },
+  // Paquetes externos para server components (actualizado para Next.js 15)
+  serverExternalPackages: [],
   // Asegurar que no se use Edge Runtime
   webpack: (config, { isServer }) => {
     if (isServer) {
