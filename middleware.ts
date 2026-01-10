@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   '/auth/callback',
   '/auth/reset-password',
   '/onboarding',
+  '/health',
 ]
 
 // Rutas de API que tienen su propia autenticación
