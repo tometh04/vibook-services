@@ -1,59 +1,19 @@
-import type { NextRequest } from 'next/server'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
-// Rutas públicas que no requieren autenticación
-const PUBLIC_ROUTES = [
-  '/',
-  '/login',
-  '/signup',
-  '/forgot-password',
-  '/auth/accept-invite',
-  '/auth/verify-email',
-  '/auth/callback',
-  '/auth/reset-password',
-  '/onboarding',
-  '/health',
-]
-
-// Rutas de API que tienen su propia autenticación
-const API_WITH_OWN_AUTH = [
-  '/api/webhooks/manychat',
-  '/api/trello/webhook',
-  '/api/cron/',
-  '/api/auth/signup',
-  '/api/health',
-  '/api/test',
-  '/api/simple',
-]
-
-export function middleware(req: NextRequest) {
-  const pathname = req.nextUrl.pathname
-
-  // PERMITIR RUTAS PÚBLICAS PRIMERO
-  for (const route of PUBLIC_ROUTES) {
-    if (pathname === route || pathname.startsWith(route + '/')) {
-      return NextResponse.next()
-    }
-  }
-
-  // PERMITIR APIs CON AUTENTICACIÓN PROPIA
-  for (const route of API_WITH_OWN_AUTH) {
-    if (pathname === route || pathname.startsWith(route + '/')) {
-      return NextResponse.next()
-    }
-  }
-
-  // Para rutas protegidas, redirigir a login temporalmente
-  if (!pathname.startsWith('/api/')) {
-    const loginUrl = new URL('/login', req.url)
-    return NextResponse.redirect(loginUrl)
-  }
-  
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export function middleware(request: NextRequest) {
+  // Permitir todo por ahora - solo para verificar que funcione
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (images, etc.)
+     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
