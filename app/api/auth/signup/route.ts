@@ -41,7 +41,18 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verificar si el email ya existe
+    // Verificar si el email ya existe en Supabase Auth primero
+    const { data: existingAuthUser } = await supabaseAdmin.auth.admin.listUsers()
+    const emailExists = existingAuthUser?.users?.some(u => u.email === email)
+    
+    if (emailExists) {
+      return NextResponse.json(
+        { error: "Este email ya está registrado. Por favor, inicia sesión o usa otro email." },
+        { status: 400 }
+      )
+    }
+
+    // También verificar en la tabla users por si acaso
     const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id, email")
@@ -50,7 +61,7 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Este email ya está registrado" },
+        { error: "Este email ya está registrado. Por favor, inicia sesión o usa otro email." },
         { status: 400 }
       )
     }

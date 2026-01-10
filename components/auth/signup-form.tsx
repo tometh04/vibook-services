@@ -95,9 +95,13 @@ export function SignupForm() {
 
     try {
       const origin = window.location.origin
+      // IMPORTANTE: El redirectTo debe ser la URL de nuestra app, NO la de Supabase
+      // Supabase manejará la redirección internamente
       const redirectTo = `${origin}/auth/callback`
 
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      console.log("🔐 Iniciando OAuth con redirectTo:", redirectTo)
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
@@ -108,9 +112,18 @@ export function SignupForm() {
         },
       })
 
-      if (oauthError) throw oauthError
+      if (oauthError) {
+        console.error("❌ OAuth error:", oauthError)
+        throw oauthError
+      }
+
+      // Si data.url existe, significa que Supabase quiere redirigir manualmente
+      if (data?.url) {
+        window.location.href = data.url
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión con Google")
+      console.error("❌ Error en handleSocialLogin:", err)
+      setError(err instanceof Error ? err.message : "Error al iniciar sesión con Google. Verifica que Google OAuth esté configurado en Supabase.")
       setSocialLoading(null)
     }
   }

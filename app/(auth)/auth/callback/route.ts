@@ -15,21 +15,48 @@ const supabaseAdmin = supabaseServiceKey
     })
   : null
 
+export const runtime = 'nodejs'
+
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
-  const origin = requestUrl.origin
+  try {
+    const requestUrl = new URL(request.url)
+    const code = requestUrl.searchParams.get("code")
+    const error = requestUrl.searchParams.get("error")
+    const errorDescription = requestUrl.searchParams.get("error_description")
+    const origin = requestUrl.origin
 
-  if (!supabaseAdmin) {
-    console.error("❌ Missing Supabase Service Role Key")
-    return NextResponse.redirect(`${origin}/login?error=config_error`)
-  }
+    // Manejar errores de OAuth
+    if (error) {
+      console.error("❌ OAuth error:", error, errorDescription)
+      return NextResponse.redirect(`${origin}/login?error=oauth_error&message=${encodeURIComponent(errorDescription || error)}`)
+    }
 
-  if (code) {
+    if (!supabaseAdmin) {
+      console.error("❌ Missing Supabase Service Role Key")
+      return NextResponse.redirect(`${origin}/login?error=config_error`)
+    }
+
+    if (!code) {
+      console.error("❌ No code parameter in callback")
+      return NextResponse.redirect(`${origin}/login?error=no_code`)
+    }
+
     const supabase = await createServerClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
+    if (exchangeError) {
+      console.error("❌ Error exchanging code for session:", exchangeError)
+      return NextResponse.redirect(`${origin}/login?error=exchange_error&message=${encodeURIComponent(exchangeError.message)}`)
+    }
+    
+    const { data: { user: authUser }, error: getUserError } = await supabase.auth.getUser()
+    
+    if (getUserError || !authUser) {
+      console.error("❌ Error getting user after exchange:", getUserError)
+      return NextResponse.redirect(`${origin}/login?error=get_user_error`)
+    }
+
+    if (authUser) {
       // Verificar si el usuario ya existe en nuestra BD
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -73,31 +100,49 @@ export async function GET(request: Request) {
 
             if (!userError && userData) {
               // Vincular usuario a agencia
-              await supabaseAdmin.from("user_agencies").insert({
+              const { error: linkError } = await supabaseAdmin.from("user_agencies").insert({
                 user_id: userData.id,
                 agency_id: agencyData.id,
               })
+
+              if (linkError) {
+                console.error("❌ Error linking user to agency:", linkError)
+              }
 
               // Crear tenant_branding, settings, etc. (similar a signup)
               await supabaseAdmin.from("tenant_branding").insert({
                 agency_id: agencyData.id,
                 brand_name: `${userName}'s Agency`,
-              })
+              }).catch(err => console.error("⚠️ Error creating branding:", err))
 
               await supabaseAdmin.from("customer_settings").insert({ agency_id: agencyData.id })
+                .catch(err => console.error("⚠️ Error creating customer settings:", err))
+              
               await supabaseAdmin.from("operation_settings").insert({ agency_id: agencyData.id })
+                .catch(err => console.error("⚠️ Error creating operation settings:", err))
+              
               await supabaseAdmin.from("financial_settings").insert({ agency_id: agencyData.id })
+                .catch(err => console.error("⚠️ Error creating financial settings:", err))
 
               // Redirigir a onboarding para completar la configuración
               return NextResponse.redirect(`${origin}/onboarding`)
+            } else {
+              console.error("❌ Error creating user:", userError)
             }
+          } else {
+            console.error("❌ Error creating agency:", agencyError)
           }
         } else if (existingUser && existingUser.is_active) {
           // Usuario existe y está activo, redirigir al dashboard
           return NextResponse.redirect(`${origin}/dashboard`)
+        } else if (existingUser && !existingUser.is_active) {
+          return NextResponse.redirect(`${origin}/login?error=account_inactive`)
         }
       }
     }
+  } catch (error: any) {
+    console.error("❌ Unexpected error in callback:", error)
+    return NextResponse.redirect(`${origin}/login?error=unexpected_error&message=${encodeURIComponent(error?.message || 'Error desconocido')}`)
   }
 
   // Si hay error o el flujo no se completó, redirigir al login
