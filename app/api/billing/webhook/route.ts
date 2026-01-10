@@ -75,8 +75,9 @@ async function handlePaymentNotification(paymentId: string) {
 
   // Aquí deberías obtener el pago de Mercado Pago para ver el external_reference
   // Por simplicidad, lo registramos como evento
-  await supabaseAdmin
-    .from("billing_events")
+  // billing_events table no está en tipos generados todavía
+  await (supabaseAdmin
+    .from("billing_events") as any)
     .insert({
       event_type: "PAYMENT_SUCCEEDED",
       mp_payment_id: paymentId,
@@ -94,8 +95,9 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     const preapproval = preapprovalResponse as any
 
     // Buscar la suscripción por preapproval_id
-    const { data: subscription, error } = await supabaseAdmin
-      .from("subscriptions")
+    // subscriptions table no está en tipos generados todavía
+    const { data: subscription, error } = await (supabaseAdmin
+      .from("subscriptions") as any)
       .select("id, agency_id")
       .eq("mp_preapproval_id", preapprovalId)
       .maybeSingle()
@@ -138,18 +140,22 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     }
 
     if (subscription) {
+      const subData = subscription as any
+      
       // Actualizar suscripción existente
-      await supabaseAdmin
-        .from("subscriptions")
+      // subscriptions table no está en tipos generados todavía
+      await (supabaseAdmin
+        .from("subscriptions") as any)
         .update(updateData)
-        .eq("id", subscription.id)
+        .eq("id", subData.id)
 
       // Registrar evento
-      await supabaseAdmin
-        .from("billing_events")
+      // billing_events table no está en tipos generados todavía
+      await (supabaseAdmin
+        .from("billing_events") as any)
         .insert({
-          agency_id: subscription.agency_id,
-          subscription_id: subscription.id,
+          agency_id: subData.agency_id,
+          subscription_id: subData.id,
           event_type: status === 'ACTIVE' ? 'SUBSCRIPTION_UPDATED' : 'SUBSCRIPTION_CANCELED',
           mp_notification_id: preapprovalId,
           metadata: { status: mpStatus, mp_data: preapproval }
@@ -159,8 +165,9 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       // Por ahora solo registramos el evento
       console.log('⚠️ Suscripción no encontrada para preapproval:', preapprovalId)
       
-      await supabaseAdmin
-        .from("billing_events")
+      // billing_events table no está en tipos generados todavía
+      await (supabaseAdmin
+        .from("billing_events") as any)
         .insert({
           event_type: "SUBSCRIPTION_CREATED",
           mp_notification_id: preapprovalId,

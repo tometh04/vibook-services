@@ -36,11 +36,12 @@ export async function POST(request: Request) {
       )
     }
 
-    const agencyId = userAgencies.agency_id
+    const agencyId = (userAgencies as any).agency_id
 
     // Obtener la suscripción
-    const { data: subscription, error: subscriptionError } = await supabase
-      .from("subscriptions")
+    // subscriptions table no está en tipos generados todavía
+    const { data: subscription, error: subscriptionError } = await (supabase
+      .from("subscriptions") as any)
       .select("id, mp_preapproval_id, status")
       .eq("agency_id", agencyId)
       .maybeSingle()
@@ -52,7 +53,9 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!subscription.mp_preapproval_id) {
+    const subData = subscription as any
+
+    if (!subData.mp_preapproval_id) {
       return NextResponse.json(
         { error: "Esta suscripción no tiene un preapproval de Mercado Pago asociado" },
         { status: 400 }
@@ -61,26 +64,28 @@ export async function POST(request: Request) {
 
     if (action === 'cancel') {
       // Cancelar preapproval en Mercado Pago
-      await cancelPreApproval(subscription.mp_preapproval_id)
+      await cancelPreApproval(subData.mp_preapproval_id)
 
       // Actualizar suscripción
-      await supabase
-        .from("subscriptions")
+      // subscriptions table no está en tipos generados todavía
+      await (supabase
+        .from("subscriptions") as any)
         .update({
           status: 'CANCELED',
           canceled_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq("id", subscription.id)
+        .eq("id", subData.id)
 
       // Registrar evento
-      await supabase
-        .from("billing_events")
+      // billing_events table no está en tipos generados todavía
+      await (supabase
+        .from("billing_events") as any)
         .insert({
           agency_id: agencyId,
-          subscription_id: subscription.id,
+          subscription_id: subData.id,
           event_type: 'SUBSCRIPTION_CANCELED',
-          mp_notification_id: subscription.mp_preapproval_id
+          mp_notification_id: subData.mp_preapproval_id
         })
 
       return NextResponse.json({ 
@@ -89,18 +94,19 @@ export async function POST(request: Request) {
       })
     } else if (action === 'pause') {
       // Pausar preapproval en Mercado Pago
-      await updatePreApproval(subscription.mp_preapproval_id, {
+      await updatePreApproval(subData.mp_preapproval_id, {
         status: 'paused'
       })
 
       // Actualizar suscripción
-      await supabase
-        .from("subscriptions")
+      // subscriptions table no está en tipos generados todavía
+      await (supabase
+        .from("subscriptions") as any)
         .update({
           status: 'SUSPENDED',
           updated_at: new Date().toISOString()
         })
-        .eq("id", subscription.id)
+        .eq("id", subData.id)
 
       return NextResponse.json({ 
         success: true,

@@ -34,11 +34,13 @@ export function useSubscription() {
           return
         }
 
+        const userId = (userData as any).id
+
         // Obtener la agencia del usuario
         const { data: userAgencies } = await supabase
           .from("user_agencies")
           .select("agency_id")
-          .eq("user_id", userData.id)
+          .eq("user_id", userId)
           .limit(1)
           .maybeSingle()
 
@@ -47,12 +49,12 @@ export function useSubscription() {
           return
         }
 
-        const agencyId = userAgencies.agency_id
+        const agencyId = (userAgencies as any).agency_id
 
         // Obtener la suscripción con el plan
-        // @ts-ignore - Supabase types no incluyen las nuevas tablas todavía
-        const { data: subscriptionData, error: subError } = await supabase
-          .from("subscriptions")
+        // subscriptions y subscription_plans tables no están en tipos generados todavía
+        const { data: subscriptionData, error: subError } = await (supabase
+          .from("subscriptions") as any)
           .select(`
             *,
             plan:subscription_plans(*)
@@ -75,8 +77,9 @@ export function useSubscription() {
         currentMonthStart.setDate(1)
         currentMonthStart.setHours(0, 0, 0, 0)
 
-        const { data: usageData, error: usageError } = await supabase
-          .from("usage_metrics")
+        // usage_metrics table no está en tipos generados todavía
+        const { data: usageData, error: usageError } = await (supabase
+          .from("usage_metrics") as any)
           .select("*")
           .eq("agency_id", agencyId)
           .eq("period_start", currentMonthStart.toISOString().split('T')[0])

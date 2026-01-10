@@ -73,7 +73,7 @@ export async function createPreApproval(data: {
   external_reference?: string
   back_url?: string
 }) {
-  if (!preApproval) {
+  if (!preApproval || !client) {
     throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
   }
 
@@ -91,7 +91,7 @@ export async function createPreApproval(data: {
 
 // Helper para obtener preapproval por ID
 export async function getPreApproval(preapprovalId: string) {
-  if (!preApproval) {
+  if (!preApproval || !client) {
     throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
   }
 
@@ -103,7 +103,7 @@ export async function updatePreApproval(preapprovalId: string, data: {
   status?: 'authorized' | 'paused' | 'cancelled'
   reason?: string
 }) {
-  if (!preApproval) {
+  if (!preApproval || !client) {
     throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
   }
 
@@ -118,7 +118,7 @@ export async function updatePreApproval(preapprovalId: string, data: {
 
 // Helper para cancelar preapproval
 export async function cancelPreApproval(preapprovalId: string) {
-  if (!preApproval) {
+  if (!preApproval || !client) {
     throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
   }
 
