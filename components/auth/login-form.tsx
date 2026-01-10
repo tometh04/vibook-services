@@ -129,7 +129,7 @@ export function LoginForm() {
           variant="outline"
           onClick={handleSocialLogin}
           disabled={loading || !!socialLoading}
-          className="w-full"
+          className="w-full h-12 text-base"
         >
           {socialLoading === "google" ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

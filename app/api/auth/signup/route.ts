@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+export const runtime = 'nodejs'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
@@ -18,7 +20,17 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      console.error("❌ Error parsing request body:", parseError)
+      return NextResponse.json(
+        { error: "Error al procesar los datos. Por favor, verifica que todos los campos estén completos." },
+        { status: 400 }
+      )
+    }
+
     const { name, email, password, agencyName, city } = body
 
     // Validar campos requeridos
@@ -213,8 +225,20 @@ export async function POST(request: Request) {
     })
   } catch (error: any) {
     console.error("❌ Error in signup:", error)
+    
+    // Asegurar que siempre retornamos JSON válido
+    const errorMessage = error?.message || "Error al crear la cuenta"
+    
+    // Si el error es de validación de Supabase, extraer mensaje más claro
+    if (error?.code === '23505') {
+      return NextResponse.json(
+        { error: "Este email ya está registrado" },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: error.message || "Error al crear la cuenta" },
+      { error: errorMessage },
       { status: 500 }
     )
   }

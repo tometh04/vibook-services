@@ -66,7 +66,15 @@ export function SignupForm() {
         }),
       })
 
-      const result = await response.json()
+      // Verificar si la respuesta tiene contenido JSON
+      let result
+      const contentType = response.headers.get("content-type")
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json()
+      } else {
+        const text = await response.text()
+        throw new Error(text || "Error al crear la cuenta")
+      }
 
       if (!response.ok) {
         throw new Error(result.error || "Error al crear la cuenta")
@@ -121,7 +129,7 @@ export function SignupForm() {
           variant="outline"
           onClick={handleSocialLogin}
           disabled={loading || !!socialLoading}
-          className="w-full"
+          className="w-full h-12 text-base"
         >
           {socialLoading === "google" ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
