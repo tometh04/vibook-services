@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No tienes acceso a esta agencia' }, { status: 403 })
     }
 
+    // @ts-ignore - tenant_branding no está en los tipos aún, pero existe en la BD
     const { data: branding, error } = await supabase
       .from('tenant_branding')
       .select('*')
@@ -101,49 +102,26 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'accent_color debe ser un color HEX válido' }, { status: 400 })
     }
 
-    // Intentar upsert
-    const { data: existingBranding } = await supabase
+    // Usar upsert para insertar o actualizar
+    // @ts-ignore - tenant_branding no está en los tipos aún, pero existe en la BD
+    const { data, error } = await supabase
       .from('tenant_branding')
-      .select('id')
-      .eq('agency_id', agency_id)
-      .maybeSingle()
+      .upsert({
+        agency_id,
+        ...brandingData,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'agency_id'
+      })
+      .select()
+      .single()
 
-    if (existingBranding) {
-      // Update
-      const { data, error } = await supabase
-        .from('tenant_branding')
-        .update({
-          ...brandingData,
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq('agency_id', agency_id)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error saving branding:', error)
-        return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
-      }
-
-      return NextResponse.json({ branding: data })
-    } else {
-      // Insert
-      const { data, error } = await supabase
-        .from('tenant_branding')
-        .insert({
-          agency_id,
-          ...brandingData,
-        } as any)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error saving branding:', error)
-        return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
-      }
-
-      return NextResponse.json({ branding: data })
+    if (error) {
+      console.error('Error saving branding:', error)
+      return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
     }
+
+    return NextResponse.json({ branding: data })
   } catch (error) {
     console.error('Error in PUT /api/settings/branding:', error)
     return NextResponse.json({ error: 'Error al guardar branding' }, { status: 500 })
