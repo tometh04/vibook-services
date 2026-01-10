@@ -68,8 +68,9 @@ export async function POST(request: Request) {
     }
 
     // Verificar si el email ya existe en la tabla users
-    const { data: existingUser } = await supabaseAdmin
-      .from("users")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { data: existingUser } = await (supabaseAdmin
+      .from("users") as any)
       .select("id, email")
       .eq("email", email)
       .maybeSingle()
@@ -131,8 +132,9 @@ export async function POST(request: Request) {
     }
 
     // Crear agencia
-    const { data: agencyData, error: agencyError } = await supabaseAdmin
-      .from("agencies")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { data: agencyData, error: agencyError } = await (supabaseAdmin
+      .from("agencies") as any)
       .insert({
         name: agencyName,
         city,
@@ -152,8 +154,9 @@ export async function POST(request: Request) {
     }
 
     // Crear usuario en tabla users como SUPER_ADMIN de su agencia
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from("users")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { data: userData, error: userError } = await (supabaseAdmin
+      .from("users") as any)
       .insert({
         auth_id: authData.user.id,
         name,
@@ -167,7 +170,8 @@ export async function POST(request: Request) {
     if (userError || !userData) {
       console.error("❌ Error creating user record:", userError)
       // Limpiar agencia y usuario de auth si falla
-      await supabaseAdmin.from("agencies").delete().eq("id", agencyData.id)
+      // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+      await (supabaseAdmin.from("agencies") as any).delete().eq("id", agencyData.id)
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
         { error: "Error al crear el registro de usuario" },
@@ -176,8 +180,9 @@ export async function POST(request: Request) {
     }
 
     // Vincular usuario a agencia
-    const { error: linkError } = await supabaseAdmin
-      .from("user_agencies")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { error: linkError } = await (supabaseAdmin
+      .from("user_agencies") as any)
       .insert({
         user_id: userData.id,
         agency_id: agencyData.id,
@@ -186,8 +191,10 @@ export async function POST(request: Request) {
     if (linkError) {
       console.error("❌ Error linking user to agency:", linkError)
       // Limpiar todo si falla el link
-      await supabaseAdmin.from("users").delete().eq("id", userData.id)
-      await supabaseAdmin.from("agencies").delete().eq("id", agencyData.id)
+      // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+      await (supabaseAdmin.from("users") as any).delete().eq("id", userData.id)
+      // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+      await (supabaseAdmin.from("agencies") as any).delete().eq("id", agencyData.id)
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
         { error: "Error al vincular usuario con agencia" },
@@ -196,8 +203,9 @@ export async function POST(request: Request) {
     }
 
     // Crear tenant_branding con defaults
-    const { error: brandingError } = await supabaseAdmin
-      .from("tenant_branding")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { error: brandingError } = await (supabaseAdmin
+      .from("tenant_branding") as any)
       .insert({
         agency_id: agencyData.id,
         brand_name: agencyName,
@@ -210,8 +218,9 @@ export async function POST(request: Request) {
     }
 
     // Crear customer_settings con defaults
-    const { error: customerSettingsError } = await supabaseAdmin
-      .from("customer_settings")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { error: customerSettingsError } = await (supabaseAdmin
+      .from("customer_settings") as any)
       .insert({
         agency_id: agencyData.id,
         // Todos los campos tienen defaults
@@ -223,8 +232,9 @@ export async function POST(request: Request) {
     }
 
     // Crear operation_settings con defaults
-    const { error: operationSettingsError } = await supabaseAdmin
-      .from("operation_settings")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { error: operationSettingsError } = await (supabaseAdmin
+      .from("operation_settings") as any)
       .insert({
         agency_id: agencyData.id,
         // Todos los campos tienen defaults
@@ -236,8 +246,9 @@ export async function POST(request: Request) {
     }
 
     // Crear financial_settings con defaults
-    const { error: financialSettingsError } = await supabaseAdmin
-      .from("financial_settings")
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { error: financialSettingsError } = await (supabaseAdmin
+      .from("financial_settings") as any)
       .insert({
         agency_id: agencyData.id,
         // Todos los campos tienen defaults
