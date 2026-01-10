@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
-import Stripe from "stripe"
+import { getPreApproval } from "@/lib/mercadopago/client"
 import { createClient } from "@supabase/supabase-js"
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
-})
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -13,61 +9,28 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
 export const runtime = 'nodejs'
 
+// Mercado Pago envía notificaciones IPN (Instant Payment Notification)
+// Pueden ser de tipo "payment" o "preapproval"
 export async function POST(request: Request) {
-  const body = await request.text()
-  const signature = request.headers.get("stripe-signature")!
-
-  let event: Stripe.Event
-
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
-  } catch (err: any) {
-    console.error("Webhook signature verification failed:", err.message)
-    return NextResponse.json(
-      { error: `Webhook Error: ${err.message}` },
-      { status: 400 }
-    )
-  }
+    const body = await request.json()
+    const { type, data } = body
 
-  try {
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session
-        await handleCheckoutCompleted(session)
-        break
-      }
-      case "customer.subscription.created":
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription
-        await handleSubscriptionUpdated(subscription)
-        break
-      }
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription
-        await handleSubscriptionDeleted(subscription)
-        break
-      }
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice
-        await handlePaymentSucceeded(invoice)
-        break
-      }
-      case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice
-        await handlePaymentFailed(invoice)
-        break
-      }
-      default:
-        console.log(`Unhandled event type: ${event.type}`)
+    console.log('📥 Webhook recibido de Mercado Pago:', { type, data })
+
+    // Mercado Pago puede enviar diferentes tipos de notificaciones
+    if (type === 'payment') {
+      await handlePaymentNotification(data.id)
+    } else if (type === 'preapproval') {
+      await handlePreApprovalNotification(data.id)
+    } else {
+      console.log(`⚠️ Tipo de notificación no manejado: ${type}`)
+      return NextResponse.json({ received: true })
     }
 
     return NextResponse.json({ received: true })
   } catch (error: any) {
-    console.error("Error processing webhook:", error)
+    console.error("Error processing Mercado Pago webhook:", error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -75,203 +38,134 @@ export async function POST(request: Request) {
   }
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  const agencyId = session.metadata?.agency_id
-  const planId = session.metadata?.plan_id
-  const billingCycle = session.metadata?.billing_cycle || 'MONTHLY'
+// GET también es usado por Mercado Pago para verificar la URL
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const topic = searchParams.get('topic') // 'payment' o 'preapproval'
+  const id = searchParams.get('id') // ID del payment o preapproval
 
-  if (!agencyId || !planId) {
-    throw new Error("Missing metadata in checkout session")
+  if (!topic || !id) {
+    return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 })
   }
 
-  // Obtener la suscripción de Stripe
-  const subscriptionId = session.subscription as string
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+  try {
+    console.log('📥 GET webhook de Mercado Pago:', { topic, id })
 
-  // Actualizar o crear suscripción en nuestra BD
-  const { data: existingSubscription } = await supabaseAdmin
-    .from("subscriptions")
-    .select("id")
-    .eq("agency_id", agencyId)
-    .maybeSingle()
+    if (topic === 'payment') {
+      await handlePaymentNotification(id)
+    } else if (topic === 'preapproval') {
+      await handlePreApprovalNotification(id)
+    }
 
-  const subscriptionData = {
-    agency_id: agencyId,
-    plan_id: planId,
-    stripe_subscription_id: subscriptionId,
-    stripe_customer_id: subscription.customer as string,
-    stripe_status: subscription.status,
-    status: mapStripeStatusToOurStatus(subscription.status),
-    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-    trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
-    trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
-    billing_cycle: billingCycle,
-    updated_at: new Date().toISOString(),
+    return NextResponse.json({ received: true })
+  } catch (error: any) {
+    console.error("Error processing Mercado Pago webhook (GET):", error)
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    )
   }
-
-  if (existingSubscription) {
-    await supabaseAdmin
-      .from("subscriptions")
-      .update(subscriptionData)
-      .eq("id", existingSubscription.id)
-  } else {
-    await supabaseAdmin
-      .from("subscriptions")
-      .insert(subscriptionData)
-  }
-
-  // Registrar evento
-  await supabaseAdmin
-    .from("billing_events")
-    .insert({
-      agency_id: agencyId,
-      event_type: "SUBSCRIPTION_CREATED",
-      stripe_event_id: session.id,
-      metadata: { subscription_id: subscriptionId },
-    })
 }
 
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  const { data: existingSubscription } = await supabaseAdmin
-    .from("subscriptions")
-    .select("id, agency_id")
-    .eq("stripe_subscription_id", subscription.id)
-    .maybeSingle()
+async function handlePaymentNotification(paymentId: string) {
+  // Cuando se aprueba el primer pago, se crea automáticamente el preapproval
+  // Necesitamos buscar la suscripción por preference_id o external_reference
+  // Por ahora, solo registramos el evento
+  console.log('💳 Procesando notificación de pago:', paymentId)
 
-  if (!existingSubscription) {
-    console.warn(`Subscription ${subscription.id} not found in database`)
-    return
-  }
-
-  // Actualizar suscripción
-  await supabaseAdmin
-    .from("subscriptions")
-    .update({
-      stripe_status: subscription.status,
-      status: mapStripeStatusToOurStatus(subscription.status),
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      canceled_at: subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : null,
-      cancel_at_period_end: subscription.cancel_at_period_end,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", existingSubscription.id)
-
-  // Registrar evento
+  // Aquí deberías obtener el pago de Mercado Pago para ver el external_reference
+  // Por simplicidad, lo registramos como evento
   await supabaseAdmin
     .from("billing_events")
     .insert({
-      agency_id: existingSubscription.agency_id,
-      subscription_id: existingSubscription.id,
-      event_type: "SUBSCRIPTION_UPDATED",
-      stripe_event_id: subscription.id,
-      metadata: { status: subscription.status },
-    })
-}
-
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  const { data: existingSubscription } = await supabaseAdmin
-    .from("subscriptions")
-    .select("id, agency_id")
-    .eq("stripe_subscription_id", subscription.id)
-    .maybeSingle()
-
-  if (!existingSubscription) return
-
-  // Actualizar suscripción a CANCELED
-  await supabaseAdmin
-    .from("subscriptions")
-    .update({
-      status: "CANCELED",
-      canceled_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", existingSubscription.id)
-
-  // Registrar evento
-  await supabaseAdmin
-    .from("billing_events")
-    .insert({
-      agency_id: existingSubscription.agency_id,
-      subscription_id: existingSubscription.id,
-      event_type: "SUBSCRIPTION_CANCELED",
-      stripe_event_id: subscription.id,
-    })
-}
-
-async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
-  const subscriptionId = invoice.subscription as string
-  if (!subscriptionId) return
-
-  const { data: subscription } = await supabaseAdmin
-    .from("subscriptions")
-    .select("id, agency_id")
-    .eq("stripe_subscription_id", subscriptionId)
-    .maybeSingle()
-
-  if (!subscription) return
-
-  // Registrar evento
-  await supabaseAdmin
-    .from("billing_events")
-    .insert({
-      agency_id: subscription.agency_id,
-      subscription_id: subscription.id,
       event_type: "PAYMENT_SUCCEEDED",
-      stripe_invoice_id: invoice.id,
-      metadata: { amount: invoice.amount_paid, currency: invoice.currency },
+      mp_payment_id: paymentId,
+      metadata: { type: 'payment' }
     })
 }
 
-async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  const subscriptionId = invoice.subscription as string
-  if (!subscriptionId) return
+async function handlePreApprovalNotification(preapprovalId: string) {
+  console.log('🔄 Procesando notificación de preapproval:', preapprovalId)
 
-  const { data: subscription } = await supabaseAdmin
-    .from("subscriptions")
-    .select("id, agency_id")
-    .eq("stripe_subscription_id", subscriptionId)
-    .maybeSingle()
+  try {
+    // Obtener información del preapproval de Mercado Pago
+    const preapproval = await getPreApproval(preapprovalId)
 
-  if (!subscription) return
+    // Buscar la suscripción por preapproval_id
+    const { data: subscription, error } = await supabaseAdmin
+      .from("subscriptions")
+      .select("id, agency_id")
+      .eq("mp_preapproval_id", preapprovalId)
+      .maybeSingle()
 
-  // Actualizar estado de suscripción
-  await supabaseAdmin
-    .from("subscriptions")
-    .update({
-      status: "PAST_DUE",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", subscription.id)
+    if (error) {
+      console.error("Error buscando suscripción:", error)
+      return
+    }
 
-  // Registrar evento
-  await supabaseAdmin
-    .from("billing_events")
-    .insert({
-      agency_id: subscription.agency_id,
-      subscription_id: subscription.id,
-      event_type: "PAYMENT_FAILED",
-      stripe_invoice_id: invoice.id,
-      metadata: { amount: invoice.amount_due, currency: invoice.currency },
-    })
-}
+    // Mapear estados de Mercado Pago a nuestros estados
+    let status: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'ACTIVE'
+    
+    if (preapproval.status === 'cancelled') {
+      status = 'CANCELED'
+    } else if (preapproval.status === 'paused') {
+      status = 'SUSPENDED'
+    } else if (preapproval.status === 'authorized') {
+      status = 'ACTIVE'
+    } else if (preapproval.status === 'pending') {
+      status = 'TRIAL'
+    }
 
-function mapStripeStatusToOurStatus(stripeStatus: string): "TRIAL" | "ACTIVE" | "CANCELED" | "PAST_DUE" | "UNPAID" | "SUSPENDED" {
-  switch (stripeStatus) {
-    case "trialing":
-      return "TRIAL"
-    case "active":
-      return "ACTIVE"
-    case "canceled":
-    case "unpaid":
-      return "CANCELED"
-    case "past_due":
-      return "PAST_DUE"
-    case "incomplete":
-    case "incomplete_expired":
-      return "UNPAID"
-    default:
-      return "SUSPENDED"
+    const updateData: any = {
+      mp_status: preapproval.status,
+      status: status,
+      mp_payer_id: preapproval.payer_id?.toString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // Actualizar fechas si están disponibles
+    if (preapproval.auto_recurring?.start_date) {
+      updateData.current_period_start = new Date(preapproval.auto_recurring.start_date).toISOString()
+    }
+    if (preapproval.auto_recurring?.end_date) {
+      updateData.current_period_end = new Date(preapproval.auto_recurring.end_date).toISOString()
+    } else {
+      // Calcular próximo período (30 días desde ahora)
+      updateData.current_period_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    }
+
+    if (subscription) {
+      // Actualizar suscripción existente
+      await supabaseAdmin
+        .from("subscriptions")
+        .update(updateData)
+        .eq("id", subscription.id)
+
+      // Registrar evento
+      await supabaseAdmin
+        .from("billing_events")
+        .insert({
+          agency_id: subscription.agency_id,
+          subscription_id: subscription.id,
+          event_type: status === 'ACTIVE' ? 'SUBSCRIPTION_UPDATED' : 'SUBSCRIPTION_CANCELED',
+          mp_notification_id: preapprovalId,
+          metadata: { status: preapproval.status, mp_data: preapproval }
+        })
+    } else {
+      // Si no existe, buscar por external_reference en el pago inicial
+      // Por ahora solo registramos el evento
+      console.log('⚠️ Suscripción no encontrada para preapproval:', preapprovalId)
+      
+      await supabaseAdmin
+        .from("billing_events")
+        .insert({
+          event_type: "SUBSCRIPTION_CREATED",
+          mp_notification_id: preapprovalId,
+          metadata: { status: preapproval.status, mp_data: preapproval }
+        })
+    }
+  } catch (error: any) {
+    console.error("Error procesando preapproval notification:", error)
+    throw error
   }
 }

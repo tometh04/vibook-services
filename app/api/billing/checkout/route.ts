@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
-import Stripe from "stripe"
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
-})
+import { createPreference } from "@/lib/mercadopago/client"
 
 export const runtime = 'nodejs'
 
@@ -14,7 +10,7 @@ export async function POST(request: Request) {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const body = await request.json()
-    const { planId, billingCycle = 'MONTHLY' } = body
+    const { planId } = body
 
     if (!planId) {
       return NextResponse.json(
@@ -37,6 +33,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // Plan FREE no requiere pago
+    if (plan.name === 'FREE') {
+      return NextResponse.json(
+        { error: "El plan FREE ya está activo" },
+        { status: 400 }
+      )
+    }
+
     // Obtener la agencia del usuario
     const { data: userAgencies, error: userAgenciesError } = await supabase
       .from("user_agencies")
@@ -54,74 +58,77 @@ export async function POST(request: Request) {
 
     const agencyId = userAgencies.agency_id
 
-    // Obtener o crear customer en Stripe
-    const { data: subscription } = await supabase
+    // Verificar si ya tiene una suscripción activa
+    const { data: existingSubscription } = await supabase
       .from("subscriptions")
-      .select("stripe_customer_id")
+      .select("id, status")
       .eq("agency_id", agencyId)
       .maybeSingle()
 
-    let customerId = subscription?.stripe_customer_id
-
-    if (!customerId) {
-      // Crear customer en Stripe
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.name,
-        metadata: {
-          agency_id: agencyId,
-          user_id: user.id,
-        },
-      })
-      customerId = customer.id
-
-      // Guardar customer ID en la suscripción
-      await supabase
-        .from("subscriptions")
-        .update({ stripe_customer_id: customerId })
-        .eq("agency_id", agencyId)
-    }
-
-    // Obtener el price ID según el ciclo de billing
-    const priceId = billingCycle === 'YEARLY' 
-      ? plan.stripe_price_id_yearly 
-      : plan.stripe_price_id_monthly
-
-    if (!priceId) {
-      return NextResponse.json(
-        { error: "El plan no tiene un precio configurado en Stripe" },
-        { status: 400 }
-      )
-    }
-
-    // Crear sesión de checkout
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: [
+    // Crear preferencia de pago en Mercado Pago
+    // Nota: Para suscripciones, Mercado Pago usa Preapproval, pero primero
+    // necesitamos que el usuario autorice la suscripción mediante un pago inicial
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    
+    const preference = await createPreference({
+      items: [
         {
-          price: priceId,
+          title: `Suscripción ${plan.display_name} - Vibook Gestión`,
           quantity: 1,
-        },
+          unit_price: plan.price_monthly
+        }
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
-      metadata: {
+      payer: {
+        email: user.email,
+        name: user.name
+      },
+      back_urls: {
+        success: `${appUrl}/settings/billing?status=success`,
+        failure: `${appUrl}/pricing?status=failure`,
+        pending: `${appUrl}/settings/billing?status=pending`
+      },
+      auto_return: 'approved',
+      external_reference: JSON.stringify({
         agency_id: agencyId,
         plan_id: planId,
-        billing_cycle: billingCycle,
-      },
+        user_id: user.id
+      }),
+      notification_url: `${appUrl}/api/billing/webhook`
     })
 
+    // Guardar preference_id en la suscripción (si existe) o crear una nueva
+    if (existingSubscription) {
+      await supabase
+        .from("subscriptions")
+        .update({
+          mp_preference_id: preference.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", existingSubscription.id)
+    } else {
+      // Crear suscripción pendiente
+      await supabase
+        .from("subscriptions")
+        .insert({
+          agency_id: agencyId,
+          plan_id: planId,
+          mp_preference_id: preference.id,
+          status: 'TRIAL',
+          current_period_start: new Date().toISOString(),
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          billing_cycle: 'MONTHLY'
+        })
+    }
+
     return NextResponse.json({ 
-      sessionId: session.id,
-      url: session.url 
+      preferenceId: preference.id,
+      initPoint: preference.init_point, // URL para redirigir al usuario
+      sandboxInitPoint: preference.sandbox_init_point // URL para testing
     })
   } catch (error: any) {
     console.error("Error in POST /api/billing/checkout:", error)
     return NextResponse.json(
-      { error: error.message || "Error al crear la sesión de checkout" },
+      { error: error.message || "Error al crear la preferencia de pago" },
       { status: 500 }
     )
   }
