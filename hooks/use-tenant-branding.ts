@@ -85,25 +85,26 @@ export function useTenantBranding(agencyId?: string): UseTenantBrandingReturn {
       }
 
       if (data) {
-        // @ts-ignore - data tiene el tipo correcto en runtime
+        // Cast a any porque tenant_branding no está en los tipos generados aún
+        const brandingData = data as any
         setBranding({
-          id: data.id,
-          agency_id: data.agency_id,
-          app_name: data.app_name || DEFAULT_BRANDING.app_name,
-          logo_url: data.logo_url,
-          logo_dark_url: data.logo_dark_url,
-          favicon_url: data.favicon_url,
-          primary_color: data.primary_color || DEFAULT_BRANDING.primary_color,
-          secondary_color: data.secondary_color || DEFAULT_BRANDING.secondary_color,
-          accent_color: data.accent_color || DEFAULT_BRANDING.accent_color,
-          email_from_name: data.email_from_name || DEFAULT_BRANDING.email_from_name,
-          email_from_address: data.email_from_address,
-          support_email: data.support_email,
-          support_phone: data.support_phone,
-          support_whatsapp: data.support_whatsapp,
-          website_url: data.website_url,
-          instagram_url: data.instagram_url,
-          facebook_url: data.facebook_url,
+          id: brandingData.id,
+          agency_id: brandingData.agency_id,
+          app_name: brandingData.app_name || DEFAULT_BRANDING.app_name,
+          logo_url: brandingData.logo_url,
+          logo_dark_url: brandingData.logo_dark_url,
+          favicon_url: brandingData.favicon_url,
+          primary_color: brandingData.primary_color || DEFAULT_BRANDING.primary_color,
+          secondary_color: brandingData.secondary_color || DEFAULT_BRANDING.secondary_color,
+          accent_color: brandingData.accent_color || DEFAULT_BRANDING.accent_color,
+          email_from_name: brandingData.email_from_name || DEFAULT_BRANDING.email_from_name,
+          email_from_address: brandingData.email_from_address,
+          support_email: brandingData.support_email,
+          support_phone: brandingData.support_phone,
+          support_whatsapp: brandingData.support_whatsapp,
+          website_url: brandingData.website_url,
+          instagram_url: brandingData.instagram_url,
+          facebook_url: brandingData.facebook_url,
         })
       }
     } catch (err: any) {
