@@ -12,11 +12,10 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
   name TEXT NOT NULL UNIQUE, -- 'FREE', 'STARTER', 'PRO', 'ENTERPRISE'
   display_name TEXT NOT NULL, -- 'Free', 'Starter', 'Pro', 'Enterprise'
   description TEXT,
-  price_monthly NUMERIC(10,2) NOT NULL DEFAULT 0, -- Precio mensual en USD
-  price_yearly NUMERIC(10,2), -- Precio anual en USD (opcional)
-  stripe_price_id_monthly TEXT, -- Stripe Price ID para plan mensual
-  stripe_price_id_yearly TEXT, -- Stripe Price ID para plan anual
-  currency TEXT NOT NULL DEFAULT 'USD',
+  price_monthly NUMERIC(10,2) NOT NULL DEFAULT 0, -- Precio mensual en ARS
+  price_yearly NUMERIC(10,2), -- Precio anual en ARS (opcional, no usado en MP)
+  mp_preapproval_amount NUMERIC(10,2), -- Monto mensual para preapproval en Mercado Pago
+  currency TEXT NOT NULL DEFAULT 'ARS',
   
   -- Límites del plan
   max_users INTEGER, -- NULL = ilimitado
@@ -46,10 +45,11 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   agency_id UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
   plan_id UUID NOT NULL REFERENCES subscription_plans(id) ON DELETE RESTRICT,
   
-  -- Stripe
-  stripe_subscription_id TEXT UNIQUE, -- ID de la suscripción en Stripe
-  stripe_customer_id TEXT, -- ID del customer en Stripe
-  stripe_status TEXT, -- 'active', 'canceled', 'past_due', etc.
+  -- Mercado Pago
+  mp_preapproval_id TEXT UNIQUE, -- ID de la preapproval en Mercado Pago
+  mp_payer_id TEXT, -- ID del payer en Mercado Pago
+  mp_preference_id TEXT, -- ID de la preferencia inicial de pago
+  mp_status TEXT, -- 'pending', 'authorized', 'paused', 'cancelled'
   
   -- Estado de la suscripción
   status TEXT NOT NULL DEFAULT 'TRIAL' CHECK (status IN ('TRIAL', 'ACTIVE', 'CANCELED', 'PAST_DUE', 'UNPAID', 'SUSPENDED')),
@@ -62,8 +62,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   canceled_at TIMESTAMP WITH TIME ZONE,
   cancel_at_period_end BOOLEAN DEFAULT false,
   
-  -- Billing
-  billing_cycle TEXT NOT NULL DEFAULT 'MONTHLY' CHECK (billing_cycle IN ('MONTHLY', 'YEARLY')),
+  -- Billing (solo mensual para Argentina)
+  billing_cycle TEXT NOT NULL DEFAULT 'MONTHLY' CHECK (billing_cycle = 'MONTHLY'),
   
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -79,16 +79,16 @@ CREATE TABLE IF NOT EXISTS payment_methods (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   agency_id UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
   
-  -- Stripe
-  stripe_payment_method_id TEXT UNIQUE NOT NULL, -- ID del método de pago en Stripe
-  stripe_customer_id TEXT NOT NULL, -- ID del customer en Stripe
+  -- Mercado Pago
+  mp_payment_method_id TEXT, -- ID del método de pago en Mercado Pago
+  mp_card_id TEXT, -- ID de la tarjeta en Mercado Pago
+  mp_payer_id TEXT NOT NULL, -- ID del payer en Mercado Pago
   
   -- Información del método de pago
-  type TEXT NOT NULL CHECK (type IN ('CARD', 'BANK_ACCOUNT', 'PAYPAL')),
-  card_brand TEXT, -- 'visa', 'mastercard', etc.
+  type TEXT NOT NULL CHECK (type IN ('CARD', 'ACCOUNT_MONEY', 'BANK_TRANSFER')),
+  card_brand TEXT, -- 'visa', 'mastercard', 'amex', 'naranja', etc.
   card_last4 TEXT, -- Últimos 4 dígitos
-  card_exp_month INTEGER,
-  card_exp_year INTEGER,
+  card_first6 TEXT, -- Primeros 6 dígitos (BIN)
   
   -- Estado
   is_default BOOLEAN DEFAULT false,
@@ -146,9 +146,9 @@ CREATE TABLE IF NOT EXISTS billing_events (
     'TRIAL_ENDED'
   )),
   
-  -- Stripe
-  stripe_event_id TEXT, -- ID del evento en Stripe
-  stripe_invoice_id TEXT, -- ID de la factura en Stripe (si aplica)
+  -- Mercado Pago
+  mp_notification_id TEXT, -- ID de la notificación en Mercado Pago
+  mp_payment_id TEXT, -- ID del pago en Mercado Pago (si aplica)
   
   -- Datos del evento
   metadata JSONB DEFAULT '{}',
@@ -161,10 +161,10 @@ CREATE TABLE IF NOT EXISTS billing_events (
 -- =====================================================
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_agency ON subscriptions(agency_id);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_mp ON subscriptions(mp_preapproval_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
 CREATE INDEX IF NOT EXISTS idx_payment_methods_agency ON payment_methods(agency_id);
-CREATE INDEX IF NOT EXISTS idx_payment_methods_stripe ON payment_methods(stripe_payment_method_id);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_mp ON payment_methods(mp_card_id);
 CREATE INDEX IF NOT EXISTS idx_usage_metrics_agency ON usage_metrics(agency_id, period_start);
 CREATE INDEX IF NOT EXISTS idx_billing_events_agency ON billing_events(agency_id, created_at DESC);
 
@@ -223,7 +223,7 @@ CREATE POLICY "Agencies can view own billing events" ON billing_events
 -- DATOS INICIALES: PLANES
 -- =====================================================
 
-INSERT INTO subscription_plans (name, display_name, description, price_monthly, price_yearly, max_users, max_operations_per_month, max_integrations, max_storage_mb, max_api_calls_per_day, features, is_public, sort_order) VALUES
+INSERT INTO subscription_plans (name, display_name, description, price_monthly, mp_preapproval_amount, max_users, max_operations_per_month, max_integrations, max_storage_mb, max_api_calls_per_day, features, is_public, sort_order) VALUES
   (
     'FREE',
     'Free',
@@ -243,8 +243,8 @@ INSERT INTO subscription_plans (name, display_name, description, price_monthly, 
     'STARTER',
     'Starter',
     'Perfecto para pequeñas agencias',
-    29,
-    290,
+    15000, -- $15.000 ARS mensual
+    15000,
     5,
     100,
     1,
@@ -258,8 +258,8 @@ INSERT INTO subscription_plans (name, display_name, description, price_monthly, 
     'PRO',
     'Pro',
     'Para agencias en crecimiento',
-    99,
-    990,
+    50000, -- $50.000 ARS mensual
+    50000,
     NULL, -- Ilimitado
     NULL, -- Ilimitado
     NULL, -- Ilimitado

@@ -4,7 +4,7 @@
 export type SubscriptionPlanName = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
 export type BillingCycle = 'MONTHLY' | 'YEARLY'
-export type PaymentMethodType = 'CARD' | 'BANK_ACCOUNT' | 'PAYPAL'
+export type PaymentMethodType = 'CARD' | 'ACCOUNT_MONEY' | 'BANK_TRANSFER'
 
 export interface SubscriptionPlan {
   id: string
@@ -13,8 +13,7 @@ export interface SubscriptionPlan {
   description: string | null
   price_monthly: number
   price_yearly: number | null
-  stripe_price_id_monthly: string | null
-  stripe_price_id_yearly: string | null
+  mp_preapproval_amount: number | null
   currency: string
   max_users: number | null
   max_operations_per_month: number | null
@@ -41,9 +40,10 @@ export interface Subscription {
   id: string
   agency_id: string
   plan_id: string
-  stripe_subscription_id: string | null
-  stripe_customer_id: string | null
-  stripe_status: string | null
+  mp_preapproval_id: string | null
+  mp_payer_id: string | null
+  mp_preference_id: string | null
+  mp_status: string | null
   status: SubscriptionStatus
   current_period_start: string
   current_period_end: string
@@ -59,9 +59,11 @@ export interface Subscription {
 export interface PaymentMethod {
   id: string
   agency_id: string
-  stripe_payment_method_id: string
-  stripe_customer_id: string
+  mp_payment_method_id: string | null
+  mp_card_id: string | null
+  mp_payer_id: string
   type: PaymentMethodType
+  card_first6?: string | null
   card_brand: string | null
   card_last4: string | null
   card_exp_month: number | null
