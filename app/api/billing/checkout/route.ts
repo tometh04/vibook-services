@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const agencyId = userAgencies.agency_id
+    const agencyId = (userAgencies as any).agency_id
 
     // Verificar si ya tiene una suscripción activa
     const { data: existingSubscription } = await supabase
