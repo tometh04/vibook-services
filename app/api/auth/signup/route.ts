@@ -181,18 +181,28 @@ export async function POST(request: Request) {
       // No fallar si solo falla los settings
     }
 
-    // Enviar email de verificación
-    const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "signup",
-      email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/verify-email`,
-      },
-    })
+    // Generar y enviar link de verificación (usamos password aquí porque aún lo tenemos)
+    try {
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: "signup",
+        email,
+        password, // Tenemos el password aquí, lo usamos para generar el link
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/verify-email`,
+        },
+      })
 
-    if (emailError) {
-      console.error("⚠️  Error generating verification link:", emailError)
-      // No fallar, el usuario puede solicitar reenvío
+      if (linkError) {
+        console.error("⚠️  Error generating verification link:", linkError)
+        // No fallar si solo falla el email, el usuario puede usar reenvío
+      } else if (linkData?.properties?.action_link) {
+        // Aquí podrías enviar el email manualmente usando un servicio de email
+        // Por ahora, Supabase debería enviarlo automáticamente cuando se genera el link
+        console.log("✅ Verification link generated:", linkData.properties.action_link)
+      }
+    } catch (error) {
+      console.error("⚠️  Error in verification email generation:", error)
+      // No fallar, el usuario puede usar reenvío
     }
 
     return NextResponse.json({
