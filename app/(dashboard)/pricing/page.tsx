@@ -11,7 +11,6 @@ import type { SubscriptionPlan } from "@/lib/billing/types"
 export default function PricingPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [loading, setLoading] = useState(true)
-  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY')
   const { subscription, loading: subscriptionLoading } = useSubscription()
 
   useEffect(() => {
@@ -34,14 +33,20 @@ export default function PricingPage() {
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, billingCycle }),
+        body: JSON.stringify({ planId }),
       })
       const data = await response.json()
-      if (data.url) {
-        window.location.href = data.url
+      // Mercado Pago devuelve initPoint (producción) o sandboxInitPoint (testing)
+      const checkoutUrl = data.initPoint || data.sandboxInitPoint
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl
+      } else {
+        console.error('No se recibió URL de checkout:', data)
+        alert('Error al crear la sesión de pago. Por favor intenta nuevamente.')
       }
     } catch (error) {
       console.error('Error creating checkout session:', error)
+      alert('Error al crear la sesión de pago. Por favor intenta nuevamente.')
     }
   }
 
@@ -49,8 +54,9 @@ export default function PricingPage() {
     if (price === null || price === 0) return 'Gratis'
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'ARS',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(price)
   }
 
@@ -77,38 +83,14 @@ export default function PricingPage() {
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold">Planes y Precios</h1>
         <p className="text-muted-foreground text-lg">
-          Elegí el plan que mejor se adapte a tu agencia
+          Elegí el plan que mejor se adapte a tu agencia. Todos los planes son mensuales.
         </p>
-        
-        {/* Toggle Billing Cycle */}
-        <div className="flex items-center justify-center gap-4 mt-6">
-          <span className={billingCycle === 'MONTHLY' ? 'font-semibold' : 'text-muted-foreground'}>
-            Mensual
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setBillingCycle(billingCycle === 'MONTHLY' ? 'YEARLY' : 'MONTHLY')}
-          >
-            {billingCycle === 'MONTHLY' ? 'Cambiar a Anual' : 'Cambiar a Mensual'}
-          </Button>
-          <span className={billingCycle === 'YEARLY' ? 'font-semibold' : 'text-muted-foreground'}>
-            Anual
-          </span>
-          {billingCycle === 'YEARLY' && (
-            <Badge variant="secondary" className="ml-2">
-              Ahorrá hasta 20%
-            </Badge>
-          )}
-        </div>
       </div>
 
       {/* Plan Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {plans.map((plan) => {
-          const price = billingCycle === 'YEARLY' && plan.price_yearly !== null
-            ? plan.price_yearly
-            : plan.price_monthly
+          const price = plan.price_monthly
           const isCurrentPlan = currentPlanId === plan.id
           const isPopular = plan.name === 'PRO'
 
@@ -136,7 +118,7 @@ export default function PricingPage() {
                 <div className="mt-4">
                   <span className="text-4xl font-bold">{formatPrice(price)}</span>
                   {price !== null && price > 0 && (
-                    <span className="text-muted-foreground">/{billingCycle === 'YEARLY' ? 'año' : 'mes'}</span>
+                    <span className="text-muted-foreground">/mes</span>
                   )}
                 </div>
               </CardHeader>
@@ -225,7 +207,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Todos los planes nuevos incluyen 14 días de prueba gratuita. No se te cobrará hasta que termine el período de prueba.
+                Todos los planes nuevos incluyen 14 días de prueba gratuita. El cobro mensual comenzará después del período de prueba.
               </p>
             </CardContent>
           </Card>
@@ -235,7 +217,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Aceptamos todas las tarjetas de crédito y débito principales a través de Stripe.
+                Aceptamos todas las tarjetas de crédito y débito, dinero en cuenta de Mercado Pago, y transferencias bancarias a través de Mercado Pago.
               </p>
             </CardContent>
           </Card>

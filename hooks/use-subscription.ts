@@ -50,6 +50,7 @@ export function useSubscription() {
         const agencyId = userAgencies.agency_id
 
         // Obtener la suscripción con el plan
+        // @ts-ignore - Supabase types no incluyen las nuevas tablas todavía
         const { data: subscriptionData, error: subError } = await supabase
           .from("subscriptions")
           .select(`
