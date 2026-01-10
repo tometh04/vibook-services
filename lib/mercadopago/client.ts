@@ -4,19 +4,18 @@ import { MercadoPagoConfig, Preference, PreApproval } from 'mercadopago'
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN!
 
 if (!accessToken) {
-  throw new Error('MERCADOPAGO_ACCESS_TOKEN no está configurado')
+  console.warn('⚠️ MERCADOPAGO_ACCESS_TOKEN no está configurado')
 }
 
-const client = new MercadoPagoConfig({ 
+const client = accessToken ? new MercadoPagoConfig({ 
   accessToken,
   options: {
     timeout: 5000,
-    idempotencyKey: 'abc'
   }
-})
+}) : null
 
-export const preference = new Preference(client)
-export const preApproval = new PreApproval(client)
+export const preference = client ? new Preference(client) : null
+export const preApproval = client ? new PreApproval(client) : null
 
 // Helper para crear preferencia de pago inicial
 export async function createPreference(data: {
@@ -74,6 +73,10 @@ export async function createPreApproval(data: {
   external_reference?: string
   back_url?: string
 }) {
+  if (!preApproval) {
+    throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
+  }
+
   return await preApproval.create({
     body: {
       reason: data.reason,
@@ -88,6 +91,10 @@ export async function createPreApproval(data: {
 
 // Helper para obtener preapproval por ID
 export async function getPreApproval(preapprovalId: string) {
+  if (!preApproval) {
+    throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
+  }
+
   return await preApproval.get({ id: preapprovalId })
 }
 
@@ -96,6 +103,10 @@ export async function updatePreApproval(preapprovalId: string, data: {
   status?: 'authorized' | 'paused' | 'cancelled'
   reason?: string
 }) {
+  if (!preApproval) {
+    throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
+  }
+
   return await preApproval.update({
     id: preapprovalId,
     body: {
@@ -107,6 +118,10 @@ export async function updatePreApproval(preapprovalId: string, data: {
 
 // Helper para cancelar preapproval
 export async function cancelPreApproval(preapprovalId: string) {
+  if (!preApproval) {
+    throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
+  }
+
   return await preApproval.update({
     id: preapprovalId,
     body: {
