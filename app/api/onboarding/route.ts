@@ -25,14 +25,24 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle()
 
-    if (userAgenciesError || !userAgencies || !userAgencies.agency_id) {
+    if (userAgenciesError || !userAgencies) {
       return NextResponse.json(
         { error: "No se encontró la agencia del usuario" },
         { status: 404 }
       )
     }
 
-    const agencyId = userAgencies.agency_id as string
+    // TypeScript no puede inferir el tipo correctamente, hacemos cast explícito
+    const userAgencyData = userAgencies as { agency_id: string } | null
+    
+    if (!userAgencyData || !userAgencyData.agency_id) {
+      return NextResponse.json(
+        { error: "No se encontró la agencia del usuario" },
+        { status: 404 }
+      )
+    }
+
+    const agencyId = userAgencyData.agency_id
 
     // Actualizar información de la agencia
     const { error: agencyError } = await supabase
