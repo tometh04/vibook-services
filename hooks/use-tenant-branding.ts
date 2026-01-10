@@ -67,7 +67,7 @@ export function useTenantBranding(agencyId?: string): UseTenantBrandingReturn {
       setError(null)
 
       const supabase = createClient()
-      // @ts-expect-error - tenant_branding no está en los tipos generados aún
+      // tenant_branding no está en los tipos generados aún - usar cast
       const { data, error: fetchError } = await (supabase
         .from('tenant_branding') as any)
         .select('*')
@@ -125,8 +125,7 @@ export function useTenantBranding(agencyId?: string): UseTenantBrandingReturn {
     try {
       const supabase = createClient()
       
-      // Intentar actualizar primero
-      // @ts-expect-error - tenant_branding no está en los tipos generados aún
+      // Intentar actualizar primero - tenant_branding no está en los tipos generados aún
       const { error: updateError } = await (supabase
         .from('tenant_branding') as any)
         .update(updates)
@@ -135,7 +134,6 @@ export function useTenantBranding(agencyId?: string): UseTenantBrandingReturn {
       if (updateError) {
         // Si no existe, insertar
         if (updateError.code === 'PGRST116') {
-          // @ts-expect-error - tenant_branding no está en los tipos generados aún
           const { error: insertError } = await (supabase
             .from('tenant_branding') as any)
             .insert({ agency_id: agencyId, ...updates })
