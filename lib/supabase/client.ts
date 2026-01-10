@@ -9,3 +9,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholde
 
 export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 
+
+// Exportar función createClient para compatibilidad con hooks
+export function createClient() {
+  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+}
