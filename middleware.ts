@@ -1,48 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Rutas públicas que no requieren autenticación
-const PUBLIC_ROUTES = [
-  '/',
-  '/login',
-  '/signup',
-  '/forgot-password',
-  '/auth/accept-invite',
-  '/auth/verify-email',
-  '/auth/callback',
-  '/auth/reset-password',
-  '/onboarding',
-]
-
-// Rutas de API que tienen su propia autenticación
-const API_WITH_OWN_AUTH = [
-  '/api/webhooks/manychat',
-  '/api/trello/webhook',
-  '/api/cron/',
-  '/api/auth/signup',
-  '/api/health',
-  '/api/test',
-]
-
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl
-
-  // PERMITIR RUTAS PÚBLICAS PRIMERO - Sin ningún procesamiento
-  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return NextResponse.next()
-  }
-
-  // PERMITIR APIs CON AUTENTICACIÓN PROPIA - Sin ningún procesamiento  
-  if (API_WITH_OWN_AUTH.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return NextResponse.next()
-  }
-
-  // Para rutas protegidas, redirigir a login temporalmente hasta que funcione
-  // TODO: Agregar autenticación de Supabase aquí
-  if (!pathname.startsWith('/api/')) {
-    return NextResponse.redirect(new URL('/login', req.url))
-  }
-  
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Middleware mínimo - solo permitir todo por ahora para debug
+  // Una vez que funcione, agregaremos la lógica de autenticación
+  return NextResponse.next()
 }
 
 export const config = {
