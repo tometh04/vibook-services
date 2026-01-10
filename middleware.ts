@@ -1,5 +1,5 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
 // Rutas públicas que no requieren autenticación
 const PUBLIC_ROUTES = [
@@ -26,17 +26,17 @@ const API_WITH_OWN_AUTH = [
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Permitir rutas públicas - RETORNAR TEMPRANO (antes de cualquier validación)
+  // PERMITIR RUTAS PÚBLICAS PRIMERO - Sin ningún procesamiento
   if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
-  // Permitir APIs con autenticación propia - RETORNAR TEMPRANO
+  // PERMITIR APIs CON AUTENTICACIÓN PROPIA - Sin ningún procesamiento
   if (API_WITH_OWN_AUTH.some(route => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
-  // Validar variables de entorno - REQUERIDAS
+  // Solo para rutas protegidas: Validar variables de entorno
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -51,7 +51,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=config', req.url))
   }
 
-  // Crear response antes de usar Supabase
+  // Crear response para cookies
   let response = NextResponse.next({
     request: {
       headers: req.headers,
@@ -59,6 +59,7 @@ export async function middleware(req: NextRequest) {
   })
 
   try {
+    // Crear cliente de Supabase solo para rutas protegidas
     const supabase = createServerClient(
       supabaseUrl,
       supabaseAnonKey,
@@ -91,10 +92,9 @@ export async function middleware(req: NextRequest) {
     // Usuario autenticado - permitir acceso
     return response
   } catch (error: any) {
-    // Capturar cualquier error al crear cliente o verificar usuario
     console.error('❌ Middleware error:', error)
     
-    // Si es un error de refresh token o JWT, redirigir a login
+    // Para errores de autenticación, redirigir a login
     if (error?.message?.includes('Refresh Token') || 
         error?.message?.includes('JWT') ||
         error?.status === 401) {
@@ -120,4 +120,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-
