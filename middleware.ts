@@ -24,18 +24,17 @@ const API_WITH_OWN_AUTH = [
 ]
 
 export async function middleware(req: NextRequest) {
-  try {
-    const { pathname } = req.nextUrl
+  const { pathname } = req.nextUrl
 
-    // Permitir rutas públicas - RETORNAR TEMPRANO
-    if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-      return NextResponse.next()
-    }
+  // Permitir rutas públicas - RETORNAR TEMPRANO (antes de cualquier validación)
+  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+    return NextResponse.next()
+  }
 
-    // Permitir APIs con autenticación propia - RETORNAR TEMPRANO
-    if (API_WITH_OWN_AUTH.some(route => pathname.startsWith(route))) {
-      return NextResponse.next()
-    }
+  // Permitir APIs con autenticación propia - RETORNAR TEMPRANO
+  if (API_WITH_OWN_AUTH.some(route => pathname.startsWith(route))) {
+    return NextResponse.next()
+  }
 
   // Validar variables de entorno - REQUERIDAS
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -52,70 +51,65 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=config', req.url))
   }
 
+  // Crear response antes de usar Supabase
   let response = NextResponse.next({
     request: {
       headers: req.headers,
     },
   })
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll()
+  try {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              req.cookies.set(name, value)
+              response.cookies.set(name, value, options)
+            })
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            req.cookies.set(name, value)
-            response.cookies.set(name, value, options)
-          })
-        },
-      },
-    }
-  )
+      }
+    )
 
     // Verificar sesión de usuario
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser()
-      
-      if (error || !user) {
-        // Redirigir a login si no hay sesión válida
-        if (!pathname.startsWith('/api/')) {
-          return NextResponse.redirect(new URL('/login', req.url))
-        }
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    } catch (error: any) {
-      // Silenciar errores de refresh token
-      if (error?.message?.includes('Refresh Token') || 
-          error?.message?.includes('JWT') ||
-          error?.status === 401) {
-        if (!pathname.startsWith('/api/')) {
-          return NextResponse.redirect(new URL('/login', req.url))
-        }
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      console.warn('Middleware auth error:', error)
-      // Si hay un error inesperado, redirigir a login en lugar de fallar
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error || !user) {
+      // Redirigir a login si no hay sesión válida
       if (!pathname.startsWith('/api/')) {
-        return NextResponse.redirect(new URL('/login?error=auth', req.url))
+        return NextResponse.redirect(new URL('/login', req.url))
       }
-      return NextResponse.json({ error: 'Authentication error' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Usuario autenticado - permitir acceso
     return response
   } catch (error: any) {
-    // Capturar cualquier error inesperado en el middleware
-    console.error('❌ Middleware unexpected error:', error)
-    // Para rutas de página, redirigir a login
-    if (!req.nextUrl.pathname.startsWith('/api/')) {
+    // Capturar cualquier error al crear cliente o verificar usuario
+    console.error('❌ Middleware error:', error)
+    
+    // Si es un error de refresh token o JWT, redirigir a login
+    if (error?.message?.includes('Refresh Token') || 
+        error?.message?.includes('JWT') ||
+        error?.status === 401) {
+      if (!pathname.startsWith('/api/')) {
+        return NextResponse.redirect(new URL('/login', req.url))
+      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    // Para otros errores, redirigir a login o retornar error
+    if (!pathname.startsWith('/api/')) {
       return NextResponse.redirect(new URL('/login?error=server', req.url))
     }
-    // Para APIs, retornar error 500
     return NextResponse.json(
-      { error: 'Internal server error', message: error?.message },
+      { error: 'Internal server error', message: error?.message || 'Unknown error' },
       { status: 500 }
     )
   }
