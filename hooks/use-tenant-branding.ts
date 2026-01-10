@@ -67,9 +67,9 @@ export function useTenantBranding(agencyId?: string): UseTenantBrandingReturn {
       setError(null)
 
       const supabase = createClient()
-      // @ts-ignore - tenant_branding no está en los tipos aún, pero existe en la BD
-      const { data, error: fetchError } = await supabase
-        .from('tenant_branding')
+      // @ts-expect-error - tenant_branding no está en los tipos generados aún
+      const { data, error: fetchError } = await (supabase
+        .from('tenant_branding') as any)
         .select('*')
         .eq('agency_id', agencyId)
         .maybeSingle()
