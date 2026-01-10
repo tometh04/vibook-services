@@ -21,6 +21,7 @@ const API_WITH_OWN_AUTH = [
   '/api/auth/signup',
   '/api/health',
   '/api/test',
+  '/api/simple',
 ]
 
 export function middleware(req: NextRequest) {
@@ -37,7 +38,6 @@ export function middleware(req: NextRequest) {
   }
 
   // Para rutas protegidas, redirigir a login temporalmente
-  // TODO: Agregar autenticación de Supabase aquí
   if (!pathname.startsWith('/api/')) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
