@@ -259,24 +259,9 @@ export async function POST(request: Request) {
       // No fallar si solo falla los settings
     }
 
-    // Generar y enviar link de verificación (usamos password aquí porque aún lo tenemos)
-    try {
-      // No necesitamos generar link manualmente - Supabase envía el email automáticamente
-      // cuando creamos el usuario con email_confirm: false
-      // El email de verificación usará la redirect URL configurada en Supabase Dashboard
-
-      if (linkError) {
-        console.error("⚠️  Error generating verification link:", linkError)
-        // No fallar si solo falla el email, el usuario puede usar reenvío
-      } else if (linkData?.properties?.action_link) {
-        // Aquí podrías enviar el email manualmente usando un servicio de email
-        // Por ahora, Supabase debería enviarlo automáticamente cuando se genera el link
-        console.log("✅ Verification link generated:", linkData.properties.action_link)
-      }
-    } catch (error) {
-      console.error("⚠️  Error in verification email generation:", error)
-      // No fallar, el usuario puede usar reenvío
-    }
+    // Supabase envía el email de verificación automáticamente cuando creamos el usuario
+    // con email_confirm: false. El email usará la redirect URL configurada en Supabase Dashboard
+    // que debe ser: https://vibookservicessaas.vercel.app/auth/verified
 
     return NextResponse.json({
       success: true,

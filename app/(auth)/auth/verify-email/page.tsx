@@ -30,7 +30,7 @@ function VerifyEmailContent() {
         const refreshToken = hashParams.get("refresh_token")
         const typeFromHash = hashParams.get("type")
 
-        if (accessToken && refreshToken && typeFromHash === "signup") {
+        if (accessToken && refreshToken) {
           // Establecer la sesión con los tokens
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -44,25 +44,25 @@ function VerifyEmailContent() {
             return
           }
 
-          if (data.user?.email_confirmed_at) {
-            // Email verificado exitosamente - redirigir a onboarding
-            setVerified(true)
-            setTimeout(() => {
-              router.push("/onboarding")
-            }, 2000)
-          }
-        } else {
-          // Verificar si el usuario ya está verificado (página normal de verify-email)
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.user?.email_confirmed_at) {
-            setVerified(true)
-            setTimeout(() => {
-              router.push("/onboarding")
-            }, 2000)
-          } else {
-            setLoading(false)
+          if (data.user) {
+            // Verificar si el email está confirmado
+            const { data: { user: updatedUser } } = await supabase.auth.getUser()
+            if (updatedUser?.email_confirmed_at) {
+              // Email verificado exitosamente - redirigir a página de confirmación y luego onboarding
+              router.push("/auth/verified")
+              return
+            }
           }
         }
+
+        // Verificar si el usuario ya está verificado (página normal de verify-email)
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.email_confirmed_at) {
+          router.push("/auth/verified")
+          return
+        }
+
+        setLoading(false)
       } catch (err: any) {
         console.error("Error in verification:", err)
         setError(err.message || "Error al verificar el email")
@@ -100,33 +100,6 @@ function VerifyEmailContent() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Si el email ya fue verificado, mostrar mensaje de éxito
-  if (verified) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-            </div>
-            <CardTitle className="text-2xl">¡Email verificado!</CardTitle>
-            <CardDescription>
-              Tu cuenta ha sido verificada exitosamente
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800 dark:text-green-200">
-                Redirigiendo al onboarding...
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   if (loading) {
