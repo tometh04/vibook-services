@@ -1,7 +1,8 @@
 import { GalleryVerticalEnd } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 
-import { LoginForm } from "@/components/login-form"
+import { LoginForm } from "@/components/auth/login-form"
 
 // Configuración de branding para la página de login
 // En un SaaS con subdominios, esto se obtendría dinámicamente
@@ -33,7 +34,7 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-md">
           <div className="flex justify-center gap-2 mb-8">
-            <a href="#" className="flex items-center gap-2 font-medium text-xl">
+            <Link href="/" className="flex items-center gap-2 font-medium text-xl">
               {LOGIN_BRANDING.logoUrl ? (
                 <Image 
                   src={LOGIN_BRANDING.logoUrl} 
@@ -48,7 +49,7 @@ export default function LoginPage() {
                 </div>
               )}
               {LOGIN_BRANDING.appName}
-            </a>
+            </Link>
           </div>
           <LoginForm />
         </div>
