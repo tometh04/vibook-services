@@ -36,83 +36,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Solo para rutas protegidas: Validar variables de entorno
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
-    }
-    return NextResponse.redirect(new URL('/login?error=config', req.url))
+  // Para rutas protegidas, redirigir a login temporalmente hasta que funcione
+  // TODO: Agregar autenticación de Supabase aquí
+  if (!pathname.startsWith('/api/')) {
+    return NextResponse.redirect(new URL('/login', req.url))
   }
-
-  try {
-    // Importar createServerClient dinámicamente solo cuando sea necesario
-    const { createServerClient } = await import('@supabase/ssr')
-    
-    // Crear response para cookies
-    let response = NextResponse.next({
-      request: {
-        headers: req.headers,
-      },
-    })
-
-    // Crear cliente de Supabase solo para rutas protegidas
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          getAll() {
-            return req.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              req.cookies.set(name, value)
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
-
-    // Verificar sesión de usuario
-    const { data: { user }, error } = await supabase.auth.getUser()
-    
-    if (error || !user) {
-      // Redirigir a login si no hay sesión válida
-      if (!pathname.startsWith('/api/')) {
-        return NextResponse.redirect(new URL('/login', req.url))
-      }
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Usuario autenticado - permitir acceso
-    return response
-  } catch (error: any) {
-    // Para errores de autenticación comunes, redirigir a login
-    if (error?.message?.includes('Refresh Token') || 
-        error?.message?.includes('JWT') ||
-        error?.status === 401) {
-      if (!pathname.startsWith('/api/')) {
-        return NextResponse.redirect(new URL('/login', req.url))
-      }
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    // Para otros errores, redirigir a login o retornar error
-    if (!pathname.startsWith('/api/')) {
-      return NextResponse.redirect(new URL('/login?error=server', req.url))
-    }
-    return NextResponse.json(
-      { error: 'Internal server error', message: error?.message || 'Unknown error' },
-      { status: 500 }
-    )
-  }
+  
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 }
 
 export const config = {
