@@ -18,21 +18,21 @@ export async function POST(request: Request) {
     }
 
     // Obtener la agencia del usuario (debería ser SUPER_ADMIN de su propia agencia)
-    const { data: userAgencies } = await supabase
+    const { data: userAgencies, error: userAgenciesError } = await supabase
       .from("user_agencies")
       .select("agency_id")
       .eq("user_id", user.id)
       .limit(1)
-      .single()
+      .maybeSingle()
 
-    if (!userAgencies || !userAgencies.agency_id) {
+    if (userAgenciesError || !userAgencies || !userAgencies.agency_id) {
       return NextResponse.json(
         { error: "No se encontró la agencia del usuario" },
         { status: 404 }
       )
     }
 
-    const agencyId = userAgencies.agency_id
+    const agencyId = userAgencies.agency_id as string
 
     // Actualizar información de la agencia
     const { error: agencyError } = await supabase
