@@ -58,14 +58,11 @@ export async function GET(request: Request) {
 
     if (authUser) {
       // Verificar si el usuario ya existe en nuestra BD
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (authUser) {
-        const { data: existingUser } = await supabaseAdmin
-          .from("users")
-          .select("id, role, is_active")
-          .eq("auth_id", authUser.id)
-          .maybeSingle()
+      const { data: existingUser } = await supabaseAdmin
+        .from("users")
+        .select("id, role, is_active")
+        .eq("auth_id", authUser.id)
+        .maybeSingle()
 
         // Si el usuario no existe (primera vez con OAuth), crear agencia automáticamente
         if (!existingUser) {
@@ -110,19 +107,36 @@ export async function GET(request: Request) {
               }
 
               // Crear tenant_branding, settings, etc. (similar a signup)
-              await supabaseAdmin.from("tenant_branding").insert({
-                agency_id: agencyData.id,
-                brand_name: `${userName}'s Agency`,
-              }).catch(err => console.error("⚠️ Error creating branding:", err))
+              try {
+                const { error: brandingError } = await supabaseAdmin.from("tenant_branding").insert({
+                  agency_id: agencyData.id,
+                  brand_name: `${userName}'s Agency`,
+                })
+                if (brandingError) console.error("⚠️ Error creating branding:", brandingError)
+              } catch (err) {
+                console.error("⚠️ Error creating branding:", err)
+              }
 
-              await supabaseAdmin.from("customer_settings").insert({ agency_id: agencyData.id })
-                .catch(err => console.error("⚠️ Error creating customer settings:", err))
+              try {
+                const { error: customerSettingsError } = await supabaseAdmin.from("customer_settings").insert({ agency_id: agencyData.id })
+                if (customerSettingsError) console.error("⚠️ Error creating customer settings:", customerSettingsError)
+              } catch (err) {
+                console.error("⚠️ Error creating customer settings:", err)
+              }
               
-              await supabaseAdmin.from("operation_settings").insert({ agency_id: agencyData.id })
-                .catch(err => console.error("⚠️ Error creating operation settings:", err))
+              try {
+                const { error: operationSettingsError } = await supabaseAdmin.from("operation_settings").insert({ agency_id: agencyData.id })
+                if (operationSettingsError) console.error("⚠️ Error creating operation settings:", operationSettingsError)
+              } catch (err) {
+                console.error("⚠️ Error creating operation settings:", err)
+              }
               
-              await supabaseAdmin.from("financial_settings").insert({ agency_id: agencyData.id })
-                .catch(err => console.error("⚠️ Error creating financial settings:", err))
+              try {
+                const { error: financialSettingsError } = await supabaseAdmin.from("financial_settings").insert({ agency_id: agencyData.id })
+                if (financialSettingsError) console.error("⚠️ Error creating financial settings:", financialSettingsError)
+              } catch (err) {
+                console.error("⚠️ Error creating financial settings:", err)
+              }
 
               // Redirigir a onboarding para completar la configuración
               return NextResponse.redirect(`${origin}/onboarding`)
