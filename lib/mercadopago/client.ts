@@ -37,6 +37,10 @@ export async function createPreference(data: {
   external_reference?: string
   notification_url?: string
 }) {
+  if (!preference || !client) {
+    throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
+  }
+
   return await preference.create({
     body: {
       items: data.items.map(item => ({
@@ -53,7 +57,7 @@ export async function createPreference(data: {
       auto_return: data.auto_return || 'approved',
       external_reference: data.external_reference,
       notification_url: data.notification_url,
-    }
+    } as any
   })
 }
 
