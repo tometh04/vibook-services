@@ -36,6 +36,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "El email ya está registrado en el sistema" }, { status: 400 })
     }
 
+    // Verificar límite de usuarios del plan
+    // Obtener la agencia del usuario actual para verificar límites
+    const { data: userAgencies } = await supabase
+      .from("user_agencies")
+      .select("agency_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle()
+
+    if (userAgencies) {
+      const { checkSubscriptionLimit } = await import("@/lib/billing/limits")
+      const limitCheck = await checkSubscriptionLimit((userAgencies as any).agency_id, "users")
+      if (limitCheck.limitReached) {
+        return NextResponse.json(
+          {
+            error: limitCheck.message || "Has alcanzado el límite de usuarios de tu plan",
+            limitReached: true,
+            limit: limitCheck.limit,
+            current: limitCheck.current
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     // Crear cliente admin de Supabase
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY

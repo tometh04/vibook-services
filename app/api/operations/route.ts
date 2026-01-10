@@ -66,6 +66,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
+    // Verificar límite de operaciones del plan
+    const { checkSubscriptionLimit } = await import("@/lib/billing/limits")
+    const limitCheck = await checkSubscriptionLimit(agency_id, "operations")
+    if (limitCheck.limitReached) {
+      return NextResponse.json(
+        { 
+          error: limitCheck.message || "Has alcanzado el límite de operaciones de tu plan",
+          limitReached: true,
+          limit: limitCheck.limit,
+          current: limitCheck.current
+        },
+        { status: 403 }
+      )
+    }
+
     // Aplicar validaciones de configuración
     if (settingsData?.require_destination && !destination) {
       return NextResponse.json({ error: "El destino es requerido" }, { status: 400 })
