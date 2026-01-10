@@ -20,6 +20,7 @@ const API_WITH_OWN_AUTH = [
   '/api/cron/',
   '/api/auth/signup',
   '/api/health',
+  '/api/test',
 ]
 
 export async function middleware(req: NextRequest) {
