@@ -10,6 +10,7 @@ const PUBLIC_ROUTES = [
   '/auth/verify-email',
   '/auth/callback',
   '/auth/reset-password',
+  '/onboarding',
 ]
 
 // Rutas de API que tienen su propia autenticación
@@ -26,12 +27,12 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // PERMITIR RUTAS PÚBLICAS PRIMERO - Sin ningún procesamiento
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
     return NextResponse.next()
   }
 
-  // PERMITIR APIs CON AUTENTICACIÓN PROPIA - Sin ningún procesamiento
-  if (API_WITH_OWN_AUTH.some(route => pathname.startsWith(route))) {
+  // PERMITIR APIs CON AUTENTICACIÓN PROPIA - Sin ningún procesamiento  
+  if (API_WITH_OWN_AUTH.some(route => pathname === route || pathname.startsWith(route + '/'))) {
     return NextResponse.next()
   }
 
@@ -40,7 +41,6 @@ export async function middleware(req: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('❌ Missing required Supabase environment variables')
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: 'Server configuration error' },
@@ -50,17 +50,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=config', req.url))
   }
 
-  // Crear response para cookies
-  let response = NextResponse.next({
-    request: {
-      headers: req.headers,
-    },
-  })
-
   try {
     // Importar createServerClient dinámicamente solo cuando sea necesario
     const { createServerClient } = await import('@supabase/ssr')
     
+    // Crear response para cookies
+    let response = NextResponse.next({
+      request: {
+        headers: req.headers,
+      },
+    })
+
     // Crear cliente de Supabase solo para rutas protegidas
     const supabase = createServerClient(
       supabaseUrl,
@@ -94,9 +94,7 @@ export async function middleware(req: NextRequest) {
     // Usuario autenticado - permitir acceso
     return response
   } catch (error: any) {
-    console.error('❌ Middleware error:', error)
-    
-    // Para errores de autenticación, redirigir a login
+    // Para errores de autenticación comunes, redirigir a login
     if (error?.message?.includes('Refresh Token') || 
         error?.message?.includes('JWT') ||
         error?.status === 401) {
