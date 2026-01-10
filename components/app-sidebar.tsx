@@ -175,6 +175,7 @@ const allNavigation: NavItem[] = [
     module: "settings",
     items: [
       { title: "Configuración", url: "/settings" },
+      { title: "Facturación", url: "/settings/billing" },
       { title: "Operadores", url: "/operators", module: "operators" as const },
       { title: "Usuarios", url: "/settings/users" },
       { title: "Equipos", url: "/settings/teams" },
