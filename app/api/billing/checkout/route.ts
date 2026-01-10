@@ -100,8 +100,8 @@ export async function POST(request: Request) {
     })
 
     // Guardar preference_id en la suscripción (si existe) o crear una nueva
+    // subscriptions table no está en tipos generados todavía, usar as any
     if (existingSubscription) {
-      // @ts-expect-error - subscriptions table no está en tipos generados todavía
       await (supabase
         .from("subscriptions") as any)
         .update({
@@ -111,7 +111,6 @@ export async function POST(request: Request) {
         .eq("id", (existingSubscription as any).id)
     } else {
       // Crear suscripción pendiente
-      // @ts-expect-error - subscriptions table no está en tipos generados todavía
       await (supabase
         .from("subscriptions") as any)
         .insert({
