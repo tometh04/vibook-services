@@ -129,13 +129,14 @@ Convertir **Vibook Gestión** de un ERP custom para Maxi a un **SaaS multi-tenan
   - Hacer opcional (feature flag por plan)
   - Permitir configurar API keys por tenant
 
-### ✅ **3.2 Limpiar Referencias a "Maxi" / "MAXEVA"**
-- [ ] Buscar y reemplazar todas las referencias hardcoded:
-  - `grep -r "MAXEVA" --exclude-dir=node_modules`
-  - `grep -r "maxi" -i --exclude-dir=node_modules`
-  - `grep -r "erplozada" --exclude-dir=node_modules`
-- [ ] Usar siempre branding dinámico
-- [ ] Eliminar seed data específica de Maxi
+### ✅ **3.2 Limpiar Referencias a "Maxi" / "MAXEVA"** ✅ COMPLETADO
+- [x] Buscar y reemplazar todas las referencias hardcoded:
+  - [x] Cambiar "MAXEVA" a "Vibook Gestión" en código activo
+  - [x] Cambiar "maxeva_gestion" a "vibook_gestion" en API routes
+  - [x] Cambiar URLs hardcoded de maxevagestion.com a NEXT_PUBLIC_APP_URL
+  - [x] Cambiar emails de ejemplo (maxeva.com → ejemplo.com)
+- [x] Usar siempre branding dinámico (ya implementado via tenant_branding)
+- [ ] Eliminar seed data específica de Maxi (en proceso - scripts)
 
 ### ✅ **3.3 Eliminar Scripts de Migración/Setup Específicos**
 - [ ] Revisar `scripts/` y eliminar:
