@@ -144,8 +144,8 @@ export async function POST(request: Request) {
             headers: {
                 "X-API-Key": EMILIA_API_KEY,
                 "Content-Type": "application/json",
-                "User-Agent": "Emilia-API-Client/1.0 (https://www.maxevagestion.com)",
-                "Origin": "https://www.maxevagestion.com",
+                "User-Agent": `Emilia-API-Client/1.0 (${process.env.NEXT_PUBLIC_APP_URL || 'https://vibookservicessaas.vercel.app'})`,
+                "Origin": process.env.NEXT_PUBLIC_APP_URL || 'https://vibookservicessaas.vercel.app',
             },
             body: JSON.stringify(apiPayload),
         })
