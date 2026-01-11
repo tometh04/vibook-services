@@ -25,6 +25,12 @@ export async function checkSubscriptionLimit(
   current: number
   message?: string
 }> {
+  // TEMPORAL: Deshabilitar checks de límites para hacer el sistema 100% funcional
+  // TODO: Re-habilitar cuando se implemente el paywall completo al final
+  if (process.env.DISABLE_SUBSCRIPTION_LIMITS === 'true') {
+    return { limitReached: false, limit: null, current: 0 }
+  }
+
   if (!supabaseAdmin) {
     // Si no hay admin client, permitir todo (para desarrollo)
     return { limitReached: false, limit: null, current: 0 }
@@ -126,6 +132,12 @@ export async function checkFeatureAccess(
   agencyId: string,
   feature: string
 ): Promise<{ hasAccess: boolean; message?: string }> {
+  // TEMPORAL: Deshabilitar checks de features para hacer el sistema 100% funcional
+  // TODO: Re-habilitar cuando se implemente el paywall completo al final
+  if (process.env.DISABLE_SUBSCRIPTION_LIMITS === 'true') {
+    return { hasAccess: true }
+  }
+
   if (!supabaseAdmin) {
     return { hasAccess: true }
   }

@@ -4,10 +4,13 @@
 
 **Vibook Gestión** es un sistema de gestión (ERP) para agencias de viajes que está siendo convertido en un **SaaS multi-tenant** completo con:
 - ✅ Self-service signup
-- ✅ Sistema de suscripciones y billing (Mercado Pago)
-- ⏳ Paywall por funcionalidades (checks implementados, falta agregar en UI)
+- ✅ Sistema de suscripciones y billing (Mercado Pago - básico implementado)
+- ⏳ Paywall por funcionalidades (PENDIENTE - para el final)
 - ✅ Branding personalizado por tenant
 - ⏳ Integraciones opcionales (Trello, Manychat funcionan pero son hardcoded - conversión modular pendiente)
+
+### 🎯 Objetivo Actual
+**PRIORIDAD:** Hacer el sistema 100% funcional primero, luego implementar paywall y suscripciones completas de Mercado Pago con período de prueba.
 
 ---
 
@@ -345,10 +348,18 @@
    - Configuraciones hardcoded limpiadas
    - **FALTA:** Convertir integraciones a sistema modular (para después)
 
-### ⏳ **PENDIENTE (Para MVP):**
-1. ⏳ Agregar `<PaywallGate>` en features premium (Trello, Manychat, Emilia, WhatsApp, Reports)
-2. ⏳ Tests básicos del flujo completo
-3. ⏳ Documentación de usuario final
+### ⏳ **PENDIENTE (Completar Funcionalidad 100%):**
+1. ⏳ Verificar que todas las features funcionen correctamente
+2. ⏳ Revisar que las integraciones (Trello, Manychat, Emilia) funcionen
+3. ⏳ Asegurar que el flujo completo funcione: Signup → Onboarding → Dashboard → Operaciones
+4. ⏳ Tests básicos del flujo completo
+5. ⏳ Documentación de usuario final básica
+
+### ⏳ **PENDIENTE (Para el final - Paywall y Suscripciones):**
+1. ⏳ Implementar paywall completo con `<PaywallGate>` en features premium
+2. ⏳ Implementar período de prueba automático para nuevas agencias
+3. ⏳ Completar integración de suscripciones recurrentes con Mercado Pago Preapproval
+4. ⏳ Habilitar checks de límites en producción
 
 ### ⏳ **PENDIENTE (Post-MVP):**
 1. ⏳ FASE 4: Multi-tenancy completo (subdominios, tenant switching)
@@ -399,13 +410,17 @@ PROGRESO TOTAL: [████████████░░░░░░░░░
 
 ## 📝 NOTAS IMPORTANTES
 
-1. **Sistema Funcional:** El sistema está funcional para SaaS. Las fases críticas (1, 2, 3) están completadas en su mayoría.
+1. **Objetivo Actual:** Hacer el sistema 100% funcional primero. Los checks de límites están implementados pero **temporalmente deshabilitados** (via `DISABLE_SUBSCRIPTION_LIMITS=true`).
 
-2. **PaywallGate:** Los checks de límites funcionan en backend, pero falta agregar el componente `<PaywallGate>` en las páginas de features premium para bloquear visualmente el acceso.
+2. **Paywall y Suscripciones:** Se implementarán al final, incluyendo:
+   - Período de prueba automático (30 días)
+   - Suscripciones recurrentes completas con Mercado Pago Preapproval
+   - PaywallGate en features premium
+   - Habilitar checks de límites
 
 3. **Integraciones:** Trello y Manychat funcionan pero están hardcoded. La conversión a sistema modular puede hacerse después sin afectar funcionalidad.
 
-4. **MVP Ready:** Con agregar PaywallGate en UI, el sistema estaría listo para MVP.
+4. **Estado Actual:** Sistema funcional sin restricciones de pago. Todas las features están accesibles para desarrollo y testing.
 
 ---
 
