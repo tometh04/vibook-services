@@ -85,16 +85,19 @@
 - [x] Variables de entorno documentadas (`CONFIGURACION_MERCADOPAGO.md`)
 - [x] Sincronización de eventos con BD
 
-### ✅ **2.3 Paywall y Feature Flags** ✅ COMPLETADO (Backend) / ⏳ PENDIENTE (Frontend)
+### ✅ **2.3 Paywall y Feature Flags** ✅ COMPLETADO (Backend) / ⏳ PENDIENTE PARA EL FINAL
 - [x] Hook `useSubscription` creado y funcionando
 - [x] Componente `<PaywallGate>` creado
 - [x] Helpers de límites (`lib/billing/limits.ts`):
   - `checkSubscriptionLimit` - Verificar límites de plan
   - `checkFeatureAccess` - Verificar acceso a features
-- [x] Checks de límites implementados en:
-  - Crear operación (límite de operaciones/mes)
-  - Invitar usuario (límite de usuarios)
-- [ ] **PENDIENTE:** Agregar `<PaywallGate>` en features premium (Trello, Manychat, Emilia, WhatsApp, Reports)
+- [x] Checks de límites implementados en backend (temporalmente deshabilitados)
+- [x] Flag `DISABLE_SUBSCRIPTION_LIMITS` agregado para desarrollo
+- [ ] **PENDIENTE PARA EL FINAL:** Implementar paywall completo con:
+  - Re-habilitar checks de límites
+  - Agregar `<PaywallGate>` en features premium (Trello, Manychat, Emilia, WhatsApp, Reports)
+  - Período de prueba automático (30 días)
+  - Suscripciones recurrentes completas con Mercado Pago Preapproval
 - [x] Límites por plan definidos:
   - Free: 1 usuario, 10 operaciones/mes, sin integraciones
   - Starter: 5 usuarios, 100 operaciones/mes, 1 integración
