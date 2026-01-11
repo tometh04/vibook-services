@@ -5,6 +5,7 @@ import { LeadsTable } from "@/components/sales/leads-table"
 import { LeadsPageClient } from "@/components/sales/leads-page-client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { canAccessModule } from "@/lib/permissions"
+import { PaywallGate } from "@/components/billing/paywall-gate"
 
 export default async function LeadsPage() {
   const { user } = await getCurrentUser()

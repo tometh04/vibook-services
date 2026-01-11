@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { ReportsPageClient } from "@/components/reports/reports-page-client"
+import { PaywallGate } from "@/components/billing/paywall-gate"
 
 export default async function ReportsPage() {
   const { user } = await getCurrentUser()
@@ -20,11 +21,13 @@ export default async function ReportsPage() {
     .order("name")
 
   return (
-    <ReportsPageClient
-      userRole={user.role}
-      userId={user.id}
-      sellers={sellers || []}
-      agencies={agencies || []}
-    />
+    <PaywallGate feature="reports" requiredPlan="Starter" message="Los reportes avanzados están disponibles en planes Starter y superiores.">
+      <ReportsPageClient
+        userRole={user.role}
+        userId={user.id}
+        sellers={sellers || []}
+        agencies={agencies || []}
+      />
+    </PaywallGate>
   )
 }

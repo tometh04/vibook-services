@@ -10,6 +10,7 @@ import {
 import Link from "next/link"
 import { EmiliaPageClient } from "@/components/emilia/emilia-page-client"
 import { Sparkles } from "lucide-react"
+import { PaywallGate } from "@/components/billing/paywall-gate"
 
 export default async function EmiliaPage() {
   const { user } = await getCurrentUser()
@@ -42,7 +43,9 @@ export default async function EmiliaPage() {
         </div>
       </div>
 
-      <EmiliaPageClient userId={user.id} userName={user.name} />
+      <PaywallGate feature="emilia" requiredPlan="Pro" message="El asistente IA Emilia está disponible en el plan Pro.">
+        <EmiliaPageClient userId={user.id} userName={user.name} />
+      </PaywallGate>
     </div>
   )
 }

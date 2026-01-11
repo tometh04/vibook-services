@@ -113,6 +113,10 @@ export function useSubscription() {
     planName: subscription?.plan?.name || "FREE",
     canUseFeature: (feature: string) => {
       if (!subscription?.plan) return false
+      // Durante el período de prueba (TRIAL), permitir acceso a todas las features
+      if (subscription.status === "TRIAL") {
+        return true
+      }
       return subscription.plan.features[feature as keyof typeof subscription.plan.features] === true
     },
     hasReachedLimit: (limitType: 'users' | 'operations' | 'integrations') => {

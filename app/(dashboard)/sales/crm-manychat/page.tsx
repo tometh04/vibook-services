@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { CRMManychatPageClient } from "@/components/sales/crm-manychat-page-client"
 import { canAccessModule } from "@/lib/permissions"
+import { PaywallGate } from "@/components/billing/paywall-gate"
 
 export default async function CRMManychatPage() {
   const { user } = await getCurrentUser()
