@@ -60,12 +60,12 @@ export async function GET(request: Request) {
 
     // Procesar notificaciones reales
     if (topic === 'payment') {
-      await handlePaymentNotification(id).catch((err) => {
+      await handlePaymentNotification(id).catch((err: any) => {
         console.error('Error procesando payment notification:', err)
         // No fallar el webhook si hay error procesando
       })
     } else if (topic === 'preapproval') {
-      await handlePreApprovalNotification(id).catch((err) => {
+      await handlePreApprovalNotification(id).catch((err: any) => {
         console.error('Error procesando preapproval notification:', err)
         // No fallar el webhook si hay error procesando
       })
@@ -127,7 +127,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           event_type: "PREAPPROVAL_NOT_FOUND",
           mp_notification_id: preapprovalId,
           metadata: { error: mpError.message, type: 'preapproval' }
-        }).catch((err) => {
+        }).catch((err: any) => {
           console.error('Error insertando evento:', err)
         })
       return // Salir sin error
@@ -202,7 +202,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           event_type: status === 'ACTIVE' ? 'SUBSCRIPTION_UPDATED' : 'SUBSCRIPTION_CANCELED',
           mp_notification_id: preapprovalId,
           metadata: { status: mpStatus, mp_data: preapproval }
-        }).catch((err) => {
+        }).catch((err: any) => {
           console.error('Error insertando billing_event:', err)
         })
     } else {
@@ -217,7 +217,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           event_type: "SUBSCRIPTION_CREATED",
           mp_notification_id: preapprovalId,
           metadata: { status: mpStatus, mp_data: preapproval }
-        }).catch((err) => {
+        }).catch((err: any) => {
           console.error('Error insertando billing_event:', err)
         })
     }
