@@ -151,7 +151,7 @@ export function ImportSection({
       operator_cost: "400000",
       currency: "ARS",
       status: "CONFIRMED",
-      seller_email: "vendedor@maxeva.com",
+      seller_email: "vendedor@ejemplo.com",
       operator_name: "Despegar",
       operation_file_code: "OP-20250101-001",
       amount: "100000",

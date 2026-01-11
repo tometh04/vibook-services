@@ -498,7 +498,7 @@ export function IntegrationsPageClient() {
       <Card>
         <CardHeader>
           <CardTitle>Integraciones Disponibles</CardTitle>
-          <CardDescription>Conecta MAXEVA GESTION con estos servicios</CardDescription>
+          <CardDescription>Conecta Vibook Gestión con estos servicios</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 md:grid-cols-5 gap-4">

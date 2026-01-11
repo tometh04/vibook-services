@@ -224,7 +224,7 @@ async function testWebhookConnection(webhookUrl: string | null): Promise<{ succe
       body: JSON.stringify({ 
         type: 'test',
         timestamp: new Date().toISOString(),
-        source: 'maxeva_gestion'
+        source: 'vibook_gestion'
       })
     })
     

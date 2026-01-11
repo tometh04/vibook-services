@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        description: `MAXEVA GESTION - Board ${boardIdModel}`,
+        description: `Vibook Gestión - Board ${boardIdModel}`,
         callbackURL: webhookUrl,
         idModel: boardIdModel, // Use full board ID
         key: settings.trello_api_key,
