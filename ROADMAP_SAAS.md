@@ -292,11 +292,12 @@
 - [ ] FAQ
 - [ ] Video walkthroughs (opcional)
 
-### ⏳ **8.2 Documentación Técnica** ⏳ PENDIENTE
-- [ ] README actualizado con instrucciones de setup
-- [ ] Documentación de API
-- [ ] Arquitectura del sistema
-- [ ] Guía de contribución (si es open source)
+### ✅ **8.2 Documentación Técnica** ✅ COMPLETADO (Básico)
+- [x] README actualizado con instrucciones de setup
+- [x] Guías de configuración completas (Supabase, OAuth, Mercado Pago, Vercel)
+- [x] Estructura del proyecto documentada
+- [ ] Documentación de API (OPCIONAL - para futuro)
+- [ ] Arquitectura del sistema detallada (OPCIONAL - para futuro)
 
 ### ✅ **8.3 Preparación para Producción** ✅ COMPLETADO
 - [x] Variables de entorno documentadas
