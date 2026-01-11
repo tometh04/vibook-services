@@ -329,7 +329,7 @@ async function updateOperationsWithSellers(
 
 async function main() {
   const csvPath = process.argv[2] || '/Users/tomiisanchezz/Downloads/Import Sistema - Sheet1.csv'
-  const agencyName = process.argv[3] || 'rosario'
+  const agencyName = process.argv[3] || 'default'
   
   console.log('📋 Creando vendedores y asignando operaciones...\n')
   
