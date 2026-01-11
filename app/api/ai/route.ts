@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server"
 
 // Esquema REAL de la base de datos
 const DATABASE_SCHEMA = `
-## ESQUEMA DE BASE DE DATOS - MAXEVA GESTION
+## ESQUEMA DE BASE DE DATOS - VIBOOK GESTIÓN
 
 ### users (Usuarios)
 - id, name, email, role ('SUPER_ADMIN','ADMIN','SELLER','VIEWER'), is_active
@@ -54,7 +54,7 @@ const DATABASE_SCHEMA = `
 - Margen = sale_amount_total - operator_cost
 `
 
-const SYSTEM_PROMPT = `Eres "Cerebro", el asistente de MAXEVA GESTION para agencias de viajes.
+const SYSTEM_PROMPT = `Eres "Cerebro", el asistente de Vibook Gestión para agencias de viajes.
 
 REGLAS CRÍTICAS:
 1. SIEMPRE usa execute_query para obtener datos reales
