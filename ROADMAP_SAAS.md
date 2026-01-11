@@ -145,12 +145,13 @@ Convertir **Vibook Gestión** de un ERP custom para Maxi a un **SaaS multi-tenan
 - [x] Eliminar scripts específicos de Madero/Rosario
 - [x] Identificar y mantener scripts genéricos útiles
 
-### ✅ **3.4 Limpiar Configuraciones Hardcoded**
-- [ ] Buscar valores hardcoded en:
-  - URLs de APIs
-  - Credenciales placeholder
-  - Configuraciones específicas de región/país
-- [ ] Mover todo a configuración por tenant o variables de entorno
+### ✅ **3.4 Limpiar Configuraciones Hardcoded** ✅ COMPLETADO (Mayoría)
+- [x] Buscar valores hardcoded en:
+  - [x] URLs de APIs (maxevagestion.com → NEXT_PUBLIC_APP_URL)
+  - [x] Credenciales placeholder (ya removidas en lib/supabase/server.ts)
+  - [ ] Configuraciones específicas de región/país (Argentina por defecto - OK para MVP)
+- [x] Mover URLs a variables de entorno (NEXT_PUBLIC_APP_URL)
+- [x] Branding dinámico implementado (tenant_branding)
 
 ---
 
