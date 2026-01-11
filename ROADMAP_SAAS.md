@@ -394,10 +394,17 @@ PROGRESO TOTAL: [████████████░░░░░░░░░
 
 ## 🚀 PRÓXIMOS PASOS RECOMENDADOS
 
-### **Prioridad ALTA (Completar MVP):**
-1. ✅ Agregar `<PaywallGate>` en features premium (1-2 horas)
-2. ⏳ Tests básicos del flujo signup → onboarding → billing (2-3 horas)
-3. ⏳ Documentación de usuario final básica (1-2 horas)
+### **Prioridad ALTA (Completar 100% Funcionalidad):**
+1. ⏳ Verificar que todas las features funcionen correctamente
+2. ⏳ Revisar integraciones (Trello, Manychat, Emilia)
+3. ⏳ Tests básicos del flujo completo (signup → onboarding → dashboard)
+4. ⏳ Documentación de usuario final básica
+
+### **Prioridad FINAL (Paywall y Suscripciones):**
+1. ⏳ Implementar período de prueba automático (30 días)
+2. ⏳ Completar integración de suscripciones recurrentes con Mercado Pago Preapproval
+3. ⏳ Agregar `<PaywallGate>` en features premium (Trello, Manychat, Emilia, WhatsApp, Reports)
+4. ⏳ Habilitar checks de límites en producción
 
 ### **Prioridad MEDIA (Mejoras Post-MVP):**
 1. ⏳ FASE 4: Multi-tenancy completo
