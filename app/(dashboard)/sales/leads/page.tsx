@@ -128,7 +128,8 @@ export default async function LeadsPage() {
   const hasTrelloLeads = (leads || []).some((lead: any) => lead.trello_list_id !== null && lead.trello_list_id !== undefined) || false
 
   return (
-    <LeadsPageClient
+    <PaywallGate feature="trello" requiredPlan="Starter" message="La integración con Trello está disponible en planes Starter y superiores.">
+      <LeadsPageClient
       initialLeads={leads || []}
       agencies={(agencies || []) as Array<{ id: string; name: string }>}
       sellers={(sellers || []) as Array<{ id: string; name: string }>}
@@ -138,6 +139,7 @@ export default async function LeadsPage() {
       hasTrelloLeads={hasTrelloLeads || false}
       currentUserId={user.id}
       currentUserRole={user.role}
-    />
+      />
+    </PaywallGate>
   )
 }
