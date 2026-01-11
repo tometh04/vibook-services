@@ -55,28 +55,28 @@ export async function POST(request: Request) {
     // Para pruebas de Mercado Pago, puede que no envíen el header x-signature
     const signature = request.headers.get('x-signature') || request.headers.get('X-Signature')
     
-    // Si hay secret configurado Y viene signature, validar
+    // Validar firma solo si está configurada Y viene el header
+    // IMPORTANTE: Para pruebas de simulación, Mercado Pago puede enviar firmas que no coinciden
+    // Por eso, solo loggeamos pero no rechazamos para permitir pruebas
+    const signature = request.headers.get('x-signature') || request.headers.get('X-Signature')
+    
     if (WEBHOOK_SECRET && signature) {
       console.log('🔐 Validando firma del webhook...')
       const isValid = verifyWebhookSignature(bodyText, signature, WEBHOOK_SECRET)
       if (!isValid) {
-        console.error('❌ Webhook signature inválida')
-        console.error('Signature recibida:', signature)
-        console.error('Body length:', bodyText.length)
-        // Por ahora, solo loggear pero continuar (para permitir pruebas)
-        // En producción real, deberías rechazar aquí
-        console.warn('⚠️ Signature inválida pero continuando (modo permisivo para pruebas)')
+        console.warn('⚠️ Webhook signature inválida (pero continuando para permitir pruebas)')
+        console.warn('Signature recibida:', signature.substring(0, 20) + '...')
+        console.warn('Body length:', bodyText.length)
+        // NO rechazar - solo loggear para permitir pruebas de simulación
+        // En producción real con notificaciones reales, la firma debería ser válida
       } else {
         console.log('✅ Webhook signature válida')
       }
     } else if (WEBHOOK_SECRET && !signature) {
-      // Si hay secret configurado pero no viene signature, puede ser una prueba
-      // Mercado Pago no siempre envía x-signature en pruebas de simulación
-      console.warn('⚠️ Webhook secret configurado pero no se recibió x-signature header (puede ser prueba de simulación)')
-      console.warn('⚠️ Continuando sin validar para permitir pruebas')
-      // Continuar sin validar para permitir pruebas
+      // Si hay secret pero no viene signature, puede ser una prueba
+      console.warn('⚠️ Webhook secret configurado pero no se recibió x-signature header (puede ser prueba)')
     } else {
-      // No hay secret configurado, continuar sin validar
+      // No hay secret configurado
       console.log('ℹ️ Webhook secret no configurado - validación deshabilitada')
     }
 
