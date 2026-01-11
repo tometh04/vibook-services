@@ -138,12 +138,12 @@ Convertir **Vibook Gestión** de un ERP custom para Maxi a un **SaaS multi-tenan
 - [x] Usar siempre branding dinámico (ya implementado via tenant_branding)
 - [ ] Eliminar seed data específica de Maxi (en proceso - scripts)
 
-### ✅ **3.3 Eliminar Scripts de Migración/Setup Específicos**
-- [ ] Revisar `scripts/` y eliminar:
-  - Scripts de setup de Trello específicos
-  - Scripts de seed con datos de Maxi
-  - Scripts de migración de datos de Maxi
-- [ ] Mantener solo scripts genéricos útiles
+### ✅ **3.3 Eliminar Scripts de Migración/Setup Específicos** ⏳ EN PROGRESO
+- [x] Revisar `scripts/` y crear lista de scripts a eliminar (`scripts/TO_DELETE.md`)
+- [ ] Eliminar scripts de setup de Trello específicos (16 scripts identificados)
+- [ ] Eliminar scripts de seed con datos de Maxi (`seed.ts`, `import-operations-from-maxi-csv.ts`)
+- [ ] Eliminar scripts específicos de Madero/Rosario
+- [x] Identificar scripts genéricos útiles a mantener
 
 ### ✅ **3.4 Limpiar Configuraciones Hardcoded**
 - [ ] Buscar valores hardcoded en:
