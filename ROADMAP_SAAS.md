@@ -61,7 +61,7 @@
 
 ---
 
-## 💳 FASE 2: SISTEMA DE SUSCRIPCIONES Y BILLING - COMPLETADA (95%)
+## 💳 FASE 2: SISTEMA DE SUSCRIPCIONES Y BILLING - COMPLETADA (80%)
 
 ### ✅ **2.1 Tablas de Billing** ✅ COMPLETADO
 - [x] Migración `004_billing_system.sql` creada
