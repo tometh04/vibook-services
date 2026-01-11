@@ -51,10 +51,6 @@ export async function POST(request: Request) {
     })
     console.log('📥 Webhook headers recibidos:', Object.keys(headers))
     
-    // Validar firma si está configurada Y si se envía el header
-    // Para pruebas de Mercado Pago, puede que no envíen el header x-signature
-    const signature = request.headers.get('x-signature') || request.headers.get('X-Signature')
-    
     // Validar firma solo si está configurada Y viene el header
     // IMPORTANTE: Para pruebas de simulación, Mercado Pago puede enviar firmas que no coinciden
     // Por eso, solo loggeamos pero no rechazamos para permitir pruebas
