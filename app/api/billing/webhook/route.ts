@@ -51,19 +51,31 @@ export async function GET(request: Request) {
   try {
     console.log('📥 GET webhook de Mercado Pago:', { topic, id })
 
+    // Si es un ID de prueba (123456), solo retornar éxito sin procesar
+    // Mercado Pago usa este ID para verificar que la URL funciona
+    if (id === '123456') {
+      console.log('✅ Prueba de webhook recibida (ID de prueba)')
+      return NextResponse.json({ received: true, message: 'Webhook configurado correctamente' })
+    }
+
+    // Procesar notificaciones reales
     if (topic === 'payment') {
-      await handlePaymentNotification(id)
+      await handlePaymentNotification(id).catch((err) => {
+        console.error('Error procesando payment notification:', err)
+        // No fallar el webhook si hay error procesando
+      })
     } else if (topic === 'preapproval') {
-      await handlePreApprovalNotification(id)
+      await handlePreApprovalNotification(id).catch((err) => {
+        console.error('Error procesando preapproval notification:', err)
+        // No fallar el webhook si hay error procesando
+      })
     }
 
     return NextResponse.json({ received: true })
   } catch (error: any) {
     console.error("Error processing Mercado Pago webhook (GET):", error)
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    )
+    // Siempre retornar 200 para que Mercado Pago no reenvíe
+    return NextResponse.json({ received: true, error: error.message })
   }
 }
 
@@ -73,16 +85,26 @@ async function handlePaymentNotification(paymentId: string) {
   // Por ahora, solo registramos el evento
   console.log('💳 Procesando notificación de pago:', paymentId)
 
-  // Aquí deberías obtener el pago de Mercado Pago para ver el external_reference
-  // Por simplicidad, lo registramos como evento
-  // billing_events table no está en tipos generados todavía
-  await (supabaseAdmin
-    .from("billing_events") as any)
-    .insert({
-      event_type: "PAYMENT_SUCCEEDED",
-      mp_payment_id: paymentId,
-      metadata: { type: 'payment' }
-    })
+  try {
+    // Aquí deberías obtener el pago de Mercado Pago para ver el external_reference
+    // Por simplicidad, lo registramos como evento
+    // billing_events table no está en tipos generados todavía
+    const { error } = await (supabaseAdmin
+      .from("billing_events") as any)
+      .insert({
+        event_type: "PAYMENT_SUCCEEDED",
+        mp_payment_id: paymentId,
+        metadata: { type: 'payment' }
+      })
+
+    if (error) {
+      console.error('Error insertando billing_event:', error)
+      // No lanzar error, solo loggear
+    }
+  } catch (err: any) {
+    console.error('Error en handlePaymentNotification:', err)
+    // No lanzar error, solo loggear
+  }
 }
 
 async function handlePreApprovalNotification(preapprovalId: string) {
@@ -90,9 +112,26 @@ async function handlePreApprovalNotification(preapprovalId: string) {
 
   try {
     // Obtener información del preapproval de Mercado Pago
-    const preapprovalResponse = await getPreApproval(preapprovalId)
-    // @ts-ignore - El tipo de respuesta de Mercado Pago puede variar
-    const preapproval = preapprovalResponse as any
+    // Si el preapproval no existe (como en pruebas), manejar el error
+    let preapproval: any
+    try {
+      const preapprovalResponse = await getPreApproval(preapprovalId)
+      // @ts-ignore - El tipo de respuesta de Mercado Pago puede variar
+      preapproval = preapprovalResponse as any
+    } catch (mpError: any) {
+      console.log('⚠️ Preapproval no encontrado en Mercado Pago (puede ser prueba):', mpError.message)
+      // Si no existe, solo registrar el evento sin datos del preapproval
+      await (supabaseAdmin
+        .from("billing_events") as any)
+        .insert({
+          event_type: "PREAPPROVAL_NOT_FOUND",
+          mp_notification_id: preapprovalId,
+          metadata: { error: mpError.message, type: 'preapproval' }
+        }).catch((err) => {
+          console.error('Error insertando evento:', err)
+        })
+      return // Salir sin error
+    }
 
     // Buscar la suscripción por preapproval_id
     // subscriptions table no está en tipos generados todavía
@@ -144,10 +183,14 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       
       // Actualizar suscripción existente
       // subscriptions table no está en tipos generados todavía
-      await (supabaseAdmin
+      const { error: updateError } = await (supabaseAdmin
         .from("subscriptions") as any)
         .update(updateData)
         .eq("id", subData.id)
+
+      if (updateError) {
+        console.error('Error actualizando suscripción:', updateError)
+      }
 
       // Registrar evento
       // billing_events table no está en tipos generados todavía
@@ -159,6 +202,8 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           event_type: status === 'ACTIVE' ? 'SUBSCRIPTION_UPDATED' : 'SUBSCRIPTION_CANCELED',
           mp_notification_id: preapprovalId,
           metadata: { status: mpStatus, mp_data: preapproval }
+        }).catch((err) => {
+          console.error('Error insertando billing_event:', err)
         })
     } else {
       // Si no existe, buscar por external_reference en el pago inicial
@@ -172,10 +217,12 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           event_type: "SUBSCRIPTION_CREATED",
           mp_notification_id: preapprovalId,
           metadata: { status: mpStatus, mp_data: preapproval }
+        }).catch((err) => {
+          console.error('Error insertando billing_event:', err)
         })
     }
   } catch (error: any) {
     console.error("Error procesando preapproval notification:", error)
-    throw error
+    // No lanzar error, solo loggear - el webhook debe siempre retornar 200
   }
 }
