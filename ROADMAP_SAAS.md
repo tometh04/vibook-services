@@ -337,13 +337,14 @@
    - Verificación de email
    - Password reset
 
-2. ✅ **FASE 2:** Sistema de Suscripciones y Billing (95%)
-   - Tablas de billing creadas
-   - Integración con Mercado Pago
-   - Página de pricing
-   - Billing dashboard
-   - Checks de límites en backend
-   - **FALTA:** Agregar PaywallGate en UI de features premium
+2. ✅ **FASE 2:** Sistema de Suscripciones y Billing (Básico Completado - 80%)
+   - ✅ Tablas de billing creadas
+   - ✅ Integración con Mercado Pago (básica)
+   - ✅ Página de pricing
+   - ✅ Billing dashboard
+   - ✅ Checks de límites en backend (temporalmente deshabilitados)
+   - ✅ Hook `useSubscription` funcionando
+   - ⏳ **PENDIENTE PARA EL FINAL:** Paywall completo con período de prueba y suscripciones recurrentes
 
 3. ✅ **FASE 3:** Descustomización (95%)
    - Referencias hardcoded eliminadas
@@ -378,8 +379,8 @@
 
 ```
 ✅ FASE 1: Autenticación y Signup        [████████████████████] 100%
-✅ FASE 2: Sistema de Suscripciones      [██████████████████░░]  95% (falta PaywallGate en UI)
-✅ FASE 3: Descustomización              [██████████████████░░]  95% (falta conversión modular)
+✅ FASE 2: Sistema de Suscripciones      [████████████████░░░░]  80% (básico completo, paywall para el final)
+✅ FASE 3: Descustomización              [██████████████████░░]  95% (conversión modular opcional)
 ⏳ FASE 4: Multi-tenancy completo        [░░░░░░░░░░░░░░░░░░░░]   0%
 ⏳ FASE 5: Mejoras de Infraestructura    [░░░░░░░░░░░░░░░░░░░░]   0%
 ⏳ FASE 6: Features SaaS específicas     [░░░░░░░░░░░░░░░░░░░░]   0%
@@ -387,7 +388,7 @@
 ✅ FASE 8: Documentación y Deploy        [████████░░░░░░░░░░░░]  50%
 ⏳ FASE 9: UI/UX Mejoras                 [████░░░░░░░░░░░░░░░░]  20%
 
-PROGRESO TOTAL: [████████████░░░░░░░░░░] 63%
+PROGRESO TOTAL: [████████████░░░░░░░░░░] 61%
 ```
 
 ---
