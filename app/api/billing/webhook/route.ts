@@ -1,55 +1,115 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
 import { getPreApproval } from "@/lib/mercadopago/client"
 import { createClient } from "@supabase/supabase-js"
+import crypto from "crypto"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
+// Webhook secret de Mercado Pago (opcional pero recomendado)
+const WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
+
 export const runtime = 'nodejs'
 
-// Mercado Pago envía notificaciones IPN (Instant Payment Notification)
-// Pueden ser de tipo "payment" o "preapproval"
+/**
+ * Verificar firma del webhook de Mercado Pago
+ * Mercado Pago envía un header x-signature con la firma HMAC
+ */
+function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
+  if (!secret) {
+    // Si no hay secret configurado, aceptar (no recomendado para producción)
+    console.warn('⚠️ Webhook secret no configurado - validación deshabilitada')
+    return true
+  }
+
+  try {
+    const hash = crypto
+      .createHmac('sha256', secret)
+      .update(body)
+      .digest('hex')
+    
+    // Mercado Pago puede enviar la firma en diferentes formatos
+    return hash === signature || signature === `sha256=${hash}`
+  } catch (error) {
+    console.error('Error verifying webhook signature:', error)
+    return false
+  }
+}
+
+// POST - Webhooks de Mercado Pago (recomendado)
+// Mercado Pago envía POST con body JSON y header x-signature
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
+    // Leer el body como texto para validar firma
+    const bodyText = await request.text()
+    
+    // Validar firma si está configurada
+    const signature = request.headers.get('x-signature')
+    if (WEBHOOK_SECRET && signature) {
+      const isValid = verifyWebhookSignature(bodyText, signature, WEBHOOK_SECRET)
+      if (!isValid) {
+        console.error('❌ Webhook signature inválida')
+        return NextResponse.json(
+          { error: "Invalid signature" },
+          { status: 401 }
+        )
+      }
+    }
+
+    // Parsear body como JSON
+    let body: any
+    try {
+      body = JSON.parse(bodyText)
+    } catch (parseError) {
+      console.error('Error parsing webhook body:', parseError)
+      return NextResponse.json(
+        { error: "Invalid JSON" },
+        { status: 400 }
+      )
+    }
+
     const { type, data } = body
 
     console.log('📥 Webhook recibido de Mercado Pago:', { type, data })
 
     // Mercado Pago puede enviar diferentes tipos de notificaciones
     if (type === 'payment') {
-      await handlePaymentNotification(data.id)
+      await handlePaymentNotification(data.id).catch((err: any) => {
+        console.error('Error procesando payment notification:', err)
+      })
     } else if (type === 'preapproval') {
-      await handlePreApprovalNotification(data.id)
+      await handlePreApprovalNotification(data.id).catch((err: any) => {
+        console.error('Error procesando preapproval notification:', err)
+      })
     } else {
       console.log(`⚠️ Tipo de notificación no manejado: ${type}`)
-      return NextResponse.json({ received: true })
     }
 
+    // Siempre retornar 200 para evitar reenvíos
     return NextResponse.json({ received: true })
   } catch (error: any) {
     console.error("Error processing Mercado Pago webhook:", error)
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    )
+    // Siempre retornar 200 para evitar reenvíos infinitos
+    return NextResponse.json({ received: true, error: error.message })
   }
 }
 
-// GET también es usado por Mercado Pago para verificar la URL
+// GET - IPN de Mercado Pago (legacy, mantenido por compatibilidad)
+// Mercado Pago también usa GET para verificar la URL y para IPN legacy
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const topic = searchParams.get('topic') // 'payment' o 'preapproval'
-  const id = searchParams.get('id') // ID del payment o preapproval
-
-  if (!topic || !id) {
-    return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 })
-  }
-
   try {
-    console.log('📥 GET webhook de Mercado Pago:', { topic, id })
+    const { searchParams } = new URL(request.url)
+    const topic = searchParams.get('topic') // 'payment' o 'preapproval'
+    const id = searchParams.get('id') // ID del payment o preapproval
+
+    // Si es una prueba de Mercado Pago (sin parámetros), solo retornar éxito
+    if (!topic || !id) {
+      console.log('✅ Prueba de webhook recibida (sin parámetros)')
+      return NextResponse.json({ received: true, message: 'Webhook configurado correctamente' })
+    }
+
+    console.log('📥 GET webhook de Mercado Pago (IPN legacy):', { topic, id })
 
     // Si es un ID de prueba (123456), solo retornar éxito sin procesar
     // Mercado Pago usa este ID para verificar que la URL funciona
@@ -62,33 +122,27 @@ export async function GET(request: Request) {
     if (topic === 'payment') {
       await handlePaymentNotification(id).catch((err: any) => {
         console.error('Error procesando payment notification:', err)
-        // No fallar el webhook si hay error procesando
       })
     } else if (topic === 'preapproval') {
       await handlePreApprovalNotification(id).catch((err: any) => {
         console.error('Error procesando preapproval notification:', err)
-        // No fallar el webhook si hay error procesando
       })
     }
 
     return NextResponse.json({ received: true })
   } catch (error: any) {
     console.error("Error processing Mercado Pago webhook (GET):", error)
-    // Siempre retornar 200 para que Mercado Pago no reenvíe
+    // Siempre retornar 200 para evitar reenvíos
     return NextResponse.json({ received: true, error: error.message })
   }
 }
 
 async function handlePaymentNotification(paymentId: string) {
-  // Cuando se aprueba el primer pago, se crea automáticamente el preapproval
-  // Necesitamos buscar la suscripción por preference_id o external_reference
-  // Por ahora, solo registramos el evento
   console.log('💳 Procesando notificación de pago:', paymentId)
 
   try {
     // Aquí deberías obtener el pago de Mercado Pago para ver el external_reference
     // Por simplicidad, lo registramos como evento
-    // billing_events table no está en tipos generados todavía
     const { error } = await (supabaseAdmin
       .from("billing_events") as any)
       .insert({
@@ -134,7 +188,6 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     }
 
     // Buscar la suscripción por preapproval_id
-    // subscriptions table no está en tipos generados todavía
     const { data: subscription, error } = await (supabaseAdmin
       .from("subscriptions") as any)
       .select("id, agency_id")
@@ -182,7 +235,6 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       const subData = subscription as any
       
       // Actualizar suscripción existente
-      // subscriptions table no está en tipos generados todavía
       const { error: updateError } = await (supabaseAdmin
         .from("subscriptions") as any)
         .update(updateData)
@@ -193,7 +245,6 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       }
 
       // Registrar evento
-      // billing_events table no está en tipos generados todavía
       await (supabaseAdmin
         .from("billing_events") as any)
         .insert({
@@ -206,11 +257,9 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           console.error('Error insertando billing_event:', err)
         })
     } else {
-      // Si no existe, buscar por external_reference en el pago inicial
-      // Por ahora solo registramos el evento
+      // Si no existe, registrar el evento
       console.log('⚠️ Suscripción no encontrada para preapproval:', preapprovalId)
       
-      // billing_events table no está en tipos generados todavía
       await (supabaseAdmin
         .from("billing_events") as any)
         .insert({
