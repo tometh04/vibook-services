@@ -44,17 +44,27 @@ export async function POST(request: Request) {
     // Leer el body como texto para validar firma
     const bodyText = await request.text()
     
-    // Validar firma si está configurada
+    // Validar firma si está configurada Y si se envía el header
+    // Para pruebas de Mercado Pago, puede que no envíen el header x-signature
     const signature = request.headers.get('x-signature')
     if (WEBHOOK_SECRET && signature) {
       const isValid = verifyWebhookSignature(bodyText, signature, WEBHOOK_SECRET)
       if (!isValid) {
         console.error('❌ Webhook signature inválida')
-        return NextResponse.json(
-          { error: "Invalid signature" },
-          { status: 401 }
-        )
+        // En producción, rechazar. En desarrollo, solo loggear
+        if (process.env.NODE_ENV === 'production') {
+          return NextResponse.json(
+            { error: "Invalid signature" },
+            { status: 401 }
+          )
+        } else {
+          console.warn('⚠️ Signature inválida pero continuando (desarrollo)')
+        }
       }
+    } else if (WEBHOOK_SECRET && !signature) {
+      // Si hay secret configurado pero no viene signature, puede ser una prueba
+      console.warn('⚠️ Webhook secret configurado pero no se recibió x-signature header (puede ser prueba)')
+      // Continuar sin validar para permitir pruebas
     }
 
     // Parsear body como JSON
