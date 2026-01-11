@@ -433,14 +433,14 @@ PROGRESO TOTAL: [█████████████░░░░░░░░
 4. ⏳ Habilitar checks de límites en producción
 
 ### **Prioridad MEDIA (Mejoras Post-MVP):**
-1. ⏳ FASE 4: Multi-tenancy completo
-2. ⏳ FASE 5: Rate limiting con Redis
-3. ⏳ FASE 6: Admin dashboard
+1. ⏳ Rate limiting con Redis (escala masiva)
+2. ⏳ Tests automatizados (Jest, Playwright)
+3. ⏳ Admin dashboard centralizado (si es necesario)
 
 ### **Prioridad BAJA (Nice to have):**
-1. ⏳ FASE 9: UI/UX mejoras avanzadas
-2. ⏳ Subdominios por tenant
-3. ⏳ Tenant switching
+1. ⏳ UI/UX mejoras avanzadas (skeletons, empty states)
+2. ⏳ Subdominios por tenant (si es necesario)
+3. ⏳ Documentación de API completa
 
 ---
 
