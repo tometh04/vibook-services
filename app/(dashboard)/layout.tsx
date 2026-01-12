@@ -74,10 +74,12 @@ export default async function DashboardLayout({
       }
 
       // PERMITIR acceso si:
+      // - Plan es TESTER (acceso completo sin pago)
       // - Status es ACTIVE (con cualquier plan)
       // - Status es TRIAL con plan de pago (STARTER, PRO, etc.)
       // - Status es TRIAL con plan FREE pero tiene mp_preapproval_id (pagó)
-      if (status === 'ACTIVE' || 
+      if (planName === 'TESTER' ||
+          status === 'ACTIVE' || 
           (status === 'TRIAL' && planName !== 'FREE') ||
           (status === 'TRIAL' && planName === 'FREE' && mpPreapprovalId)) {
         console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida')

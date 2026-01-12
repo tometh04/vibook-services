@@ -1,7 +1,9 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { 
   Table, 
   TableBody, 
@@ -10,8 +12,17 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { format } from "date-fns"
 import { es } from "date-fns/locale/es"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 interface Subscription {
   id: string
@@ -49,6 +60,77 @@ interface SubscriptionsAdminClientProps {
 }
 
 export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminClientProps) {
+  const [plans, setPlans] = useState<Array<{ id: string; name: string; display_name: string }>>([])
+  const [updating, setUpdating] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const response = await fetch('/api/admin/plans')
+        const data = await response.json()
+        if (data.plans) {
+          setPlans(data.plans)
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error)
+      }
+    }
+    fetchPlans()
+  }, [])
+
+  const handlePlanChange = async (subscriptionId: string, newPlanId: string) => {
+    setUpdating(subscriptionId)
+    try {
+      const response = await fetch(`/api/admin/subscriptions/${subscriptionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plan_id: newPlanId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al actualizar suscripción')
+      }
+
+      toast.success('Suscripción actualizada correctamente')
+      // Recargar la página para ver los cambios
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error.message || 'Error al actualizar suscripción')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleStatusChange = async (subscriptionId: string, newStatus: string) => {
+    setUpdating(subscriptionId)
+    try {
+      const response = await fetch(`/api/admin/subscriptions/${subscriptionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al actualizar suscripción')
+      }
+
+      toast.success('Estado de suscripción actualizado correctamente')
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error.message || 'Error al actualizar estado')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", label: string }> = {
       ACTIVE: { variant: "default", label: "Activa" },
@@ -93,7 +175,9 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                   <TableHead>Agencia</TableHead>
                   <TableHead>Usuario</TableHead>
                   <TableHead>Plan</TableHead>
+                  <TableHead>Cambiar Plan</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Cambiar Estado</TableHead>
                   <TableHead>MP Status</TableHead>
                   <TableHead>Período Actual</TableHead>
                   <TableHead>Trial</TableHead>
@@ -104,7 +188,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
               <TableBody>
                 {subscriptions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground">
                       No hay suscripciones
                     </TableCell>
                   </TableRow>
@@ -146,7 +230,44 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                             <span className="text-muted-foreground">Sin plan</span>
                           )}
                         </TableCell>
+                        <TableCell>
+                          <Select
+                            value={sub.plan?.id || ''}
+                            onValueChange={(value) => handlePlanChange(sub.id, value)}
+                            disabled={updating === sub.id}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Seleccionar plan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {plans.map((plan) => (
+                                <SelectItem key={plan.id} value={plan.id}>
+                                  {plan.display_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={sub.status}
+                            onValueChange={(value) => handleStatusChange(sub.id, value)}
+                            disabled={updating === sub.id}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ACTIVE">Activa</SelectItem>
+                              <SelectItem value="TRIAL">Prueba</SelectItem>
+                              <SelectItem value="CANCELED">Cancelada</SelectItem>
+                              <SelectItem value="SUSPENDED">Suspendida</SelectItem>
+                              <SelectItem value="UNPAID">Sin pago</SelectItem>
+                              <SelectItem value="PAST_DUE">Vencida</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>
                           {sub.mp_status ? (
                             <Badge variant="outline">{sub.mp_status}</Badge>

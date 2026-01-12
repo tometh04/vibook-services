@@ -1,0 +1,109 @@
+import { NextResponse } from "next/server"
+import { getCurrentUser } from "@/lib/auth"
+import { createServerClient } from "@/lib/supabase/server"
+
+/**
+ * PATCH /api/admin/subscriptions/[id]
+ * Actualiza una suscripción (solo SUPER_ADMIN)
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { user } = await getCurrentUser()
+    if (user.role !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+    }
+
+    const { id: subscriptionId } = await params
+    const body = await request.json()
+
+    if (!subscriptionId) {
+      return NextResponse.json({ error: "ID de suscripción requerido" }, { status: 400 })
+    }
+
+    const supabase = await createServerClient()
+
+    // Campos permitidos para actualizar
+    const allowedFields = ["status", "plan_id", "current_period_start", "current_period_end", "trial_start", "trial_end"]
+    const updateData: Record<string, any> = {}
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field]
+      }
+    }
+
+    // Si se está cambiando el plan, verificar que existe
+    if (updateData.plan_id) {
+      const { data: plan, error: planError } = await supabase
+        .from("subscription_plans")
+        .select("id, name")
+        .eq("id", updateData.plan_id)
+        .single()
+
+      if (planError || !plan) {
+        return NextResponse.json({ error: "Plan no encontrado" }, { status: 404 })
+      }
+
+      // Si el plan es TESTER, asegurar que el status sea ACTIVE
+      if ((plan as any).name === 'TESTER') {
+        updateData.status = 'ACTIVE'
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 })
+    }
+
+    updateData.updated_at = new Date().toISOString()
+
+    // Verificar que la suscripción existe
+    const { data: existingSubscription, error: fetchError } = await supabase
+      .from("subscriptions")
+      .select("id, agency_id")
+      .eq("id", subscriptionId)
+      .single()
+
+    if (fetchError || !existingSubscription) {
+      return NextResponse.json({ error: "Suscripción no encontrada" }, { status: 404 })
+    }
+
+    // Actualizar suscripción
+    const { data: updatedSubscription, error: updateError } = await (supabase
+      .from("subscriptions") as any)
+      .update(updateData)
+      .eq("id", subscriptionId)
+      .select(`
+        *,
+        plan:subscription_plans(*)
+      `)
+      .single()
+
+    if (updateError) {
+      console.error("Error updating subscription:", updateError)
+      return NextResponse.json({ error: "Error al actualizar suscripción" }, { status: 500 })
+    }
+
+    // Registrar evento de billing
+    try {
+      await (supabase.from("billing_events") as any).insert({
+        agency_id: (existingSubscription as any).agency_id,
+        subscription_id: subscriptionId,
+        event_type: "SUBSCRIPTION_UPDATED_BY_ADMIN",
+        metadata: { 
+          updated_by: user.id,
+          changes: updateData
+        }
+      })
+    } catch (e) {
+      console.error("Error registrando evento:", e)
+    }
+
+    return NextResponse.json({ success: true, subscription: updatedSubscription })
+  } catch (error: any) {
+    console.error("Error in update subscription:", error)
+    return NextResponse.json({ error: error.message || "Error al actualizar suscripción" }, { status: 500 })
+  }
+}
