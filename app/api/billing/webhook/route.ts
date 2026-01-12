@@ -271,15 +271,21 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       }
 
       // Registrar evento según el estado
-      // Usar el tipo completo para evitar problemas de narrowing
-      const currentStatus: SubscriptionStatus = status
+      // Usar switch para evitar problemas de narrowing de TypeScript
       let eventType = 'SUBSCRIPTION_UPDATED'
-      if (currentStatus === 'CANCELED') {
-        eventType = 'SUBSCRIPTION_CANCELED'
-      } else if (currentStatus === 'PAST_DUE' || currentStatus === 'UNPAID') {
-        eventType = 'PAYMENT_FAILED'
-      } else if (currentStatus === 'SUSPENDED') {
-        eventType = 'SUBSCRIPTION_SUSPENDED'
+      switch (status) {
+        case 'CANCELED':
+          eventType = 'SUBSCRIPTION_CANCELED'
+          break
+        case 'PAST_DUE':
+        case 'UNPAID':
+          eventType = 'PAYMENT_FAILED'
+          break
+        case 'SUSPENDED':
+          eventType = 'SUBSCRIPTION_SUSPENDED'
+          break
+        default:
+          eventType = 'SUBSCRIPTION_UPDATED'
       }
 
       await (supabaseAdmin
