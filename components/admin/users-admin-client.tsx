@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { 
   Table, 
   TableBody, 
@@ -12,9 +13,17 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { Users, UserCheck, UserX, CreditCard, TrendingUp } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Users, UserCheck, UserX, CreditCard, TrendingUp, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale/es"
+import { toast } from "sonner"
 
 interface User {
   id: string
@@ -70,6 +79,103 @@ interface UsersAdminClientProps {
 
 export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const [plans, setPlans] = useState<Array<{ id: string; name: string; display_name: string }>>([])
+  const [updating, setUpdating] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const response = await fetch('/api/admin/plans')
+        const data = await response.json()
+        if (data.plans) {
+          setPlans(data.plans)
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error)
+      }
+    }
+    fetchPlans()
+  }, [])
+
+  const handlePlanChange = async (subscriptionId: string | null, agencyId: string, newPlanId: string) => {
+    if (!subscriptionId) {
+      // Crear nueva suscripción
+      setUpdating(agencyId)
+      try {
+        const response = await fetch('/api/admin/subscriptions/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ agency_id: agencyId, plan_id: newPlanId }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Error al crear suscripción')
+        }
+
+        toast.success('Suscripción creada correctamente')
+        window.location.reload()
+      } catch (error: any) {
+        toast.error(error.message || 'Error al crear suscripción')
+      } finally {
+        setUpdating(null)
+      }
+    } else {
+      // Actualizar suscripción existente
+      setUpdating(subscriptionId)
+      try {
+        const response = await fetch(`/api/admin/subscriptions/${subscriptionId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ plan_id: newPlanId }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Error al actualizar suscripción')
+        }
+
+        toast.success('Plan actualizado correctamente')
+        window.location.reload()
+      } catch (error: any) {
+        toast.error(error.message || 'Error al actualizar plan')
+      } finally {
+        setUpdating(null)
+      }
+    }
+  }
+
+  const handleStatusChange = async (subscriptionId: string, newStatus: string) => {
+    setUpdating(subscriptionId)
+    try {
+      const response = await fetch(`/api/admin/subscriptions/${subscriptionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al actualizar estado')
+      }
+
+      toast.success('Estado actualizado correctamente')
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error.message || 'Error al actualizar estado')
+    } finally {
+      setUpdating(null)
+    }
+  }
 
   const filteredUsers = users.filter((user) => {
     const search = searchTerm.toLowerCase()
@@ -169,7 +275,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
         <CardHeader>
           <CardTitle>Usuarios</CardTitle>
           <CardDescription>
-            Lista completa de usuarios con sus suscripciones
+            Lista completa de usuarios con sus suscripciones. Puedes asignar planes manualmente.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -190,7 +296,9 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                   <TableHead>Estado</TableHead>
                   <TableHead>Agencia</TableHead>
                   <TableHead>Plan</TableHead>
+                  <TableHead>Asignar Plan</TableHead>
                   <TableHead>Estado Suscripción</TableHead>
+                  <TableHead>Cambiar Estado</TableHead>
                   <TableHead>Período de Prueba</TableHead>
                   <TableHead>Fecha Registro</TableHead>
                 </TableRow>
@@ -198,14 +306,16 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground">
                       No se encontraron usuarios
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => {
                     const agency = user.user_agencies?.[0]?.agencies
-                    const subscription = agency?.subscriptions?.[0]
+                    // Obtener la suscripción más reciente o activa
+                    const subscriptions = agency?.subscriptions || []
+                    const subscription = subscriptions.find((s: any) => s.status === 'TRIAL' || s.status === 'ACTIVE') || subscriptions[0]
                     const plan = subscription?.plan
 
                     return (
@@ -249,10 +359,60 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                           )}
                         </TableCell>
                         <TableCell>
+                          {agency ? (
+                            <Select
+                              value={plan?.name || ''}
+                              onValueChange={(value) => {
+                                const selectedPlan = plans.find(p => p.name === value)
+                                if (selectedPlan) {
+                                  handlePlanChange(subscription?.id || null, agency.id, selectedPlan.id)
+                                }
+                              }}
+                              disabled={updating === (subscription?.id || agency.id)}
+                            >
+                              <SelectTrigger className="w-[150px]">
+                                <SelectValue placeholder="Asignar plan" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {plans.map((p) => (
+                                  <SelectItem key={p.id} value={p.name}>
+                                    {p.display_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           {subscription ? (
                             getStatusBadge(subscription.status)
                           ) : (
                             <Badge variant="outline">Sin suscripción</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {subscription ? (
+                            <Select
+                              value={subscription.status}
+                              onValueChange={(value) => handleStatusChange(subscription.id, value)}
+                              disabled={updating === subscription.id}
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ACTIVE">Activa</SelectItem>
+                                <SelectItem value="TRIAL">Prueba</SelectItem>
+                                <SelectItem value="CANCELED">Cancelada</SelectItem>
+                                <SelectItem value="SUSPENDED">Suspendida</SelectItem>
+                                <SelectItem value="UNPAID">Sin pago</SelectItem>
+                                <SelectItem value="PAST_DUE">Vencida</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -267,6 +427,12 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                                   Finalizó {format(new Date(subscription.trial_end), "dd/MM/yyyy", { locale: es })}
                                 </span>
                               )}
+                            </div>
+                          ) : subscription?.trial_start ? (
+                            <div className="text-sm">
+                              <span className="text-green-600">
+                                Desde {format(new Date(subscription.trial_start), "dd/MM/yyyy", { locale: es })}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>

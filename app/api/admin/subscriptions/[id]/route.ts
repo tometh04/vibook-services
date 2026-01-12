@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
-import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 
 /**
  * PATCH /api/admin/subscriptions/[id]
- * Actualiza una suscripción (solo SUPER_ADMIN)
+ * Actualiza una suscripción (solo desde admin subdomain)
  */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user } = await getCurrentUser()
-    if (user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-    }
-
+    // El middleware ya verifica que viene del subdominio admin
     const { id: subscriptionId } = await params
     const body = await request.json()
 
@@ -23,7 +18,7 @@ export async function PATCH(
       return NextResponse.json({ error: "ID de suscripción requerido" }, { status: 400 })
     }
 
-    const supabase = await createServerClient()
+    const supabase = createAdminSupabaseClient()
 
     // Campos permitidos para actualizar
     const allowedFields = ["status", "plan_id", "current_period_start", "current_period_end", "trial_start", "trial_end"]
@@ -93,7 +88,7 @@ export async function PATCH(
         subscription_id: subscriptionId,
         event_type: "SUBSCRIPTION_UPDATED_BY_ADMIN",
         metadata: { 
-          updated_by: user.id,
+          updated_by: "admin",
           changes: updateData
         }
       })

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
-import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 
 /**
  * GET /api/admin/plans
@@ -8,12 +7,8 @@ import { createServerClient } from "@/lib/supabase/server"
  */
 export async function GET() {
   try {
-    const { user } = await getCurrentUser()
-    if (user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-    }
-
-    const supabase = await createServerClient()
+    // El middleware ya verifica que viene del subdominio admin
+    const supabase = createAdminSupabaseClient()
 
     // Obtener todos los planes activos (incluyendo no públicos)
     const { data: plans, error } = await supabase
