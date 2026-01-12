@@ -57,13 +57,16 @@ export default async function AdminUsersPage() {
     total: usersData?.length || 0,
     active: usersData?.filter((u: any) => u.is_active).length || 0,
     inactive: usersData?.filter((u: any) => u.is_active === false).length || 0,
-    withSubscription: usersData?.filter((u: any) => 
-      u.user_agencies?.some((ua: any) => 
-        ua.agencies?.subscriptions?.some((s: any) => 
+    withSubscription: usersData?.filter((u: any) => {
+      if (!u.user_agencies || !Array.isArray(u.user_agencies)) return false
+      return u.user_agencies.some((ua: any) => {
+        const subscriptions = ua.agencies?.subscriptions
+        if (!subscriptions || !Array.isArray(subscriptions)) return false
+        return subscriptions.some((s: any) => 
           s.plan?.name !== 'FREE' && s.status !== 'UNPAID'
         )
-      )
-    ).length || 0,
+      })
+    }).length || 0,
     subscriptions: {
       active: statsData?.filter((s: any) => s.status === 'ACTIVE').length || 0,
       trial: statsData?.filter((s: any) => s.status === 'TRIAL').length || 0,
