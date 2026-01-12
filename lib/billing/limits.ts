@@ -46,18 +46,13 @@ export async function checkSubscriptionLimit(
 
     let subscriptionData = subscription
     if (!subscriptionData || !subscriptionData.plan) {
-      // Si no hay suscripción, asumir plan FREE
-      const { data: freePlan } = await (supabaseAdmin
-        .from("subscription_plans") as any)
-        .select("*")
-        .eq("name", "FREE")
-        .single()
-
-      if (!freePlan) {
-        return { limitReached: false, limit: null, current: 0 }
+      // Si no hay suscripción, bloquear acceso
+      return {
+        limitReached: true,
+        limit: null,
+        current: 0,
+        message: "No tenés una suscripción activa. Por favor, elegí un plan para continuar.",
       }
-
-      subscriptionData = { plan: freePlan, status: "TRIAL" }
     }
 
     // Bloquear si la suscripción está cancelada, suspendida o sin pagar
@@ -160,10 +155,18 @@ export async function checkFeatureAccess(
       .maybeSingle()
 
     if (!subscription || !subscription.plan) {
-      // Si no hay suscripción, asumir plan FREE (no tiene features premium)
+      // Si no hay suscripción, bloquear acceso
       return {
         hasAccess: false,
-        message: `Esta funcionalidad requiere un plan superior. Por favor, actualizá tu plan para acceder.`,
+        message: `No tenés una suscripción activa. Por favor, elegí un plan para continuar.`,
+      }
+    }
+    
+    // Si tiene plan FREE sin pago, bloquear acceso
+    if (subscription.plan.name === 'FREE' && !subscription.mp_preapproval_id) {
+      return {
+        hasAccess: false,
+        message: `Esta funcionalidad requiere un plan de pago. Por favor, elegí un plan para continuar.`,
       }
     }
 

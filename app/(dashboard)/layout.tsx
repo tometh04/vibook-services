@@ -25,22 +25,41 @@ export default async function DashboardLayout({
   // Usar la primera agencia del usuario como agencia activa
   const activeAgencyId = agencies.length > 0 ? agencies[0].id : undefined
 
-  // Verificar estado de suscripción y bloquear acceso si está cancelada/suspendida
+  // Verificar estado de suscripción y bloquear acceso si no tiene plan de pago activo
   if (activeAgencyId) {
     const supabase = await createServerClient()
     const { data: subscription } = await (supabase
       .from("subscriptions") as any)
-      .select("status")
+      .select(`
+        status,
+        plan:subscription_plans(name)
+      `)
       .eq("agency_id", activeAgencyId)
       .maybeSingle()
 
     if (subscription) {
       const status = subscription.status as string
-      // Si está cancelada, suspendida o sin pagar, redirigir al paywall
+      const planName = subscription.plan?.name as string
+      
+      // Si no tiene suscripción o está en estados que bloquean acceso
       if (status === 'CANCELED' || status === 'SUSPENDED' || 
           status === 'PAST_DUE' || status === 'UNPAID') {
         redirect('/paywall')
       }
+      
+      // Si tiene plan FREE (sin pago), bloquear acceso y redirigir al paywall
+      if (planName === 'FREE' && !subscription.mp_preapproval_id) {
+        redirect('/paywall')
+      }
+      
+      // Si tiene plan FREE pero está en TRIAL sin preapproval, también bloquear
+      // (esto significa que nunca completó el pago)
+      if (planName === 'FREE' && status === 'TRIAL' && !subscription.mp_preapproval_id) {
+        redirect('/paywall')
+      }
+    } else {
+      // Si no tiene suscripción, redirigir al paywall
+      redirect('/paywall')
     }
   }
 
