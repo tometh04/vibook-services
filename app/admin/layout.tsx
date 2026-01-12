@@ -12,6 +12,7 @@ export default async function AdminLayout({
   const { user } = await getCurrentUser()
 
   // Solo SUPER_ADMIN puede acceder al panel de admin
+  // La autenticación Basic Auth se maneja en el middleware
   if (user.role !== "SUPER_ADMIN") {
     redirect('/dashboard')
   }
