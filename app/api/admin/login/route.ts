@@ -15,8 +15,17 @@ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json()
 
+    // Normalizar credenciales (trim para eliminar espacios)
+    const normalizedEmail = email?.trim()
+    const normalizedPassword = password?.trim()
+
     // Verificar credenciales
-    if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+    if (normalizedEmail !== ADMIN_EMAIL || normalizedPassword !== ADMIN_PASSWORD) {
+      console.error("Admin login failed:", { 
+        receivedEmail: normalizedEmail, 
+        receivedPassword: normalizedPassword ? "***" : "empty",
+        expectedEmail: ADMIN_EMAIL 
+      })
       return NextResponse.json(
         { error: "Credenciales incorrectas" },
         { status: 401 }
