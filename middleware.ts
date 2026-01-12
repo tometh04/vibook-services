@@ -74,7 +74,8 @@ export async function middleware(req: NextRequest) {
   } else {
     // Si NO viene del subdominio admin, bloquear acceso a /admin
     if (pathname.startsWith('/admin')) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
+      // Retornar 404 en lugar de redirigir para mayor seguridad
+      return new NextResponse(null, { status: 404 })
     }
   }
 
