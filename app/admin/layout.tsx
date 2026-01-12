@@ -49,7 +49,7 @@ export default async function AdminLayout({
 
   if (!hasValidSession) {
     // Redirigir a login usando URL absoluta
-    const loginUrl = new URL('/admin/login', `https://${host}`)
+    const loginUrl = new URL('/admin-login', `https://${host}`)
     redirect(loginUrl.toString())
   }
 
