@@ -43,11 +43,14 @@ export default async function AdminLayout({
   }
 
   // Verificar sesión del admin
+  // NOTA: El layout de /admin/login tiene su propio layout que no requiere autenticación
+  // Si este layout se ejecuta para /admin/login, el middleware ya debería haberlo manejado
   const hasValidSession = await verifyAdminSession()
 
   if (!hasValidSession) {
-    // Usar redirect absoluto para evitar loops
-    redirect(new URL('/admin/login', `https://${host}`).toString())
+    // Redirigir a login usando URL absoluta
+    const loginUrl = new URL('/admin/login', `https://${host}`)
+    redirect(loginUrl.toString())
   }
 
   return (
