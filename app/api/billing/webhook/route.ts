@@ -220,7 +220,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
 
     // Mapear estados de Mercado Pago a nuestros estados
     const mpStatus = preapproval.status as string
-    let status: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'ACTIVE'
+    let status: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
     
     if (mpStatus === 'cancelled') {
       status = 'CANCELED'
@@ -233,6 +233,9 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     } else if (mpStatus === 'rejected' || mpStatus === 'failed') {
       // Si el pago fue rechazado o falló, marcar como PAST_DUE
       status = 'PAST_DUE'
+    } else {
+      // Por defecto, mantener como ACTIVE si no se reconoce el estado
+      status = 'ACTIVE'
     }
 
     const updateData: any = {
