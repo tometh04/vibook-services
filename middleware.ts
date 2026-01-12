@@ -56,22 +56,22 @@ export async function middleware(req: NextRequest) {
 
   // Si viene del subdominio admin
   if (isAdminSubdomain) {
-    // Permitir acceso a login y API de login/logout sin autenticación
+    // IMPORTANTE: Permitir explícitamente /admin/login y APIs de admin sin verificación
+    // Esto debe estar ANTES de cualquier otra verificación
     if (pathname === '/admin/login' || 
-        pathname === '/api/admin/login' || 
-        pathname === '/api/admin/logout' ||
-        pathname.startsWith('/_next') ||
         pathname.startsWith('/api/admin/login') ||
-        pathname.startsWith('/api/admin/logout')) {
+        pathname.startsWith('/api/admin/logout') ||
+        pathname.startsWith('/_next') ||
+        pathname.startsWith('/api/_next')) {
       return NextResponse.next()
     }
 
-    // Verificar sesión para todas las rutas /admin
+    // Verificar sesión para todas las demás rutas
     const cookieHeader = req.headers.get('cookie')
     const hasValidSession = await verifyAdminSession(cookieHeader)
 
-    // Si está en la raíz o no está en /admin, redirigir según sesión
-    if (pathname === '/' || !pathname.startsWith('/admin')) {
+    // Si está en la raíz, redirigir según sesión
+    if (pathname === '/') {
       if (hasValidSession) {
         return NextResponse.redirect(new URL('/admin', req.url))
       } else {
@@ -84,7 +84,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/admin/login', req.url))
     }
 
-    // Si tiene sesión válida y está en /admin, permitir acceso
+    // Si tiene sesión válida, permitir acceso
     // NO aplicar verificación de Supabase para rutas admin
     return NextResponse.next()
   } else {
