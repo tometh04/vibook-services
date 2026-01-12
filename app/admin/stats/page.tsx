@@ -1,16 +1,10 @@
-import { getCurrentUser } from "@/lib/auth"
-import { createServerClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { StatsAdminClient } from "@/components/admin/stats-admin-client"
 
 export default async function AdminStatsPage() {
-  const { user } = await getCurrentUser()
-
-  if (user.role !== "SUPER_ADMIN") {
-    redirect('/dashboard')
-  }
-
-  const supabase = await createServerClient()
+  // El middleware ya verifica la autenticación del admin con JWT
+  // No necesitamos verificar Supabase auth aquí
+  const supabase = createAdminSupabaseClient()
 
   // Obtener estadísticas de suscripciones por plan
   const { data: subscriptionsByPlan } = await (supabase

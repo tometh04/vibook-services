@@ -1,15 +1,10 @@
-import { getCurrentUser } from "@/lib/auth"
-import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Settings2, Database, Key, Globe } from "lucide-react"
 
 export default async function AdminSettingsPage() {
-  const { user } = await getCurrentUser()
-
-  if (user.role !== "SUPER_ADMIN") {
-    redirect('/dashboard')
-  }
+  // El middleware ya verifica la autenticación del admin con JWT
+  // No necesitamos verificar Supabase auth aquí
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vibook.ai'
   const hasMercadoPagoToken = !!process.env.MERCADOPAGO_ACCESS_TOKEN

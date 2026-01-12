@@ -1,17 +1,10 @@
-import { getCurrentUser } from "@/lib/auth"
-import { createServerClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { UsersAdminClient } from "@/components/admin/users-admin-client"
 
 export default async function AdminUsersPage() {
-  const { user } = await getCurrentUser()
-
-  // Solo SUPER_ADMIN puede acceder
-  if (user.role !== "SUPER_ADMIN") {
-    redirect('/dashboard')
-  }
-
-  const supabase = await createServerClient()
+  // El middleware ya verifica la autenticación del admin con JWT
+  // No necesitamos verificar Supabase auth aquí
+  const supabase = createAdminSupabaseClient()
 
   // Obtener todos los usuarios con sus agencias y suscripciones
   const { data: usersData } = await (supabase
