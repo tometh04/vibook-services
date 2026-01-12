@@ -221,7 +221,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     // Mapear estados de Mercado Pago a nuestros estados
     const mpStatus = preapproval.status as string
     type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
-    let status: SubscriptionStatus
+    let status: SubscriptionStatus = 'ACTIVE' // Inicializar con valor por defecto
     
     if (mpStatus === 'cancelled') {
       status = 'CANCELED'
@@ -234,10 +234,8 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     } else if (mpStatus === 'rejected' || mpStatus === 'failed') {
       // Si el pago fue rechazado o falló, marcar como PAST_DUE
       status = 'PAST_DUE'
-    } else {
-      // Por defecto, mantener como ACTIVE si no se reconoce el estado
-      status = 'ACTIVE'
     }
+    // Si no coincide con ninguno, mantener 'ACTIVE' (ya inicializado)
 
     const updateData: any = {
       mp_status: mpStatus,
@@ -271,9 +269,10 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       }
 
       // Registrar evento según el estado
-      // Usar switch para evitar problemas de narrowing de TypeScript
+      // Usar switch con type assertion para evitar problemas de narrowing
+      const statusForSwitch = status as SubscriptionStatus
       let eventType = 'SUBSCRIPTION_UPDATED'
-      switch (status) {
+      switch (statusForSwitch) {
         case 'CANCELED':
           eventType = 'SUBSCRIPTION_CANCELED'
           break
