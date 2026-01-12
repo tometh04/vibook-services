@@ -63,7 +63,10 @@ export async function middleware(req: NextRequest) {
         pathname.startsWith('/api/admin/logout') ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/api/_next')) {
-      return NextResponse.next()
+      // Agregar header para que el layout sepa que es login
+      const response = NextResponse.next()
+      response.headers.set('x-admin-login', 'true')
+      return response
     }
 
     // Verificar sesión para todas las demás rutas
