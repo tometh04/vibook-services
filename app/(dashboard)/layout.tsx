@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sidebar"
 import { CommandMenu } from "@/components/command-menu"
 import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
 
 export default async function DashboardLayout({
@@ -22,14 +23,15 @@ export default async function DashboardLayout({
     name: ua.agencies?.name || "Sin nombre",
   }))
 
+  // Usar cliente admin para evitar problemas de RLS
+  const supabaseAdmin = createAdminSupabaseClient()
+  
   // Buscar la agencia con suscripción activa, o usar la primera disponible
   let activeAgencyId = undefined
   if (agencies.length > 0) {
-    const supabase = await createServerClient()
-    
     // Buscar agencia con suscripción ACTIVE o TRIAL
     for (const agency of agencies) {
-      const { data: subscription } = await (supabase
+      const { data: subscription } = await (supabaseAdmin
         .from("subscriptions") as any)
         .select("status, plan:subscription_plans(name)")
         .eq("agency_id", agency.id)
@@ -50,9 +52,8 @@ export default async function DashboardLayout({
 
   // Verificar estado de suscripción y bloquear acceso si no tiene plan de pago activo
   if (activeAgencyId) {
-    const supabase = await createServerClient()
     // Obtener todas las suscripciones y tomar la más reciente o la que esté ACTIVE/TRIAL
-    const { data: subscriptions, error: subError } = await (supabase
+    const { data: subscriptions, error: subError } = await (supabaseAdmin
       .from("subscriptions") as any)
       .select(`
         id,

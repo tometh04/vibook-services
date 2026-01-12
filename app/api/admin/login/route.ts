@@ -47,7 +47,8 @@ export async function POST(request: Request) {
       sameSite: "lax",
       maxAge: 60 * 60 * 24, // 24 horas
       path: "/",
-      domain: process.env.NODE_ENV === "production" ? ".vibook.ai" : undefined, // Permitir cookie en subdominios
+      // No usar domain para evitar problemas con subdominios
+      // La cookie funcionará en el mismo dominio donde se establece
     })
 
     return NextResponse.json({ success: true })
