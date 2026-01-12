@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, Loader2, Sparkles, Zap } from "lucide-react"
+import { Check, Loader2, Sparkles, Zap, Shield, CreditCard } from "lucide-react"
 import { useSubscription } from "@/hooks/use-subscription"
 import type { SubscriptionPlan } from "@/lib/billing/types"
 import Script from "next/script"
@@ -80,42 +80,47 @@ export default function PaywallPage() {
 
   if (loading || subscriptionLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Cargando planes...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-slate-300">Cargando planes...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-      <div className="container mx-auto py-10 space-y-8 max-w-6xl">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
-            <Sparkles className="h-10 w-10 text-primary" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="container mx-auto px-4 py-12 md:py-16">
+        {/* Header - Centrado y mejorado */}
+        <div className="text-center space-y-6 mb-12 max-w-3xl mx-auto">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 mb-2">
+            <Sparkles className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white">
-            Comenzá tu prueba gratuita de 7 días
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
+            Comenzá tu prueba gratuita
           </h1>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Elegí el plan que mejor se adapte a tu agencia. Probá todas las funcionalidades sin costo durante 7 días.
+          <p className="text-xl md:text-2xl text-slate-300 leading-relaxed">
+            Elegí el plan que mejor se adapte a tu agencia
           </p>
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <Badge className="bg-green-500 text-white px-4 py-2 text-sm">
-              <Zap className="h-4 w-4 mr-2" />
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Badge className="bg-green-500/20 text-green-400 border-green-500/50 px-4 py-1.5 text-sm font-medium">
+              <Zap className="h-3.5 w-3.5 mr-1.5" />
               7 días gratis
             </Badge>
-            <Badge variant="outline" className="border-green-500 text-green-500 px-4 py-2 text-sm">
+            <Badge variant="outline" className="border-slate-600 text-slate-300 px-4 py-1.5 text-sm font-medium">
+              <CreditCard className="h-3.5 w-3.5 mr-1.5" />
               Sin tarjeta requerida
+            </Badge>
+            <Badge variant="outline" className="border-slate-600 text-slate-300 px-4 py-1.5 text-sm font-medium">
+              <Shield className="h-3.5 w-3.5 mr-1.5" />
+              Cancelá cuando quieras
             </Badge>
           </div>
         </div>
 
-        {/* Plan Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Plan Cards - Centrados y mejor alineados */}
+        <div className="flex flex-wrap justify-center items-stretch gap-6 max-w-6xl mx-auto mb-12">
           {plans.map((plan) => {
             const price = plan.price_monthly
             const isPopular = plan.name === 'PRO'
@@ -123,98 +128,117 @@ export default function PaywallPage() {
             return (
               <Card
                 key={plan.id}
-                className={`relative ${isPopular ? 'border-primary shadow-lg scale-105 bg-primary/5' : ''}`}
+                className={`relative flex flex-col w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-sm ${
+                  isPopular 
+                    ? 'border-primary shadow-xl shadow-primary/20 bg-primary/5 scale-105 z-10' 
+                    : 'border-slate-700 bg-slate-800/50'
+                }`}
               >
                 {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary">Más Popular</Badge>
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                    <Badge className="bg-primary text-primary-foreground px-4 py-1 text-xs font-semibold shadow-lg">
+                      Más Popular
+                    </Badge>
                   </div>
                 )}
                 
-                <CardHeader>
-                  <CardTitle className="text-2xl">{plan.display_name}</CardTitle>
-                  <CardDescription>{plan.description}</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">{formatPrice(price)}</span>
-                    {price !== null && price > 0 && (
-                      <span className="text-muted-foreground">/mes</span>
-                    )}
+                <CardHeader className="text-center pb-4">
+                  <CardTitle className="text-2xl font-bold mb-2">{plan.display_name}</CardTitle>
+                  <CardDescription className="text-slate-400 min-h-[40px]">
+                    {plan.description}
+                  </CardDescription>
+                  <div className="mt-6 mb-2">
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-5xl font-bold text-white">{formatPrice(price)}</span>
+                      {price !== null && price > 0 && (
+                        <span className="text-lg text-slate-400">/mes</span>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-green-500" />
-                      <span className="text-sm">
+                <CardContent className="flex-1 space-y-3 px-6">
+                  <div className="space-y-2.5">
+                    <div className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-300">
                         {formatLimit(plan.max_users)} {plan.max_users === null ? 'usuarios' : plan.max_users === 1 ? 'usuario' : 'usuarios'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-green-500" />
-                      <span className="text-sm">
+                    <div className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-300">
                         {formatLimit(plan.max_operations_per_month)} operaciones/mes
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-3">
                       {plan.features.trello ? (
-                        <Check className="h-4 w-4 text-green-500" />
+                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <span className="h-4 w-4 text-muted-foreground">—</span>
+                        <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
                       )}
-                      <span className="text-sm">Integración Trello</span>
+                      <span className={`text-sm ${plan.features.trello ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Integración Trello
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-3">
                       {plan.features.manychat ? (
-                        <Check className="h-4 w-4 text-green-500" />
+                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <span className="h-4 w-4 text-muted-foreground">—</span>
+                        <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
                       )}
-                      <span className="text-sm">Integración Manychat</span>
+                      <span className={`text-sm ${plan.features.manychat ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Integración Manychat
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-3">
                       {plan.features.emilia ? (
-                        <Check className="h-4 w-4 text-green-500" />
+                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <span className="h-4 w-4 text-muted-foreground">—</span>
+                        <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
                       )}
-                      <span className="text-sm">Asistente IA (Emilia)</span>
+                      <span className={`text-sm ${plan.features.emilia ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Asistente IA (Emilia)
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-3">
                       {plan.features.whatsapp ? (
-                        <Check className="h-4 w-4 text-green-500" />
+                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <span className="h-4 w-4 text-muted-foreground">—</span>
+                        <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
                       )}
-                      <span className="text-sm">WhatsApp</span>
+                      <span className={`text-sm ${plan.features.whatsapp ? 'text-slate-300' : 'text-slate-500'}`}>
+                        WhatsApp
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-3">
                       {plan.features.reports ? (
-                        <Check className="h-4 w-4 text-green-500" />
+                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <span className="h-4 w-4 text-muted-foreground">—</span>
+                        <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
                       )}
-                      <span className="text-sm">Reportes avanzados</span>
+                      <span className={`text-sm ${plan.features.reports ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Reportes avanzados
+                      </span>
                     </div>
                   </div>
                 </CardContent>
 
-                <CardFooter>
+                <CardFooter className="pt-6 pb-6 px-6">
                   {plan.name === 'STARTER' ? (
-                    // Botón de Mercado Pago para STARTER (usando Preapproval Plan)
                     <div className="w-full">
                       <a 
                         href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=5e365ad7ca4540a5a0fd28511fa5ac46" 
                         id="MP-payButton"
                         data-name="MP-payButton"
-                        className="mp-pay-button w-full inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                        className="mp-pay-button w-full inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
                       >
                         Comenzar Prueba Gratis
                       </a>
                     </div>
                   ) : (
                     <Button
-                      className="w-full"
+                      className="w-full h-12 text-base font-semibold"
                       variant={isPopular ? "default" : "outline"}
                       onClick={() => handleUpgrade(plan.id)}
                     >
@@ -260,12 +284,15 @@ export default function PaywallPage() {
           }}
         />
 
-        {/* Info adicional */}
-        <div className="text-center space-y-4 pt-8">
-          <p className="text-sm text-slate-400">
-            🔒 Tu información está protegida. No se realizará ningún cobro durante los 7 días de prueba.
-          </p>
-          <p className="text-sm text-slate-400">
+        {/* Info adicional - Centrado */}
+        <div className="text-center space-y-3 pt-8 max-w-2xl mx-auto">
+          <div className="flex items-center justify-center gap-2 text-slate-400">
+            <Shield className="h-4 w-4" />
+            <p className="text-sm">
+              Tu información está protegida. No se realizará ningún cobro durante los 7 días de prueba.
+            </p>
+          </div>
+          <p className="text-sm text-slate-500">
             Después de la prueba, se cobrará automáticamente según el plan elegido. Podés cancelar en cualquier momento.
           </p>
         </div>
