@@ -7,6 +7,7 @@ export default async function AdminUsersPage() {
   const supabase = createAdminSupabaseClient()
 
   // Obtener todos los usuarios con sus agencias y suscripciones
+  // IMPORTANTE: Ordenar suscripciones para que TRIAL y ACTIVE aparezcan primero
   const { data: usersData } = await (supabase
     .from("users") as any)
     .select(`
@@ -43,6 +44,29 @@ export default async function AdminUsersPage() {
       )
     `)
     .order("created_at", { ascending: false })
+
+  // Ordenar suscripciones dentro de cada agencia para priorizar TRIAL y ACTIVE
+  if (usersData) {
+    usersData.forEach((user: any) => {
+      user.user_agencies?.forEach((ua: any) => {
+        if (ua.agencies?.subscriptions && Array.isArray(ua.agencies.subscriptions)) {
+          ua.agencies.subscriptions.sort((a: any, b: any) => {
+            const statusOrder: Record<string, number> = {
+              'TRIAL': 1,
+              'ACTIVE': 2,
+              'UNPAID': 3,
+              'CANCELED': 4,
+              'SUSPENDED': 5,
+              'PAST_DUE': 6,
+            }
+            const aOrder = statusOrder[a.status] || 99
+            const bOrder = statusOrder[b.status] || 99
+            return aOrder - bOrder
+          })
+        }
+      })
+    })
+  }
 
   // Obtener estadísticas generales
   const { data: statsData } = await (supabase

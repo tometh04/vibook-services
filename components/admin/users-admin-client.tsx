@@ -313,9 +313,13 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                 ) : (
                   filteredUsers.map((user) => {
                     const agency = user.user_agencies?.[0]?.agencies
-                    // Obtener la suscripción más reciente o activa
+                    // Obtener todas las suscripciones y encontrar la más relevante
                     const subscriptions = agency?.subscriptions || []
-                    const subscription = subscriptions.find((s: any) => s.status === 'TRIAL' || s.status === 'ACTIVE') || subscriptions[0]
+                    // Priorizar: TRIAL > ACTIVE > otras
+                    const subscription = subscriptions.find((s: any) => s.status === 'TRIAL') 
+                      || subscriptions.find((s: any) => s.status === 'ACTIVE')
+                      || subscriptions.find((s: any) => s.status !== 'CANCELED' && s.status !== 'UNPAID')
+                      || subscriptions[0]
                     const plan = subscription?.plan
 
                     return (
