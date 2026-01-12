@@ -22,8 +22,31 @@ export default async function DashboardLayout({
     name: ua.agencies?.name || "Sin nombre",
   }))
 
-  // Usar la primera agencia del usuario como agencia activa
-  const activeAgencyId = agencies.length > 0 ? agencies[0].id : undefined
+  // Buscar la agencia con suscripción activa, o usar la primera disponible
+  let activeAgencyId = undefined
+  if (agencies.length > 0) {
+    const supabase = await createServerClient()
+    
+    // Buscar agencia con suscripción ACTIVE o TRIAL
+    for (const agency of agencies) {
+      const { data: subscription } = await (supabase
+        .from("subscriptions") as any)
+        .select("status, plan:subscription_plans(name)")
+        .eq("agency_id", agency.id)
+        .in("status", ["ACTIVE", "TRIAL"])
+        .maybeSingle()
+      
+      if (subscription) {
+        activeAgencyId = agency.id
+        break
+      }
+    }
+    
+    // Si no encontró ninguna con ACTIVE/TRIAL, usar la primera
+    if (!activeAgencyId) {
+      activeAgencyId = agencies[0].id
+    }
+  }
 
   // Verificar estado de suscripción y bloquear acceso si no tiene plan de pago activo
   if (activeAgencyId) {
