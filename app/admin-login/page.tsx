@@ -39,8 +39,7 @@ export default function AdminLoginPage() {
       }
 
       // Redirigir al panel de admin
-      router.push("/admin")
-      router.refresh()
+      window.location.href = "/admin"
     } catch (err) {
       setError("Error al iniciar sesión. Intenta nuevamente.")
       setLoading(false)

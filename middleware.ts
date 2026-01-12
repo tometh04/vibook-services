@@ -56,17 +56,15 @@ export async function middleware(req: NextRequest) {
 
   // Si viene del subdominio admin
   if (isAdminSubdomain) {
-    // IMPORTANTE: Permitir explícitamente /admin/login y APIs de admin sin verificación
+    // IMPORTANTE: Permitir explícitamente /admin-login y APIs de admin sin verificación
     // Esto debe estar ANTES de cualquier otra verificación
-    if (pathname === '/admin/login' || 
+    if (pathname === '/admin-login' || 
+        pathname === '/admin/login' || // Mantener compatibilidad
         pathname.startsWith('/api/admin/login') ||
         pathname.startsWith('/api/admin/logout') ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/api/_next')) {
-      // Agregar header para que el layout sepa que es login
-      const response = NextResponse.next()
-      response.headers.set('x-admin-login', 'true')
-      return response
+      return NextResponse.next()
     }
 
     // Verificar sesión para todas las demás rutas
@@ -78,13 +76,13 @@ export async function middleware(req: NextRequest) {
       if (hasValidSession) {
         return NextResponse.redirect(new URL('/admin', req.url))
       } else {
-        return NextResponse.redirect(new URL('/admin/login', req.url))
+        return NextResponse.redirect(new URL('/admin-login', req.url))
       }
     }
 
     // Si está en /admin pero no tiene sesión, redirigir a login
     if (pathname.startsWith('/admin') && !hasValidSession) {
-      return NextResponse.redirect(new URL('/admin/login', req.url))
+      return NextResponse.redirect(new URL('/admin-login', req.url))
     }
 
     // Si tiene sesión válida, permitir acceso
