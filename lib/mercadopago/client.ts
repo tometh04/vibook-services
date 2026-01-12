@@ -81,16 +81,24 @@ export async function createPreApproval(data: {
     throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
   }
 
-  return await preApproval.create({
-    body: {
-      reason: data.reason,
-      auto_recurring: data.auto_recurring,
-      payer_email: data.payer_email,
-      card_token_id: data.card_token_id,
-      external_reference: data.external_reference,
-      back_url: data.back_url
-    }
-  })
+  try {
+    const result = await preApproval.create({
+      body: {
+        reason: data.reason,
+        auto_recurring: data.auto_recurring,
+        payer_email: data.payer_email,
+        card_token_id: data.card_token_id,
+        external_reference: data.external_reference,
+        back_url: data.back_url
+      } as any
+    })
+    
+    return result as any
+  } catch (error: any) {
+    console.error('Error creando preapproval:', error)
+    console.error('Datos enviados:', JSON.stringify(data, null, 2))
+    throw new Error(`Error al crear preapproval: ${error.message || 'Error desconocido'}`)
+  }
 }
 
 // Helper para obtener preapproval por ID
