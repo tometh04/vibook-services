@@ -20,8 +20,6 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/pricing?error=no_preapproval_id', request.url))
     }
 
-    // Obtener información del usuario actual
-    const { user } = await getCurrentUser()
     const supabase = await createServerClient()
 
     // Obtener información del preapproval de Mercado Pago
@@ -34,42 +32,87 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/pricing?error=preapproval_not_found', request.url))
     }
 
-    // Obtener la agencia del usuario
-    const { data: userAgencies, error: userAgenciesError } = await supabase
-      .from("user_agencies")
-      .select("agency_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle()
+    // IMPORTANTE: Usar external_reference del preapproval para obtener agency_id
+    // Esto es más confiable que depender de la sesión del usuario
+    let agencyId: string | null = null
+    let planId: string | null = null
+    let userId: string | null = null
 
-    if (userAgenciesError || !userAgencies) {
+    // Intentar obtener datos del external_reference
+    if (preapproval.external_reference) {
+      try {
+        const externalRef = JSON.parse(preapproval.external_reference)
+        agencyId = externalRef.agency_id
+        planId = externalRef.plan_id
+        userId = externalRef.user_id
+      } catch (e) {
+        console.error('Error parseando external_reference:', e)
+      }
+    }
+
+    // Si no se pudo obtener del external_reference, buscar en la base de datos
+    if (!agencyId) {
+      const { data: existingSubscription } = await supabase
+        .from("subscriptions")
+        .select("agency_id, plan_id")
+        .eq("mp_preapproval_id", preapprovalId)
+        .maybeSingle()
+
+      if (existingSubscription) {
+        agencyId = (existingSubscription as any).agency_id
+        planId = (existingSubscription as any).plan_id
+      }
+    }
+
+    // Si aún no tenemos agencyId, intentar obtener del usuario actual (fallback)
+    if (!agencyId) {
+      try {
+        const { user } = await getCurrentUser()
+        const { data: userAgencies, error: userAgenciesError } = await supabase
+          .from("user_agencies")
+          .select("agency_id")
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle()
+
+        if (!userAgenciesError && userAgencies) {
+          agencyId = (userAgencies as any).agency_id
+          userId = user.id
+        }
+      } catch (error) {
+        console.error('Error obteniendo usuario actual:', error)
+      }
+    }
+
+    if (!agencyId) {
+      console.error('No se pudo determinar agency_id para preapproval:', preapprovalId)
       return NextResponse.redirect(new URL('/pricing?error=no_agency', request.url))
     }
 
-    const agencyId = (userAgencies as any).agency_id
+    // Determinar el plan: usar planId del external_reference si está disponible,
+    // sino determinar por el monto del preapproval
+    if (!planId) {
+      let planName = 'STARTER'
+      if (preapproval.auto_recurring?.transaction_amount === 15000) {
+        planName = 'STARTER'
+      } else if (preapproval.auto_recurring?.transaction_amount === 50000) {
+        planName = 'PRO'
+      }
 
-    // Determinar el plan basado en el monto del preapproval
-    // STARTER: $15,000 ARS
-    let planName = 'STARTER'
-    if (preapproval.auto_recurring?.transaction_amount === 15000) {
-      planName = 'STARTER'
-    } else if (preapproval.auto_recurring?.transaction_amount === 50000) {
-      planName = 'PRO'
+      // Obtener el plan de la base de datos
+      const { data: planData, error: planError } = await supabase
+        .from("subscription_plans")
+        .select("id")
+        .eq("name", planName)
+        .single()
+
+      if (planError || !planData) {
+        console.error('Error obteniendo plan:', planError)
+        return NextResponse.redirect(new URL('/pricing?error=plan_not_found', request.url))
+      }
+
+      planId = (planData as any).id
     }
-
-    // Obtener el plan de la base de datos
-    const { data: planData, error: planError } = await supabase
-      .from("subscription_plans")
-      .select("id")
-      .eq("name", planName)
-      .single()
-
-    if (planError || !planData) {
-      console.error('Error obteniendo plan:', planError)
-      return NextResponse.redirect(new URL('/pricing?error=plan_not_found', request.url))
-    }
-
-    const planId = (planData as any).id
 
     // Mapear estado de Mercado Pago a nuestro estado
     const mpStatus = preapproval.status as string
