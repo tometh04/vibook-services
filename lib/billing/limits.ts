@@ -55,6 +55,11 @@ export async function checkSubscriptionLimit(
       }
     }
 
+    // Plan TESTER tiene acceso completo sin límites
+    if (subscriptionData.plan.name === 'TESTER') {
+      return { limitReached: false, limit: null, current: 0 }
+    }
+
     // Bloquear si la suscripción está cancelada, suspendida o sin pagar
     const subscriptionStatus = subscriptionData.status as string
     if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' || 
@@ -64,6 +69,19 @@ export async function checkSubscriptionLimit(
         limit: null,
         current: 0,
         message: `Tu suscripción está ${subscriptionStatus === 'CANCELED' ? 'cancelada' : subscriptionStatus === 'SUSPENDED' ? 'suspendida' : 'pendiente de pago'}. Por favor, actualizá tu plan para continuar.`,
+      }
+    }
+    
+    // Si está en TRIAL o ACTIVE, permitir acceso (respeta cambios manuales del admin)
+    if (subscriptionStatus === 'TRIAL' || subscriptionStatus === 'ACTIVE') {
+      // Continuar con la verificación de límites
+    } else {
+      // Si no está en TRIAL o ACTIVE, bloquear
+      return {
+        limitReached: true,
+        limit: null,
+        current: 0,
+        message: "No tenés una suscripción activa. Por favor, elegí un plan para continuar.",
       }
     }
 
@@ -167,16 +185,9 @@ export async function checkFeatureAccess(
       return { hasAccess: true }
     }
 
-    // Si tiene plan FREE sin pago, bloquear acceso
-    if (subscription.plan.name === 'FREE' && !subscription.mp_preapproval_id) {
-      return {
-        hasAccess: false,
-        message: `Esta funcionalidad requiere un plan de pago. Por favor, elegí un plan para continuar.`,
-      }
-    }
-
-    // Bloquear acceso si la suscripción está cancelada, suspendida o sin pagar
     const subscriptionStatus = subscription.status as string
+    
+    // Bloquear acceso si la suscripción está cancelada, suspendida o sin pagar
     if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' || 
         subscriptionStatus === 'PAST_DUE' || subscriptionStatus === 'UNPAID') {
       return {
@@ -188,8 +199,9 @@ export async function checkFeatureAccess(
     const plan = subscription.plan
     const features = plan.features || {}
 
-    // Durante el período de prueba (TRIAL), permitir acceso a todas las features
-    if (subscriptionStatus === 'TRIAL') {
+    // Durante el período de prueba (TRIAL) o si está ACTIVE, permitir acceso a todas las features
+    // Esto respeta los cambios manuales del admin
+    if (subscriptionStatus === 'TRIAL' || subscriptionStatus === 'ACTIVE') {
       return { hasAccess: true }
     }
 

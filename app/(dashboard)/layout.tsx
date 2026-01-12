@@ -52,40 +52,28 @@ export default async function DashboardLayout({
     if (subscription) {
       const status = subscription.status as string
       const planName = subscription.plan?.name as string
-      const mpPreapprovalId = subscription.mp_preapproval_id
       
-      // Si está en estados que bloquean acceso
+      // LÓGICA SIMPLIFICADA: Respetar los cambios manuales del admin
+      // Si el admin cambió el estado manualmente, respetarlo sin importar el plan
+      
+      // BLOQUEAR acceso solo si:
+      // - Status es CANCELED, SUSPENDED, PAST_DUE, o UNPAID
       if (status === 'CANCELED' || status === 'SUSPENDED' || 
           status === 'PAST_DUE' || status === 'UNPAID') {
         console.log('[Dashboard Layout] Bloqueando acceso - estado inválido:', status)
         redirect('/paywall')
       }
       
-      // Si tiene plan FREE (sin pago), bloquear acceso y redirigir al paywall
-      if (planName === 'FREE' && !mpPreapprovalId) {
-        console.log('[Dashboard Layout] Bloqueando acceso - plan FREE sin pago')
-        redirect('/paywall')
-      }
-      
-      // Si tiene plan FREE pero está en TRIAL sin preapproval, también bloquear
-      if (planName === 'FREE' && status === 'TRIAL' && !mpPreapprovalId) {
-        console.log('[Dashboard Layout] Bloqueando acceso - plan FREE en TRIAL sin pago')
-        redirect('/paywall')
-      }
-
       // PERMITIR acceso si:
       // - Plan es TESTER (acceso completo sin pago)
-      // - Status es ACTIVE (con cualquier plan)
-      // - Status es TRIAL con plan de pago (STARTER, PRO, etc.)
-      // - Status es TRIAL con plan FREE pero tiene mp_preapproval_id (pagó)
-      if (planName === 'TESTER' ||
-          status === 'ACTIVE' || 
-          (status === 'TRIAL' && planName !== 'FREE') ||
-          (status === 'TRIAL' && planName === 'FREE' && mpPreapprovalId)) {
-        console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida')
+      // - Status es ACTIVE (con CUALQUIER plan - respeta cambios manuales del admin)
+      // - Status es TRIAL (con CUALQUIER plan - respeta cambios manuales del admin)
+      if (planName === 'TESTER' || status === 'ACTIVE' || status === 'TRIAL') {
+        console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida:', { status, planName })
         // Continuar al dashboard
       } else {
-        console.log('[Dashboard Layout] Bloqueando acceso - condición no cumplida')
+        // Si no cumple ninguna condición, bloquear
+        console.log('[Dashboard Layout] Bloqueando acceso - condición no cumplida:', { status, planName })
         redirect('/paywall')
       }
     } else {
