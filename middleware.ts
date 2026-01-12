@@ -61,6 +61,19 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next()
     }
 
+    // Si está en la raíz o no está en /admin, redirigir a /admin/login si no hay sesión
+    // o a /admin si hay sesión
+    if (pathname === '/' || !pathname.startsWith('/admin')) {
+      const cookieHeader = req.headers.get('cookie')
+      const hasValidSession = await verifyAdminSession(cookieHeader)
+      
+      if (hasValidSession) {
+        return NextResponse.redirect(new URL('/admin', req.url))
+      } else {
+        return NextResponse.redirect(new URL('/admin/login', req.url))
+      }
+    }
+
     // Para todas las demás rutas /admin, verificar sesión
     if (pathname.startsWith('/admin')) {
       const cookieHeader = req.headers.get('cookie')
@@ -70,11 +83,6 @@ export async function middleware(req: NextRequest) {
         // Si no tiene sesión válida, redirigir a login
         return NextResponse.redirect(new URL('/admin/login', req.url))
       }
-    }
-
-    // Si no está en /admin, redirigir a /admin
-    if (!pathname.startsWith('/admin')) {
-      return NextResponse.redirect(new URL('/admin', req.url))
     }
 
     // Para rutas admin autenticadas, no aplicar verificación de Supabase
