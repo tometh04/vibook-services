@@ -220,7 +220,8 @@ async function handlePreApprovalNotification(preapprovalId: string) {
 
     // Mapear estados de Mercado Pago a nuestros estados
     const mpStatus = preapproval.status as string
-    let status: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
+    type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
+    let status: SubscriptionStatus
     
     if (mpStatus === 'cancelled') {
       status = 'CANCELED'
@@ -270,12 +271,14 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       }
 
       // Registrar evento según el estado
+      // Usar el tipo completo para evitar problemas de narrowing
+      const currentStatus: SubscriptionStatus = status
       let eventType = 'SUBSCRIPTION_UPDATED'
-      if (status === 'CANCELED') {
+      if (currentStatus === 'CANCELED') {
         eventType = 'SUBSCRIPTION_CANCELED'
-      } else if (status === 'PAST_DUE' || status === 'UNPAID') {
+      } else if (currentStatus === 'PAST_DUE' || currentStatus === 'UNPAID') {
         eventType = 'PAYMENT_FAILED'
-      } else if (status === 'SUSPENDED') {
+      } else if (currentStatus === 'SUSPENDED') {
         eventType = 'SUBSCRIPTION_SUSPENDED'
       }
 
