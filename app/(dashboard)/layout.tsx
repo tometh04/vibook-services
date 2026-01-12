@@ -6,6 +6,8 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { CommandMenu } from "@/components/command-menu"
+import { createServerClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 
 export default async function DashboardLayout({
   children,
@@ -22,6 +24,25 @@ export default async function DashboardLayout({
 
   // Usar la primera agencia del usuario como agencia activa
   const activeAgencyId = agencies.length > 0 ? agencies[0].id : undefined
+
+  // Verificar estado de suscripción y bloquear acceso si está cancelada/suspendida
+  if (activeAgencyId) {
+    const supabase = await createServerClient()
+    const { data: subscription } = await (supabase
+      .from("subscriptions") as any)
+      .select("status")
+      .eq("agency_id", activeAgencyId)
+      .maybeSingle()
+
+    if (subscription) {
+      const status = subscription.status as string
+      // Si está cancelada, suspendida o sin pagar, redirigir al paywall
+      if (status === 'CANCELED' || status === 'SUSPENDED' || 
+          status === 'PAST_DUE' || status === 'UNPAID') {
+        redirect('/paywall')
+      }
+    }
+  }
 
   return (
     <SidebarProvider

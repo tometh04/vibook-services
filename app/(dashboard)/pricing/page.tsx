@@ -258,7 +258,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Todos los planes nuevos incluyen 14 días de prueba gratuita. El cobro mensual comenzará después del período de prueba.
+                Todos los planes nuevos incluyen 7 días de prueba gratuita. El cobro mensual comenzará después del período de prueba.
               </p>
             </CardContent>
           </Card>

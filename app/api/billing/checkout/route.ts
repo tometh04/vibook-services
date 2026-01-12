@@ -119,7 +119,7 @@ export async function POST(request: Request) {
           mp_preference_id: preference.id,
           status: 'TRIAL',
           current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           billing_cycle: 'MONTHLY'
         })
     }

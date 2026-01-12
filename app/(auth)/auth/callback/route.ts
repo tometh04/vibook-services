@@ -159,8 +159,8 @@ export async function GET(request: Request) {
             console.error("⚠️ Error creating financial settings:", err)
           }
 
-          // Redirigir a onboarding para completar la configuración
-          return NextResponse.redirect(`${origin}/onboarding`)
+              // Redirigir a paywall para elegir plan
+              return NextResponse.redirect(`${origin}/paywall`)
         } else {
           console.error("❌ Error creating user:", userError)
         }

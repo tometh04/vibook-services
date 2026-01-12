@@ -230,6 +230,9 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       status = 'ACTIVE'
     } else if (mpStatus === 'pending') {
       status = 'TRIAL'
+    } else if (mpStatus === 'rejected' || mpStatus === 'failed') {
+      // Si el pago fue rechazado o falló, marcar como PAST_DUE
+      status = 'PAST_DUE'
     }
 
     const updateData: any = {
@@ -263,13 +266,22 @@ async function handlePreApprovalNotification(preapprovalId: string) {
         console.error('Error actualizando suscripción:', updateError)
       }
 
-      // Registrar evento
+      // Registrar evento según el estado
+      let eventType = 'SUBSCRIPTION_UPDATED'
+      if (status === 'CANCELED') {
+        eventType = 'SUBSCRIPTION_CANCELED'
+      } else if (status === 'PAST_DUE' || status === 'UNPAID') {
+        eventType = 'PAYMENT_FAILED'
+      } else if (status === 'SUSPENDED') {
+        eventType = 'SUBSCRIPTION_SUSPENDED'
+      }
+
       await (supabaseAdmin
         .from("billing_events") as any)
         .insert({
           agency_id: subData.agency_id,
           subscription_id: subData.id,
-          event_type: status === 'ACTIVE' ? 'SUBSCRIPTION_UPDATED' : 'SUBSCRIPTION_CANCELED',
+          event_type: eventType,
           mp_notification_id: preapprovalId,
           metadata: { status: mpStatus, mp_data: preapproval }
         }).catch((err: any) => {

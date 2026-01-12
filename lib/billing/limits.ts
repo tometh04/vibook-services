@@ -60,6 +60,18 @@ export async function checkSubscriptionLimit(
       subscriptionData = { plan: freePlan, status: "TRIAL" }
     }
 
+    // Bloquear si la suscripción está cancelada, suspendida o sin pagar
+    const subscriptionStatus = subscriptionData.status as string
+    if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' || 
+        subscriptionStatus === 'PAST_DUE' || subscriptionStatus === 'UNPAID') {
+      return {
+        limitReached: true,
+        limit: null,
+        current: 0,
+        message: `Tu suscripción está ${subscriptionStatus === 'CANCELED' ? 'cancelada' : subscriptionStatus === 'SUSPENDED' ? 'suspendida' : 'pendiente de pago'}. Por favor, actualizá tu plan para continuar.`,
+      }
+    }
+
     const plan = subscriptionData.plan
     const limits = {
       users: plan.max_users,
@@ -155,8 +167,23 @@ export async function checkFeatureAccess(
       }
     }
 
+    // Bloquear acceso si la suscripción está cancelada, suspendida o sin pagar
+    const subscriptionStatus = subscription.status as string
+    if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' || 
+        subscriptionStatus === 'PAST_DUE' || subscriptionStatus === 'UNPAID') {
+      return {
+        hasAccess: false,
+        message: `Tu suscripción está ${subscriptionStatus === 'CANCELED' ? 'cancelada' : subscriptionStatus === 'SUSPENDED' ? 'suspendida' : 'pendiente de pago'}. Por favor, actualizá tu plan para continuar usando el servicio.`,
+      }
+    }
+
     const plan = subscription.plan
     const features = plan.features || {}
+
+    // Durante el período de prueba (TRIAL), permitir acceso a todas las features
+    if (subscriptionStatus === 'TRIAL') {
+      return { hasAccess: true }
+    }
 
     const hasAccess = features[feature] === true
 

@@ -10,9 +10,9 @@ export default function VerifiedPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirigir a onboarding después de 2 segundos
+    // Redirigir a paywall después de 2 segundos
     const timer = setTimeout(() => {
-      router.push("/onboarding")
+      router.push("/paywall")
     }, 2000)
 
     return () => clearTimeout(timer)
@@ -34,7 +34,7 @@ export default function VerifiedPage() {
           <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800 dark:text-green-200">
-              Redirigiendo al onboarding para completar tu configuración...
+              Redirigiendo para elegir tu plan y comenzar tu prueba gratuita...
             </AlertDescription>
           </Alert>
         </CardContent>

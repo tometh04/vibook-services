@@ -117,9 +117,9 @@ export async function GET(request: Request) {
       subscriptionData.current_period_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     }
 
-    // Trial de 30 días
+    // Trial de 7 días
     subscriptionData.trial_start = new Date().toISOString()
-    subscriptionData.trial_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    subscriptionData.trial_end = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
     if (existingSubscription) {
       // Actualizar suscripción existente
