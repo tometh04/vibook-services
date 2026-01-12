@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
 
 // Rutas públicas que no requieren autenticación
 const PUBLIC_ROUTES = [
@@ -22,21 +23,25 @@ const API_WITH_OWN_AUTH = [
   '/api/cron/',
 ]
 
-// Credenciales de Basic Auth para el panel de admin
-const ADMIN_USERNAME = "admin@vibook.ai"
-const ADMIN_PASSWORD = "_Vibook042308"
+// Secret para verificar el JWT del admin
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.ADMIN_JWT_SECRET || "vibook-admin-secret-key-change-in-production"
+)
 
-function verifyBasicAuth(authHeader: string | null): boolean {
-  if (!authHeader || !authHeader.startsWith("Basic ")) {
-    return false
-  }
+async function verifyAdminSession(cookieHeader: string | null): Promise<boolean> {
+  if (!cookieHeader) return false
 
   try {
-    const base64Credentials = authHeader.split(" ")[1]
-    const credentials = Buffer.from(base64Credentials, "base64").toString("utf-8")
-    const [username, password] = credentials.split(":")
+    const cookies = cookieHeader.split(';').map(c => c.trim())
+    const adminSessionCookie = cookies.find(c => c.startsWith('admin_session='))
+    
+    if (!adminSessionCookie) return false
 
-    return username === ADMIN_USERNAME && password === ADMIN_PASSWORD
+    const token = adminSessionCookie.split('=')[1]
+    if (!token) return false
+
+    await jwtVerify(token, JWT_SECRET)
+    return true
   } catch {
     return false
   }
@@ -49,28 +54,31 @@ export async function middleware(req: NextRequest) {
   // Detectar si viene del subdominio admin
   const isAdminSubdomain = hostname.startsWith('admin.') || hostname === 'admin.vibook.ai'
 
-  // Si viene del subdominio admin, solo permitir acceso a rutas /admin
+  // Si viene del subdominio admin
   if (isAdminSubdomain) {
-    // Verificar Basic Auth para el subdominio admin
-    const authHeader = req.headers.get("authorization")
-    
-    if (!verifyBasicAuth(authHeader)) {
-      // Si no tiene Basic Auth, retornar 401
-      return new NextResponse(null, {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": 'Basic realm="Admin Panel - Vibook"',
-        },
-      })
+    // Permitir acceso a login y API de login sin autenticación
+    if (pathname === '/admin/login' || pathname === '/api/admin/login' || pathname === '/api/admin/logout') {
+      return NextResponse.next()
     }
 
-    // Si tiene Basic Auth pero no está en /admin, redirigir a /admin
+    // Para todas las demás rutas /admin, verificar sesión
+    if (pathname.startsWith('/admin')) {
+      const cookieHeader = req.headers.get('cookie')
+      const hasValidSession = await verifyAdminSession(cookieHeader)
+
+      if (!hasValidSession) {
+        // Si no tiene sesión válida, redirigir a login
+        return NextResponse.redirect(new URL('/admin/login', req.url))
+      }
+    }
+
+    // Si no está en /admin, redirigir a /admin
     if (!pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/admin', req.url))
     }
 
-    // Continuar con la verificación normal de autenticación para /admin
-    // (esto se hará en el layout del admin)
+    // Para rutas admin autenticadas, no aplicar verificación de Supabase
+    return NextResponse.next()
   } else {
     // Si NO viene del subdominio admin, bloquear acceso a /admin
     if (pathname.startsWith('/admin')) {

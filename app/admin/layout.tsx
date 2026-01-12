@@ -1,30 +1,50 @@
-import { getCurrentUser } from "@/lib/auth"
-import { redirect, notFound } from "next/navigation"
+import { redirect } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { SiteHeader } from "@/components/site-header"
-import { headers } from "next/headers"
+import { headers, cookies } from "next/headers"
+import { jwtVerify } from "jose"
+
+// Secret para verificar el JWT del admin
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.ADMIN_JWT_SECRET || "vibook-admin-secret-key-change-in-production"
+)
+
+async function verifyAdminSession(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies()
+    const adminSession = cookieStore.get("admin_session")
+
+    if (!adminSession?.value) {
+      return false
+    }
+
+    await jwtVerify(adminSession.value, JWT_SECRET)
+    return true
+  } catch {
+    return false
+  }
+}
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Verificar que viene del subdominio admin (el middleware ya verificó Basic Auth)
+  // Verificar que viene del subdominio admin
   const headersList = await headers()
   const host = headersList.get("host") || ""
   
   // Si no viene del subdominio admin, bloquear acceso
   if (!host.startsWith("admin.") && host !== "admin.vibook.ai") {
-    // El middleware debería haber bloqueado esto, pero por seguridad redirigimos
-    notFound()
+    redirect('/admin/login')
   }
 
-  const { user } = await getCurrentUser()
+  // Verificar sesión del admin
+  const hasValidSession = await verifyAdminSession()
 
-  // Solo SUPER_ADMIN puede acceder al panel de admin
-  if (user.role !== "SUPER_ADMIN") {
-    redirect('/dashboard')
+  if (!hasValidSession) {
+    redirect('/admin/login')
   }
 
   return (
