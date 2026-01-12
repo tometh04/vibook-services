@@ -37,14 +37,17 @@ export default async function AdminLayout({
   
   // Si no viene del subdominio admin, bloquear acceso
   if (!host.startsWith("admin.") && host !== "admin.vibook.ai") {
-    redirect('/admin/login')
+    return new Response("Acceso denegado. Este panel solo está disponible en admin.vibook.ai", {
+      status: 403,
+    })
   }
 
   // Verificar sesión del admin
   const hasValidSession = await verifyAdminSession()
 
   if (!hasValidSession) {
-    redirect('/admin/login')
+    // Usar redirect absoluto para evitar loops
+    redirect(new URL('/admin/login', `https://${host}`).toString())
   }
 
   return (
