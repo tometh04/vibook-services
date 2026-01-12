@@ -28,23 +28,37 @@ export default async function DashboardLayout({
   // Verificar estado de suscripción y bloquear acceso si no tiene plan de pago activo
   if (activeAgencyId) {
     const supabase = await createServerClient()
-    const { data: subscription, error: subError } = await (supabase
+    // Obtener todas las suscripciones y tomar la más reciente o la que esté ACTIVE/TRIAL
+    const { data: subscriptions, error: subError } = await (supabase
       .from("subscriptions") as any)
       .select(`
+        id,
         status,
         mp_preapproval_id,
+        created_at,
         plan:subscription_plans(name)
       `)
       .eq("agency_id", activeAgencyId)
-      .maybeSingle()
+      .order("created_at", { ascending: false })
+    
+    // Tomar la suscripción más relevante: ACTIVE > TRIAL > más reciente
+    let subscription = null
+    if (subscriptions && subscriptions.length > 0) {
+      subscription = subscriptions.find((s: any) => s.status === 'ACTIVE') 
+        || subscriptions.find((s: any) => s.status === 'TRIAL')
+        || subscriptions[0] // La más reciente
+    }
 
     // Log para debugging
     console.log('[Dashboard Layout] Subscription check:', {
       agencyId: activeAgencyId,
+      totalSubscriptions: subscriptions?.length || 0,
       subscription: subscription ? {
+        id: subscription.id,
         status: subscription.status,
         planName: subscription.plan?.name,
-        mp_preapproval_id: subscription.mp_preapproval_id
+        mp_preapproval_id: subscription.mp_preapproval_id,
+        created_at: subscription.created_at
       } : null,
       error: subError
     })
