@@ -179,20 +179,39 @@ export async function GET(request: Request) {
         .insert(subscriptionData)
     }
 
+    // Obtener el ID de la suscripción actualizada/creada para el evento
+    const { data: finalSubscription } = await supabase
+      .from("subscriptions")
+      .select("id")
+      .eq("agency_id", agencyId)
+      .maybeSingle()
+
     // Registrar evento
-    const existingSubData = existingSubscription as any
     await (supabase
       .from("billing_events") as any)
       .insert({
         agency_id: agencyId,
-        subscription_id: existingSubData?.id || null,
+        subscription_id: (finalSubscription as any)?.id || null,
         event_type: 'SUBSCRIPTION_CREATED',
         mp_notification_id: preapprovalId,
-        metadata: { status: mpStatus, mp_data: preapproval }
+        metadata: { 
+          status: mpStatus, 
+          mp_data: preapproval,
+          user_id: userId,
+          plan_id: planId
+        }
       })
 
-    // Redirigir a billing con éxito
-    return NextResponse.redirect(new URL(`/settings/billing?status=success&preapproval_id=${preapprovalId}`, request.url))
+    // Redirigir al dashboard en lugar de billing (el usuario ya pagó, debe tener acceso)
+    // Si el usuario no está autenticado, redirigir a login primero
+    try {
+      const { user } = await getCurrentUser()
+      // Usuario autenticado, redirigir al dashboard
+      return NextResponse.redirect(new URL(`/dashboard?payment_success=true&preapproval_id=${preapprovalId}`, request.url))
+    } catch {
+      // Usuario no autenticado, redirigir a login con mensaje
+      return NextResponse.redirect(new URL(`/login?payment_success=true&preapproval_id=${preapprovalId}`, request.url))
+    }
   } catch (error: any) {
     console.error('Error en preapproval callback:', error)
     return NextResponse.redirect(new URL('/pricing?error=callback_error', request.url))
