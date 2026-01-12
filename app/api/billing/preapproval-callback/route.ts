@@ -164,43 +164,79 @@ export async function GET(request: Request) {
     subscriptionData.trial_start = new Date().toISOString()
     subscriptionData.trial_end = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
+    let subscriptionResult: any
     if (existingSubscription) {
       // Actualizar suscripción existente
       const existingSubData = existingSubscription as any
-      await (supabase
+      const { data, error } = await (supabase
         .from("subscriptions") as any)
         .update(subscriptionData)
         .eq("id", existingSubData.id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('[Preapproval Callback] Error actualizando suscripción:', error)
+        throw error
+      }
+      
+      subscriptionResult = data
+      console.log('[Preapproval Callback] Suscripción actualizada:', {
+        subscriptionId: existingSubData.id,
+        agencyId,
+        planId,
+        status: subscriptionStatus,
+        mp_preapproval_id: preapprovalId
+      })
     } else {
       // Crear nueva suscripción
       subscriptionData.created_at = new Date().toISOString()
-      await (supabase
+      const { data, error } = await (supabase
         .from("subscriptions") as any)
         .insert(subscriptionData)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('[Preapproval Callback] Error creando suscripción:', error)
+        throw error
+      }
+      
+      subscriptionResult = data
+      console.log('[Preapproval Callback] Suscripción creada:', {
+        subscriptionId: subscriptionResult.id,
+        agencyId,
+        planId,
+        status: subscriptionStatus,
+        mp_preapproval_id: preapprovalId
+      })
     }
 
-    // Obtener el ID de la suscripción actualizada/creada para el evento
-    const { data: finalSubscription } = await supabase
-      .from("subscriptions")
-      .select("id")
-      .eq("agency_id", agencyId)
-      .maybeSingle()
-
-    // Registrar evento
+    // Registrar evento usando el resultado de la inserción/actualización
+    const subscriptionId = subscriptionResult?.id || (existingSubscription as any)?.id
+    
     await (supabase
       .from("billing_events") as any)
       .insert({
         agency_id: agencyId,
-        subscription_id: (finalSubscription as any)?.id || null,
+        subscription_id: subscriptionId || null,
         event_type: 'SUBSCRIPTION_CREATED',
         mp_notification_id: preapprovalId,
         metadata: { 
           status: mpStatus, 
           mp_data: preapproval,
           user_id: userId,
-          plan_id: planId
+          plan_id: planId,
+          subscription_status: subscriptionStatus
         }
       })
+    
+    console.log('[Preapproval Callback] Evento registrado:', {
+      agencyId,
+      subscriptionId,
+      preapprovalId,
+      status: subscriptionStatus
+    })
 
     // Redirigir al dashboard en lugar de billing (el usuario ya pagó, debe tener acceso)
     // Si el usuario no está autenticado, redirigir a login primero

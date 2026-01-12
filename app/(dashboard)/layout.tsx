@@ -28,37 +28,67 @@ export default async function DashboardLayout({
   // Verificar estado de suscripción y bloquear acceso si no tiene plan de pago activo
   if (activeAgencyId) {
     const supabase = await createServerClient()
-    const { data: subscription } = await (supabase
+    const { data: subscription, error: subError } = await (supabase
       .from("subscriptions") as any)
       .select(`
         status,
+        mp_preapproval_id,
         plan:subscription_plans(name)
       `)
       .eq("agency_id", activeAgencyId)
       .maybeSingle()
 
+    // Log para debugging
+    console.log('[Dashboard Layout] Subscription check:', {
+      agencyId: activeAgencyId,
+      subscription: subscription ? {
+        status: subscription.status,
+        planName: subscription.plan?.name,
+        mp_preapproval_id: subscription.mp_preapproval_id
+      } : null,
+      error: subError
+    })
+
     if (subscription) {
       const status = subscription.status as string
       const planName = subscription.plan?.name as string
+      const mpPreapprovalId = subscription.mp_preapproval_id
       
-      // Si no tiene suscripción o está en estados que bloquean acceso
+      // Si está en estados que bloquean acceso
       if (status === 'CANCELED' || status === 'SUSPENDED' || 
           status === 'PAST_DUE' || status === 'UNPAID') {
+        console.log('[Dashboard Layout] Bloqueando acceso - estado inválido:', status)
         redirect('/paywall')
       }
       
       // Si tiene plan FREE (sin pago), bloquear acceso y redirigir al paywall
-      if (planName === 'FREE' && !subscription.mp_preapproval_id) {
+      if (planName === 'FREE' && !mpPreapprovalId) {
+        console.log('[Dashboard Layout] Bloqueando acceso - plan FREE sin pago')
         redirect('/paywall')
       }
       
       // Si tiene plan FREE pero está en TRIAL sin preapproval, también bloquear
-      // (esto significa que nunca completó el pago)
-      if (planName === 'FREE' && status === 'TRIAL' && !subscription.mp_preapproval_id) {
+      if (planName === 'FREE' && status === 'TRIAL' && !mpPreapprovalId) {
+        console.log('[Dashboard Layout] Bloqueando acceso - plan FREE en TRIAL sin pago')
+        redirect('/paywall')
+      }
+
+      // PERMITIR acceso si:
+      // - Status es ACTIVE (con cualquier plan)
+      // - Status es TRIAL con plan de pago (STARTER, PRO, etc.)
+      // - Status es TRIAL con plan FREE pero tiene mp_preapproval_id (pagó)
+      if (status === 'ACTIVE' || 
+          (status === 'TRIAL' && planName !== 'FREE') ||
+          (status === 'TRIAL' && planName === 'FREE' && mpPreapprovalId)) {
+        console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida')
+        // Continuar al dashboard
+      } else {
+        console.log('[Dashboard Layout] Bloqueando acceso - condición no cumplida')
         redirect('/paywall')
       }
     } else {
       // Si no tiene suscripción, redirigir al paywall
+      console.log('[Dashboard Layout] Bloqueando acceso - no hay suscripción')
       redirect('/paywall')
     }
   }
