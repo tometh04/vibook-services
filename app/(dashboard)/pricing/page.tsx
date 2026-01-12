@@ -183,7 +183,8 @@ export default function PricingPage() {
                   <div className="w-full">
                     <a 
                       href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=5e365ad7ca4540a5a0fd28511fa5ac46" 
-                      name="MP-payButton" 
+                      id="MP-payButton"
+                      data-name="MP-payButton"
                       className="mp-pay-button w-full inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                     >
                       Suscribirme
