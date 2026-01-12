@@ -1,13 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { 
   Users, 
   BarChart3, 
   CreditCard, 
   Settings,
-  Home
+  Home,
+  LogOut
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,17 @@ const adminNavItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/admin/logout", { method: "POST" })
+      router.push("/admin/login")
+      router.refresh()
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    }
+  }
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
@@ -69,13 +81,15 @@ export function AdminSidebar() {
           )
         })}
       </nav>
-      <div className="border-t p-4">
-        <Link href="/dashboard">
-          <Button variant="outline" className="w-full justify-start">
-            <Home className="mr-2 h-4 w-4" />
-            Volver al Dashboard
-          </Button>
-        </Link>
+      <div className="border-t p-4 space-y-2">
+        <Button
+          variant="ghost"
+          className="w-full justify-start"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Cerrar Sesión
+        </Button>
       </div>
     </div>
   )
