@@ -162,6 +162,11 @@ export async function checkFeatureAccess(
       }
     }
     
+    // Plan TESTER tiene acceso completo sin pago
+    if (subscription.plan.name === 'TESTER') {
+      return { hasAccess: true }
+    }
+
     // Si tiene plan FREE sin pago, bloquear acceso
     if (subscription.plan.name === 'FREE' && !subscription.mp_preapproval_id) {
       return {
