@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation"
+import { redirect, notFound } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -37,9 +37,7 @@ export default async function AdminLayout({
   
   // Si no viene del subdominio admin, bloquear acceso
   if (!host.startsWith("admin.") && host !== "admin.vibook.ai") {
-    return new Response("Acceso denegado. Este panel solo está disponible en admin.vibook.ai", {
-      status: 403,
-    })
+    notFound()
   }
 
   // Verificar sesión del admin
