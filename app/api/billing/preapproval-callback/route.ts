@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/pricing?error=plan_not_found', request.url))
     }
 
-    const planId = planData.id
+    const planId = (planData as any).id
 
     // Mapear estado de Mercado Pago a nuestro estado
     const mpStatus = preapproval.status as string
