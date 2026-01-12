@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Check, X, Loader2 } from "lucide-react"
 import { useSubscription } from "@/hooks/use-subscription"
 import type { SubscriptionPlan } from "@/lib/billing/types"
+import Script from "next/script"
 
 export default function PricingPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
@@ -173,19 +174,68 @@ export default function PricingPage() {
               </CardContent>
 
               <CardFooter>
-                <Button
-                  className="w-full"
-                  variant={isCurrentPlan ? "outline" : isPopular ? "default" : "outline"}
-                  disabled={isCurrentPlan}
-                  onClick={() => handleUpgrade(plan.id)}
-                >
-                  {isCurrentPlan ? 'Plan Actual' : 'Elegir Plan'}
-                </Button>
+                {isCurrentPlan ? (
+                  <Button className="w-full" variant="outline" disabled>
+                    Plan Actual
+                  </Button>
+                ) : plan.name === 'STARTER' ? (
+                  // Botón de Mercado Pago para STARTER (usando Preapproval Plan)
+                  <div className="w-full">
+                    <a 
+                      href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=5e365ad7ca4540a5a0fd28511fa5ac46" 
+                      name="MP-payButton" 
+                      className="mp-pay-button w-full inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      Suscribirme
+                    </a>
+                  </div>
+                ) : (
+                  <Button
+                    className="w-full"
+                    variant={isPopular ? "default" : "outline"}
+                    onClick={() => handleUpgrade(plan.id)}
+                  >
+                    Elegir Plan
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           )
         })}
       </div>
+
+      {/* Script de Mercado Pago para renderizar botones */}
+      <Script
+        id="mercadopago-subscriptions"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              function $MPC_load() {
+                window.$MPC_loaded !== true && (function() {
+                  var s = document.createElement("script");
+                  s.type = "text/javascript";
+                  s.async = true;
+                  s.src = document.location.protocol + "//secure.mlstatic.com/mptools/render.js";
+                  var x = document.getElementsByTagName('script')[0];
+                  x.parentNode.insertBefore(s, x);
+                  window.$MPC_loaded = true;
+                })();
+              }
+              window.$MPC_loaded !== true ? (window.attachEvent ? window.attachEvent('onload', $MPC_load) : window.addEventListener('load', $MPC_load, false)) : null;
+            })();
+            
+            // Callback cuando se completa la suscripción
+            function $MPC_message(event) {
+              if (event.data && event.data.preapproval_id) {
+                // Redirigir a billing con el preapproval_id
+                window.location.href = '/settings/billing?preapproval_id=' + event.data.preapproval_id + '&status=success';
+              }
+            }
+            window.addEventListener("message", $MPC_message);
+          `
+        }}
+      />
 
       {/* FAQ Section */}
       <div className="mt-16 space-y-4">
