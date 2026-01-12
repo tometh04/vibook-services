@@ -18,6 +18,7 @@ export default async function AdminSubscriptionsPage() {
     .select(`
       id,
       status,
+      plan_id,
       mp_preapproval_id,
       mp_status,
       mp_payer_id,
@@ -40,6 +41,7 @@ export default async function AdminSubscriptionsPage() {
         )
       ),
       plan:subscription_plans(
+        id,
         name,
         display_name,
         price_monthly

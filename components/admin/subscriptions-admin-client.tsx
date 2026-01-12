@@ -48,7 +48,9 @@ interface Subscription {
       }
     }>
   }
+  plan_id?: string
   plan?: {
+    id: string
     name: string
     display_name: string
     price_monthly: number
