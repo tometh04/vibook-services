@@ -123,10 +123,11 @@ export async function GET(request: Request) {
 
     if (existingSubscription) {
       // Actualizar suscripción existente
+      const existingSubData = existingSubscription as any
       await (supabase
         .from("subscriptions") as any)
         .update(subscriptionData)
-        .eq("id", existingSubscription.id)
+        .eq("id", existingSubData.id)
     } else {
       // Crear nueva suscripción
       subscriptionData.created_at = new Date().toISOString()
@@ -136,11 +137,12 @@ export async function GET(request: Request) {
     }
 
     // Registrar evento
+    const existingSubData = existingSubscription as any
     await (supabase
       .from("billing_events") as any)
       .insert({
         agency_id: agencyId,
-        subscription_id: existingSubscription?.id || null,
+        subscription_id: existingSubData?.id || null,
         event_type: 'SUBSCRIPTION_CREATED',
         mp_notification_id: preapprovalId,
         metadata: { status: mpStatus, mp_data: preapproval }
