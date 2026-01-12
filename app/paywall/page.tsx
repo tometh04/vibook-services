@@ -40,8 +40,15 @@ export default function PaywallPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planId }),
       })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al crear la sesión de pago')
+      }
+      
       const data = await response.json()
-      const checkoutUrl = data.initPoint || data.sandboxInitPoint
+      const checkoutUrl = data.checkoutUrl || data.initPoint || data.sandboxInitPoint
+      
       if (checkoutUrl) {
         window.location.href = checkoutUrl
       } else {
@@ -50,7 +57,7 @@ export default function PaywallPage() {
       }
     } catch (error) {
       console.error('Error creating checkout session:', error)
-      alert('Error al crear la sesión de pago. Por favor intenta nuevamente.')
+      alert(error instanceof Error ? error.message : 'Error al crear la sesión de pago. Por favor intenta nuevamente.')
     }
   }
 
@@ -225,64 +232,27 @@ export default function PaywallPage() {
                 </CardContent>
 
                 <CardFooter className="pt-6 pb-6 px-6">
-                  {plan.name === 'STARTER' ? (
-                    <div className="w-full">
-                      <a 
-                        href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=5e365ad7ca4540a5a0fd28511fa5ac46" 
-                        id="MP-payButton"
-                        data-name="MP-payButton"
-                        className="mp-pay-button w-full inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                      >
-                        Comenzar Prueba Gratis
-                      </a>
-                    </div>
-                  ) : (
-                    <Button
-                      className="w-full h-12 text-base font-semibold"
-                      variant={isPopular ? "default" : "outline"}
-                      onClick={() => handleUpgrade(plan.id)}
-                    >
-                      Comenzar Prueba Gratis
-                    </Button>
-                  )}
+                  <Button
+                    className="w-full h-12 text-base font-semibold"
+                    variant={isPopular ? "default" : "outline"}
+                    onClick={() => handleUpgrade(plan.id)}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Cargando...
+                      </>
+                    ) : (
+                      'Comenzar Prueba Gratis'
+                    )}
+                  </Button>
                 </CardFooter>
               </Card>
             )
           })}
         </div>
 
-        {/* Script de Mercado Pago para renderizar botones */}
-        <Script
-          id="mercadopago-subscriptions"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                function $MPC_load() {
-                  window.$MPC_loaded !== true && (function() {
-                    var s = document.createElement("script");
-                    s.type = "text/javascript";
-                    s.async = true;
-                    s.src = document.location.protocol + "//secure.mlstatic.com/mptools/render.js";
-                    var x = document.getElementsByTagName('script')[0];
-                    x.parentNode.insertBefore(s, x);
-                    window.$MPC_loaded = true;
-                  })();
-                }
-                window.$MPC_loaded !== true ? (window.attachEvent ? window.attachEvent('onload', $MPC_load) : window.addEventListener('load', $MPC_load, false)) : null;
-              })();
-              
-              // Callback cuando se completa la suscripción
-              function $MPC_message(event) {
-                if (event.data && event.data.preapproval_id) {
-                  // Redirigir a billing con el preapproval_id
-                  window.location.href = '/api/billing/preapproval-callback?preapproval_id=' + event.data.preapproval_id + '&status=success';
-                }
-              }
-              window.addEventListener("message", $MPC_message);
-            `
-          }}
-        />
 
         {/* Info adicional - Centrado */}
         <div className="text-center space-y-3 pt-8 max-w-2xl mx-auto">

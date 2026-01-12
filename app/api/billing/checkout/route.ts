@@ -68,44 +68,41 @@ export async function POST(request: Request) {
       .eq("agency_id", agencyId)
       .maybeSingle()
 
-    // Crear preferencia de pago en Mercado Pago
-    // Nota: Para suscripciones, Mercado Pago usa Preapproval, pero primero
-    // necesitamos que el usuario autorice la suscripción mediante un pago inicial
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    // Crear Preapproval dinámicamente usando la API de Mercado Pago
+    // Esto evita problemas de autorización de dominio
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vibook.ai'
+    const { createPreApproval } = await import('@/lib/mercadopago/client')
     
-    const preference = await createPreference({
-      items: [
-        {
-          title: `Suscripción ${plan.display_name} - Vibook Gestión`,
-          quantity: 1,
-          unit_price: plan.price_monthly
-        }
-      ],
-      payer: {
-        email: user.email,
-        name: user.name
+    // Calcular fecha de inicio (7 días desde ahora para el trial)
+    const trialStartDate = new Date()
+    trialStartDate.setDate(trialStartDate.getDate() + 7)
+    
+    // Crear Preapproval con trial de 7 días
+    const preapproval = await createPreApproval({
+      reason: `Suscripción ${plan.display_name} - Vibook Gestión`,
+      auto_recurring: {
+        frequency: 30, // Mensual
+        frequency_type: 'days',
+        transaction_amount: plan.price_monthly,
+        currency_id: 'ARS',
+        start_date: trialStartDate.toISOString() // Comienza después del trial
       },
-      back_urls: {
-        success: `${appUrl}/settings/billing?status=success`,
-        failure: `${appUrl}/pricing?status=failure`,
-        pending: `${appUrl}/settings/billing?status=pending`
-      },
-      auto_return: 'approved',
+      payer_email: user.email,
       external_reference: JSON.stringify({
         agency_id: agencyId,
         plan_id: planId,
         user_id: user.id
       }),
-      notification_url: `${appUrl}/api/billing/webhook`
+      back_url: `${appUrl}/api/billing/preapproval-callback`
     })
 
-    // Guardar preference_id en la suscripción (si existe) o crear una nueva
-    // subscriptions table no está en tipos generados todavía, usar as any
+    // Guardar preapproval_id en la suscripción (si existe) o crear una nueva
     if (existingSubscription) {
       await (supabase
         .from("subscriptions") as any)
         .update({
-          mp_preference_id: preference.id,
+          mp_preapproval_id: preapproval.id,
+          mp_status: preapproval.status,
           updated_at: new Date().toISOString()
         })
         .eq("id", (existingSubscription as any).id)
@@ -116,18 +113,30 @@ export async function POST(request: Request) {
         .insert({
           agency_id: agencyId,
           plan_id: planId,
-          mp_preference_id: preference.id,
+          mp_preapproval_id: preapproval.id,
+          mp_status: preapproval.status,
           status: 'TRIAL',
           current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          current_period_end: trialStartDate.toISOString(),
+          trial_start: new Date().toISOString(),
+          trial_end: trialStartDate.toISOString(),
           billing_cycle: 'MONTHLY'
         })
     }
 
+    // Retornar la URL de checkout del preapproval
+    // Mercado Pago genera automáticamente una URL de checkout
+    const checkoutUrl = preapproval.init_point || preapproval.sandbox_init_point
+
+    if (!checkoutUrl) {
+      throw new Error('No se pudo obtener la URL de checkout del preapproval')
+    }
+
     return NextResponse.json({ 
-      preferenceId: preference.id,
-      initPoint: preference.init_point, // URL para redirigir al usuario
-      sandboxInitPoint: preference.sandbox_init_point // URL para testing
+      preapprovalId: preapproval.id,
+      checkoutUrl: checkoutUrl,
+      initPoint: checkoutUrl,
+      sandboxInitPoint: checkoutUrl
     })
   } catch (error: any) {
     console.error("Error in POST /api/billing/checkout:", error)
