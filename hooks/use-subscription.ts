@@ -9,6 +9,7 @@ export function useSubscription() {
   const [usage, setUsage] = useState<UsageMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [agencyId, setAgencyId] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchSubscription() {
@@ -18,6 +19,7 @@ export function useSubscription() {
         // Obtener el usuario actual
         const { data: { user: authUser } } = await supabase.auth.getUser()
         if (!authUser) {
+          console.log('[useSubscription] No auth user found')
           setLoading(false)
           return
         }
@@ -25,55 +27,67 @@ export function useSubscription() {
         // Obtener el usuario de nuestra BD
         const { data: userData } = await supabase
           .from("users")
-          .select("id")
+          .select("id, role")
           .eq("auth_id", authUser.id)
           .single()
 
         if (!userData) {
+          console.log('[useSubscription] No user data found')
           setLoading(false)
           return
         }
 
         const userId = (userData as any).id
+        console.log('[useSubscription] User:', userId, 'Role:', (userData as any).role)
 
-        // Obtener la agencia del usuario
+        // Obtener TODAS las agencias del usuario (puede estar en múltiples)
         const { data: userAgencies } = await supabase
           .from("user_agencies")
           .select("agency_id")
           .eq("user_id", userId)
-          .limit(1)
-          .maybeSingle()
 
-        if (!userAgencies) {
+        if (!userAgencies || userAgencies.length === 0) {
+          console.log('[useSubscription] No agencies found for user')
           setLoading(false)
           return
         }
 
-        const agencyId = (userAgencies as any).agency_id
+        const agencyIds = (userAgencies as any[]).map(ua => ua.agency_id)
+        console.log('[useSubscription] User agencies:', agencyIds)
 
-        // Obtener la suscripción con el plan
-        // Obtener todas las suscripciones y tomar la más relevante (ACTIVE > TRIAL > más reciente)
+        // Buscar suscripción activa en CUALQUIERA de las agencias del usuario
+        // Esto permite que usuarios invitados hereden la suscripción del admin
         const { data: subscriptionsData, error: subError } = await (supabase
           .from("subscriptions") as any)
           .select(`
             *,
             plan:subscription_plans(*)
           `)
-          .eq("agency_id", agencyId)
+          .in("agency_id", agencyIds)
           .order("created_at", { ascending: false })
         
-        // Seleccionar la suscripción más relevante
+        console.log('[useSubscription] Found subscriptions:', subscriptionsData?.length || 0)
+        
+        // Seleccionar la suscripción más relevante de todas las agencias
         let subscriptionData = null
+        let selectedAgencyId = agencyIds[0]
+        
         if (subscriptionsData && subscriptionsData.length > 0) {
           // Priorizar: TESTER > ACTIVE > TRIAL > más reciente
           subscriptionData = subscriptionsData.find((s: any) => s.plan?.name === 'TESTER')
             || subscriptionsData.find((s: any) => s.status === 'ACTIVE')
             || subscriptionsData.find((s: any) => s.status === 'TRIAL')
             || subscriptionsData[0]
+          
+          if (subscriptionData) {
+            selectedAgencyId = subscriptionData.agency_id
+          }
         }
 
+        setAgencyId(selectedAgencyId)
+
         if (subError) {
-          console.error("Error fetching subscription:", subError)
+          console.error("[useSubscription] Error fetching subscription:", subError)
           setError("Error al obtener la suscripción")
         } else if (subscriptionData) {
           // Asegurarse de que features esté parseado correctamente
@@ -82,12 +96,13 @@ export function useSubscription() {
               try {
                 subscriptionData.plan.features = JSON.parse(subscriptionData.plan.features)
               } catch (e) {
-                console.error("Error parsing plan features:", e)
+                console.error("[useSubscription] Error parsing plan features:", e)
               }
             }
           }
           
-          console.log('[useSubscription] Subscription data:', {
+          console.log('[useSubscription] Selected subscription:', {
+            agency_id: subscriptionData.agency_id,
             plan: subscriptionData.plan?.name,
             status: subscriptionData.status,
             features: subscriptionData.plan?.features
@@ -98,8 +113,8 @@ export function useSubscription() {
             plan: subscriptionData.plan,
           } as SubscriptionWithPlan)
         } else {
-          // Si no hay suscripción, no establecer error (puede ser usuario nuevo)
-          console.log("No se encontró suscripción para la agencia")
+          // Si no hay suscripción en ninguna agencia
+          console.log("[useSubscription] No subscription found for any agency")
         }
 
         // Obtener métricas de uso del mes actual
@@ -107,23 +122,22 @@ export function useSubscription() {
         currentMonthStart.setDate(1)
         currentMonthStart.setHours(0, 0, 0, 0)
 
-        // usage_metrics table no está en tipos generados todavía
         const { data: usageData, error: usageError } = await (supabase
           .from("usage_metrics") as any)
           .select("*")
-          .eq("agency_id", agencyId)
+          .eq("agency_id", selectedAgencyId)
           .eq("period_start", currentMonthStart.toISOString().split('T')[0])
           .maybeSingle()
 
         if (usageError) {
-          console.error("Error fetching usage:", usageError)
+          console.error("[useSubscription] Error fetching usage:", usageError)
         } else if (usageData) {
           setUsage(usageData as UsageMetrics)
         }
 
         setLoading(false)
       } catch (err: any) {
-        console.error("Error in useSubscription:", err)
+        console.error("[useSubscription] Error:", err)
         setError(err.message)
         setLoading(false)
       }
@@ -137,6 +151,7 @@ export function useSubscription() {
     usage,
     loading,
     error,
+    agencyId, // Exponer el agencyId para usarlo en filtros
     // Helpers
     isActive: subscription?.status === "ACTIVE" || (subscription?.status === "TRIAL" && subscription?.plan?.name !== "FREE"),
     isTrial: subscription?.status === "TRIAL" && subscription?.plan?.name !== "FREE",

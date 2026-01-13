@@ -98,22 +98,40 @@ export function OperationsTable({
   const [allOperators, setAllOperators] = useState<Array<{ id: string; name: string }>>([])
   
   // Cargar datos auxiliares para el diálogo
+  // El endpoint /api/users ya filtra por las agencias del usuario actual (AISLAMIENTO SaaS)
   const loadDialogData = useCallback(async () => {
     try {
-      const [agenciesRes, sellersRes, operatorsRes] = await Promise.all([
+      const [agenciesRes, sellersRes, adminsRes, operatorsRes] = await Promise.all([
         fetch("/api/agencies"),
         fetch("/api/users?role=SELLER"),
+        fetch("/api/users"), // Obtener todos los usuarios de la agencia (incluye ADMIN)
         fetch("/api/operators"),
       ])
       
-      const [agenciesData, sellersData, operatorsData] = await Promise.all([
+      const [agenciesData, sellersData, adminsData, operatorsData] = await Promise.all([
         agenciesRes.json(),
         sellersRes.json(),
+        adminsRes.json(),
         operatorsRes.json(),
       ])
       
+      // Combinar vendedores y admins (sin duplicados)
+      const allSellersMap = new Map<string, { id: string; name: string }>()
+      
+      // Agregar vendedores
+      for (const u of sellersData.users || []) {
+        allSellersMap.set(u.id, { id: u.id, name: u.name })
+      }
+      
+      // Agregar admins que pueden ser asignados como vendedores
+      for (const u of adminsData.users || []) {
+        if (u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') {
+          allSellersMap.set(u.id, { id: u.id, name: u.name })
+        }
+      }
+      
       setAgencies(agenciesData.agencies || [])
-      setSellers((sellersData.users || []).map((u: any) => ({ id: u.id, name: u.name })))
+      setSellers(Array.from(allSellersMap.values()))
       setAllOperators((operatorsData.operators || []).map((o: any) => ({ id: o.id, name: o.name })))
     } catch (error) {
       console.error("Error loading dialog data:", error)

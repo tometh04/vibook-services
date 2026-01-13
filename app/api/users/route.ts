@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 
 export const dynamic = 'force-dynamic'
 
-// GET - Obtener usuarios de las agencias del usuario actual (AISLAMIENTO SaaS)
+// GET - Obtener usuarios de las agencias del usuario actual (AISLAMIENTO SaaS ESTRICTO)
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
@@ -15,9 +15,10 @@ export async function GET(request: Request) {
     const role = searchParams.get("role")
     const search = searchParams.get("search")
     const excludeUserId = searchParams.get("exclude")
+    const agencyIdFilter = searchParams.get("agencyId") // Filtro opcional por agencia específica
     
     console.log(`[API /users] GET request - User: ${user.id} (${user.email}), Role: ${user.role}`)
-    console.log(`[API /users] Params - role: ${role}, search: ${search}, exclude: ${excludeUserId}`)
+    console.log(`[API /users] Params - role: ${role}, search: ${search}, exclude: ${excludeUserId}, agencyId: ${agencyIdFilter}`)
 
     // Obtener agencias del usuario directamente
     const { data: userAgenciesData, error: agencyError } = await supabase
@@ -30,20 +31,32 @@ export async function GET(request: Request) {
       return NextResponse.json({ users: [] })
     }
 
-    const agencyIds = (userAgenciesData || []).map((ua: any) => ua.agency_id)
-    console.log(`[API /users] User ${user.id} has access to agencies:`, agencyIds)
+    const userAgencyIds = (userAgenciesData || []).map((ua: any) => ua.agency_id)
+    console.log(`[API /users] User ${user.id} has access to agencies:`, userAgencyIds)
 
-    // Si no hay agencias, retornar vacío (excepto SUPER_ADMIN que NO debería tener todas)
-    if (!agencyIds || agencyIds.length === 0) {
+    // Si no hay agencias, retornar vacío
+    if (!userAgencyIds || userAgencyIds.length === 0) {
       console.log(`[API /users] User ${user.id} has no agencies - returning empty`)
       return NextResponse.json({ users: [] })
     }
 
-    // Obtener IDs de usuarios de SOLO las agencias del usuario actual (AISLAMIENTO!)
+    // Determinar qué agencias usar para el filtro
+    let agencyIdsToFilter = userAgencyIds
+    
+    // Si se especifica un agencyId, verificar que el usuario tenga acceso
+    if (agencyIdFilter && agencyIdFilter !== "ALL") {
+      if (!userAgencyIds.includes(agencyIdFilter)) {
+        console.log(`[API /users] User does not have access to agency ${agencyIdFilter}`)
+        return NextResponse.json({ users: [] })
+      }
+      agencyIdsToFilter = [agencyIdFilter]
+    }
+
+    // Obtener IDs de usuarios de SOLO las agencias filtradas (AISLAMIENTO ESTRICTO!)
     const { data: allUserAgencies, error: userAgenciesError } = await supabase
       .from("user_agencies")
-      .select("user_id")
-      .in("agency_id", agencyIds)
+      .select("user_id, agency_id")
+      .in("agency_id", agencyIdsToFilter)
 
     if (userAgenciesError) {
       console.error("[API /users] Error fetching user_agencies:", userAgenciesError)
@@ -53,7 +66,7 @@ export async function GET(request: Request) {
     const allUserIds = (allUserAgencies || []).map((ua: any) => ua.user_id)
     const userIds = Array.from(new Set(allUserIds)) as string[]
     
-    console.log(`[API /users] Found ${userIds.length} users in user's agencies`)
+    console.log(`[API /users] Found ${userIds.length} users in filtered agencies`)
 
     if (userIds.length === 0) {
       return NextResponse.json({ users: [] })

@@ -46,17 +46,32 @@ export default async function LeadsPage() {
   const { data } = await agenciesQuery.order("name")
   const agencies = (data || []) as Array<{ id: string; name: string }>
 
-  // Get sellers for filters - incluir SELLER, ADMIN y SUPER_ADMIN como vendedores
-  let sellersQuery = supabase
-    .from("users")
-    .select("id, name")
-    .in("role", ["SELLER", "ADMIN", "SUPER_ADMIN"])
-    .eq("is_active", true)
+  // Get sellers for filters - SOLO de las agencias del usuario (AISLAMIENTO SaaS)
+  let sellers: Array<{ id: string; name: string }> = []
   
   if (user.role === "SELLER") {
-    sellersQuery = sellersQuery.eq("id", user.id)
+    // El vendedor solo se ve a sí mismo
+    sellers = [{ id: user.id, name: user.name || user.email }]
+  } else if (agencyIds.length > 0) {
+    // Obtener usuarios de las mismas agencias
+    const { data: agencyUsers } = await supabase
+      .from("user_agencies")
+      .select("user_id")
+      .in("agency_id", agencyIds)
+    
+    const userIds = [...new Set((agencyUsers || []).map((au: any) => au.user_id))]
+    
+    if (userIds.length > 0) {
+      const { data: sellersData } = await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", userIds)
+        .in("role", ["SELLER", "ADMIN", "SUPER_ADMIN"])
+        .eq("is_active", true)
+      
+      sellers = (sellersData || []).map((s: any) => ({ id: s.id, name: s.name }))
+    }
   }
-  const { data: sellers } = await sellersQuery
 
   // Get operators for conversion dialog
   const { data: operators } = await supabase
@@ -120,7 +135,7 @@ export default async function LeadsPage() {
       <LeadsPageClient
       initialLeads={leads || []}
       agencies={(agencies || []) as Array<{ id: string; name: string }>}
-      sellers={(sellers || []) as Array<{ id: string; name: string }>}
+      sellers={sellers}
       operators={(operators || []) as Array<{ id: string; name: string }>}
       defaultAgencyId={agencyIds[0] || undefined}
       defaultSellerId={user.role === "SELLER" ? user.id : undefined}
