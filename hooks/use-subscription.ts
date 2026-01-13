@@ -176,7 +176,8 @@ export function useSubscription() {
           return false
         }
         
-        const hasFeature = features[feature] === true
+        // Type assertion para acceder dinámicamente a las propiedades
+        const hasFeature = (features as Record<string, boolean>)[feature] === true
         
         console.log('[canUseFeature]', {
           plan: subscription.plan.name,
