@@ -62,7 +62,7 @@ export default async function LeadsPage() {
       .select("user_id")
       .in("agency_id", agencyIds)
     
-    const userIds = [...new Set((agencyUsers || []).map((au: any) => au.user_id))]
+    const userIds = Array.from(new Set((agencyUsers || []).map((au: any) => au.user_id)))
     
     if (userIds.length > 0) {
       const { data: sellersData } = await supabase

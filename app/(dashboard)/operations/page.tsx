@@ -49,7 +49,7 @@ export default async function OperationsPage() {
       .select("user_id")
       .in("agency_id", agencyIds)
     
-    const userIds = [...new Set((agencyUsers || []).map((au: any) => au.user_id))]
+    const userIds = Array.from(new Set((agencyUsers || []).map((au: any) => au.user_id)))
     console.log(`[Operations Page] Users in agencies (${agencyIds.length} agencies):`, userIds.length)
     
     if (userIds.length > 0) {
