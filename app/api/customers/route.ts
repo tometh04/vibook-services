@@ -42,15 +42,16 @@ export async function GET(request: Request) {
     }
 
     // Crear query builder EXACTAMENTE como en statistics/route.ts
-    let query: any = supabase.from("customers")
+    // CRÍTICO: Usar type assertion explícita para evitar problemas de tipos
+    let query: any = (supabase.from("customers") as any)
     
     // Aplicar filtros EXACTAMENTE como en statistics/route.ts
     if (user.role !== "SUPER_ADMIN") {
-      query = query.in("agency_id", agencyIds)
+      query = (query.in("agency_id", agencyIds) as any)
     }
 
     // AHORA sí llamar .select() después de los filtros (como en statistics route)
-    query = query.select(`
+    query = (query.select(`
         *,
         operation_customers(
           operation_id,
