@@ -42,18 +42,20 @@ export async function GET(request: Request) {
     }
 
     // Construir query base - EXACTAMENTE como statistics/route.ts que funciona
-    let customersQuery: any = supabase.from("customers")
+    // CRÍTICO: Construir el query de forma más explícita para evitar problemas de tipos
+    let queryBuilder: any = supabase.from("customers")
     
     // Aplicar filtro de agencia ANTES de select (EXACTAMENTE como statistics/route.ts)
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      customersQuery = customersQuery.in("agency_id", agencyIds)
+      // Aplicar filtro directamente
+      queryBuilder = queryBuilder.in("agency_id", agencyIds)
     }
     
     // AHORA sí llamar .select() después de los filtros (EXACTAMENTE como statistics/route.ts)
-    customersQuery = customersQuery.select("*")
+    const customersQuery = queryBuilder.select("*")
 
     // Ejecutar query
     console.log(`[Customers API] Executing query for user ${user.id}...`)
