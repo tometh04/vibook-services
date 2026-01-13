@@ -251,6 +251,15 @@ export async function POST(request: Request) {
     const { getUserAgencyIds } = await import("@/lib/permissions-api")
     const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
     
+    // Para SUPER_ADMIN, validar que agency_id esté especificado
+    if (user.role === "SUPER_ADMIN" && !agency_id) {
+      return NextResponse.json(
+        { error: "Para crear un lead, debes especificar la agencia (agency_id)" },
+        { status: 400 }
+      )
+    }
+    
+    // Validar que la agencia pertenezca al usuario (excepto SUPER_ADMIN)
     if (user.role !== "SUPER_ADMIN" && !userAgencyIds.includes(agency_id)) {
       return NextResponse.json(
         { error: "No tienes permiso para crear leads en esta agencia" },

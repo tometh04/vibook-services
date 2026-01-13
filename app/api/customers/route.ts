@@ -166,8 +166,24 @@ export async function POST(request: Request) {
 
     // VALIDACIÓN CRÍTICA: agency_id debe venir del body y pertenecer al usuario
     // Si no viene, usar la primera agencia del usuario
-    const requestedAgencyId = body.agency_id || agencyIds[0]
+    // IMPORTANTE: Para SUPER_ADMIN, si no viene agency_id en el body, NO usar agencyIds[0]
+    // porque agencyIds contiene TODAS las agencias para SUPER_ADMIN
+    let requestedAgencyId = body.agency_id
     
+    if (!requestedAgencyId) {
+      if (user.role === "SUPER_ADMIN") {
+        // SUPER_ADMIN debe especificar agency_id explícitamente
+        return NextResponse.json(
+          { error: "Para crear un cliente, debes especificar la agencia (agency_id)" },
+          { status: 400 }
+        )
+      } else {
+        // ADMIN y otros roles usan su primera agencia
+        requestedAgencyId = agencyIds[0]
+      }
+    }
+    
+    // Validar que la agencia pertenezca al usuario (excepto SUPER_ADMIN)
     if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(requestedAgencyId)) {
       return NextResponse.json(
         { error: "No tiene permiso para crear clientes en esta agencia" },
