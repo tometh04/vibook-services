@@ -109,10 +109,10 @@ export async function GET(request: Request) {
       }
     })
 
-    // Get total count for pagination - aplicar filtros directamente
+    // Get total count for pagination - aplicar filtros directamente (igual que query principal)
     let countQuery: any = supabase.from("customers")
 
-    // Aplicar filtro de agencia ANTES de select
+    // Aplicar filtro de agencia ANTES de select (igual que query principal)
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         // No hay agencias, retornar count 0
