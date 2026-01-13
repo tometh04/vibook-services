@@ -20,19 +20,27 @@ export async function GET(request: Request) {
 
     // Get user agencies (ya tiene caché interno)
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    console.log(`[Customers API] User ${user.id} (${user.email}, role: ${user.role}) - Agency IDs:`, agencyIds)
 
     // Build base query - CRÍTICO: Aplicar filtros ANTES de select cuando hay relaciones anidadas
+    // Simplificar: aplicar filtros directamente como en statistics route
     const search = searchParams.get("search")
     let query: any = supabase.from("customers")
 
-    // Apply role-based filters FIRST (before select) - como en statistics route
-    try {
-      query = await applyCustomersFilters(query, user, agencyIds, supabase)
-      console.log(`[Customers API] User ${user.id} (${user.role}) - Applied filters, agencyIds:`, agencyIds)
-    } catch (error: any) {
-      console.error("[Customers API] Error applying customers filters:", error)
-      console.error("[Customers API] Error stack:", error.stack)
-      return NextResponse.json({ error: error.message || "Error al aplicar filtros de clientes" }, { status: 403 })
+    // Aplicar filtro de agencia ANTES de select (igual que statistics route)
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        console.log(`[Customers API] User ${user.id} has no agencies - returning empty`)
+        return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
+      }
+      console.log(`[Customers API] Filtering by ${agencyIds.length} agency(ies):`, agencyIds)
+      if (agencyIds.length === 1) {
+        query = query.eq("agency_id", agencyIds[0])
+      } else {
+        query = query.in("agency_id", agencyIds)
+      }
+    } else {
+      console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
     // AHORA sí llamar .select() después de los filtros (como en statistics route)
