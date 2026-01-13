@@ -165,6 +165,7 @@ export async function POST(request: Request) {
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
     
     console.log(`[POST /api/customers] User ${user.id} (${user.email}, role: ${user.role}) - Agency IDs:`, agencyIds)
+    console.log(`[POST /api/customers] Body received:`, JSON.stringify(body, null, 2))
     
     if (agencyIds.length === 0) {
       console.error(`[POST /api/customers] User ${user.id} has no agencies assigned`)
@@ -186,12 +187,19 @@ export async function POST(request: Request) {
         )
       } else {
         // ADMIN y otros roles usan su primera agencia
-        requestedAgencyId = agencyIds[0]
-        console.log(`[POST /api/customers] No agency_id in body, using first agency: ${requestedAgencyId}`)
+        if (agencyIds.length > 0) {
+          requestedAgencyId = agencyIds[0]
+          console.log(`[POST /api/customers] No agency_id in body, using first agency from user's agencies: ${requestedAgencyId} (from ${agencyIds.length} total agencies)`)
+        } else {
+          console.error(`[POST /api/customers] CRITICAL: agencyIds array is empty but passed length check!`)
+          return NextResponse.json({ error: "No tiene agencias asignadas" }, { status: 403 })
+        }
       }
     }
     
-    console.log(`[POST /api/customers] Requested agency_id: ${requestedAgencyId}`)
+    console.log(`[POST /api/customers] Final requested agency_id: ${requestedAgencyId}`)
+    console.log(`[POST /api/customers] User's agency IDs for validation:`, agencyIds)
+    console.log(`[POST /api/customers] Is requestedAgencyId in user's agencies?`, agencyIds.includes(requestedAgencyId))
     
     // Validar que la agencia pertenezca al usuario (excepto SUPER_ADMIN)
     if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(requestedAgencyId)) {

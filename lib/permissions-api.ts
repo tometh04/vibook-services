@@ -244,7 +244,14 @@ export async function getUserAgencyIds(
         return []
       }
 
-      const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+      console.log(`[getUserAgencyIds] Raw user_agencies data for user ${userId}:`, userAgencies)
+
+      const agencyIds = (userAgencies || []).map((ua: any) => {
+        const agencyId = ua?.agency_id || ua?.agency_id
+        console.log(`[getUserAgencyIds] Mapping user_agency:`, ua, `-> agency_id:`, agencyId)
+        return agencyId
+      }).filter(Boolean) // Filtrar valores null/undefined
+      
       console.log(`[getUserAgencyIds] User ${userId} (${userRole}) has ${agencyIds.length} agencies:`, agencyIds)
       
       if (agencyIds.length === 0) {
