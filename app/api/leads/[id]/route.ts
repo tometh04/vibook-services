@@ -27,12 +27,24 @@ export async function DELETE(
 
     const supabase = await createServerClient()
 
-    // Get current lead
-    const { data: currentLead } = await supabase
+    // CRÍTICO: Validar que el lead pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let leadQuery = supabase
       .from("leads")
       .select("*, agencies(name)")
       .eq("id", id)
-      .single()
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+      }
+      leadQuery = leadQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: currentLead } = await leadQuery.single()
 
     if (!currentLead) {
       return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
@@ -104,18 +116,35 @@ export async function PATCH(
 
     const supabase = await createServerClient()
 
-    // Get current lead
-    const { data: currentLead } = await supabase
+    // CRÍTICO: Validar que el lead pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let leadQuery = supabase
       .from("leads")
       .select("*")
       .eq("id", id)
-      .single()
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+      }
+      leadQuery = leadQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: currentLead } = await leadQuery.single()
 
     if (!currentLead) {
       return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
     }
 
     const lead = currentLead as any
+    
+    // CRÍTICO: Validar agency_id en el body si se intenta cambiar
+    if (body.agency_id && user.role !== "SUPER_ADMIN" && !agencyIds.includes(body.agency_id)) {
+      return NextResponse.json({ error: "No tiene permiso para mover el lead a esta agencia" }, { status: 403 })
+    }
 
     // Check permissions for SELLER:
     // - Can edit leads assigned to them

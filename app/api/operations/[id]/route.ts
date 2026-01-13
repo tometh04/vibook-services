@@ -13,8 +13,11 @@ export async function GET(
     const supabase = await createServerClient()
     const { id: operationId } = await params
 
-    // Get operation with related data
-    const { data: operation, error: operationError } = await supabase
+    // CRÍTICO: Validar que la operación pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let operationQuery = supabase
       .from("operations")
       .select(`
         *,
@@ -24,20 +27,29 @@ export async function GET(
         leads:lead_id(id, contact_name, destination, status)
       `)
       .eq("id", operationId)
-      .single()
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+      }
+      operationQuery = operationQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: operation, error: operationError } = await operationQuery.single()
 
-  if (operationError || !operation) {
-    return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
-  }
+    if (operationError || !operation) {
+      return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+    }
 
-  // Type assertion for operation
-  const op = operation as any
+    // Type assertion for operation
+    const op = operation as any
 
-  // Check permissions
-  const userRole = user.role as string
-  if (userRole === "SELLER" && op.seller_id !== user.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-  }
+    // Check permissions específicas de SELLER
+    const userRole = user.role as string
+    if (userRole === "SELLER" && op.seller_id !== user.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+    }
 
   // OPTIMIZACIÓN: Paralelizar todas las queries relacionadas
   const [
@@ -98,12 +110,24 @@ export async function PATCH(
     const { id: operationId } = await params
     const body = await request.json()
 
-    // Get current operation to check permissions and compare values
-    const { data: currentOperation } = await supabase
+    // CRÍTICO: Validar que la operación pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let operationQuery = supabase
       .from("operations")
       .select("*")
       .eq("id", operationId)
-      .single()
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+      }
+      operationQuery = operationQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: currentOperation } = await operationQuery.single()
 
     if (!currentOperation) {
       return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
@@ -112,10 +136,15 @@ export async function PATCH(
     // Type assertion for operation
     const currentOp = currentOperation as any
 
-    // Check permissions
+    // Check permissions específicas de SELLER
     const userRole = user.role as string
     if (userRole === "SELLER" && currentOp.seller_id !== user.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+    }
+    
+    // CRÍTICO: Validar agency_id en el body si se intenta cambiar
+    if (body.agency_id && user.role !== "SUPER_ADMIN" && !agencyIds.includes(body.agency_id)) {
+      return NextResponse.json({ error: "No tiene permiso para mover la operación a esta agencia" }, { status: 403 })
     }
 
     // Validaciones de fechas
@@ -332,12 +361,24 @@ export async function DELETE(
       return NextResponse.json({ error: "Solo administradores pueden eliminar operaciones" }, { status: 403 })
     }
 
-    // Get operation data before deletion
-    const { data: operation } = await supabase
+    // CRÍTICO: Validar que la operación pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let operationQuery = supabase
       .from("operations")
       .select("*, lead_id")
       .eq("id", operationId)
-      .single()
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+      }
+      operationQuery = operationQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: operation } = await operationQuery.single()
 
     if (!operation) {
       return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
