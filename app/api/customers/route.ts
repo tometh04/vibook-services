@@ -22,15 +22,16 @@ export async function GET(request: Request) {
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
     // Build base query
-    let query = supabase.from("customers")
+    let query: any = supabase.from("customers")
 
     // Apply role-based filters FIRST (before select)
     try {
       query = await applyCustomersFilters(query, user, agencyIds, supabase)
-      console.log(`[Customers API] User ${user.id} (${user.role}) - Applied filters`)
+      console.log(`[Customers API] User ${user.id} (${user.role}) - Applied filters, agencyIds:`, agencyIds)
     } catch (error: any) {
-      console.error("Error applying customers filters:", error)
-      return NextResponse.json({ error: error.message }, { status: 403 })
+      console.error("[Customers API] Error applying customers filters:", error)
+      console.error("[Customers API] Error stack:", error.stack)
+      return NextResponse.json({ error: error.message || "Error al aplicar filtros de clientes" }, { status: 403 })
     }
 
     // Add pagination with reasonable limits

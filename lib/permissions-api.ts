@@ -137,11 +137,11 @@ export async function applyCustomersFilters(
   if (userRole === "ADMIN" || userRole === "VIEWER") {
     if (agencyIds.length === 0) {
       // Retornar query que no devuelva resultados, pero manteniendo el tipo correcto
-      return (query as any).in("agency_id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido que no existe
+      return query.in("agency_id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido que no existe
     }
     
     // Filtrar directamente por agency_id en customers
-    return (query as any).in("agency_id", agencyIds)
+    return query.in("agency_id", agencyIds)
   }
 
   // CONTABLE no ve clientes
@@ -161,7 +161,7 @@ export async function applyCustomersFilters(
 
     if (operationIds.length === 0) {
       // No tiene operaciones, retornar query que no devuelva resultados
-      return (query as any).in("id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido
+      return query.in("id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido
     }
 
     // Obtener customer_ids de operation_customers
@@ -174,14 +174,14 @@ export async function applyCustomersFilters(
 
     if (customerIds.length === 0) {
       // No hay clientes asociados, retornar query que no devuelva resultados
-      return (query as any).in("id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido
+      return query.in("id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido
     }
 
-    return (query as any).in("id", customerIds)
+    return query.in("id", customerIds)
   }
 
   // Para otros roles no contemplados, retornar query vacío por seguridad
-  return (query as any).in("id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido
+  return query.in("id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido
 }
 
 /**
