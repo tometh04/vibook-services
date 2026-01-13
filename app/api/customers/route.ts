@@ -41,17 +41,16 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Crear query builder EXACTAMENTE como en statistics/route.ts
-    // CRÍTICO: Usar type assertion explícita para evitar problemas de tipos
-    let query: any = (supabase.from("customers") as any)
+    // Crear query builder EXACTAMENTE como en statistics/route.ts (SIN as any en cada paso)
+    let query: any = supabase.from("customers")
     
     // Aplicar filtros EXACTAMENTE como en statistics/route.ts
     if (user.role !== "SUPER_ADMIN") {
-      query = (query.in("agency_id", agencyIds) as any)
+      query = query.in("agency_id", agencyIds)
     }
 
     // AHORA sí llamar .select() después de los filtros (como en statistics route)
-    query = (query.select(`
+    query = query.select(`
         *,
         operation_customers(
           operation_id,
@@ -62,7 +61,7 @@ export async function GET(request: Request) {
             status
           )
         )
-      `) as any)
+      `)
 
     // Add pagination with reasonable limits
     const requestedLimit = parseInt(searchParams.get("limit") || "100")
@@ -117,8 +116,8 @@ export async function GET(request: Request) {
     })
 
     // Get total count for pagination - aplicar filtros directamente (igual que query principal)
-    // CRÍTICO: Usar type assertion explícita para evitar problemas de tipos
-    let countQuery: any = (supabase.from("customers") as any)
+    // EXACTAMENTE como en statistics/route.ts (SIN as any en cada paso)
+    let countQuery: any = supabase.from("customers")
 
     // Aplicar filtro de agencia ANTES de select (igual que query principal)
     if (user.role !== "SUPER_ADMIN") {
@@ -134,11 +133,11 @@ export async function GET(request: Request) {
           }
         })
       }
-      countQuery = (countQuery.in("agency_id", agencyIds) as any)
+      countQuery = countQuery.in("agency_id", agencyIds)
     }
 
     // AHORA sí llamar .select() para count
-    let countSelectQuery = (countQuery.select("*", { count: "exact", head: true }) as any)
+    let countSelectQuery = countQuery.select("*", { count: "exact", head: true })
     
     if (search) {
       countSelectQuery = countSelectQuery.or(
