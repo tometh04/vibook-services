@@ -126,8 +126,11 @@ export async function applyCustomersFilters(
 ): Promise<any> {
   const userRole = user.role as UserRole
 
+  console.log(`[applyCustomersFilters] User ${user.id} (${userRole}) - agencyIds:`, agencyIds)
+
   // SUPER_ADMIN (admin@vibook.ai) ve TODOS los clientes (administrador del sistema)
   if (userRole === "SUPER_ADMIN") {
+    console.log(`[applyCustomersFilters] SUPER_ADMIN - returning query without filters`)
     return query // Sin filtros para SUPER_ADMIN
   }
   
@@ -136,12 +139,16 @@ export async function applyCustomersFilters(
   // NO usar operaciones como intermediario porque los clientes pueden existir sin operaciones
   if (userRole === "ADMIN" || userRole === "VIEWER") {
     if (agencyIds.length === 0) {
+      console.log(`[applyCustomersFilters] ADMIN/VIEWER with no agencies - returning empty query`)
       // Retornar query que no devuelva resultados, pero manteniendo el tipo correcto
       return query.in("agency_id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido que no existe
     }
     
+    console.log(`[applyCustomersFilters] ADMIN/VIEWER - filtering by agencyIds:`, agencyIds)
     // Filtrar directamente por agency_id en customers
-    return query.in("agency_id", agencyIds)
+    const filteredQuery = query.in("agency_id", agencyIds)
+    console.log(`[applyCustomersFilters] Filtered query type:`, typeof filteredQuery, filteredQuery?.constructor?.name)
+    return filteredQuery
   }
 
   // CONTABLE no ve clientes
