@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
         return
       }
 
-      // Redirigir al panel de admin
+      // Redirigir al panel de admin (forzar recarga completa para que el middleware detecte la cookie)
       window.location.href = "/admin"
     } catch (err) {
       setError("Error al iniciar sesión. Intenta nuevamente.")

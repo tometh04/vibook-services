@@ -76,11 +76,11 @@ export async function middleware(req: NextRequest) {
     // o a /admin si tiene sesión
     if (pathname === '/') {
       if (hasValidSession) {
-        const adminUrl = new URL('/admin', req.url)
-        return NextResponse.redirect(adminUrl)
+        // Redirigir a /admin manteniendo el mismo host
+        return NextResponse.redirect(new URL('/admin', req.url))
       } else {
-        const loginUrl = new URL('/admin-login', req.url)
-        return NextResponse.redirect(loginUrl)
+        // Redirigir a /admin-login manteniendo el mismo host
+        return NextResponse.redirect(new URL('/admin-login', req.url))
       }
     }
 
