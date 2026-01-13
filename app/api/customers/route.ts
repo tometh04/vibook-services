@@ -41,17 +41,19 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Crear query builder y aplicar filtros ANTES de select (como en statistics/route.ts)
-    // CRÍTICO: Usar 'as any' para evitar problemas de tipos de TypeScript
-    let baseQuery: any = supabase.from("customers")
+    // Crear query builder y aplicar filtros ANTES de select (EXACTAMENTE como statistics/route.ts)
+    let customersQuery: any = supabase.from("customers")
     
     // Aplicar filtro de agencia ANTES de select
     if (user.role !== "SUPER_ADMIN") {
-      baseQuery = baseQuery.in("agency_id", agencyIds)
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
+      }
+      customersQuery = customersQuery.in("agency_id", agencyIds)
     }
 
-    // AHORA sí llamar .select() después de los filtros
-    let query: any = baseQuery.select(`
+    // AHORA sí llamar .select() después de los filtros (EXACTAMENTE como statistics/route.ts)
+    customersQuery = customersQuery.select(`
         *,
         operation_customers(
           operation_id,
@@ -64,25 +66,39 @@ export async function GET(request: Request) {
         )
       `)
 
-    // Add pagination with reasonable limits
-    const requestedLimit = parseInt(searchParams.get("limit") || "100")
-    const limit = Math.min(requestedLimit, 200) // Máximo 200 para mejor rendimiento
-    const offset = parseInt(searchParams.get("offset") || "0")
-    
-    // Apply search filter AFTER select (or() is only available after select)
-    let selectQuery = query
+    // Ejecutar query primero (como statistics/route.ts)
+    const { data: customersRaw, error: customersError } = await customersQuery
 
-    // Apply search filter AFTER select (or() is only available after select)
+    if (customersError) {
+      console.error("Error fetching customers:", customersError)
+      return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
+    }
+
+    // Filtrar por búsqueda en memoria si es necesario (más simple y confiable)
+    let customers = customersRaw || []
     if (search) {
-      selectQuery = selectQuery.or(
-        `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`
+      const searchLower = search.toLowerCase()
+      customers = customers.filter((c: any) => 
+        (c.first_name?.toLowerCase().includes(searchLower)) ||
+        (c.last_name?.toLowerCase().includes(searchLower)) ||
+        (c.email?.toLowerCase().includes(searchLower)) ||
+        (c.phone?.includes(search))
       )
     }
 
-    // Now add order and range
-    const { data: customers, error } = await selectQuery
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1)
+    // Ordenar y paginar en memoria
+    customers.sort((a: any, b: any) => {
+      const dateA = new Date(a.created_at).getTime()
+      const dateB = new Date(b.created_at).getTime()
+      return dateB - dateA // Más recientes primero
+    })
+
+    // Paginación
+    const requestedLimit = parseInt(searchParams.get("limit") || "100")
+    const limit = Math.min(requestedLimit, 200)
+    const offset = parseInt(searchParams.get("offset") || "0")
+    const total = customers.length
+    const paginatedCustomers = customers.slice(offset, offset + limit)
 
     if (error) {
       console.error("Error fetching customers:", error)
