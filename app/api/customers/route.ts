@@ -41,8 +41,9 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Construir query base - SOLUCIÓN DEFINITIVA: Construir el query completo en una sola expresión
-    // El problema es que asignar a una variable intermedia rompe el encadenamiento del query builder
+    // SOLUCIÓN DEFINITIVA: Ejecutar el query completo en una sola expresión
+    // El problema es que asignar a variables intermedias rompe el encadenamiento del query builder
+    // Por eso h.in is not a function - el objeto pierde sus métodos al reasignarse
     console.log(`[Customers API] Executing query for user ${user.id}...`)
     
     let customersRaw: any[] | null = null
@@ -52,14 +53,14 @@ export async function GET(request: Request) {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      // Construir query completo en una sola expresión para evitar problemas de encadenamiento
+      // CRÍTICO: Ejecutar todo en una sola expresión sin variables intermedias
       const result = await (supabase.from("customers") as any)
         .in("agency_id", agencyIds)
         .select("*")
       customersRaw = result.data
       customersError = result.error
     } else {
-      // SUPER_ADMIN sin filtros
+      // SUPER_ADMIN sin filtros - también en una sola expresión
       const result = await (supabase.from("customers") as any)
         .select("*")
       customersRaw = result.data
