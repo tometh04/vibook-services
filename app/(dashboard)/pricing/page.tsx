@@ -147,12 +147,12 @@ export default function PricingPage() {
                     <span className="text-sm">CRM</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {plan.features.manychat ? (
+                    {plan.features.cerebro ? (
                       <Check className="h-4 w-4 text-green-500" />
                     ) : (
                       <X className="h-4 w-4 text-muted-foreground" />
                     )}
-                    <span className="text-sm">Integración Manychat</span>
+                    <span className="text-sm">Cerebro (Asistente IA)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {plan.features.emilia ? (
@@ -160,7 +160,7 @@ export default function PricingPage() {
                     ) : (
                       <X className="h-4 w-4 text-muted-foreground" />
                     )}
-                    <span className="text-sm">Asistente IA (Emilia)</span>
+                    <span className="text-sm">Emilia (Asistente IA)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {plan.features.reports ? (
