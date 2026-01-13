@@ -21,9 +21,22 @@ export async function GET(request: Request) {
     // Get user agencies (ya tiene caché interno)
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
-    // Build base query with select FIRST (like leads and operations routes)
+    // Build base query - CRÍTICO: Aplicar filtros ANTES de select cuando hay relaciones anidadas
     const search = searchParams.get("search")
-    let query: any = supabase.from("customers").select(`
+    let query: any = supabase.from("customers")
+
+    // Apply role-based filters FIRST (before select) - como en statistics route
+    try {
+      query = await applyCustomersFilters(query, user, agencyIds, supabase)
+      console.log(`[Customers API] User ${user.id} (${user.role}) - Applied filters, agencyIds:`, agencyIds)
+    } catch (error: any) {
+      console.error("[Customers API] Error applying customers filters:", error)
+      console.error("[Customers API] Error stack:", error.stack)
+      return NextResponse.json({ error: error.message || "Error al aplicar filtros de clientes" }, { status: 403 })
+    }
+
+    // AHORA sí llamar .select() después de los filtros (como en statistics route)
+    query = query.select(`
         *,
         operation_customers(
           operation_id,
@@ -35,16 +48,6 @@ export async function GET(request: Request) {
           )
         )
       `)
-
-    // Apply role-based filters AFTER select (like leads and operations routes)
-    try {
-      query = await applyCustomersFilters(query, user, agencyIds, supabase)
-      console.log(`[Customers API] User ${user.id} (${user.role}) - Applied filters, agencyIds:`, agencyIds)
-    } catch (error: any) {
-      console.error("[Customers API] Error applying customers filters:", error)
-      console.error("[Customers API] Error stack:", error.stack)
-      return NextResponse.json({ error: error.message || "Error al aplicar filtros de clientes" }, { status: 403 })
-    }
 
     // Add pagination with reasonable limits
     const requestedLimit = parseInt(searchParams.get("limit") || "100")
