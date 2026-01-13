@@ -52,15 +52,25 @@ export function useSubscription() {
         const agencyId = (userAgencies as any).agency_id
 
         // Obtener la suscripción con el plan
-        // subscriptions y subscription_plans tables no están en tipos generados todavía
-        const { data: subscriptionData, error: subError } = await (supabase
+        // Obtener todas las suscripciones y tomar la más relevante (ACTIVE > TRIAL > más reciente)
+        const { data: subscriptionsData, error: subError } = await (supabase
           .from("subscriptions") as any)
           .select(`
             *,
             plan:subscription_plans(*)
           `)
           .eq("agency_id", agencyId)
-          .maybeSingle()
+          .order("created_at", { ascending: false })
+        
+        // Seleccionar la suscripción más relevante
+        let subscriptionData = null
+        if (subscriptionsData && subscriptionsData.length > 0) {
+          // Priorizar: TESTER > ACTIVE > TRIAL > más reciente
+          subscriptionData = subscriptionsData.find((s: any) => s.plan?.name === 'TESTER')
+            || subscriptionsData.find((s: any) => s.status === 'ACTIVE')
+            || subscriptionsData.find((s: any) => s.status === 'TRIAL')
+            || subscriptionsData[0]
+        }
 
         if (subError) {
           console.error("Error fetching subscription:", subError)
@@ -113,14 +123,28 @@ export function useSubscription() {
     planName: subscription?.plan?.name || "FREE",
     canUseFeature: (feature: string) => {
       if (!subscription?.plan) return false
-      // Si tiene plan FREE sin pago, no permitir features
+      
+      // Plan TESTER tiene acceso completo
+      if (subscription.plan.name === "TESTER") {
+        return true
+      }
+      
+      // Si tiene plan FREE sin pago, no permitir features premium
       if (subscription.plan.name === "FREE" && !subscription.mp_preapproval_id) {
         return false
       }
+      
       // Durante el período de prueba (TRIAL) con plan de pago, permitir acceso a todas las features
       if (subscription.status === "TRIAL" && subscription.plan.name !== "FREE") {
         return true
       }
+      
+      // Si está ACTIVE, permitir acceso a todas las features (respeta cambios manuales del admin)
+      if (subscription.status === "ACTIVE") {
+        return true
+      }
+      
+      // Para otros estados, verificar la feature específica del plan
       return subscription.plan.features[feature as keyof typeof subscription.plan.features] === true
     },
     hasReachedLimit: (limitType: 'users' | 'operations' | 'integrations') => {

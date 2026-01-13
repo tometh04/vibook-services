@@ -122,7 +122,7 @@ export default async function LeadsPage() {
   }
 
   return (
-    <PaywallGate feature="reports" requiredPlan="Starter" message="El CRM está disponible en planes Starter y superiores.">
+    <PaywallGate feature="trello" requiredPlan="Starter" message="El CRM está disponible en planes Starter y superiores.">
       <LeadsPageClient
       initialLeads={leads || []}
       agencies={(agencies || []) as Array<{ id: string; name: string }>}
