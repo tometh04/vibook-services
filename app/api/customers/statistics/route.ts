@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
     // Query base de clientes - CRÍTICO: Filtrar por agency_id ANTES de select
-    let customersQuery = supabase.from("customers")
+    let customersQuery: any = supabase.from("customers")
 
     // Aplicar filtro de agencia ANTES de select (CRÍTICO: .in() debe llamarse antes de .select())
     if (user.role !== "SUPER_ADMIN") {
