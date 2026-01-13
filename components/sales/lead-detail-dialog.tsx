@@ -380,17 +380,6 @@ export function LeadDetailDialog({
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             {formatLeadDisplayName(lead)}
-            {lead.trello_url && (
-              <a
-                href={lead.trello_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink className="h-5 w-5" />
-              </a>
-            )}
           </DialogTitle>
         </DialogHeader>
 

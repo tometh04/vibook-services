@@ -45,7 +45,6 @@ interface Lead {
   destination: string
   region: string
   status: string
-  trello_url: string | null
   created_at: string
   assigned_seller_id: string | null
   users?: { name: string; email: string } | null
