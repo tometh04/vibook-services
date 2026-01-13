@@ -41,7 +41,10 @@ export async function POST(request: Request) {
 
     // Guardar token en cookie
     const cookieStore = await cookies()
-    cookieStore.set("admin_session", token, {
+    const response = NextResponse.json({ success: true })
+    
+    // Establecer cookie en la respuesta
+    response.cookies.set("admin_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -51,7 +54,8 @@ export async function POST(request: Request) {
       // La cookie funcionará en el mismo dominio donde se establece
     })
 
-    return NextResponse.json({ success: true })
+    console.log('[Admin Login] Cookie set successfully')
+    return response
   } catch (error) {
     console.error("Admin login error:", error)
     return NextResponse.json(

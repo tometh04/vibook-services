@@ -29,20 +29,33 @@ const JWT_SECRET = new TextEncoder().encode(
 )
 
 async function verifyAdminSession(cookieHeader: string | null): Promise<boolean> {
-  if (!cookieHeader) return false
+  if (!cookieHeader) {
+    console.log('[Admin Middleware] No cookie header found')
+    return false
+  }
 
   try {
+    // Parsear cookies correctamente (pueden tener espacios o estar en diferentes formatos)
     const cookies = cookieHeader.split(';').map(c => c.trim())
     const adminSessionCookie = cookies.find(c => c.startsWith('admin_session='))
     
-    if (!adminSessionCookie) return false
+    if (!adminSessionCookie) {
+      console.log('[Admin Middleware] No admin_session cookie found in:', cookieHeader.substring(0, 100))
+      return false
+    }
 
-    const token = adminSessionCookie.split('=')[1]
-    if (!token) return false
+    // Extraer el token (puede haber = en el valor del JWT, así que tomamos todo después del primer =)
+    const token = adminSessionCookie.substring('admin_session='.length)
+    if (!token || token.length === 0) {
+      console.log('[Admin Middleware] Empty token in admin_session cookie')
+      return false
+    }
 
     await jwtVerify(token, JWT_SECRET)
+    console.log('[Admin Middleware] Valid admin session found')
     return true
-  } catch {
+  } catch (error) {
+    console.error('[Admin Middleware] Error verifying admin session:', error)
     return false
   }
 }
