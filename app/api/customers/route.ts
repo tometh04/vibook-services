@@ -21,10 +21,22 @@ export async function GET(request: Request) {
     // Get user agencies (ya tiene caché interno)
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
-    // Build base query
-    let query: any = supabase.from("customers")
+    // Build base query with select FIRST (like leads and operations routes)
+    const search = searchParams.get("search")
+    let query: any = supabase.from("customers").select(`
+        *,
+        operation_customers(
+          operation_id,
+          operations:operation_id(
+            id,
+            sale_amount_total,
+            currency,
+            status
+          )
+        )
+      `)
 
-    // Apply role-based filters FIRST (before select)
+    // Apply role-based filters AFTER select (like leads and operations routes)
     try {
       query = await applyCustomersFilters(query, user, agencyIds, supabase)
       console.log(`[Customers API] User ${user.id} (${user.role}) - Applied filters, agencyIds:`, agencyIds)
@@ -39,20 +51,8 @@ export async function GET(request: Request) {
     const limit = Math.min(requestedLimit, 200) // Máximo 200 para mejor rendimiento
     const offset = parseInt(searchParams.get("offset") || "0")
     
-    // Apply search filter and select with relations
-    const search = searchParams.get("search")
-    let selectQuery = query.select(`
-        *,
-        operation_customers(
-          operation_id,
-          operations:operation_id(
-            id,
-            sale_amount_total,
-            currency,
-            status
-          )
-        )
-      `)
+    // Apply search filter AFTER select (or() is only available after select)
+    let selectQuery = query
 
     // Apply search filter AFTER select (or() is only available after select)
     if (search) {

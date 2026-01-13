@@ -136,19 +136,24 @@ export async function applyCustomersFilters(
   
   // ADMIN, VIEWER ven clientes de SUS agencias (SaaS multi-tenant)
   // CRÍTICO: Filtrar directamente por agency_id en la tabla customers
-  // NO usar operaciones como intermediario porque los clientes pueden existir sin operaciones
+  // NOTA: Esta función puede recibir un query con o sin .select() ya aplicado
+  // Si tiene .select(), podemos usar .in() directamente
+  // Si no tiene .select(), también podemos usar .in() directamente
   if (userRole === "ADMIN" || userRole === "VIEWER") {
     if (agencyIds.length === 0) {
       console.log(`[applyCustomersFilters] ADMIN/VIEWER with no agencies - returning empty query`)
       // Retornar query que no devuelva resultados, pero manteniendo el tipo correcto
-      return query.in("agency_id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido que no existe
+      // Usar .eq() con un valor que no existe en lugar de .in() con array vacío
+      return query.eq("agency_id", "00000000-0000-0000-0000-000000000000") // UUID inválido que no existe
     }
     
     console.log(`[applyCustomersFilters] ADMIN/VIEWER - filtering by agencyIds:`, agencyIds)
     // Filtrar directamente por agency_id en customers
-    const filteredQuery = query.in("agency_id", agencyIds)
-    console.log(`[applyCustomersFilters] Filtered query type:`, typeof filteredQuery, filteredQuery?.constructor?.name)
-    return filteredQuery
+    // Si hay solo una agencia, usar .eq() para mejor rendimiento
+    if (agencyIds.length === 1) {
+      return query.eq("agency_id", agencyIds[0])
+    }
+    return query.in("agency_id", agencyIds)
   }
 
   // CONTABLE no ve clientes
