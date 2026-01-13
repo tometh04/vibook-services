@@ -51,8 +51,8 @@ export async function GET(request: Request) {
       }
       // Ejecutar query directamente sin asignar a variable
       console.log(`[Customers API] Executing query for user ${user.id} with agency filter...`)
-      const { data: customersRaw, error: customersError } = await supabase
-        .from("customers")
+      const { data: customersRaw, error: customersError } = await (supabase
+        .from("customers") as any)
         .in("agency_id", agencyIds)
         .select("*")
       
