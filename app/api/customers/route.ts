@@ -10,11 +10,15 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
+    console.log(`[Customers API] GET request - User: ${user.id} (${user.email}), Role: ${user.role}`)
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
 
     // Verificar permiso de acceso
-    if (!canAccessModule(user.role as any, "customers")) {
+    const hasAccess = canAccessModule(user.role as any, "customers")
+    console.log(`[Customers API] canAccessModule(${user.role}, "customers"):`, hasAccess)
+    if (!hasAccess) {
+      console.log(`[Customers API] Access denied for user ${user.id} (${user.email}) with role ${user.role}`)
       return NextResponse.json({ error: "No tiene permiso para ver clientes" }, { status: 403 })
     }
 
