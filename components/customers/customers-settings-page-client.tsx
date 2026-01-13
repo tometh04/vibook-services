@@ -96,7 +96,17 @@ export function CustomersSettingsPageClient() {
       }
 
       const data = await response.json()
-      setSettings(data)
+      
+      // Fusionar con valores por defecto para evitar errores de undefined/null
+      setSettings({
+        ...settings, // Valores por defecto
+        ...data,
+        custom_fields: Array.isArray(data.custom_fields) ? data.custom_fields : [],
+        notifications: Array.isArray(data.notifications) ? data.notifications : [],
+        duplicate_check_fields: Array.isArray(data.duplicate_check_fields) ? data.duplicate_check_fields : ['email', 'phone'],
+        validations: data.validations || { email: { required: true }, phone: { required: true } },
+        integrations: data.integrations || { operations: { auto_link: true }, leads: { auto_convert: false } },
+      })
     } catch (error: any) {
       console.error('Error loading settings:', error)
       toast({
