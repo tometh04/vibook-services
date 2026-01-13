@@ -110,26 +110,43 @@ export async function GET(request: Request) {
     }
 
     // Calculate trips and total spent for each customer
-    const customersWithStats = paginatedCustomers.map((customer: any) => {
-      const operations = customer.operation_customers || []
-      const trips = operations.length
-      
-      // Calculate total spent (only from CONFIRMED, TRAVELLED, or CLOSED operations)
-      const totalSpent = operations
-        .filter((oc: any) => {
-          const status = oc.operations?.status
-          return status === "CONFIRMED" || status === "TRAVELLED" || status === "CLOSED"
-        })
-        .reduce((sum: number, oc: any) => {
-          return sum + (parseFloat(oc.operations?.sale_amount_total || 0))
-        }, 0)
+    // Cargar operation_customers por separado para cada cliente
+    const customersWithStats = await Promise.all(
+      paginatedCustomers.map(async (customer: any) => {
+        // Obtener operation_customers para este cliente
+        const { data: operationCustomers } = await supabase
+          .from("operation_customers")
+          .select(`
+            operation_id,
+            operations:operation_id(
+              id,
+              sale_amount_total,
+              currency,
+              status
+            )
+          `)
+          .eq("customer_id", customer.id)
+        
+        const operations = operationCustomers || []
+        const trips = operations.length
+        
+        // Calculate total spent (only from CONFIRMED, TRAVELLED, or CLOSED operations)
+        const totalSpent = operations
+          .filter((oc: any) => {
+            const status = oc.operations?.status
+            return status === "CONFIRMED" || status === "TRAVELLED" || status === "CLOSED"
+          })
+          .reduce((sum: number, oc: any) => {
+            return sum + (parseFloat(oc.operations?.sale_amount_total || 0))
+          }, 0)
 
-      return {
-        ...customer,
-        trips,
-        totalSpent,
-      }
-    })
+        return {
+          ...customer,
+          trips,
+          totalSpent,
+        }
+      })
+    )
 
     // Usar el total que ya calculamos (más simple y confiable)
     return NextResponse.json({ 
