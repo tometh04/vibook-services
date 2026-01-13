@@ -62,7 +62,7 @@ export async function GET(request: Request) {
             status
           )
         )
-      `)
+      `) as any)
 
     // Add pagination with reasonable limits
     const requestedLimit = parseInt(searchParams.get("limit") || "100")
