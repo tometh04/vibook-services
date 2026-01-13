@@ -114,8 +114,8 @@ export async function GET(request: Request) {
     } else {
       // SUPER_ADMIN sin filtros
       console.log(`[Customers API] Executing query for SUPER_ADMIN ${user.id}...`)
-      const { data: customersRaw, error: customersError } = await supabase
-        .from("customers")
+      const { data: customersRaw, error: customersError } = await (supabase
+        .from("customers") as any)
         .select("*")
       
       if (customersError) {
