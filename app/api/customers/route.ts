@@ -41,16 +41,17 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Crear query builder EXACTAMENTE como en statistics/route.ts (SIN as any en cada paso)
-    let query: any = supabase.from("customers")
+    // Crear query builder y aplicar filtros ANTES de select (como en statistics/route.ts)
+    // CRÍTICO: Encadenar todo en una sola expresión para evitar problemas de tipos
+    let baseQuery = supabase.from("customers")
     
-    // Aplicar filtros EXACTAMENTE como en statistics/route.ts
+    // Aplicar filtro de agencia ANTES de select
     if (user.role !== "SUPER_ADMIN") {
-      query = query.in("agency_id", agencyIds)
+      baseQuery = baseQuery.in("agency_id", agencyIds)
     }
 
-    // AHORA sí llamar .select() después de los filtros (como en statistics route)
-    query = query.select(`
+    // AHORA sí llamar .select() después de los filtros
+    let query: any = baseQuery.select(`
         *,
         operation_customers(
           operation_id,
