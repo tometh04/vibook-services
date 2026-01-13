@@ -11,10 +11,7 @@ export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     console.log(`[Customers API] GET request - User: ${user.id} (${user.email}), Role: ${user.role}`)
-    
-    // CRÍTICO: Usar createAdminSupabaseClient para bypass RLS y asegurar que los filtros funcionen
-    const { createAdminSupabaseClient } = await import("@/lib/supabase/admin")
-    const supabase = createAdminSupabaseClient()
+    const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
 
     // Verificar permiso de acceso
@@ -45,23 +42,22 @@ export async function GET(request: Request) {
     }
 
     // Construir query base - EXACTAMENTE como statistics/route.ts que funciona
-    // CRÍTICO: Construir query de forma más directa para evitar problemas de tipos
-    let query: any
+    let customersQuery: any = supabase.from("customers")
     
+    // Aplicar filtro de agencia ANTES de select (EXACTAMENTE como statistics/route.ts)
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      // Construir query con filtro directamente
-      query = supabase.from("customers").in("agency_id", agencyIds).select("*")
-    } else {
-      // SUPER_ADMIN sin filtros
-      query = supabase.from("customers").select("*")
+      customersQuery = customersQuery.in("agency_id", agencyIds)
     }
+    
+    // AHORA sí llamar .select() después de los filtros (EXACTAMENTE como statistics/route.ts)
+    customersQuery = customersQuery.select("*")
 
     // Ejecutar query
     console.log(`[Customers API] Executing query for user ${user.id}...`)
-    const { data: customersRaw, error: customersError } = await query
+    const { data: customersRaw, error: customersError } = await customersQuery
 
     if (customersError) {
       console.error("[Customers API] Error fetching customers:", customersError)
