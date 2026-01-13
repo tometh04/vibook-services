@@ -76,6 +76,23 @@ export function useSubscription() {
           console.error("Error fetching subscription:", subError)
           setError("Error al obtener la suscripción")
         } else if (subscriptionData) {
+          // Asegurarse de que features esté parseado correctamente
+          if (subscriptionData.plan && subscriptionData.plan.features) {
+            if (typeof subscriptionData.plan.features === 'string') {
+              try {
+                subscriptionData.plan.features = JSON.parse(subscriptionData.plan.features)
+              } catch (e) {
+                console.error("Error parsing plan features:", e)
+              }
+            }
+          }
+          
+          console.log('[useSubscription] Subscription data:', {
+            plan: subscriptionData.plan?.name,
+            status: subscriptionData.status,
+            features: subscriptionData.plan?.features
+          })
+          
           setSubscription({
             ...subscriptionData,
             plan: subscriptionData.plan,
