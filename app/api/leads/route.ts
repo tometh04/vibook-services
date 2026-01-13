@@ -275,8 +275,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // NOTA: Los campos deposit_* NO existen en la tabla leads
-    // El depósito se maneja creando un ledger_movement aparte
+    // NOTA: Solo incluir campos que EXISTEN en la tabla leads
     const leadData: Record<string, any> = {
       agency_id,
       source: source || "CRM",
@@ -289,7 +288,6 @@ export async function POST(request: Request) {
       contact_instagram: contact_instagram || null,
       assigned_seller_id: assigned_seller_id || (user.role === "SELLER" ? user.id : null),
       notes: notes || null,
-      quoted_price: quoted_price || null,
     }
 
     const { data: lead, error } = await (supabase.from("leads") as any).insert(leadData).select().single()
