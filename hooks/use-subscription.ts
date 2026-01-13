@@ -80,6 +80,9 @@ export function useSubscription() {
             ...subscriptionData,
             plan: subscriptionData.plan,
           } as SubscriptionWithPlan)
+        } else {
+          // Si no hay suscripción, no establecer error (puede ser usuario nuevo)
+          console.log("No se encontró suscripción para la agencia")
         }
 
         // Obtener métricas de uso del mes actual
@@ -122,30 +125,45 @@ export function useSubscription() {
     isTrial: subscription?.status === "TRIAL" && subscription?.plan?.name !== "FREE",
     planName: subscription?.plan?.name || "FREE",
     canUseFeature: (feature: string) => {
-      if (!subscription?.plan) return false
+      if (!subscription?.plan) {
+        console.log('[PaywallGate] No hay suscripción o plan')
+        return false
+      }
       
       // Plan TESTER tiene acceso completo
       if (subscription.plan.name === "TESTER") {
+        console.log('[PaywallGate] Plan TESTER - acceso completo')
         return true
       }
       
       // Si tiene plan FREE sin pago, no permitir features premium
       if (subscription.plan.name === "FREE" && !subscription.mp_preapproval_id) {
+        console.log('[PaywallGate] Plan FREE sin pago - bloqueado')
         return false
       }
       
       // Durante el período de prueba (TRIAL) con plan de pago, permitir acceso a todas las features
       if (subscription.status === "TRIAL" && subscription.plan.name !== "FREE") {
+        console.log('[PaywallGate] Status TRIAL con plan de pago - acceso permitido')
         return true
       }
       
       // Si está ACTIVE, permitir acceso a todas las features (respeta cambios manuales del admin)
       if (subscription.status === "ACTIVE") {
+        console.log('[PaywallGate] Status ACTIVE - acceso permitido')
         return true
       }
       
       // Para otros estados, verificar la feature específica del plan
-      return subscription.plan.features[feature as keyof typeof subscription.plan.features] === true
+      const hasFeature = subscription.plan.features[feature as keyof typeof subscription.plan.features] === true
+      console.log('[PaywallGate] Verificando feature:', {
+        feature,
+        planName: subscription.plan.name,
+        status: subscription.status,
+        hasFeature,
+        features: subscription.plan.features
+      })
+      return hasFeature
     },
     hasReachedLimit: (limitType: 'users' | 'operations' | 'integrations') => {
       if (!subscription?.plan || !usage) return false
