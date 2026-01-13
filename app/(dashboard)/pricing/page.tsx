@@ -139,12 +139,12 @@ export default function PricingPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {plan.features.trello ? (
+                    {plan.features.crm ? (
                       <Check className="h-4 w-4 text-green-500" />
                     ) : (
                       <X className="h-4 w-4 text-muted-foreground" />
                     )}
-                    <span className="text-sm">Integración Trello</span>
+                    <span className="text-sm">CRM</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {plan.features.manychat ? (

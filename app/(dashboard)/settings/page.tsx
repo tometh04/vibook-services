@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UsersSettings } from "@/components/settings/users-settings"
 import { AgenciesSettings } from "@/components/settings/agencies-settings"
 import { BrandingSettings } from "@/components/settings/branding-settings"
-import { TrelloSettings } from "@/components/settings/trello-settings"
 import { CommissionsSettings } from "@/components/settings/commissions-settings"
 import { AISettings } from "@/components/settings/ai-settings"
 import { SeedMockData } from "@/components/settings/seed-mock-data"
@@ -59,7 +58,6 @@ export default async function SettingsPage() {
           <TabsTrigger value="users">Usuarios</TabsTrigger>
           <TabsTrigger value="agencies">Agencias</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="trello">Trello</TabsTrigger>
           <TabsTrigger value="commissions">Comisiones</TabsTrigger>
           <TabsTrigger value="ai">AI</TabsTrigger>
           <TabsTrigger value="requirements">Requisitos</TabsTrigger>
@@ -74,9 +72,6 @@ export default async function SettingsPage() {
         </TabsContent>
         <TabsContent value="branding">
           <BrandingSettings agencies={agencies} defaultAgencyId={firstAgencyId} />
-        </TabsContent>
-        <TabsContent value="trello">
-          <TrelloSettings agencies={agencies} defaultAgencyId={firstAgencyId} />
         </TabsContent>
         <TabsContent value="commissions">
           <CommissionsSettings />

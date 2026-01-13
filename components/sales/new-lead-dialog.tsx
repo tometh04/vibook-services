@@ -297,38 +297,6 @@ export function NewLeadDialog({
               )}
             />
 
-            {/* Selector de Lista de Trello - Solo si hay listas disponibles */}
-            {watchedAgencyId && trelloLists.length > 0 && (
-              <FormField
-                control={form.control}
-                name="trello_list_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lista de Trello (Opcional)</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(value === "none" ? null : value)}
-                      value={field.value || "none"}
-                      disabled={loadingLists}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={loadingLists ? "Cargando listas..." : "Sin lista de Trello"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Sin lista de Trello</SelectItem>
-                        {trelloLists.map((list) => (
-                          <SelectItem key={list.id} value={list.id}>
-                            {list.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
 
             <div className="grid gap-4 md:grid-cols-2">
               <FormField

@@ -114,7 +114,7 @@ export function LeadsKanbanManychat({
       return
     }
 
-    // Actualizar list_name del lead (solo para Manychat - independiente de Trello)
+    // Actualizar list_name del lead
     try {
       const response = await fetch(`/api/leads/${draggedLead}`, {
         method: "PATCH",
@@ -292,7 +292,7 @@ export function LeadsKanbanManychat({
     }
   }, [agencyId])
 
-  // Obtener orden de listas desde manychat_list_order (INDEPENDIENTE de Trello)
+  // Obtener orden de listas desde manychat_list_order
   useEffect(() => {
     if (agencyId) {
       fetchListOrder()
@@ -302,7 +302,7 @@ export function LeadsKanbanManychat({
     }
   }, [agencyId, fetchListOrder])
 
-    // Agrupar leads por list_name (Manychat - independiente de Trello)
+    // Agrupar leads por list_name
     const leadsByListName = useMemo(() => {
       const grouped: Record<string, Lead[]> = {}
       
