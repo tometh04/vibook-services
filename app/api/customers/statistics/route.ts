@@ -166,8 +166,8 @@ export async function GET(request: Request) {
     })
 
     // Calcular totales
-    const totalSpentAll = customerStats.reduce((sum, c) => sum + c.totalSpent, 0)
-    const totalOperationsAll = customerStats.reduce((sum, c) => sum + c.totalOperations, 0)
+    const totalSpentAll = customerStats.reduce((sum: number, c: any) => sum + c.totalSpent, 0)
+    const totalOperationsAll = customerStats.reduce((sum: number, c: any) => sum + c.totalOperations, 0)
     const avgSpentPerCustomer = totalCustomers > 0 ? totalSpentAll / totalCustomers : 0
     const avgOperationsPerCustomer = totalCustomers > 0 ? totalOperationsAll / totalCustomers : 0
 
