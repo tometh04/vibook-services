@@ -57,6 +57,8 @@ export async function GET(request: Request) {
 
     // Ejecutar query
     console.log(`[Customers API] Executing query for user ${user.id}...`)
+    console.log(`[Customers API] Query type:`, typeof customersQuery)
+    console.log(`[Customers API] Query has .then?:`, typeof (customersQuery as any).then === 'function')
     const { data: customersRaw, error: customersError } = await customersQuery
 
     if (customersError) {
