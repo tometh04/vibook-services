@@ -14,12 +14,23 @@ export async function GET(
     const supabase = await createServerClient()
     const { id: customerId } = await params
 
-    // Get customer
-    const { data: customer, error: customerError } = await supabase
+    // Get customer - CRÍTICO: Validar que pertenezca a la agencia del usuario
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let customerQuery = supabase
       .from("customers")
       .select("*")
       .eq("id", customerId)
-      .single()
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
+      }
+      customerQuery = customerQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: customer, error: customerError } = await customerQuery.single()
 
     if (customerError || !customer) {
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
@@ -94,10 +105,25 @@ export async function PATCH(
       return NextResponse.json({ error: "No tiene agencias asignadas" }, { status: 403 })
     }
 
+    // CRÍTICO: Validar que el cliente pertenezca a la agencia del usuario
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("agency_id")
+      .eq("id", customerId)
+      .single()
+    
+    if (!customer) {
+      return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
+    }
+    
+    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(customer.agency_id)) {
+      return NextResponse.json({ error: "No tiene permiso para editar este cliente" }, { status: 403 })
+    }
+
     const { data: settings } = await supabase
       .from("customer_settings")
       .select("*")
-      .eq("agency_id", agencyIds[0])
+      .eq("agency_id", customer.agency_id)
       .maybeSingle()
 
     // Aplicar validaciones de configuración
@@ -176,23 +202,37 @@ export async function DELETE(
     const supabase = await createServerClient()
     const { id: customerId } = await params
 
-    // Obtener cliente antes de eliminar para notificaciones
-    const { data: customerData } = await supabase
+    // CRÍTICO: Validar que el cliente pertenezca a la agencia del usuario
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let customerQuery = supabase
       .from("customers")
       .select("*")
       .eq("id", customerId)
-      .single()
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
+      }
+      customerQuery = customerQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: customerData } = await customerQuery.single()
+    
+    if (!customerData) {
+      return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
+    }
     
     const customer = customerData as any
 
     // Obtener configuración para notificaciones
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
     let settingsData: any = null
-    if (agencyIds.length > 0) {
+    if (customer.agency_id) {
       const { data: settings } = await supabase
         .from("customer_settings")
         .select("*")
-        .eq("agency_id", agencyIds[0])
+        .eq("agency_id", customer.agency_id)
         .maybeSingle()
       settingsData = settings
     }
