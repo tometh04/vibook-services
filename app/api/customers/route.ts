@@ -41,16 +41,23 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Usar applyCustomersFilters que ya funciona en otros lugares
-    let customersQuery: any = supabase.from("customers").select("*")
+    // Construir query base
+    let customersQuery: any = supabase.from("customers")
     
-    // Aplicar filtros usando la función que ya existe (requiere supabase como parámetro)
-    try {
-      customersQuery = await applyCustomersFilters(customersQuery, user, agencyIds, supabase)
-    } catch (error: any) {
-      console.error("[Customers API] Error applying filters:", error)
-      return NextResponse.json({ error: error.message || "Error al filtrar clientes" }, { status: 403 })
+    // Aplicar filtros ANTES de select (CRÍTICO para evitar errores de tipos)
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
+      }
+      if (agencyIds.length === 1) {
+        customersQuery = customersQuery.eq("agency_id", agencyIds[0])
+      } else {
+        customersQuery = customersQuery.in("agency_id", agencyIds)
+      }
     }
+    
+    // AHORA sí llamar .select() después de los filtros
+    customersQuery = customersQuery.select("*")
 
     // Ejecutar query
     console.log(`[Customers API] Executing query for user ${user.id}...`)
