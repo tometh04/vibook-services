@@ -411,16 +411,17 @@
    - ✅ CRM interno funcionando (`/sales/leads`, `/sales/crm-manychat`)
 
 ### ⏳ **PENDIENTE (Completar Funcionalidad 100%):**
-1. ⏳ **Eliminar integraciones externas** (Trello, Manychat como servicios externos)
-   - [ ] Eliminar código de API de Trello
-   - [ ] Renombrar rutas de CRM (eliminar referencias a "Manychat")
-   - [ ] Actualizar referencias en base de datos (leads.source)
-   - [ ] Limpiar configuración de integraciones externas
+1. ✅ **Eliminar integraciones externas** (Trello, Manychat como servicios externos) - COMPLETADO
+   - [x] Eliminar código de API de Trello
+   - [x] Eliminar ruta `/sales/crm-manychat` (unificado en `/sales/leads`)
+   - [x] Actualizar referencias en base de datos (leads.source → CRM)
+   - [x] Crear migración para eliminar settings_trello
+   - [ ] Limpiar referencias residuales en componentes (leads-kanban-trello.tsx, etc.)
 2. ⏳ Verificar que todas las features funcionen correctamente
    - [ ] CRM de Leads (`/sales/leads`)
-   - [ ] CRM Avanzado (`/sales/crm-manychat` → renombrar)
    - [ ] Emilia IA (`/emilia`)
    - [ ] WhatsApp interno (`/messages`)
+   - [ ] Reports (`/reports`)
 3. ⏳ Asegurar que el flujo completo funcione: Signup → Onboarding → Dashboard → CRM → Operaciones
 4. ⏳ Tests básicos del flujo completo
 5. ⏳ Documentación de usuario final básica
