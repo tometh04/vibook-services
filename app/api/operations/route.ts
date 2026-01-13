@@ -66,6 +66,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
+    // VALIDACIÓN CRÍTICA: Verificar que agency_id pertenece al usuario (aislamiento SaaS)
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    if (user.role !== "SUPER_ADMIN" && !userAgencyIds.includes(agency_id)) {
+      return NextResponse.json(
+        { error: "No tiene permiso para crear operaciones en esta agencia" },
+        { status: 403 }
+      )
+    }
+
     // Verificar límite de operaciones del plan
     const { checkSubscriptionLimit } = await import("@/lib/billing/limits")
     const limitCheck = await checkSubscriptionLimit(agency_id, "operations")

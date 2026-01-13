@@ -82,6 +82,21 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validar que el nombre de agencia no exista (único por agencia en SaaS)
+    // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
+    const { data: existingAgency } = await (supabaseAdmin
+      .from("agencies") as any)
+      .select("id, name")
+      .eq("name", agencyName.trim())
+      .maybeSingle()
+
+    if (existingAgency) {
+      return NextResponse.json(
+        { error: `El nombre de agencia "${agencyName}" ya está en uso. Por favor, elige otro nombre.` },
+        { status: 400 }
+      )
+    }
+
     // Crear usuario en Supabase Auth
     // Intentamos crear el usuario directamente - si ya existe, Supabase nos lo dirá
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({

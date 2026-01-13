@@ -164,6 +164,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No tiene agencias asignadas" }, { status: 403 })
     }
 
+    // VALIDACIÓN CRÍTICA: agency_id debe venir del body y pertenecer al usuario
+    // Si no viene, usar la primera agencia del usuario
+    const requestedAgencyId = body.agency_id || agencyIds[0]
+    
+    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(requestedAgencyId)) {
+      return NextResponse.json(
+        { error: "No tiene permiso para crear clientes en esta agencia" },
+        { status: 403 }
+      )
+    }
+
     const { data: settings } = await supabase
       .from("customer_settings")
       .select("*")
@@ -206,7 +217,7 @@ export async function POST(request: Request) {
         supabase,
         { email, phone, document_number },
         checkFields,
-        agencyIds[0]
+        requestedAgencyId
       )
 
       if (duplicateCheck.isDuplicate) {
@@ -217,9 +228,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create customer
+    // Create customer (CRÍTICO: incluir agency_id para aislamiento SaaS)
     const { data: customer, error: createError } = await (supabase.from("customers") as any)
       .insert({
+        agency_id: requestedAgencyId, // CRÍTICO: Aislar por agencia
         first_name,
         last_name,
         phone,
@@ -250,7 +262,7 @@ export async function POST(request: Request) {
           email: customer.email,
           phone: customer.phone,
         },
-        agencyIds[0],
+        requestedAgencyId,
         settingsData.notifications
       )
     }
