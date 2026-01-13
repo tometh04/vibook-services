@@ -39,20 +39,44 @@ export async function GET() {
       }))
     }
     
-    // 3. Obtener suscripciones de las agencias
-    let subscriptions: any[] = []
+    // 3. Obtener suscripciones de las agencias (por agency_id)
+    let subscriptionsByAgency: any[] = []
     if (agencyIds.length > 0) {
-      const { data: subs } = await (supabase.from("subscriptions") as any)
+      const { data: subs, error: subsError } = await (supabase.from("subscriptions") as any)
         .select("*, plan:subscription_plans(name, features)")
         .in("agency_id", agencyIds)
       
-      subscriptions = (subs || []).map((s: any) => ({
+      console.log("[Debug] Subscriptions by agency_id query:", { agencyIds, subs, subsError })
+      
+      subscriptionsByAgency = (subs || []).map((s: any) => ({
         id: s.id,
         agency_id: s.agency_id,
         status: s.status,
         plan_name: s.plan?.name,
         plan_features: s.plan?.features,
       }))
+    }
+    
+    // 4. NUEVO: Obtener TODAS las suscripciones para ver qué hay en la base de datos
+    const { data: allSubs } = await (supabase.from("subscriptions") as any)
+      .select("id, agency_id, status, agencies:agency_id(name), plan:subscription_plans(name)")
+      .limit(20)
+    
+    // 5. NUEVO: Buscar suscripción por nombre de agencia (para debug)
+    const { data: agencyByName } = await supabase
+      .from("agencies")
+      .select("id, name")
+      .ilike("name", "%Test Ageny%")
+    
+    // 6. NUEVO: Si encontramos la agencia, buscar su suscripción
+    let subscriptionForTestAgency = null
+    if (agencyByName && agencyByName.length > 0) {
+      const testAgencyId = (agencyByName[0] as any).id
+      const { data: testSub } = await (supabase.from("subscriptions") as any)
+        .select("*, plan:subscription_plans(name, features)")
+        .eq("agency_id", testAgencyId)
+        .maybeSingle()
+      subscriptionForTestAgency = testSub
     }
     
     return NextResponse.json({
@@ -67,12 +91,26 @@ export async function GET() {
         names: agencyNames,
       },
       usersInMyAgencies: usersInAgencies,
-      subscriptionsInMyAgencies: subscriptions,
+      subscriptionsInMyAgencies: subscriptionsByAgency,
+      
+      // Debug adicional
+      debug: {
+        agencyByNameSearch: agencyByName,
+        subscriptionForTestAgency: subscriptionForTestAgency,
+        allSubscriptionsSample: (allSubs || []).map((s: any) => ({
+          id: s.id,
+          agency_id: s.agency_id,
+          agency_name: s.agencies?.name,
+          status: s.status,
+          plan: s.plan?.name,
+        })),
+      },
+      
       summary: {
         totalAgencies: agencyIds.length,
         totalUsersInAgencies: usersInAgencies.length,
-        totalSubscriptions: subscriptions.length,
-        hasActiveSubscription: subscriptions.some(s => s.status === 'ACTIVE' || s.status === 'TRIAL'),
+        totalSubscriptions: subscriptionsByAgency.length,
+        hasActiveSubscription: subscriptionsByAgency.some(s => s.status === 'ACTIVE' || s.status === 'TRIAL'),
       }
     })
   } catch (error: any) {
