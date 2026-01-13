@@ -194,12 +194,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. Actualizar la DB con assigned_seller_id y nuevo trello_list_id
+    // 7. Actualizar la DB con assigned_seller_id
     const { error: updateError } = await (supabase
       .from("leads") as any)
       .update({
         assigned_seller_id: user.id,
-        trello_list_id: sellerList.id,
         updated_at: new Date().toISOString(),
       })
       .eq("id", leadId)

@@ -53,10 +53,6 @@ export async function GET(request: Request) {
       query = query.eq("agency_id", agencyId)
     }
 
-    const trelloListId = searchParams.get("trelloListId")
-    if (trelloListId && trelloListId !== "ALL") {
-      query = query.eq("trello_list_id", trelloListId)
-    }
 
     const source = searchParams.get("source")
     if (source && source !== "ALL") {
@@ -240,7 +236,6 @@ export async function POST(request: Request) {
       contact_email,
       contact_instagram,
       assigned_seller_id,
-      trello_list_id,
       notes,
       quoted_price,
       has_deposit,
@@ -286,7 +281,6 @@ export async function POST(request: Request) {
       contact_email: contact_email || null,
       contact_instagram: contact_instagram || null,
       assigned_seller_id: assigned_seller_id || (user.role === "SELLER" ? user.id : null),
-      trello_list_id: trello_list_id || null,
       notes: notes || null,
       quoted_price: quoted_price || null,
       has_deposit: has_deposit || false,

@@ -45,7 +45,7 @@ interface Operation {
     notes?: string | null
     operators?: { id: string; name: string } | null
   }>
-  leads: { contact_name: string | null; destination: string | null; trello_url: string | null } | null
+  leads: { contact_name: string | null; destination: string | null } | null
   currency: string
   sale_amount_total: number
   margin_amount: number
@@ -177,8 +177,7 @@ export function OperationsTable({
           // Texto de búsqueda que incluye destino, cliente y otros campos
           const destination = row.destination || row.leads?.destination || ""
           const customerName = row.customer_name || row.leads?.contact_name || ""
-          const trelloUrl = row.leads?.trello_url || ""
-          return `${destination} ${customerName} ${trelloUrl}`.toLowerCase()
+          return `${destination} ${customerName}`.toLowerCase()
         },
         enableHiding: false,
         enableSorting: false,

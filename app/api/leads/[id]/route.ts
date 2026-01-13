@@ -168,13 +168,6 @@ export async function PATCH(
     delete updateData.id
     delete updateData.created_at
     delete updateData.external_id
-    delete updateData.trello_url
-    // Para leads de Manychat, permitir actualizar list_name
-    // Para leads de Trello sin external_id, NO permitir actualizar list_name (se sincroniza desde Trello)
-    if (lead.source === "Trello" && !lead.external_id) {
-      delete updateData.list_name
-      delete updateData.trello_list_id
-    }
 
     // Limpiar campos opcionales
     if (updateData.assigned_seller_id === "none" || updateData.assigned_seller_id === null) {
