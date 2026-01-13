@@ -116,14 +116,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
     }
     
-    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(existingCustomer.agency_id)) {
+    const existingCustomerData = existingCustomer as { agency_id: string | null }
+    
+    if (user.role !== "SUPER_ADMIN" && existingCustomerData.agency_id && !agencyIds.includes(existingCustomerData.agency_id)) {
       return NextResponse.json({ error: "No tiene permiso para editar este cliente" }, { status: 403 })
+    }
+    
+    if (user.role !== "SUPER_ADMIN" && !existingCustomerData.agency_id) {
+      return NextResponse.json({ error: "Cliente sin agencia asignada" }, { status: 400 })
     }
 
     const { data: settings } = await supabase
       .from("customer_settings")
       .select("*")
-      .eq("agency_id", existingCustomer.agency_id)
+      .eq("agency_id", existingCustomerData.agency_id!)
       .maybeSingle()
 
     // Aplicar validaciones de configuración

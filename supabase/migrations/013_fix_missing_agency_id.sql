@@ -109,20 +109,41 @@ AND EXISTS (
 -- 4. AGREGAR CONSTRAINT NOT NULL A agency_id
 -- =====================================================
 
--- Primero asegurar que no haya NULLs
--- Luego agregar constraint NOT NULL
+-- IMPORTANTE: Solo agregar NOT NULL si NO hay valores NULL
+-- Si hay valores NULL, la migración fallará y hay que corregirlos primero
 
--- Para customers
-ALTER TABLE customers
-ALTER COLUMN agency_id SET NOT NULL;
-
--- Para operations
-ALTER TABLE operations
-ALTER COLUMN agency_id SET NOT NULL;
-
--- Para leads
-ALTER TABLE leads
-ALTER COLUMN agency_id SET NOT NULL;
+-- Verificar que no haya NULLs antes de agregar constraint
+DO $$
+DECLARE
+  customers_nulls INTEGER;
+  operations_nulls INTEGER;
+  leads_nulls INTEGER;
+BEGIN
+  -- Contar NULLs
+  SELECT COUNT(*) INTO customers_nulls FROM customers WHERE agency_id IS NULL;
+  SELECT COUNT(*) INTO operations_nulls FROM operations WHERE agency_id IS NULL;
+  SELECT COUNT(*) INTO leads_nulls FROM leads WHERE agency_id IS NULL;
+  
+  -- Si hay NULLs, lanzar error
+  IF customers_nulls > 0 THEN
+    RAISE EXCEPTION 'Hay % clientes sin agency_id. Debes corregirlos primero.', customers_nulls;
+  END IF;
+  
+  IF operations_nulls > 0 THEN
+    RAISE EXCEPTION 'Hay % operaciones sin agency_id. Debes corregirlos primero.', operations_nulls;
+  END IF;
+  
+  IF leads_nulls > 0 THEN
+    RAISE EXCEPTION 'Hay % leads sin agency_id. Debes corregirlos primero.', leads_nulls;
+  END IF;
+  
+  -- Si no hay NULLs, agregar constraints
+  ALTER TABLE customers ALTER COLUMN agency_id SET NOT NULL;
+  ALTER TABLE operations ALTER COLUMN agency_id SET NOT NULL;
+  ALTER TABLE leads ALTER COLUMN agency_id SET NOT NULL;
+  
+  RAISE NOTICE '✅ Constraints NOT NULL agregados correctamente';
+END $$;
 
 -- =====================================================
 -- 5. VERIFICACIÓN FINAL
