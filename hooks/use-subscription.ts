@@ -131,22 +131,49 @@ export function useSubscription() {
       // 3. Ha pagado una suscripción (ACTIVE)
       
       if (!subscription?.plan) {
-        // Sin suscripción = bloqueado
+        console.log('[canUseFeature] No subscription or plan found')
         return false
       }
       
       // Plan TESTER tiene acceso completo
       if (subscription.plan.name === "TESTER") {
+        console.log('[canUseFeature] TESTER plan - full access')
         return true
       }
       
       // Si está en TRIAL o ACTIVE, verificar la feature específica del plan
       if (subscription.status === "TRIAL" || subscription.status === "ACTIVE") {
-        const hasFeature = subscription.plan.features[feature as keyof typeof subscription.plan.features] === true
+        // Asegurarse de que features es un objeto
+        let features = subscription.plan.features
+        if (typeof features === 'string') {
+          try {
+            features = JSON.parse(features)
+          } catch (e) {
+            console.error('[canUseFeature] Error parsing features:', e)
+            return false
+          }
+        }
+        
+        if (!features || typeof features !== 'object') {
+          console.error('[canUseFeature] Features is not an object:', features)
+          return false
+        }
+        
+        const hasFeature = features[feature] === true
+        
+        console.log('[canUseFeature]', {
+          plan: subscription.plan.name,
+          status: subscription.status,
+          feature,
+          features,
+          hasFeature
+        })
+        
         return hasFeature
       }
       
       // Cualquier otro estado (CANCELED, SUSPENDED, PAST_DUE, UNPAID, etc.) = bloqueado
+      console.log('[canUseFeature] Blocked - status:', subscription.status)
       return false
     },
     hasReachedLimit: (limitType: 'users' | 'operations' | 'integrations') => {
