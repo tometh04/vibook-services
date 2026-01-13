@@ -247,20 +247,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
-    // Check permissions
+    // VALIDACIÓN CRÍTICA: Verificar que agency_id pertenece al usuario (aislamiento SaaS)
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    if (user.role !== "SUPER_ADMIN" && !userAgencyIds.includes(agency_id)) {
+      return NextResponse.json(
+        { error: "No tienes permiso para crear leads en esta agencia" },
+        { status: 403 }
+      )
+    }
+
+    // Check permissions específicas de SELLER
     if (user.role === "SELLER") {
-      // Sellers can only create leads for their own agency
-      const { data: userAgencies } = await supabase
-        .from("user_agencies")
-        .select("agency_id")
-        .eq("user_id", user.id)
-
-      const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
-
-      if (!agencyIds.includes(agency_id)) {
-        return NextResponse.json({ error: "No tienes permiso para crear leads en esta agencia" }, { status: 403 })
-      }
-
       // Sellers can only assign to themselves
       if (assigned_seller_id && assigned_seller_id !== user.id) {
         return NextResponse.json({ error: "No puedes asignar leads a otros vendedores" }, { status: 403 })

@@ -178,7 +178,7 @@ export async function POST(request: Request) {
     const { data: settings } = await supabase
       .from("customer_settings")
       .select("*")
-      .eq("agency_id", agencyIds[0])
+      .eq("agency_id", requestedAgencyId)
       .maybeSingle()
 
     const settingsData = settings as any
