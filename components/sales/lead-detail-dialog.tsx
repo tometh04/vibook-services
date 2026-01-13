@@ -141,9 +141,6 @@ interface Lead {
   region: string
   status: string
   source: string
-  trello_url: string | null
-  trello_list_id: string | null
-  trello_full_data?: Record<string, any> | null
   assigned_seller_id: string | null
   agency_id?: string
   created_at: string
@@ -359,7 +356,6 @@ export function LeadDetailDialog({
     }
   }
 
-  const isFromTrello = lead.source === "Trello" && lead.trello_url
 
   // Formatear nombre del lead para mostrar: "Nombre - Destino - WhatsApp" (o Instagram si no hay teléfono)
   const formatLeadDisplayName = (lead: Lead): string => {
@@ -769,7 +765,7 @@ export function LeadDetailDialog({
                 </Button>
               )
             )}
-            {onDelete && !isFromTrello && (
+            {onDelete && (
               <Button
                 variant="ghost"
                 className="text-red-600 flex-1 sm:flex-initial hover:text-red-700 hover:bg-red-50"
@@ -778,12 +774,6 @@ export function LeadDetailDialog({
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar
               </Button>
-            )}
-            {isFromTrello && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground w-full sm:w-auto">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Este lead está sincronizado con Trello. Para eliminarlo, elimínalo desde Trello.</span>
-              </div>
             )}
           </div>
         </DialogFooter>

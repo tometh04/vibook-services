@@ -43,7 +43,6 @@ const leadSchema = z.object({
   contact_email: z.string().email().optional().or(z.literal("")),
   contact_instagram: z.string().optional(),
   assigned_seller_id: z.string().optional().nullable(),
-  trello_list_id: z.string().optional().nullable(),
   notes: z.string().optional(),
   quoted_price: z.coerce.number().min(0).optional().nullable(),
   has_deposit: z.boolean().default(false),
@@ -65,10 +64,6 @@ interface NewLeadDialogProps {
   defaultSellerId?: string
 }
 
-interface TrelloList {
-  id: string
-  name: string
-}
 
 export function NewLeadDialog({
   open,
@@ -80,8 +75,6 @@ export function NewLeadDialog({
   defaultSellerId,
 }: NewLeadDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [trelloLists, setTrelloLists] = useState<TrelloList[]>([])
-  const [loadingLists, setLoadingLists] = useState(false)
 
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema) as any,
@@ -96,7 +89,6 @@ export function NewLeadDialog({
       contact_email: "",
       contact_instagram: "",
       assigned_seller_id: defaultSellerId || null,
-      trello_list_id: null,
       notes: "",
       quoted_price: null,
       has_deposit: false,
@@ -109,37 +101,6 @@ export function NewLeadDialog({
 
   const watchedAgencyId = form.watch("agency_id")
 
-  // Cargar listas de Trello cuando cambia la agencia seleccionada
-  useEffect(() => {
-    const fetchTrelloLists = async () => {
-      if (!watchedAgencyId) {
-        setTrelloLists([])
-        form.setValue("trello_list_id", null)
-        return
-      }
-
-      setLoadingLists(true)
-      try {
-        const response = await fetch(`/api/trello/lists?agencyId=${watchedAgencyId}`)
-        const data = await response.json()
-        
-        if (data.lists && Array.isArray(data.lists)) {
-          setTrelloLists(data.lists)
-        } else {
-          setTrelloLists([])
-        }
-      } catch (error) {
-        console.error("Error fetching Trello lists:", error)
-        setTrelloLists([])
-      } finally {
-        setLoadingLists(false)
-      }
-    }
-
-    if (open && watchedAgencyId) {
-      fetchTrelloLists()
-    }
-  }, [watchedAgencyId, open, form])
 
   const handleSubmit = async (values: LeadFormValues) => {
     setLoading(true)
@@ -152,7 +113,6 @@ export function NewLeadDialog({
           contact_email: values.contact_email || null,
           contact_instagram: values.contact_instagram || null,
           assigned_seller_id: values.assigned_seller_id || null,
-          trello_list_id: values.trello_list_id || null,
           notes: values.notes || null,
           quoted_price: values.quoted_price || null,
           has_deposit: values.has_deposit || false,

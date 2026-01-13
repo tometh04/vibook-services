@@ -219,16 +219,6 @@ export function LeadsTable({
                         Convertir
                       </Button>
                     )}
-                    {lead.trello_url && (
-                      <a
-                        href={lead.trello_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    )}
                   </div>
                 </TableCell>
               </TableRow>
