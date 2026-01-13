@@ -110,43 +110,58 @@ export async function GET(request: Request) {
     }
 
     // Calculate trips and total spent for each customer
-    // Cargar operation_customers por separado para cada cliente
-    const customersWithStats = await Promise.all(
-      paginatedCustomers.map(async (customer: any) => {
-        // Obtener operation_customers para este cliente
-        const { data: operationCustomers } = await supabase
-          .from("operation_customers")
-          .select(`
-            operation_id,
-            operations:operation_id(
-              id,
-              sale_amount_total,
-              currency,
-              status
-            )
-          `)
-          .eq("customer_id", customer.id)
-        
-        const operations = operationCustomers || []
-        const trips = operations.length
-        
-        // Calculate total spent (only from CONFIRMED, TRAVELLED, or CLOSED operations)
-        const totalSpent = operations
-          .filter((oc: any) => {
-            const status = oc.operations?.status
-            return status === "CONFIRMED" || status === "TRAVELLED" || status === "CLOSED"
-          })
-          .reduce((sum: number, oc: any) => {
-            return sum + (parseFloat(oc.operations?.sale_amount_total || 0))
-          }, 0)
+    // OPTIMIZAR: Obtener todos los operation_customers de una vez
+    const customerIds = paginatedCustomers.map((c: any) => c.id)
+    let allOperationCustomers: any[] = []
+    
+    if (customerIds.length > 0) {
+      const { data: operationCustomersData } = await supabase
+        .from("operation_customers")
+        .select(`
+          customer_id,
+          operation_id,
+          operations:operation_id(
+            id,
+            sale_amount_total,
+            currency,
+            status
+          )
+        `)
+        .in("customer_id", customerIds)
+      
+      allOperationCustomers = operationCustomersData || []
+    }
+    
+    // Crear un mapa de customer_id -> operation_customers para acceso rápido
+    const operationCustomersMap = new Map<string, any[]>()
+    allOperationCustomers.forEach((oc: any) => {
+      if (!operationCustomersMap.has(oc.customer_id)) {
+        operationCustomersMap.set(oc.customer_id, [])
+      }
+      operationCustomersMap.get(oc.customer_id)!.push(oc)
+    })
+    
+    // Calcular stats para cada cliente
+    const customersWithStats = paginatedCustomers.map((customer: any) => {
+      const operations = operationCustomersMap.get(customer.id) || []
+      const trips = operations.length
+      
+      // Calculate total spent (only from CONFIRMED, TRAVELLED, or CLOSED operations)
+      const totalSpent = operations
+        .filter((oc: any) => {
+          const status = oc.operations?.status
+          return status === "CONFIRMED" || status === "TRAVELLED" || status === "CLOSED"
+        })
+        .reduce((sum: number, oc: any) => {
+          return sum + (parseFloat(oc.operations?.sale_amount_total || 0))
+        }, 0)
 
-        return {
-          ...customer,
-          trips,
-          totalSpent,
-        }
-      })
-    )
+      return {
+        ...customer,
+        trips,
+        totalSpent,
+      }
+    })
 
     // Usar el total que ya calculamos (más simple y confiable)
     return NextResponse.json({ 
