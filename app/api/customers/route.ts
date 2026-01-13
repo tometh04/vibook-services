@@ -44,9 +44,9 @@ export async function GET(request: Request) {
     // Usar applyCustomersFilters que ya funciona en otros lugares
     let customersQuery: any = supabase.from("customers").select("*")
     
-    // Aplicar filtros usando la función que ya existe
+    // Aplicar filtros usando la función que ya existe (requiere supabase como parámetro)
     try {
-      customersQuery = applyCustomersFilters(customersQuery, user, agencyIds)
+      customersQuery = await applyCustomersFilters(customersQuery, user, agencyIds, supabase)
     } catch (error: any) {
       console.error("[Customers API] Error applying filters:", error)
       return NextResponse.json({ error: error.message || "Error al filtrar clientes" }, { status: 403 })
