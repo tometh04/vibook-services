@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { getCachedAgencies, revalidateTag, CACHE_TAGS } from "@/lib/cache"
+import { getCurrentUser } from "@/lib/auth"
+
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/agencies
@@ -8,40 +10,38 @@ import { getCachedAgencies, revalidateTag, CACHE_TAGS } from "@/lib/cache"
  */
 export async function GET() {
   try {
-    const { getCurrentUser } = await import("@/lib/auth")
     const { user } = await getCurrentUser()
+    const supabase = await createServerClient()
     
-    const agencies = await getCachedAgencies(async () => {
-      const supabase = await createServerClient()
+    let query = supabase.from("agencies").select("id, name")
+    
+    // SUPER_ADMIN (admin@vibook.ai) ve TODAS las agencias
+    if (user.role !== "SUPER_ADMIN") {
+      // ADMIN y otros roles solo ven sus agencias
+      const { data: userAgencies } = await supabase
+        .from("user_agencies")
+        .select("agency_id")
+        .eq("user_id", user.id)
       
-      let query = supabase.from("agencies").select("id, name")
+      const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
       
-      // SUPER_ADMIN (admin@vibook.ai) ve TODAS las agencias
-      if (user.role !== "SUPER_ADMIN") {
-        // ADMIN y otros roles solo ven sus agencias
-        const { getUserAgencyIds } = await import("@/lib/permissions-api")
-        const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
-        
-        if (agencyIds.length === 0) {
-          return []
-        }
-        
-        query = query.in("id", agencyIds)
+      if (agencyIds.length === 0) {
+        console.log(`[API /agencies] User ${user.id} has no agencies`)
+        return NextResponse.json({ agencies: [] })
       }
+      
+      query = query.in("id", agencyIds)
+    }
 
-      const { data, error } = await query.order("name")
+    const { data, error } = await query.order("name")
 
-      if (error) {
-        console.error("❌ Error fetching agencies:", error.message, error.details)
-        // Devolver array vacío en lugar de error para no bloquear el UI
-        return []
-      }
+    if (error) {
+      console.error("❌ Error fetching agencies:", error.message, error.details)
+      return NextResponse.json({ agencies: [], error: error.message })
+    }
 
-      console.log("✅ Agencies loaded:", data?.length || 0)
-      return data || []
-    })
-
-    return NextResponse.json({ agencies })
+    console.log(`[API /agencies] Found ${data?.length || 0} agencies for user ${user.id} (${user.role})`)
+    return NextResponse.json({ agencies: data || [] })
   } catch (error: any) {
     console.error("❌ Exception in GET agencies:", error)
     return NextResponse.json({ agencies: [], error: error.message })
