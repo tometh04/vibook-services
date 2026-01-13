@@ -136,11 +136,12 @@ export async function applyCustomersFilters(
   // NO usar operaciones como intermediario porque los clientes pueden existir sin operaciones
   if (userRole === "ADMIN" || userRole === "VIEWER") {
     if (agencyIds.length === 0) {
-      return query.limit(0) // Sin agencias = sin clientes
+      // Retornar query que no devuelva resultados, pero manteniendo el tipo correcto
+      return (query as any).in("agency_id", ["00000000-0000-0000-0000-000000000000"]) // UUID inválido que no existe
     }
     
     // Filtrar directamente por agency_id en customers
-    return query.in("agency_id", agencyIds)
+    return (query as any).in("agency_id", agencyIds)
   }
 
   // CONTABLE no ve clientes
