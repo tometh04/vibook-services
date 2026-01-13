@@ -63,7 +63,8 @@ export async function middleware(req: NextRequest) {
         pathname.startsWith('/api/admin/login') ||
         pathname.startsWith('/api/admin/logout') ||
         pathname.startsWith('/_next') ||
-        pathname.startsWith('/api/_next')) {
+        pathname.startsWith('/api/_next') ||
+        pathname.startsWith('/favicon.ico')) {
       return NextResponse.next()
     }
 
@@ -71,18 +72,22 @@ export async function middleware(req: NextRequest) {
     const cookieHeader = req.headers.get('cookie')
     const hasValidSession = await verifyAdminSession(cookieHeader)
 
-    // Si está en la raíz, redirigir según sesión
+    // Si está en la raíz, SIEMPRE redirigir a /admin-login si no tiene sesión
+    // o a /admin si tiene sesión
     if (pathname === '/') {
       if (hasValidSession) {
-        return NextResponse.redirect(new URL('/admin', req.url))
+        const adminUrl = new URL('/admin', req.url)
+        return NextResponse.redirect(adminUrl)
       } else {
-        return NextResponse.redirect(new URL('/admin-login', req.url))
+        const loginUrl = new URL('/admin-login', req.url)
+        return NextResponse.redirect(loginUrl)
       }
     }
 
     // Si está en /admin pero no tiene sesión, redirigir a login
     if (pathname.startsWith('/admin') && !hasValidSession) {
-      return NextResponse.redirect(new URL('/admin-login', req.url))
+      const loginUrl = new URL('/admin-login', req.url)
+      return NextResponse.redirect(loginUrl)
     }
 
     // Si tiene sesión válida, permitir acceso
