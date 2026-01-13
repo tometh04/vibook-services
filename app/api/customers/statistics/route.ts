@@ -160,7 +160,7 @@ export async function GET(request: Request) {
       { range: "+$5M", min: 5000000, max: Infinity, count: 0 },
     ]
 
-    customerStats.forEach(c => {
+    customerStats.forEach((c: any) => {
       const range = spendingRanges.find(r => c.totalSpent >= r.min && c.totalSpent < r.max)
       if (range) range.count++
     })
