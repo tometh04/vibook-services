@@ -220,18 +220,38 @@ export async function getUserAgencyIds(
   
   return unstable_cache(
     async () => {
+      console.log(`[getUserAgencyIds] Fetching agencies for user ${userId} with role ${userRole}`)
+      
       if (userRole === "SUPER_ADMIN") {
         // SUPER_ADMIN ve todas las agencias
-        const { data: allAgencies } = await supabase.from("agencies").select("id")
-        return (allAgencies || []).map((a: any) => a.id)
+        const { data: allAgencies, error: agenciesError } = await supabase.from("agencies").select("id")
+        if (agenciesError) {
+          console.error(`[getUserAgencyIds] Error fetching all agencies for SUPER_ADMIN:`, agenciesError)
+          return []
+        }
+        const agencyIds = (allAgencies || []).map((a: any) => a.id)
+        console.log(`[getUserAgencyIds] SUPER_ADMIN has access to ${agencyIds.length} agencies:`, agencyIds)
+        return agencyIds
       }
 
-      const { data: userAgencies } = await supabase
+      const { data: userAgencies, error: userAgenciesError } = await supabase
         .from("user_agencies")
         .select("agency_id")
         .eq("user_id", userId)
 
-      return (userAgencies || []).map((ua: any) => ua.agency_id)
+      if (userAgenciesError) {
+        console.error(`[getUserAgencyIds] Error fetching user_agencies for user ${userId}:`, userAgenciesError)
+        return []
+      }
+
+      const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+      console.log(`[getUserAgencyIds] User ${userId} (${userRole}) has ${agencyIds.length} agencies:`, agencyIds)
+      
+      if (agencyIds.length === 0) {
+        console.warn(`[getUserAgencyIds] ⚠️ User ${userId} has NO agencies assigned! This will cause access issues.`)
+      }
+
+      return agencyIds
     },
     [`user-agencies-${userId}-${userRole}`],
     {

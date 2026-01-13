@@ -70,7 +70,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
     }
 
-    console.log(`[Customers API] Found ${customers?.length || 0} customers`)
+    console.log(`[GET /api/customers] Found ${customers?.length || 0} customers for user ${user.id} (${user.email})`)
+    if (customers && customers.length > 0) {
+      console.log(`[GET /api/customers] Sample customer agency_ids:`, customers.slice(0, 3).map((c: any) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, agency_id: c.agency_id })))
+    }
 
     // Calculate trips and total spent for each customer
     const customersWithStats = (customers || []).map((customer: any) => {
