@@ -275,9 +275,11 @@ export async function POST(request: Request) {
       }
     }
 
+    // NOTA: Los campos deposit_* NO existen en la tabla leads
+    // El depósito se maneja creando un ledger_movement aparte
     const leadData: Record<string, any> = {
       agency_id,
-      source: source || "Other",
+      source: source || "CRM",
       status: status || "NEW",
       region,
       destination,
@@ -288,11 +290,6 @@ export async function POST(request: Request) {
       assigned_seller_id: assigned_seller_id || (user.role === "SELLER" ? user.id : null),
       notes: notes || null,
       quoted_price: quoted_price || null,
-      has_deposit: has_deposit || false,
-      deposit_amount: deposit_amount || null,
-      deposit_currency: deposit_currency || null,
-      deposit_method: deposit_method || null,
-      deposit_date: deposit_date || null,
     }
 
     const { data: lead, error } = await (supabase.from("leads") as any).insert(leadData).select().single()
