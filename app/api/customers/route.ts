@@ -52,19 +52,9 @@ export async function GET(request: Request) {
       customersQuery = customersQuery.in("agency_id", agencyIds)
     }
 
-    // AHORA sí llamar .select() después de los filtros (EXACTAMENTE como statistics/route.ts)
-    customersQuery = customersQuery.select(`
-        *,
-        operation_customers(
-          operation_id,
-          operations:operation_id(
-            id,
-            sale_amount_total,
-            currency,
-            status
-          )
-        )
-      `)
+    // AHORA sí llamar .select() después de los filtros
+    // SIMPLIFICAR: No usar relaciones anidadas en el select inicial (causa problemas)
+    customersQuery = customersQuery.select("*")
 
     // Ejecutar query primero (como statistics/route.ts)
     console.log(`[Customers API] Executing query for user ${user.id}...`)
