@@ -127,45 +127,14 @@ export async function GET(request: Request) {
       }
     })
 
-    // Get total count for pagination - aplicar filtros directamente (igual que query principal)
-    // EXACTAMENTE como en statistics/route.ts (SIN as any en cada paso)
-    let countQuery: any = supabase.from("customers")
-
-    // Aplicar filtro de agencia ANTES de select (igual que query principal)
-    if (user.role !== "SUPER_ADMIN") {
-      if (agencyIds.length === 0) {
-        // No hay agencias, retornar count 0
-        return NextResponse.json({ 
-          customers: customersWithStats,
-          pagination: {
-            total: 0,
-            limit,
-            offset,
-            hasMore: false
-          }
-        })
-      }
-      countQuery = countQuery.in("agency_id", agencyIds)
-    }
-
-    // AHORA sí llamar .select() para count
-    let countSelectQuery = countQuery.select("*", { count: "exact", head: true })
-    
-    if (search) {
-      countSelectQuery = countSelectQuery.or(
-        `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`
-      )
-    }
-    
-    const { count } = await countSelectQuery
-
+    // Usar el total que ya calculamos (más simple y confiable)
     return NextResponse.json({ 
       customers: customersWithStats,
       pagination: {
-        total: count || 0,
+        total: total,
         limit,
         offset,
-        hasMore: (count || 0) > offset + limit
+        hasMore: total > offset + limit
       }
     })
   } catch (error) {
