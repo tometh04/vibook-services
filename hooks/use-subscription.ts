@@ -125,48 +125,29 @@ export function useSubscription() {
     isTrial: subscription?.status === "TRIAL" && subscription?.plan?.name !== "FREE",
     planName: subscription?.plan?.name || "FREE",
     canUseFeature: (feature: string) => {
-      // Si no hay suscripción, permitir acceso básico (para crear leads)
-      // El paywall completo se maneja en el dashboard layout
+      // REGLA PRINCIPAL: Contenido SIEMPRE bloqueado EXCEPTO si:
+      // 1. Prueba Gratuita (TRIAL)
+      // 2. Usuario "Tester" (plan TESTER)
+      // 3. Ha pagado una suscripción (ACTIVE)
+      
       if (!subscription?.plan) {
-        console.log('[PaywallGate] No hay suscripción o plan - permitiendo acceso básico')
-        // Permitir acceso básico si no hay suscripción (el dashboard layout ya bloquea si es necesario)
-        return true
+        // Sin suscripción = bloqueado
+        return false
       }
       
       // Plan TESTER tiene acceso completo
       if (subscription.plan.name === "TESTER") {
-        console.log('[PaywallGate] Plan TESTER - acceso completo')
         return true
       }
       
-      // Si tiene plan FREE sin pago, no permitir features premium
-      if (subscription.plan.name === "FREE" && !subscription.mp_preapproval_id) {
-        console.log('[PaywallGate] Plan FREE sin pago - bloqueado')
-        return false
+      // Si está en TRIAL o ACTIVE, verificar la feature específica del plan
+      if (subscription.status === "TRIAL" || subscription.status === "ACTIVE") {
+        const hasFeature = subscription.plan.features[feature as keyof typeof subscription.plan.features] === true
+        return hasFeature
       }
       
-      // Durante el período de prueba (TRIAL) con plan de pago, permitir acceso a todas las features
-      if (subscription.status === "TRIAL" && subscription.plan.name !== "FREE") {
-        console.log('[PaywallGate] Status TRIAL con plan de pago - acceso permitido')
-        return true
-      }
-      
-      // Si está ACTIVE, permitir acceso a todas las features (respeta cambios manuales del admin)
-      if (subscription.status === "ACTIVE") {
-        console.log('[PaywallGate] Status ACTIVE - acceso permitido')
-        return true
-      }
-      
-      // Para otros estados, verificar la feature específica del plan
-      const hasFeature = subscription.plan.features[feature as keyof typeof subscription.plan.features] === true
-      console.log('[PaywallGate] Verificando feature:', {
-        feature,
-        planName: subscription.plan.name,
-        status: subscription.status,
-        hasFeature,
-        features: subscription.plan.features
-      })
-      return hasFeature
+      // Cualquier otro estado (CANCELED, SUSPENDED, PAST_DUE, UNPAID, etc.) = bloqueado
+      return false
     },
     hasReachedLimit: (limitType: 'users' | 'operations' | 'integrations') => {
       if (!subscription?.plan || !usage) return false

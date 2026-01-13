@@ -91,27 +91,21 @@ export default async function DashboardLayout({
       const status = subscription.status as string
       const planName = subscription.plan?.name as string
       
-      // LÓGICA SIMPLIFICADA: Respetar los cambios manuales del admin
-      // Si el admin cambió el estado manualmente, respetarlo sin importar el plan
+      // REGLA PRINCIPAL: Contenido SIEMPRE bloqueado EXCEPTO si:
+      // 1. Prueba Gratuita (TRIAL)
+      // 2. Usuario "Tester" (plan TESTER)
+      // 3. Ha pagado una suscripción (ACTIVE)
       
-      // BLOQUEAR acceso solo si:
-      // - Status es CANCELED, SUSPENDED, PAST_DUE, o UNPAID
-      if (status === 'CANCELED' || status === 'SUSPENDED' || 
-          status === 'PAST_DUE' || status === 'UNPAID') {
-        console.log('[Dashboard Layout] Bloqueando acceso - estado inválido:', status)
-        redirect('/paywall')
-      }
-      
-      // PERMITIR acceso si:
+      // PERMITIR acceso solo si:
       // - Plan es TESTER (acceso completo sin pago)
-      // - Status es ACTIVE (con CUALQUIER plan - respeta cambios manuales del admin)
-      // - Status es TRIAL (con CUALQUIER plan - respeta cambios manuales del admin)
+      // - Status es ACTIVE (ha pagado)
+      // - Status es TRIAL (prueba gratuita)
       if (planName === 'TESTER' || status === 'ACTIVE' || status === 'TRIAL') {
         console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida:', { status, planName })
         // Continuar al dashboard
       } else {
-        // Si no cumple ninguna condición, bloquear
-        console.log('[Dashboard Layout] Bloqueando acceso - condición no cumplida:', { status, planName })
+        // Cualquier otro estado (CANCELED, SUSPENDED, PAST_DUE, UNPAID, FREE sin pago, etc.) = bloqueado
+        console.log('[Dashboard Layout] Bloqueando acceso - estado inválido:', { status, planName })
         redirect('/paywall')
       }
     } else {

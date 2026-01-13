@@ -39,8 +39,6 @@ interface Lead {
   region: string
   status: string
   source: string
-  trello_url: string | null
-  trello_list_id?: string | null
   created_at?: string
   notes?: string | null
   assigned_seller_id: string | null
@@ -174,16 +172,6 @@ export function LeadsKanban({ leads, agencies = [], sellers = [], operators = []
                         <span className="font-medium hover:underline">
                           {lead.contact_name}
                         </span>
-                        {lead.trello_url && (
-                          <a
-                            href={lead.trello_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">{lead.destination}</p>
                       <div className="flex items-center gap-2 flex-wrap">

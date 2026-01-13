@@ -179,23 +179,13 @@ export default function PaywallPage() {
                       </span>
                     </div>
                     <div className="flex items-start gap-3">
-                      {plan.features.trello ? (
+                      {plan.features.cerebro ? (
                         <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                       ) : (
                         <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
                       )}
-                      <span className={`text-sm ${plan.features.trello ? 'text-slate-300' : 'text-slate-500'}`}>
-                        Integración Trello
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      {plan.features.manychat ? (
-                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      ) : (
-                        <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
-                      )}
-                      <span className={`text-sm ${plan.features.manychat ? 'text-slate-300' : 'text-slate-500'}`}>
-                        Integración Manychat
+                      <span className={`text-sm ${plan.features.cerebro ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Cerebro (Asistente IA)
                       </span>
                     </div>
                     <div className="flex items-start gap-3">
@@ -205,7 +195,7 @@ export default function PaywallPage() {
                         <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
                       )}
                       <span className={`text-sm ${plan.features.emilia ? 'text-slate-300' : 'text-slate-500'}`}>
-                        Asistente IA (Emilia)
+                        Emilia (Asistente IA)
                       </span>
                     </div>
                     <div className="flex items-start gap-3">
@@ -226,6 +216,16 @@ export default function PaywallPage() {
                       )}
                       <span className={`text-sm ${plan.features.reports ? 'text-slate-300' : 'text-slate-500'}`}>
                         Reportes avanzados
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      {plan.features.marketing_ads ? (
+                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <span className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0 flex items-center justify-center">—</span>
+                      )}
+                      <span className={`text-sm ${plan.features.marketing_ads ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Marketing y Ads
                       </span>
                     </div>
                   </div>

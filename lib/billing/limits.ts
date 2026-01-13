@@ -215,11 +215,12 @@ export async function checkFeatureAccess(
     }
 
     const featureNames: Record<string, string> = {
-      trello: "Trello",
-      manychat: "Manychat",
+      cerebro: "Cerebro",
       emilia: "Emilia (IA)",
       whatsapp: "WhatsApp",
       reports: "Reportes avanzados",
+      crm: "CRM",
+      marketing_ads: "Marketing y Ads",
     }
 
     const message = !hasAccess

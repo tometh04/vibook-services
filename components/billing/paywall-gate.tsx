@@ -43,14 +43,17 @@ export function PaywallGate({
 
   const defaultMessage = message || `Esta funcionalidad requiere el plan ${requiredPlan || "Pro"}.`
 
+  // SIEMPRE mostrar el contenido, pero bloqueado (para Starter que puede ver pero no usar)
   return (
     <>
       <div className="relative">
-        <div className="pointer-events-none opacity-50 blur-sm">
+        {/* Contenido visible pero bloqueado */}
+        <div className="pointer-events-none opacity-50 blur-sm select-none">
           {children}
         </div>
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-          <div className="text-center p-6 space-y-4">
+        {/* Overlay de paywall */}
+        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg z-10">
+          <div className="text-center p-6 space-y-4 max-w-md">
             <Lock className="h-12 w-12 mx-auto text-muted-foreground" />
             <div>
               <h3 className="text-lg font-semibold mb-2">Funcionalidad Premium</h3>

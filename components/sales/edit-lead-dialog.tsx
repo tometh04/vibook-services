@@ -37,7 +37,7 @@ import { toast } from "sonner"
 // Esquema base para leads normales
 const baseLeadSchema = z.object({
   agency_id: z.string().min(1, "La agencia es requerida"),
-  source: z.enum(["Instagram", "WhatsApp", "Meta Ads", "Other", "Trello"]),
+  source: z.enum(["Instagram", "WhatsApp", "Meta Ads", "Website", "Referral", "Other", "CRM"]),
   status: z.enum(["NEW", "IN_PROGRESS", "QUOTED", "WON", "LOST"]),
   region: z.enum(["ARGENTINA", "CARIBE", "BRASIL", "EUROPA", "EEUU", "OTROS", "CRUCEROS"]),
   destination: z.string().min(1, "El destino es requerido"),
@@ -59,30 +59,6 @@ const baseLeadSchema = z.object({
   follow_up_date: z.date().optional().nullable(),
 })
 
-// Esquema para leads de Trello (campos de contacto opcionales porque vienen de Trello)
-const trelloLeadSchema = z.object({
-  agency_id: z.string().optional(),
-  source: z.enum(["Instagram", "WhatsApp", "Meta Ads", "Other", "Trello"]).optional(),
-  status: z.enum(["NEW", "IN_PROGRESS", "QUOTED", "WON", "LOST"]).optional(),
-  region: z.enum(["ARGENTINA", "CARIBE", "BRASIL", "EUROPA", "EEUU", "OTROS", "CRUCEROS"]).optional(),
-  destination: z.string().optional(),
-  contact_name: z.string().optional(),
-  contact_phone: z.string().optional(), // No requerido para Trello
-  contact_email: z.string().optional(),
-  contact_instagram: z.string().optional(),
-  assigned_seller_id: z.string().optional().nullable().or(z.literal("none")),
-  notes: z.string().optional(),
-  quoted_price: z.coerce.number().min(0).optional().nullable(),
-  has_deposit: z.boolean().default(false),
-  deposit_amount: z.coerce.number().min(0).optional().nullable(),
-  deposit_currency: z.enum(["ARS", "USD"]).optional().nullable().or(z.literal("none")),
-  deposit_method: z.string().optional().nullable(),
-  deposit_date: z.date().optional().nullable(),
-  deposit_account_id: z.string().optional().nullable().or(z.literal("none")),
-  estimated_checkin_date: z.date().optional().nullable(),
-  estimated_departure_date: z.date().optional().nullable(),
-  follow_up_date: z.date().optional().nullable(),
-})
 
 const leadSchema = baseLeadSchema
 
@@ -99,8 +75,6 @@ interface Lead {
   status: string
   source: string
   external_id?: string | null
-  trello_url: string | null
-  trello_list_id: string | null
   assigned_seller_id: string | null
   agency_id?: string
   notes: string | null
@@ -142,9 +116,6 @@ export function EditLeadDialog({
 }: EditLeadDialogProps) {
   const [loading, setLoading] = useState(false)
   const [financialAccounts, setFinancialAccounts] = useState<FinancialAccount[]>([])
-  // Solo bloquear edición si el lead está sincronizado activamente con Trello (tiene external_id)
-  // Los leads de Manychat que crean tarjetas pero no están sincronizados pueden editarse completamente
-  const isSyncedWithTrello = lead ? (lead.source === "Trello" && lead.external_id && lead.trello_url) : false
 
   // Cargar cuentas financieras
   useEffect(() => {
@@ -164,9 +135,8 @@ export function EditLeadDialog({
     }
   }, [open])
 
-  // Usar el esquema de Trello solo si está sincronizado con Trello
   const form = useForm<LeadFormValues>({
-    resolver: zodResolver(isSyncedWithTrello ? trelloLeadSchema : leadSchema) as any,
+    resolver: zodResolver(leadSchema) as any,
     defaultValues: {
       agency_id: "",
       source: "Other",
@@ -254,17 +224,6 @@ export function EditLeadDialog({
         assigned_seller_id: values.assigned_seller_id === "none" ? null : values.assigned_seller_id,
       }
 
-      // Si está sincronizado con Trello, solo enviar campos permitidos
-      if (isSyncedWithTrello) {
-        const allowedFields = ["assigned_seller_id", "notes"]
-        const filteredData: any = {}
-        for (const field of allowedFields) {
-          if (updateData[field] !== undefined) {
-            filteredData[field] = updateData[field]
-          }
-        }
-        updateData = filteredData
-      }
 
       const response = await fetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
@@ -296,11 +255,6 @@ export function EditLeadDialog({
         <DialogHeader>
           <DialogTitle>Editar Lead</DialogTitle>
           <DialogDescription>
-            {isSyncedWithTrello && (
-              <span className="text-amber-600 dark:text-amber-400">
-                ⚠️ Este lead está sincronizado con Trello. Solo puedes editar ciertos campos.
-              </span>
-            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -320,7 +274,7 @@ export function EditLeadDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Agencia</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={!!isSyncedWithTrello}>
+                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={false}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Seleccionar agencia" />
@@ -345,7 +299,7 @@ export function EditLeadDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Origen</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={!!isSyncedWithTrello}>
+                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={false}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Seleccionar origen" />
@@ -356,7 +310,6 @@ export function EditLeadDialog({
                             <SelectItem value="WhatsApp">WhatsApp</SelectItem>
                             <SelectItem value="Meta Ads">Meta Ads</SelectItem>
                             <SelectItem value="Other">Otro</SelectItem>
-                            <SelectItem value="Trello">Trello</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -370,7 +323,7 @@ export function EditLeadDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Estado</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={!!isSyncedWithTrello}>
+                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={false}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Seleccionar estado" />
@@ -395,7 +348,7 @@ export function EditLeadDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Región</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={!!isSyncedWithTrello}>
+                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={false}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Seleccionar región" />
@@ -423,7 +376,7 @@ export function EditLeadDialog({
                       <FormItem>
                         <FormLabel>Destino</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ej: Cancún, México" {...field} disabled={!!isSyncedWithTrello} />
+                          <Input placeholder="Ej: Cancún, México" {...field} disabled={false} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -477,7 +430,7 @@ export function EditLeadDialog({
                       <FormItem>
                         <FormLabel>Nombre de Contacto</FormLabel>
                         <FormControl>
-                          <Input placeholder="Nombre completo" {...field} disabled={!!isSyncedWithTrello} />
+                          <Input placeholder="Nombre completo" {...field} disabled={false} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -491,7 +444,7 @@ export function EditLeadDialog({
                       <FormItem>
                         <FormLabel>Teléfono</FormLabel>
                         <FormControl>
-                          <Input placeholder="+54 11 1234-5678" {...field} disabled={!!isSyncedWithTrello} />
+                          <Input placeholder="+54 11 1234-5678" {...field} disabled={false} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -505,7 +458,7 @@ export function EditLeadDialog({
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="email@ejemplo.com" {...field} disabled={!!isSyncedWithTrello} />
+                          <Input type="email" placeholder="email@ejemplo.com" {...field} disabled={false} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -519,7 +472,7 @@ export function EditLeadDialog({
                       <FormItem>
                         <FormLabel>Instagram</FormLabel>
                         <FormControl>
-                          <Input placeholder="@usuario" {...field} disabled={!!isSyncedWithTrello} />
+                          <Input placeholder="@usuario" {...field} disabled={false} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
