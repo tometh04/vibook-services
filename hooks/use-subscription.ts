@@ -125,9 +125,12 @@ export function useSubscription() {
     isTrial: subscription?.status === "TRIAL" && subscription?.plan?.name !== "FREE",
     planName: subscription?.plan?.name || "FREE",
     canUseFeature: (feature: string) => {
+      // Si no hay suscripción, permitir acceso básico (para crear leads)
+      // El paywall completo se maneja en el dashboard layout
       if (!subscription?.plan) {
-        console.log('[PaywallGate] No hay suscripción o plan')
-        return false
+        console.log('[PaywallGate] No hay suscripción o plan - permitiendo acceso básico')
+        // Permitir acceso básico si no hay suscripción (el dashboard layout ya bloquea si es necesario)
+        return true
       }
       
       // Plan TESTER tiene acceso completo
