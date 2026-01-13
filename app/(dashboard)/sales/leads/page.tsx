@@ -33,12 +33,17 @@ export default async function LeadsPage() {
 
   const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
-  // Get agencies for filters - Todos los usuarios solo ven sus agencias (SaaS multi-tenant)
-  const { data } = await supabase
+  // Get agencies for filters
+  // SUPER_ADMIN (admin@vibook.ai) ve todas, ADMIN solo sus agencias
+  let agenciesQuery = supabase
     .from("agencies")
     .select("id, name")
-    .in("id", agencyIds.length > 0 ? agencyIds : [])
-    .order("name")
+  
+  if (user.role !== "SUPER_ADMIN") {
+    agenciesQuery = agenciesQuery.in("id", agencyIds.length > 0 ? agencyIds : [])
+  }
+  
+  const { data } = await agenciesQuery.order("name")
   const agencies = (data || []) as Array<{ id: string; name: string }>
 
   // Get sellers for filters - incluir SELLER, ADMIN y SUPER_ADMIN como vendedores

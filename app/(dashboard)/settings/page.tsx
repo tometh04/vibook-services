@@ -15,15 +15,23 @@ export default async function SettingsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()
   
-  // Cargar agencias del usuario (SUPER_ADMIN solo ve SU agencia, no todas)
-  // En un SaaS, cada signup crea una agencia independiente
-  const userAgencies = await getUserAgencies(user.id)
-  const agencies = userAgencies
-    .filter((ua) => ua.agencies)
-    .map((ua) => ({
-      id: ua.agency_id,
-      name: ua.agencies!.name,
-    }))
+  // Cargar agencias disponibles
+  let agencies: Array<{ id: string; name: string }> = []
+  
+  if (user.role === "SUPER_ADMIN") {
+    // SUPER_ADMIN (admin@vibook.ai) ve TODAS las agencias (administrador del sistema)
+    const { data } = await supabase.from("agencies").select("id, name").order("name")
+    agencies = (data || []) as Array<{ id: string; name: string }>
+  } else {
+    // ADMIN y otros roles solo ven sus agencias (SaaS multi-tenant)
+    const userAgencies = await getUserAgencies(user.id)
+    agencies = userAgencies
+      .filter((ua) => ua.agencies)
+      .map((ua) => ({
+        id: ua.agency_id,
+        name: ua.agencies!.name,
+      }))
+  }
   
   const firstAgencyId = agencies[0]?.id || null
 

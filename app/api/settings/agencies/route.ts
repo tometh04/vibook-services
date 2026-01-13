@@ -11,19 +11,22 @@ export async function GET() {
 
     const supabase = await createServerClient()
     
-    // Obtener solo las agencias del usuario actual (SaaS multi-tenant)
-    const { getUserAgencyIds } = await import("@/lib/permissions-api")
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    // SUPER_ADMIN (admin@vibook.ai) ve TODAS las agencias
+    // ADMIN y otros roles solo ven sus agencias
+    let agenciesQuery = supabase.from("agencies").select("*")
     
-    if (agencyIds.length === 0) {
-      return NextResponse.json({ agencies: [] })
+    if (user.role !== "SUPER_ADMIN") {
+      const { getUserAgencyIds } = await import("@/lib/permissions-api")
+      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+      
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ agencies: [] })
+      }
+      
+      agenciesQuery = agenciesQuery.in("id", agencyIds)
     }
     
-    const { data: agencies } = await supabase
-      .from("agencies")
-      .select("*")
-      .in("id", agencyIds)
-      .order("name")
+    const { data: agencies } = await agenciesQuery.order("name")
 
     return NextResponse.json({ agencies: agencies || [] })
   } catch (error) {

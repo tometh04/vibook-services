@@ -11,39 +11,43 @@ export async function GET() {
 
     const supabase = await createServerClient()
     
-    // Obtener agencias del usuario actual (SUPER_ADMIN solo ve usuarios de SU agencia)
-    const { getUserAgencyIds } = await import("@/lib/permissions-api")
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
-    
-    if (agencyIds.length === 0) {
-      return NextResponse.json({ users: [] })
-    }
-    
-    // Obtener IDs de usuarios de las agencias del usuario actual
-    const { data: userAgenciesData } = await supabase
-      .from("user_agencies")
-      .select("user_id")
-      .in("agency_id", agencyIds)
-    
-    const userIds = Array.from(new Set((userAgenciesData || []).map((ua: any) => ua.user_id))) as string[]
-    
-    if (userIds.length === 0) {
-      return NextResponse.json({ users: [] })
-    }
-    
-    // Traer usuarios con sus agencias asignadas (solo de las agencias del usuario actual)
-    const { data: users, error: usersError } = await supabase
+    // SUPER_ADMIN (admin@vibook.ai) ve TODOS los usuarios
+    // ADMIN y otros roles solo ven usuarios de sus agencias
+    let usersQuery = supabase
       .from("users")
       .select(`
         *,
-        user_agencies!inner(
+        user_agencies(
           agency_id,
-          agencies!inner(id, name)
+          agencies(id, name)
         )
       `)
-      .in("id", userIds)
-      .in("user_agencies.agency_id", agencyIds)
-      .order("created_at", { ascending: false })
+    
+    if (user.role !== "SUPER_ADMIN") {
+      // Filtrar por agencias del usuario
+      const { getUserAgencyIds } = await import("@/lib/permissions-api")
+      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+      
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ users: [] })
+      }
+      
+      // Obtener IDs de usuarios de las agencias del usuario actual
+      const { data: userAgenciesData } = await supabase
+        .from("user_agencies")
+        .select("user_id")
+        .in("agency_id", agencyIds)
+      
+      const userIds = Array.from(new Set((userAgenciesData || []).map((ua: any) => ua.user_id))) as string[]
+      
+      if (userIds.length === 0) {
+        return NextResponse.json({ users: [] })
+      }
+      
+      usersQuery = usersQuery.in("id", userIds)
+    }
+    
+    const { data: users, error: usersError } = await usersQuery.order("created_at", { ascending: false })
 
     if (usersError) {
       console.error("Error fetching users:", usersError)

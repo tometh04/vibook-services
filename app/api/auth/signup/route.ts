@@ -153,7 +153,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Crear usuario en tabla users como SUPER_ADMIN de su agencia
+    // Crear usuario en tabla users como ADMIN de su agencia
+    // En un SaaS, cada signup crea una agencia independiente
+    // El SUPER_ADMIN es solo admin@vibook.ai (administrador del sistema)
     // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
     const { data: userData, error: userError } = await (supabaseAdmin
       .from("users") as any)
@@ -161,7 +163,7 @@ export async function POST(request: Request) {
         auth_id: authData.user.id,
         name,
         email,
-        role: "SUPER_ADMIN",
+        role: "ADMIN", // Signups son ADMIN, no SUPER_ADMIN
         is_active: true,
       })
       .select()

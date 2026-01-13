@@ -126,9 +126,13 @@ export async function applyCustomersFilters(
 ): Promise<any> {
   const userRole = user.role as UserRole
 
-  // SUPER_ADMIN, ADMIN y VIEWER ven clientes de SUS agencias (no todos)
-  // En un SaaS, cada agencia es independiente
-  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN" || userRole === "VIEWER") {
+  // SUPER_ADMIN (admin@vibook.ai) ve TODOS los clientes (administrador del sistema)
+  if (userRole === "SUPER_ADMIN") {
+    return query // Sin filtros para SUPER_ADMIN
+  }
+  
+  // ADMIN, VIEWER ven clientes de SUS agencias (SaaS multi-tenant)
+  if (userRole === "ADMIN" || userRole === "VIEWER") {
     // Filtrar clientes por operaciones de las agencias del usuario
     if (agencyIds.length === 0) {
       return query.limit(0) // Sin agencias = sin clientes

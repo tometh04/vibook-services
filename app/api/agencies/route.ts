@@ -4,7 +4,7 @@ import { getCachedAgencies, revalidateTag, CACHE_TAGS } from "@/lib/cache"
 
 /**
  * GET /api/agencies
- * Lista las agencias del usuario actual (SaaS multi-tenant)
+ * Lista agencias: SUPER_ADMIN ve todas, otros solo sus agencias
  */
 export async function GET() {
   try {
@@ -14,19 +14,22 @@ export async function GET() {
     const agencies = await getCachedAgencies(async () => {
       const supabase = await createServerClient()
       
-      // Obtener solo las agencias del usuario actual
-      const { getUserAgencyIds } = await import("@/lib/permissions-api")
-      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+      let query = supabase.from("agencies").select("id, name")
       
-      if (agencyIds.length === 0) {
-        return []
+      // SUPER_ADMIN (admin@vibook.ai) ve TODAS las agencias
+      if (user.role !== "SUPER_ADMIN") {
+        // ADMIN y otros roles solo ven sus agencias
+        const { getUserAgencyIds } = await import("@/lib/permissions-api")
+        const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+        
+        if (agencyIds.length === 0) {
+          return []
+        }
+        
+        query = query.in("id", agencyIds)
       }
 
-      const { data, error } = await supabase
-        .from("agencies")
-        .select("id, name")
-        .in("id", agencyIds)
-        .order("name")
+      const { data, error } = await query.order("name")
 
       if (error) {
         console.error("❌ Error fetching agencies:", error.message, error.details)
