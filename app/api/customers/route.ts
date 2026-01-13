@@ -101,18 +101,32 @@ export async function GET(request: Request) {
       }
     })
 
-    // Get total count for pagination
-    // IMPORTANTE: Para count, también aplicar select ANTES de filters
-    let countQuery: any = supabase.from("customers").select("*", { count: "exact", head: true })
-    
-    try {
-      countQuery = await applyCustomersFilters(countQuery, user, agencyIds, supabase)
-    } catch {
-      // Ignore if filtering fails
+    // Get total count for pagination - aplicar filtros directamente
+    let countQuery: any = supabase.from("customers")
+
+    // Aplicar filtro de agencia ANTES de select
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        // No hay agencias, retornar count 0
+        return NextResponse.json({ 
+          customers: customersWithStats,
+          pagination: {
+            total: 0,
+            limit,
+            offset,
+            hasMore: false
+          }
+        })
+      }
+      if (agencyIds.length === 1) {
+        countQuery = countQuery.eq("agency_id", agencyIds[0])
+      } else {
+        countQuery = countQuery.in("agency_id", agencyIds)
+      }
     }
-    
-    // Apply search filter if needed (or() is only available after select)
-    let countSelectQuery = countQuery
+
+    // AHORA sí llamar .select() para count
+    let countSelectQuery = countQuery.select("*", { count: "exact", head: true })
     
     if (search) {
       countSelectQuery = countSelectQuery.or(
