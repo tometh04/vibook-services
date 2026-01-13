@@ -160,7 +160,11 @@ export async function POST(request: Request) {
 
     // Obtener configuración de clientes
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    console.log(`[POST /api/customers] User ${user.id} (${user.email}, role: ${user.role}) - Agency IDs:`, agencyIds)
+    
     if (agencyIds.length === 0) {
+      console.error(`[POST /api/customers] User ${user.id} has no agencies assigned`)
       return NextResponse.json({ error: "No tiene agencias asignadas" }, { status: 403 })
     }
 
@@ -180,11 +184,15 @@ export async function POST(request: Request) {
       } else {
         // ADMIN y otros roles usan su primera agencia
         requestedAgencyId = agencyIds[0]
+        console.log(`[POST /api/customers] No agency_id in body, using first agency: ${requestedAgencyId}`)
       }
     }
     
+    console.log(`[POST /api/customers] Requested agency_id: ${requestedAgencyId}`)
+    
     // Validar que la agencia pertenezca al usuario (excepto SUPER_ADMIN)
     if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(requestedAgencyId)) {
+      console.error(`[POST /api/customers] User ${user.id} tried to create customer in agency ${requestedAgencyId} but only has access to:`, agencyIds)
       return NextResponse.json(
         { error: "No tiene permiso para crear clientes en esta agencia" },
         { status: 403 }
@@ -245,6 +253,8 @@ export async function POST(request: Request) {
     }
 
     // Create customer (CRÍTICO: incluir agency_id para aislamiento SaaS)
+    console.log(`[POST /api/customers] Creating customer with agency_id: ${requestedAgencyId}`)
+    
     const { data: customer, error: createError } = await (supabase.from("customers") as any)
       .insert({
         agency_id: requestedAgencyId, // CRÍTICO: Aislar por agencia
@@ -262,9 +272,15 @@ export async function POST(request: Request) {
       .single()
 
     if (createError || !customer) {
-      console.error("Error creating customer:", createError)
+      console.error("[POST /api/customers] Error creating customer:", createError)
       return NextResponse.json({ error: "Error al crear cliente" }, { status: 400 })
     }
+    
+    console.log(`[POST /api/customers] Customer created successfully:`, {
+      id: customer.id,
+      name: `${customer.first_name} ${customer.last_name}`,
+      agency_id: customer.agency_id
+    })
 
     // Enviar notificaciones si están configuradas
     if (settingsData?.notifications) {
