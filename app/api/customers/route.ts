@@ -29,22 +29,27 @@ export async function GET(request: Request) {
     // Build base query - CRÍTICO: Aplicar filtros ANTES de select cuando hay relaciones anidadas
     // Simplificar: aplicar filtros directamente como en statistics route
     const search = searchParams.get("search")
-    let query: any = supabase.from("customers")
-
-    // Aplicar filtro de agencia ANTES de select (igual que statistics route)
+    
+    // Aplicar filtro de agencia ANTES de crear el query builder
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         console.log(`[Customers API] User ${user.id} has no agencies - returning empty`)
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
       console.log(`[Customers API] Filtering by ${agencyIds.length} agency(ies):`, agencyIds)
+    } else {
+      console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
+    }
+
+    // Crear query builder y aplicar filtros
+    let query: any = supabase.from("customers")
+    
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
       if (agencyIds.length === 1) {
         query = query.eq("agency_id", agencyIds[0])
       } else {
         query = query.in("agency_id", agencyIds)
       }
-    } else {
-      console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
     // AHORA sí llamar .select() después de los filtros (como en statistics route)
