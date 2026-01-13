@@ -42,8 +42,8 @@ export async function GET(request: Request) {
     }
 
     // Crear query builder y aplicar filtros ANTES de select (como en statistics/route.ts)
-    // CRÍTICO: Encadenar todo en una sola expresión para evitar problemas de tipos
-    let baseQuery = supabase.from("customers")
+    // CRÍTICO: Usar 'as any' para evitar problemas de tipos de TypeScript
+    let baseQuery: any = supabase.from("customers")
     
     // Aplicar filtro de agencia ANTES de select
     if (user.role !== "SUPER_ADMIN") {
