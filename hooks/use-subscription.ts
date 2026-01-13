@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import type { SubscriptionWithPlan, UsageMetrics } from "@/lib/billing/types"
 
 export function useSubscription() {
@@ -14,136 +13,36 @@ export function useSubscription() {
   useEffect(() => {
     async function fetchSubscription() {
       try {
-        const supabase = createClient()
+        // Usar API route que tiene permisos de admin para bypasear RLS
+        const response = await fetch('/api/subscription')
         
-        // Obtener el usuario actual
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        if (!authUser) {
-          console.log('[useSubscription] No auth user found')
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error("[useSubscription] API error:", errorData)
+          setError(errorData.error || "Error al obtener suscripción")
           setLoading(false)
           return
         }
-
-        // Obtener el usuario de nuestra BD
-        const { data: userData } = await supabase
-          .from("users")
-          .select("id, role")
-          .eq("auth_id", authUser.id)
-          .single()
-
-        if (!userData) {
-          console.log('[useSubscription] No user data found')
-          setLoading(false)
-          return
-        }
-
-        const userId = (userData as any).id
-        console.log('[useSubscription] User:', userId, 'Role:', (userData as any).role)
-
-        // Obtener TODAS las agencias del usuario (puede estar en múltiples)
-        const { data: userAgencies } = await supabase
-          .from("user_agencies")
-          .select("agency_id")
-          .eq("user_id", userId)
-
-        if (!userAgencies || userAgencies.length === 0) {
-          console.log('[useSubscription] No agencies found for user')
-          setLoading(false)
-          return
-        }
-
-        const agencyIds = (userAgencies as any[]).map(ua => ua.agency_id)
-        console.log('[useSubscription] User agencies:', agencyIds)
-
-        // Buscar suscripción activa en CUALQUIERA de las agencias del usuario
-        // Esto permite que usuarios invitados hereden la suscripción del admin
-        const { data: subscriptionsData, error: subError } = await (supabase
-          .from("subscriptions") as any)
-          .select(`
-            *,
-            plan:subscription_plans(*)
-          `)
-          .in("agency_id", agencyIds)
-          .order("created_at", { ascending: false })
         
-        console.log('[useSubscription] Agency IDs searched:', agencyIds)
-        console.log('[useSubscription] Found subscriptions:', subscriptionsData?.length || 0)
-        if (subscriptionsData && subscriptionsData.length > 0) {
-          console.log('[useSubscription] Subscriptions details:', subscriptionsData.map((s: any) => ({
-            agency_id: s.agency_id,
-            status: s.status,
-            plan_name: s.plan?.name,
-            plan_features: s.plan?.features
-          })))
-        } else {
-          console.log('[useSubscription] NO SUBSCRIPTIONS FOUND for agencies:', agencyIds)
+        const data = await response.json()
+        
+        console.log('[useSubscription] API response:', {
+          hasSubscription: !!data.subscription,
+          plan: data.subscription?.plan?.name,
+          status: data.subscription?.status,
+          agencyId: data.agencyId
+        })
+        
+        if (data.subscription) {
+          setSubscription(data.subscription as SubscriptionWithPlan)
         }
         
-        // Seleccionar la suscripción más relevante de todas las agencias
-        let subscriptionData = null
-        let selectedAgencyId = agencyIds[0]
+        if (data.usage) {
+          setUsage(data.usage as UsageMetrics)
+        }
         
-        if (subscriptionsData && subscriptionsData.length > 0) {
-          // Priorizar: TESTER > ACTIVE > TRIAL > más reciente
-          subscriptionData = subscriptionsData.find((s: any) => s.plan?.name === 'TESTER')
-            || subscriptionsData.find((s: any) => s.status === 'ACTIVE')
-            || subscriptionsData.find((s: any) => s.status === 'TRIAL')
-            || subscriptionsData[0]
-          
-          if (subscriptionData) {
-            selectedAgencyId = subscriptionData.agency_id
-          }
-        }
-
-        setAgencyId(selectedAgencyId)
-
-        if (subError) {
-          console.error("[useSubscription] Error fetching subscription:", subError)
-          setError("Error al obtener la suscripción")
-        } else if (subscriptionData) {
-          // Asegurarse de que features esté parseado correctamente
-          if (subscriptionData.plan && subscriptionData.plan.features) {
-            if (typeof subscriptionData.plan.features === 'string') {
-              try {
-                subscriptionData.plan.features = JSON.parse(subscriptionData.plan.features)
-              } catch (e) {
-                console.error("[useSubscription] Error parsing plan features:", e)
-              }
-            }
-          }
-          
-          console.log('[useSubscription] Selected subscription:', {
-            agency_id: subscriptionData.agency_id,
-            plan: subscriptionData.plan?.name,
-            status: subscriptionData.status,
-            features: subscriptionData.plan?.features
-          })
-          
-          setSubscription({
-            ...subscriptionData,
-            plan: subscriptionData.plan,
-          } as SubscriptionWithPlan)
-        } else {
-          // Si no hay suscripción en ninguna agencia
-          console.log("[useSubscription] No subscription found for any agency")
-        }
-
-        // Obtener métricas de uso del mes actual
-        const currentMonthStart = new Date()
-        currentMonthStart.setDate(1)
-        currentMonthStart.setHours(0, 0, 0, 0)
-
-        const { data: usageData, error: usageError } = await (supabase
-          .from("usage_metrics") as any)
-          .select("*")
-          .eq("agency_id", selectedAgencyId)
-          .eq("period_start", currentMonthStart.toISOString().split('T')[0])
-          .maybeSingle()
-
-        if (usageError) {
-          console.error("[useSubscription] Error fetching usage:", usageError)
-        } else if (usageData) {
-          setUsage(usageData as UsageMetrics)
+        if (data.agencyId) {
+          setAgencyId(data.agencyId)
         }
 
         setLoading(false)
