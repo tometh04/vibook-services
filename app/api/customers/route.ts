@@ -41,22 +41,18 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Crear query builder y aplicar filtros ANTES de select (EXACTAMENTE como statistics/route.ts)
-    let customersQuery: any = supabase.from("customers")
+    // Usar applyCustomersFilters que ya funciona en otros lugares
+    let customersQuery: any = supabase.from("customers").select("*")
     
-    // Aplicar filtro de agencia ANTES de select
-    if (user.role !== "SUPER_ADMIN") {
-      if (agencyIds.length === 0) {
-        return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
-      }
-      customersQuery = customersQuery.in("agency_id", agencyIds)
+    // Aplicar filtros usando la función que ya existe
+    try {
+      customersQuery = applyCustomersFilters(customersQuery, user, agencyIds)
+    } catch (error: any) {
+      console.error("[Customers API] Error applying filters:", error)
+      return NextResponse.json({ error: error.message || "Error al filtrar clientes" }, { status: 403 })
     }
 
-    // AHORA sí llamar .select() después de los filtros
-    // SIMPLIFICAR: No usar relaciones anidadas en el select inicial (causa problemas)
-    customersQuery = customersQuery.select("*")
-
-    // Ejecutar query primero (como statistics/route.ts)
+    // Ejecutar query
     console.log(`[Customers API] Executing query for user ${user.id}...`)
     const { data: customersRaw, error: customersError } = await customersQuery
 
