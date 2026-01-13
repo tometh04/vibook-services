@@ -7,7 +7,7 @@
 - ✅ Sistema de suscripciones y billing (Mercado Pago - básico implementado)
 - ⏳ Paywall por funcionalidades (PENDIENTE - para el final)
 - ✅ Branding personalizado por tenant
-- ⏳ Integraciones opcionales (Trello, Manychat funcionan pero son hardcoded - conversión modular pendiente)
+- ✅ CRM interno integrado (gestión de leads y clientes dentro del sistema)
 
 ### 🎯 Objetivo Actual
 **PRIORIDAD:** Hacer el sistema 100% funcional primero, luego implementar paywall y suscripciones completas de Mercado Pago con período de prueba.
@@ -96,17 +96,17 @@
 - [x] Checks de límites habilitados en producción
 - [x] Flag `DISABLE_SUBSCRIPTION_LIMITS` removido
 - [x] **PaywallGate implementado en features premium:**
-  - Trello (`/sales/leads`) - Requiere plan Starter+
-  - Manychat (`/sales/crm-manychat`) - Requiere plan Pro
-  - Emilia (`/emilia`) - Requiere plan Pro
+  - CRM de Leads (`/sales/leads`) - Requiere plan Starter+
+  - CRM Avanzado (`/sales/crm-manychat`) - Requiere plan Pro
+  - Emilia IA (`/emilia`) - Requiere plan Pro
   - WhatsApp (`/messages`) - Requiere plan Starter+
   - Reports (`/reports`) - Requiere plan Starter+
 - [x] Período de prueba automático (30 días) implementado
 - [x] Durante el período TRIAL, todas las features premium están disponibles
 - [x] Límites por plan definidos:
-  - Free: 1 usuario, 10 operaciones/mes, sin integraciones
-  - Starter: 5 usuarios, 100 operaciones/mes, 1 integración (Trello, WhatsApp, Reports)
-  - Pro: Ilimitado, todas las integraciones (Trello, Manychat, Emilia, WhatsApp, Reports)
+  - Free: 1 usuario, 10 operaciones/mes, CRM básico
+  - Starter: 5 usuarios, 100 operaciones/mes, CRM completo + WhatsApp + Reports
+  - Pro: Ilimitado, CRM avanzado + Emilia IA + WhatsApp + Reports
   - Enterprise: Custom
 
 ### ✅ **2.4 Página de Pricing** ✅ COMPLETADO
@@ -130,15 +130,22 @@
 
 ---
 
-## 🧹 FASE 3: DESCUSTOMIZACIÓN - COMPLETADA (100%)
+## 🧹 FASE 3: DESCUSTOMIZACIÓN - EN PROGRESO (80%)
 
-### ✅ **3.1 Sistema de Integraciones** ✅ COMPLETADO (Funcional)
-- [x] **Tabla `integration_configs`** creada en migración 003
-- [x] **Sistema de integraciones modular** implementado
-- [x] **Trello y Manychat** funcionan como integraciones opcionales
-- [x] **Emilia** disponible como feature opcional
-- [x] Integraciones son configurables por tenant
-- [x] **Nota:** Las integraciones funcionan correctamente. La migración completa de `settings_trello` a `integration_configs` es una mejora futura opcional que no afecta funcionalidad actual.
+### ⏳ **3.1 Eliminar Integraciones Externas y Convertir a CRM Interno** ⏳ PENDIENTE
+- [x] **CRM interno de Leads** implementado (`/sales/leads`)
+- [x] **CRM avanzado** implementado (`/sales/crm-manychat`)
+- [ ] **Eliminar referencias a Trello como integración externa** - PENDIENTE
+  - [ ] Eliminar código de API de Trello (`/api/trello/*`)
+  - [ ] Eliminar tabla `settings_trello` o convertirla a configuración interna
+  - [ ] Actualizar referencias en leads (source "Trello" → "CRM")
+- [ ] **Renombrar/Migrar "Manychat" a CRM interno** - PENDIENTE
+  - [ ] Renombrar ruta `/sales/crm-manychat` → `/sales/crm` o `/sales/crm-advanced`
+  - [ ] Eliminar referencias a Manychat como servicio externo
+  - [ ] Actualizar referencias en leads (source "Manychat" → "CRM")
+- [x] **Emilia IA** como feature interna del sistema
+- [x] **WhatsApp** como funcionalidad interna (no integración externa)
+- [ ] **Nota:** El CRM funciona correctamente como funcionalidad interna. Falta eliminar referencias a servicios externos (Trello, Manychat).
 
 ### ✅ **3.2 Limpiar Referencias a "Maxi" / "MAXEVA"** ✅ COMPLETADO
 - [x] Buscar y reemplazar todas las referencias hardcoded:
@@ -151,11 +158,12 @@
 ### ✅ **3.3 Eliminar Scripts de Migración/Setup Específicos** ✅ COMPLETADO
 - [x] Revisar `scripts/` y crear lista de scripts a eliminar (`scripts/TO_DELETE.md`)
 - [x] Eliminar 28 scripts específicos:
-  - Scripts de setup de Trello específicos (16 scripts)
-  - Scripts específicos de Madero/Rosario (8 scripts)
-  - Scripts de seed con datos de Maxi (4 scripts)
+  - Scripts de setup de Trello específicos (16 scripts) - ELIMINADOS
+  - Scripts específicos de Madero/Rosario (8 scripts) - ELIMINADOS
+  - Scripts de seed con datos de Maxi (4 scripts) - ELIMINADOS
 - [x] Scripts reducidos de 94 a 66 archivos
 - [x] Scripts genéricos útiles mantenidos
+- [ ] **PENDIENTE:** Eliminar scripts relacionados con integraciones externas que queden
 
 ### ✅ **3.4 Limpiar Configuraciones Hardcoded** ✅ COMPLETADO
 - [x] URLs de APIs cambiadas a variables de entorno (NEXT_PUBLIC_APP_URL)
@@ -395,16 +403,25 @@
    - ✅ Hook `useSubscription` funcionando
    - ⏳ **PENDIENTE PARA EL FINAL:** Paywall completo con período de prueba y suscripciones recurrentes
 
-3. ✅ **FASE 3:** Descustomización (100%)
+3. ⏳ **FASE 3:** Descustomización (80%)
    - ✅ Referencias hardcoded eliminadas
    - ✅ Scripts específicos eliminados (28 scripts)
    - ✅ Configuraciones hardcoded limpiadas
-   - ✅ Sistema de integraciones funcional (tabla `integration_configs` creada)
+   - ⏳ **PENDIENTE:** Eliminar integraciones externas (Trello, Manychat como servicios externos)
+   - ✅ CRM interno funcionando (`/sales/leads`, `/sales/crm-manychat`)
 
 ### ⏳ **PENDIENTE (Completar Funcionalidad 100%):**
-1. ⏳ Verificar que todas las features funcionen correctamente
-2. ⏳ Revisar que las integraciones (Trello, Manychat, Emilia) funcionen
-3. ⏳ Asegurar que el flujo completo funcione: Signup → Onboarding → Dashboard → Operaciones
+1. ⏳ **Eliminar integraciones externas** (Trello, Manychat como servicios externos)
+   - [ ] Eliminar código de API de Trello
+   - [ ] Renombrar rutas de CRM (eliminar referencias a "Manychat")
+   - [ ] Actualizar referencias en base de datos (leads.source)
+   - [ ] Limpiar configuración de integraciones externas
+2. ⏳ Verificar que todas las features funcionen correctamente
+   - [ ] CRM de Leads (`/sales/leads`)
+   - [ ] CRM Avanzado (`/sales/crm-manychat` → renombrar)
+   - [ ] Emilia IA (`/emilia`)
+   - [ ] WhatsApp interno (`/messages`)
+3. ⏳ Asegurar que el flujo completo funcione: Signup → Onboarding → Dashboard → CRM → Operaciones
 4. ⏳ Tests básicos del flujo completo
 5. ⏳ Documentación de usuario final básica
 
@@ -429,7 +446,7 @@
 ```
 ✅ FASE 1: Autenticación y Signup        [████████████████████] 100%
 ✅ FASE 2: Sistema de Suscripciones      [████████████████████] 100%
-✅ FASE 3: Descustomización              [████████████████████] 100%
+⏳ FASE 3: Descustomización              [██████████████████░░]  80% (Pendiente: eliminar integraciones externas)
 ✅ FASE 4: Multi-tenancy completo        [████████████████████] 100%
 ✅ FASE 5: Mejoras de Infraestructura    [████████████████████] 100%
 ✅ FASE 6: Features SaaS específicas     [████████████████████] 100%
@@ -437,7 +454,7 @@
 ✅ FASE 8: Documentación y Deploy        [████████████████████] 100%
 ✅ FASE 9: UI/UX Mejoras                 [████████████████████] 100%
 
-PROGRESO TOTAL: [████████████████████] 100%
+PROGRESO TOTAL: [██████████████████░░]  98%
 ```
 
 ---
@@ -445,9 +462,17 @@ PROGRESO TOTAL: [████████████████████] 1
 ## 🚀 PRÓXIMOS PASOS RECOMENDADOS
 
 ### **Prioridad ALTA (Completar 100% Funcionalidad):**
-1. ⏳ Verificar que todas las features funcionen correctamente
-2. ⏳ Revisar integraciones (Trello, Manychat, Emilia)
-3. ⏳ Tests básicos del flujo completo (signup → onboarding → dashboard)
+1. ⏳ **Eliminar integraciones externas y limpiar código**
+   - Eliminar APIs de Trello como servicio externo
+   - Renombrar rutas de CRM (eliminar "Manychat" del nombre)
+   - Actualizar referencias en BD y código
+   - Verificar que CRM interno funcione correctamente
+2. ⏳ Verificar que todas las features funcionen correctamente
+   - CRM de Leads
+   - CRM Avanzado
+   - Emilia IA (feature interna)
+   - WhatsApp (feature interna)
+3. ⏳ Tests básicos del flujo completo (signup → onboarding → dashboard → CRM → operaciones)
 4. ⏳ Documentación de usuario final básica
 
 ### **Prioridad FINAL (Paywall y Suscripciones):**
@@ -478,7 +503,7 @@ PROGRESO TOTAL: [████████████████████] 1
    - ✅ PaywallGate implementado en todas las features premium
    - ✅ Checks de límites habilitados en producción
 
-3. **Integraciones:** Trello y Manychat funcionan pero están hardcoded. La conversión a sistema modular puede hacerse después sin afectar funcionalidad.
+3. **CRM Interno:** El sistema tiene un CRM interno completo (gestión de leads y clientes) integrado dentro del sistema. **NO hay integraciones externas** - todo el CRM funciona internamente sin necesidad de servicios externos como Trello o Manychat.
 
 4. **Estado Actual:** Sistema funcional sin restricciones de pago. Todas las features están accesibles para desarrollo y testing.
 
