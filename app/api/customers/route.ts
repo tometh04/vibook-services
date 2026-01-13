@@ -41,9 +41,8 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // SOLUCIÓN DEFINITIVA: Ejecutar el query completo en una sola expresión
-    // El problema es que asignar a variables intermedias rompe el encadenamiento del query builder
-    // Por eso h.in is not a function - el objeto pierde sus métodos al reasignarse
+    // SOLUCIÓN: El orden correcto en Supabase es .select() ANTES de .in()
+    // El método .in() es un filtro que se aplica DESPUÉS del select
     console.log(`[Customers API] Executing query for user ${user.id}...`)
     
     let customersRaw: any[] | null = null
@@ -53,15 +52,17 @@ export async function GET(request: Request) {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      // CRÍTICO: Ejecutar todo en una sola expresión sin variables intermedias
-      const result = await (supabase.from("customers") as any)
-        .in("agency_id", agencyIds)
+      // ORDEN CORRECTO: .select() ANTES de .in()
+      const result = await supabase
+        .from("customers")
         .select("*")
+        .in("agency_id", agencyIds)
       customersRaw = result.data
       customersError = result.error
     } else {
-      // SUPER_ADMIN sin filtros - también en una sola expresión
-      const result = await (supabase.from("customers") as any)
+      // SUPER_ADMIN sin filtros
+      const result = await supabase
+        .from("customers")
         .select("*")
       customersRaw = result.data
       customersError = result.error
