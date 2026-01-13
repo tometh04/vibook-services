@@ -12,6 +12,29 @@ export async function GET(
     const { id: operationId } = await params
     const supabase = await createServerClient()
 
+    // CRÍTICO: Validar que la operación pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let operationQuery = supabase
+      .from("operations")
+      .select("id, agency_id")
+      .eq("id", operationId)
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+      }
+      operationQuery = operationQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: operation } = await operationQuery.single()
+    
+    if (!operation) {
+      return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+    }
+
     const { data, error } = await supabase
       .from("operation_customers")
       .select(`
@@ -56,10 +79,48 @@ export async function POST(
     const supabase = await createServerClient()
     const body = await request.json()
 
+    // CRÍTICO: Validar que la operación pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    let operationQuery = supabase
+      .from("operations")
+      .select("id, agency_id")
+      .eq("id", operationId)
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+      }
+      operationQuery = operationQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: operation } = await operationQuery.single()
+    
+    if (!operation) {
+      return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+    }
+
     const { customer_id, role } = body
 
     if (!customer_id) {
       return NextResponse.json({ error: "customer_id es requerido" }, { status: 400 })
+    }
+    
+    // CRÍTICO: Validar que el cliente pertenezca a la misma agencia
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id, agency_id")
+      .eq("id", customer_id)
+      .single()
+    
+    if (!customer) {
+      return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
+    }
+    
+    if (user.role !== "SUPER_ADMIN" && customer.agency_id !== (operation as any).agency_id) {
+      return NextResponse.json({ error: "El cliente no pertenece a la misma agencia que la operación" }, { status: 403 })
     }
 
     // Verificar que no exista ya

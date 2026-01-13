@@ -11,6 +11,29 @@ export async function GET(
     const { id: customerId } = await params
     const supabase = await createServerClient()
 
+    // CRÍTICO: Validar que el cliente pertenezca a la agencia del usuario
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    // Verificar que el cliente existe y pertenece a las agencias del usuario
+    let customerQuery = supabase
+      .from("customers")
+      .select("id, agency_id")
+      .eq("id", customerId)
+    
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ payments: [] })
+      }
+      customerQuery = customerQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: customer } = await customerQuery.single()
+    
+    if (!customer) {
+      return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
+    }
+
     // Obtener todas las operaciones donde el cliente es pasajero
     const { data: operationCustomers } = await supabase
       .from("operation_customers")
@@ -22,6 +45,24 @@ export async function GET(
     }
 
     const operationIds = operationCustomers.map((oc: any) => oc.operation_id)
+
+    // Obtener operaciones primero para filtrar por agency_id
+    let operationsQuery = supabase
+      .from("operations")
+      .select("id, agency_id")
+      .in("id", operationIds)
+    
+    // Filtrar por agency_id si no es SUPER_ADMIN
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+      operationsQuery = operationsQuery.in("agency_id", agencyIds)
+    }
+    
+    const { data: filteredOperations } = await operationsQuery
+    const filteredOperationIds = (filteredOperations || []).map((op: any) => op.id)
+    
+    if (filteredOperationIds.length === 0) {
+      return NextResponse.json({ payments: [] })
+    }
 
     // Obtener pagos de esas operaciones (solo INCOME - lo que el cliente debe pagar)
     const { data: payments, error } = await (supabase.from("payments") as any)
@@ -41,7 +82,7 @@ export async function GET(
           file_code
         )
       `)
-      .in("operation_id", operationIds)
+      .in("operation_id", filteredOperationIds)
       .eq("direction", "INCOME")
       .order("date_due", { ascending: false })
 

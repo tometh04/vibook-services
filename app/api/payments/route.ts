@@ -394,6 +394,10 @@ export async function GET(request: Request) {
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
     
+    // CRÍTICO: Obtener agencias del usuario para filtrar
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
     const operationId = searchParams.get("operationId")
     const dateFrom = searchParams.get("dateFrom")
     const dateTo = searchParams.get("dateTo")
@@ -421,7 +425,37 @@ export async function GET(request: Request) {
     `, { count: "exact" })
     
     if (operationId) {
+      // CRÍTICO: Validar que la operación pertenezca a la agencia del usuario
+      if (user.role !== "SUPER_ADMIN") {
+        const { data: operation } = await supabase
+          .from("operations")
+          .select("id, agency_id")
+          .eq("id", operationId)
+          .single()
+        
+        if (!operation || (userAgencyIds.length > 0 && !userAgencyIds.includes((operation as any).agency_id))) {
+          return NextResponse.json({ payments: [], pagination: { total: 0, page, limit, totalPages: 0, hasMore: false } })
+        }
+      }
       query = query.eq("operation_id", operationId)
+    } else if (user.role !== "SUPER_ADMIN") {
+      // Si no hay operationId, filtrar por operaciones de las agencias del usuario
+      if (userAgencyIds.length === 0) {
+        return NextResponse.json({ payments: [], pagination: { total: 0, page, limit, totalPages: 0, hasMore: false } })
+      }
+      
+      const { data: operations } = await supabase
+        .from("operations")
+        .select("id")
+        .in("agency_id", userAgencyIds)
+      
+      const operationIds = (operations || []).map((op: any) => op.id)
+      
+      if (operationIds.length === 0) {
+        return NextResponse.json({ payments: [], pagination: { total: 0, page, limit, totalPages: 0, hasMore: false } })
+      }
+      
+      query = query.in("operation_id", operationIds)
     }
 
     // Aplicar filtro de direction (INCOME o EXPENSE)
@@ -453,11 +487,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener pagos" }, { status: 500 })
     }
 
-    // Filtrar por agencia si está especificada (porque no podemos filtrar fácilmente por operations.agency_id en Supabase)
+    // Filtrar por agencia si está especificada
     let filteredPayments = payments || []
     if (agencyId && agencyId !== "ALL") {
+      // CRÍTICO: Validar que la agencia pertenezca al usuario
+      if (user.role !== "SUPER_ADMIN" && !userAgencyIds.includes(agencyId)) {
+        return NextResponse.json({ error: "No tiene permiso para ver pagos de esta agencia" }, { status: 403 })
+      }
       filteredPayments = filteredPayments.filter((p: any) => 
         p.operations?.agency_id === agencyId
+      )
+    } else if (user.role !== "SUPER_ADMIN") {
+      // Si no hay agencyId específico, filtrar por agencias del usuario
+      filteredPayments = filteredPayments.filter((p: any) => 
+        p.operations?.agency_id && userAgencyIds.includes(p.operations.agency_id)
       )
     }
 
