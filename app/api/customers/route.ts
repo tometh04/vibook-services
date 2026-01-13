@@ -41,20 +41,20 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Construir query base - CRÍTICO: Ejecutar directamente sin variables intermedias
-    // El problema es que el objeto retornado por .from() no tiene .in() cuando se asigna a una variable
-    // Solución: Ejecutar el query directamente en el await
+    // Construir query base - CRÍTICO: Usar el mismo patrón que statistics/route.ts
+    // El problema es que TypeScript no reconoce los métodos del query builder
+    // Solución: Construir el query paso a paso con type assertions
     
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      // Ejecutar query directamente sin asignar a variable
+      // Construir query usando el mismo patrón que statistics/route.ts que funciona
       console.log(`[Customers API] Executing query for user ${user.id} with agency filter...`)
-      const { data: customersRaw, error: customersError } = await (supabase
-        .from("customers") as any)
-        .in("agency_id", agencyIds)
-        .select("*")
+      let query: any = supabase.from("customers")
+      query = query.in("agency_id", agencyIds)
+      query = query.select("*")
+      const { data: customersRaw, error: customersError } = await query
       
       if (customersError) {
         console.error("[Customers API] Error fetching customers:", customersError)
