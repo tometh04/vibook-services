@@ -62,12 +62,12 @@ export async function GET(request: Request) {
     // Add pagination: usar page en vez de offset para mejor UX
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"))
     const requestedLimit = parseInt(searchParams.get("limit") || "50")
-    // Aumentar límite máximo para Trello (hay muchos leads)
+    // Aumentar límite máximo
     const limit = Math.min(requestedLimit, 1000) // Máximo 1000 para Trello
     const offset = (page - 1) * limit
     
     const result = await query
-      .order("updated_at", { ascending: false }) // Ordenar por updated_at para ver los más recientes primero (incluye Trello)
+      .order("updated_at", { ascending: false }) // Ordenar por updated_at para ver los más recientes primero
       .range(offset, offset + limit - 1)
     
     let leads: any[] = result.data || []
@@ -188,9 +188,6 @@ export async function GET(request: Request) {
     }
     if (agencyId && agencyId !== "ALL") {
       countQuery = countQuery.eq("agency_id", agencyId)
-    }
-    if (trelloListId && trelloListId !== "ALL") {
-      countQuery = countQuery.eq("trello_list_id", trelloListId)
     }
     
     // Obtener count
