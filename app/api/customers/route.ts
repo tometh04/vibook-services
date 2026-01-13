@@ -67,12 +67,26 @@ export async function GET(request: Request) {
       `)
 
     // Ejecutar query primero (como statistics/route.ts)
-    const { data: customersRaw, error: customersError } = await customersQuery
+    console.log(`[Customers API] Executing query for user ${user.id}...`)
+    let customersRaw: any[] = []
+    let customersError: any = null
+    
+    try {
+      const result = await customersQuery
+      customersRaw = result.data || []
+      customersError = result.error
+    } catch (err: any) {
+      console.error("[Customers API] Exception executing query:", err)
+      customersError = err
+    }
 
     if (customersError) {
-      console.error("Error fetching customers:", customersError)
+      console.error("[Customers API] Error fetching customers:", customersError)
+      console.error("[Customers API] Error details:", JSON.stringify(customersError, null, 2))
       return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
     }
+
+    console.log(`[Customers API] Query executed successfully, got ${customersRaw.length} customers`)
 
     // Filtrar por búsqueda en memoria si es necesario (más simple y confiable)
     let customers = customersRaw || []
