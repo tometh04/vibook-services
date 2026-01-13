@@ -11,16 +11,38 @@ export async function GET() {
 
     const supabase = await createServerClient()
     
-    // Traer usuarios con sus agencias asignadas (incluyendo el nombre de la agencia)
+    // Obtener agencias del usuario actual (SUPER_ADMIN solo ve usuarios de SU agencia)
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    if (agencyIds.length === 0) {
+      return NextResponse.json({ users: [] })
+    }
+    
+    // Obtener IDs de usuarios de las agencias del usuario actual
+    const { data: userAgenciesData } = await supabase
+      .from("user_agencies")
+      .select("user_id")
+      .in("agency_id", agencyIds)
+    
+    const userIds = Array.from(new Set((userAgenciesData || []).map((ua: any) => ua.user_id))) as string[]
+    
+    if (userIds.length === 0) {
+      return NextResponse.json({ users: [] })
+    }
+    
+    // Traer usuarios con sus agencias asignadas (solo de las agencias del usuario actual)
     const { data: users, error: usersError } = await supabase
       .from("users")
       .select(`
         *,
-        user_agencies(
+        user_agencies!inner(
           agency_id,
-          agencies(id, name)
+          agencies!inner(id, name)
         )
       `)
+      .in("id", userIds)
+      .in("user_agencies.agency_id", agencyIds)
       .order("created_at", { ascending: false })
 
     if (usersError) {

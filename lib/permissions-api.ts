@@ -126,10 +126,40 @@ export async function applyCustomersFilters(
 ): Promise<any> {
   const userRole = user.role as UserRole
 
-  // SUPER_ADMIN, ADMIN y VIEWER ven TODOS los clientes sin filtros
-  // Esto es crítico porque los clientes pueden existir sin operaciones asociadas
+  // SUPER_ADMIN, ADMIN y VIEWER ven clientes de SUS agencias (no todos)
+  // En un SaaS, cada agencia es independiente
   if (userRole === "SUPER_ADMIN" || userRole === "ADMIN" || userRole === "VIEWER") {
-    return query
+    // Filtrar clientes por operaciones de las agencias del usuario
+    if (agencyIds.length === 0) {
+      return query.limit(0) // Sin agencias = sin clientes
+    }
+    
+    // Obtener operaciones de las agencias del usuario
+    const { data: operations } = await supabase
+      .from("operations")
+      .select("id")
+      .in("agency_id", agencyIds)
+    
+    const operationIds = (operations || []).map((op: any) => op.id)
+    
+    if (operationIds.length === 0) {
+      // No hay operaciones en sus agencias, retornar query vacío
+      return query.limit(0)
+    }
+    
+    // Obtener customer_ids de operation_customers
+    const { data: operationCustomers } = await supabase
+      .from("operation_customers")
+      .select("customer_id")
+      .in("operation_id", operationIds)
+    
+    const customerIds = (operationCustomers || []).map((oc: any) => oc.customer_id)
+    
+    if (customerIds.length === 0) {
+      return query.limit(0)
+    }
+    
+    return query.in("id", customerIds)
   }
 
   // CONTABLE no ve clientes

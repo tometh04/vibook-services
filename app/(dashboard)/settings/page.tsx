@@ -15,23 +15,15 @@ export default async function SettingsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()
   
-  // Cargar todas las agencias disponibles
-  let agencies: Array<{ id: string; name: string }> = []
-  
-  if (user.role === "SUPER_ADMIN") {
-    // SUPER_ADMIN ve todas las agencias
-    const { data } = await supabase.from("agencies").select("id, name").order("name")
-    agencies = (data || []) as Array<{ id: string; name: string }>
-  } else {
-    // Otros roles ven solo sus agencias
-    const userAgencies = await getUserAgencies(user.id)
-    agencies = userAgencies
-      .filter((ua) => ua.agencies)
-      .map((ua) => ({
-        id: ua.agency_id,
-        name: ua.agencies!.name,
-      }))
-  }
+  // Cargar agencias del usuario (SUPER_ADMIN solo ve SU agencia, no todas)
+  // En un SaaS, cada signup crea una agencia independiente
+  const userAgencies = await getUserAgencies(user.id)
+  const agencies = userAgencies
+    .filter((ua) => ua.agencies)
+    .map((ua) => ({
+      id: ua.agency_id,
+      name: ua.agencies!.name,
+    }))
   
   const firstAgencyId = agencies[0]?.id || null
 
