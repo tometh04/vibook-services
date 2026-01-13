@@ -41,20 +41,23 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Construir query base - CRÍTICO: Usar el mismo patrón que statistics/route.ts
-    // El problema es que TypeScript no reconoce los métodos del query builder
-    // Solución: Construir el query paso a paso con type assertions
+    // Construir query base - EXACTAMENTE como statistics/route.ts que funciona
+    let customersQuery: any = supabase.from("customers")
     
+    // Aplicar filtro de agencia ANTES de select (EXACTAMENTE como statistics/route.ts)
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      // Construir query usando el mismo patrón que statistics/route.ts que funciona
-      console.log(`[Customers API] Executing query for user ${user.id} with agency filter...`)
-      let query: any = supabase.from("customers")
-      query = query.in("agency_id", agencyIds)
-      query = query.select("*")
-      const { data: customersRaw, error: customersError } = await query
+      customersQuery = customersQuery.in("agency_id", agencyIds)
+    }
+    
+    // AHORA sí llamar .select() después de los filtros (EXACTAMENTE como statistics/route.ts)
+    customersQuery = customersQuery.select("*")
+
+    // Ejecutar query
+    console.log(`[Customers API] Executing query for user ${user.id}...`)
+    const { data: customersRaw, error: customersError } = await customersQuery
       
       if (customersError) {
         console.error("[Customers API] Error fetching customers:", customersError)
