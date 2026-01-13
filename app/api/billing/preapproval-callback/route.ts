@@ -90,14 +90,28 @@ export async function GET(request: Request) {
     }
 
     // Determinar el plan: usar planId del external_reference si está disponible,
-    // sino determinar por el monto del preapproval
+    // sino determinar por el monto del preapproval (fallback)
     if (!planId) {
-      let planName = 'STARTER'
-      if (preapproval.auto_recurring?.transaction_amount === 15000) {
+      const amount = preapproval.auto_recurring?.transaction_amount
+      let planName = 'STARTER' // Default
+      
+      // Precios actualizados: Starter $79k, Pro $129k, Business $399k
+      if (amount === 79000) {
         planName = 'STARTER'
-      } else if (preapproval.auto_recurring?.transaction_amount === 50000) {
+      } else if (amount === 129000) {
         planName = 'PRO'
+      } else if (amount === 399000) {
+        planName = 'BUSINESS'
+      } else {
+        // Fallback para precios antiguos (por compatibilidad)
+        if (amount === 15000) {
+          planName = 'STARTER'
+        } else if (amount === 50000) {
+          planName = 'PRO'
+        }
       }
+
+      console.log('[Preapproval Callback] Determining plan by amount:', { amount, planName })
 
       // Obtener el plan de la base de datos
       const { data: planData, error: planError } = await supabase
