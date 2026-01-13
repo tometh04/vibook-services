@@ -33,24 +33,13 @@ export default async function LeadsPage() {
 
   const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
-  // Get agencies for filters - SUPER_ADMIN ve todas, otros solo sus agencias
-  let agencies: Array<{ id: string; name: string }> = []
-  if (user.role === "SUPER_ADMIN") {
-    // SUPER_ADMIN puede ver todas las agencias
-    const { data } = await supabase
-      .from("agencies")
-      .select("id, name")
-      .order("name")
-    agencies = (data || []) as Array<{ id: string; name: string }>
-  } else {
-    // Otros roles solo ven sus agencias asignadas
-    const { data } = await supabase
-      .from("agencies")
-      .select("id, name")
-      .in("id", agencyIds.length > 0 ? agencyIds : [])
-      .order("name")
-    agencies = (data || []) as Array<{ id: string; name: string }>
-  }
+  // Get agencies for filters - Todos los usuarios solo ven sus agencias (SaaS multi-tenant)
+  const { data } = await supabase
+    .from("agencies")
+    .select("id, name")
+    .in("id", agencyIds.length > 0 ? agencyIds : [])
+    .order("name")
+  const agencies = (data || []) as Array<{ id: string; name: string }>
 
   // Get sellers for filters - incluir SELLER, ADMIN y SUPER_ADMIN como vendedores
   let sellersQuery = supabase
