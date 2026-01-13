@@ -1,7 +1,7 @@
 // Tipos para el sistema de billing
 // TODO: Regenerar con `supabase gen types` después de ejecutar la migración
 
-export type SubscriptionPlanName = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
+export type SubscriptionPlanName = 'FREE' | 'STARTER' | 'PRO' | 'BUSINESS' | 'ENTERPRISE' | 'TESTER'
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
 export type BillingCycle = 'MONTHLY' | 'YEARLY'
 export type PaymentMethodType = 'CARD' | 'ACCOUNT_MONEY' | 'BANK_TRANSFER'
@@ -21,11 +21,12 @@ export interface SubscriptionPlan {
   max_storage_mb: number | null
   max_api_calls_per_day: number | null
   features: {
-    trello?: boolean
-    manychat?: boolean
+    cerebro?: boolean
     emilia?: boolean
     whatsapp?: boolean
     reports?: boolean
+    crm?: boolean
+    marketing_ads?: boolean
     custom_integrations?: boolean
     priority_support?: boolean
   }
