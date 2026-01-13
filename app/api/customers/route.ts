@@ -117,7 +117,8 @@ export async function GET(request: Request) {
     })
 
     // Get total count for pagination - aplicar filtros directamente (igual que query principal)
-    let countQuery: any = supabase.from("customers")
+    // CRÍTICO: Usar type assertion explícita para evitar problemas de tipos
+    let countQuery: any = (supabase.from("customers") as any)
 
     // Aplicar filtro de agencia ANTES de select (igual que query principal)
     if (user.role !== "SUPER_ADMIN") {
@@ -133,15 +134,11 @@ export async function GET(request: Request) {
           }
         })
       }
-      if (agencyIds.length === 1) {
-        countQuery = countQuery.eq("agency_id", agencyIds[0])
-      } else {
-        countQuery = countQuery.in("agency_id", agencyIds)
-      }
+      countQuery = (countQuery.in("agency_id", agencyIds) as any)
     }
 
     // AHORA sí llamar .select() para count
-    let countSelectQuery = countQuery.select("*", { count: "exact", head: true })
+    let countSelectQuery = (countQuery.select("*", { count: "exact", head: true }) as any)
     
     if (search) {
       countSelectQuery = countSelectQuery.or(
