@@ -121,9 +121,6 @@ export default async function LeadsPage() {
     console.error("Error fetching leads:", leadsError)
   }
 
-  // Verificar si hay leads con list_name (para compatibilidad con datos antiguos)
-  const hasTrelloLeads = (leads || []).some((lead: any) => lead.list_name !== null && lead.list_name !== undefined) || false
-
   return (
     <PaywallGate feature="reports" requiredPlan="Starter" message="El CRM está disponible en planes Starter y superiores.">
       <LeadsPageClient
@@ -133,7 +130,6 @@ export default async function LeadsPage() {
       operators={(operators || []) as Array<{ id: string; name: string }>}
       defaultAgencyId={agencyIds[0] || undefined}
       defaultSellerId={user.role === "SELLER" ? user.id : undefined}
-      hasTrelloLeads={hasTrelloLeads || false}
       currentUserId={user.id}
       currentUserRole={user.role}
       />
