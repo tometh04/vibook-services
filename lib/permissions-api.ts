@@ -132,38 +132,15 @@ export async function applyCustomersFilters(
   }
   
   // ADMIN, VIEWER ven clientes de SUS agencias (SaaS multi-tenant)
+  // CRÍTICO: Filtrar directamente por agency_id en la tabla customers
+  // NO usar operaciones como intermediario porque los clientes pueden existir sin operaciones
   if (userRole === "ADMIN" || userRole === "VIEWER") {
-    // Filtrar clientes por operaciones de las agencias del usuario
     if (agencyIds.length === 0) {
       return query.limit(0) // Sin agencias = sin clientes
     }
     
-    // Obtener operaciones de las agencias del usuario
-    const { data: operations } = await supabase
-      .from("operations")
-      .select("id")
-      .in("agency_id", agencyIds)
-    
-    const operationIds = (operations || []).map((op: any) => op.id)
-    
-    if (operationIds.length === 0) {
-      // No hay operaciones en sus agencias, retornar query vacío
-      return query.limit(0)
-    }
-    
-    // Obtener customer_ids de operation_customers
-    const { data: operationCustomers } = await supabase
-      .from("operation_customers")
-      .select("customer_id")
-      .in("operation_id", operationIds)
-    
-    const customerIds = (operationCustomers || []).map((oc: any) => oc.customer_id)
-    
-    if (customerIds.length === 0) {
-      return query.limit(0)
-    }
-    
-    return query.in("id", customerIds)
+    // Filtrar directamente por agency_id en customers
+    return query.in("agency_id", agencyIds)
   }
 
   // CONTABLE no ve clientes

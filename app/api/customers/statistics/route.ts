@@ -20,11 +20,12 @@ export async function GET(request: Request) {
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
-    // Query base de clientes
+    // Query base de clientes - CRÍTICO: Filtrar por agency_id directamente
     let customersQuery = supabase
       .from("customers")
       .select(`
         id,
+        agency_id,
         first_name,
         last_name,
         email,
@@ -42,6 +43,19 @@ export async function GET(request: Request) {
         )
       `)
 
+    // Aplicar filtro de agencia ANTES de ejecutar la query
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length === 0) {
+        return NextResponse.json({ customers: [], totalCustomers: 0, newCustomersByMonth: {}, totalSpent: 0, averageSpent: 0, topCustomers: [] })
+      }
+      customersQuery = customersQuery.in("agency_id", agencyIds)
+    }
+
+    // Si hay un agencyId específico, filtrar por ese
+    if (agencyId && agencyId !== "ALL") {
+      customersQuery = customersQuery.eq("agency_id", agencyId)
+    }
+
     const { data: customers, error: customersError } = await customersQuery
 
     if (customersError) {
@@ -49,19 +63,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
     }
 
-    // Filtrar por agencia si es necesario
-    const filteredCustomers = (customers || []).filter((customer: any) => {
-      if (!agencyId || agencyId === "ALL") {
-        if (user.role === "SUPER_ADMIN") return true
-        // Verificar que el cliente tenga operaciones en las agencias del usuario
-        return customer.operation_customers?.some((oc: any) => 
-          agencyIds.includes(oc.operations?.agency_id)
-        )
-      }
-      return customer.operation_customers?.some((oc: any) => 
-        oc.operations?.agency_id === agencyId
-      )
-    })
+    // Ya no necesitamos filtrar después, la query ya está filtrada
+    const filteredCustomers = customers || []
 
     // Estadísticas generales
     const totalCustomers = filteredCustomers.length
