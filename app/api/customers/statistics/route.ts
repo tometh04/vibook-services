@@ -20,30 +20,10 @@ export async function GET(request: Request) {
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
-    // Query base de clientes - CRÍTICO: Filtrar por agency_id directamente
-    let customersQuery = supabase
-      .from("customers")
-      .select(`
-        id,
-        agency_id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        created_at,
-        operation_customers (
-          operation_id,
-          operations (
-            id,
-            status,
-            sale_amount_total,
-            departure_date,
-            agency_id
-          )
-        )
-      `)
+    // Query base de clientes - CRÍTICO: Filtrar por agency_id ANTES de select
+    let customersQuery = supabase.from("customers")
 
-    // Aplicar filtro de agencia ANTES de ejecutar la query
+    // Aplicar filtro de agencia ANTES de select (CRÍTICO: .in() debe llamarse antes de .select())
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], totalCustomers: 0, newCustomersByMonth: {}, totalSpent: 0, averageSpent: 0, topCustomers: [] })
@@ -55,6 +35,27 @@ export async function GET(request: Request) {
     if (agencyId && agencyId !== "ALL") {
       customersQuery = customersQuery.eq("agency_id", agencyId)
     }
+
+    // AHORA sí llamar .select() después de los filtros
+    customersQuery = customersQuery.select(`
+      id,
+      agency_id,
+      first_name,
+      last_name,
+      email,
+      phone,
+      created_at,
+      operation_customers (
+        operation_id,
+        operations (
+          id,
+          status,
+          sale_amount_total,
+          departure_date,
+          agency_id
+        )
+      )
+    `)
 
     const { data: customers, error: customersError } = await customersQuery
 
