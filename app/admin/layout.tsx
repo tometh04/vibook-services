@@ -36,7 +36,7 @@ export default async function AdminLayout({
   const host = headersList.get("host") || ""
   
   // Si no viene del subdominio admin, bloquear acceso
-  if (!host.startsWith("admin.") && host !== "admin.vibook.ai") {
+  if (!host.startsWith("admin.") && host !== "admin.vibook.ai" && !host.includes("admin.vibook.ai")) {
     notFound()
   }
 

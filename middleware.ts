@@ -52,7 +52,7 @@ export async function middleware(req: NextRequest) {
   const hostname = req.headers.get('host') || ''
   
   // Detectar si viene del subdominio admin
-  const isAdminSubdomain = hostname.startsWith('admin.') || hostname === 'admin.vibook.ai'
+  const isAdminSubdomain = hostname.startsWith('admin.') || hostname === 'admin.vibook.ai' || hostname.includes('admin.vibook.ai')
 
   // Si viene del subdominio admin
   if (isAdminSubdomain) {
