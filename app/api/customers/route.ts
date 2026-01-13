@@ -41,22 +41,18 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Construir query base - CRÍTICO: NO llamar .select() todavía
-    let customersQuery: any = (supabase.from("customers") as any)
+    // Construir query base - EXACTAMENTE como statistics/route.ts que funciona
+    let customersQuery: any = supabase.from("customers")
     
-    // Aplicar filtros ANTES de select (CRÍTICO para evitar errores de tipos)
+    // Aplicar filtro de agencia ANTES de select (EXACTAMENTE como statistics/route.ts)
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      if (agencyIds.length === 1) {
-        customersQuery = customersQuery.eq("agency_id", agencyIds[0])
-      } else {
-        customersQuery = customersQuery.in("agency_id", agencyIds)
-      }
+      customersQuery = customersQuery.in("agency_id", agencyIds)
     }
     
-    // AHORA sí llamar .select() después de los filtros
+    // AHORA sí llamar .select() después de los filtros (EXACTAMENTE como statistics/route.ts)
     customersQuery = customersQuery.select("*")
 
     // Ejecutar query
