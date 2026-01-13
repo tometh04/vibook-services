@@ -32,27 +32,32 @@ export default async function OperationsPage() {
   }))
   
   const agencyIds = agencies.map((a: any) => a.id)
+  
+  console.log(`[Operations Page] User: ${user.id} (${user.email}), Role: ${user.role}`)
+  console.log(`[Operations Page] User agencies:`, agencyIds)
 
-  // Get sellers SOLO de las agencias del usuario (AISLAMIENTO SaaS)
+  // Get sellers SOLO de las agencias del usuario (AISLAMIENTO SaaS ESTRICTO)
   let sellers: Array<{ id: string; name: string }> = []
   
   if (agencyIds.length > 0) {
-    // Obtener IDs de usuarios que pertenecen a las mismas agencias
+    // CRÍTICO: Solo obtener usuarios de las agencias del usuario actual
     const { data: agencyUsers } = await supabase
       .from("user_agencies")
       .select("user_id")
       .in("agency_id", agencyIds)
     
     const userIds = [...new Set((agencyUsers || []).map((au: any) => au.user_id))]
+    console.log(`[Operations Page] Users in agencies (${agencyIds.length} agencies):`, userIds.length)
     
     if (userIds.length > 0) {
       const { data: sellersData } = await supabase
         .from("users")
-        .select("id, name")
+        .select("id, name, email, role")
         .in("id", userIds)
         .in("role", ["SELLER", "ADMIN", "SUPER_ADMIN"])
         .eq("is_active", true)
       
+      console.log(`[Operations Page] Sellers found:`, sellersData?.map((s: any) => `${s.name} (${s.email}, ${s.role})`))
       sellers = (sellersData || []).map((s: any) => ({ id: s.id, name: s.name }))
     }
   }

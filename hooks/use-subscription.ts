@@ -66,7 +66,18 @@ export function useSubscription() {
           .in("agency_id", agencyIds)
           .order("created_at", { ascending: false })
         
+        console.log('[useSubscription] Agency IDs searched:', agencyIds)
         console.log('[useSubscription] Found subscriptions:', subscriptionsData?.length || 0)
+        if (subscriptionsData && subscriptionsData.length > 0) {
+          console.log('[useSubscription] Subscriptions details:', subscriptionsData.map((s: any) => ({
+            agency_id: s.agency_id,
+            status: s.status,
+            plan_name: s.plan?.name,
+            plan_features: s.plan?.features
+          })))
+        } else {
+          console.log('[useSubscription] NO SUBSCRIPTIONS FOUND for agencies:', agencyIds)
+        }
         
         // Seleccionar la suscripción más relevante de todas las agencias
         let subscriptionData = null
