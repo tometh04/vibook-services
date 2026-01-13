@@ -41,25 +41,139 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Construir query base - CRÍTICO: Construir el query completo en una sola expresión
-    // El problema es que el objeto retornado por .from() no tiene .in() disponible
-    // Solución: Construir el query completo directamente sin variables intermedias
-    let customersQuery: any
+    // Construir query base - CRÍTICO: Ejecutar directamente sin variables intermedias
+    // El problema es que el objeto retornado por .from() no tiene .in() cuando se asigna a una variable
+    // Solución: Ejecutar el query directamente en el await
     
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      // Construir query completo en una sola línea para evitar problemas de tipos
-      customersQuery = (supabase.from("customers") as any).in("agency_id", agencyIds).select("*")
+      // Ejecutar query directamente sin asignar a variable
+      console.log(`[Customers API] Executing query for user ${user.id} with agency filter...`)
+      const { data: customersRaw, error: customersError } = await supabase
+        .from("customers")
+        .in("agency_id", agencyIds)
+        .select("*")
+      
+      if (customersError) {
+        console.error("[Customers API] Error fetching customers:", customersError)
+        return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
+      }
+      
+      console.log(`[Customers API] Query executed successfully, got ${(customersRaw || []).length} customers`)
+      
+      // Continuar con el procesamiento...
+      let customers = customersRaw || []
+      
+      // Filtrar por búsqueda en memoria si es necesario
+      const search = searchParams.get("search")
+      if (search) {
+        const searchLower = search.toLowerCase()
+        customers = customers.filter((c: any) => 
+          (c.first_name?.toLowerCase().includes(searchLower)) ||
+          (c.last_name?.toLowerCase().includes(searchLower)) ||
+          (c.email?.toLowerCase().includes(searchLower)) ||
+          (c.phone?.includes(search))
+        )
+      }
+
+      // Ordenar y paginar en memoria
+      customers.sort((a: any, b: any) => {
+        const dateA = new Date(a.created_at).getTime()
+        const dateB = new Date(b.created_at).getTime()
+        return dateB - dateA // Más recientes primero
+      })
+
+      // Paginación
+      const requestedLimit = parseInt(searchParams.get("limit") || "100")
+      const limit = Math.min(requestedLimit, 200)
+      const offset = parseInt(searchParams.get("offset") || "0")
+      const total = customers.length
+      const paginatedCustomers = customers.slice(offset, offset + limit)
+
+      console.log(`[GET /api/customers] Found ${paginatedCustomers?.length || 0} customers (${total} total) for user ${user.id} (${user.email})`)
+
+      const customersWithStats = paginatedCustomers.map((customer: any) => {
+        return {
+          ...customer,
+          trips: 0,
+          totalSpent: 0,
+        }
+      })
+
+      return NextResponse.json({ 
+        customers: customersWithStats,
+        pagination: {
+          total: total,
+          limit,
+          offset,
+          hasMore: total > offset + limit
+        }
+      })
     } else {
       // SUPER_ADMIN sin filtros
-      customersQuery = (supabase.from("customers") as any).select("*")
-    }
+      console.log(`[Customers API] Executing query for SUPER_ADMIN ${user.id}...`)
+      const { data: customersRaw, error: customersError } = await supabase
+        .from("customers")
+        .select("*")
+      
+      if (customersError) {
+        console.error("[Customers API] Error fetching customers:", customersError)
+        return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
+      }
+      
+      console.log(`[Customers API] Query executed successfully, got ${(customersRaw || []).length} customers`)
+      
+      // Continuar con el procesamiento...
+      let customers = customersRaw || []
+      
+      // Filtrar por búsqueda en memoria si es necesario
+      const search = searchParams.get("search")
+      if (search) {
+        const searchLower = search.toLowerCase()
+        customers = customers.filter((c: any) => 
+          (c.first_name?.toLowerCase().includes(searchLower)) ||
+          (c.last_name?.toLowerCase().includes(searchLower)) ||
+          (c.email?.toLowerCase().includes(searchLower)) ||
+          (c.phone?.includes(search))
+        )
+      }
 
-    // Ejecutar query
-    console.log(`[Customers API] Executing query for user ${user.id}...`)
-    const { data: customersRaw, error: customersError } = await customersQuery
+      // Ordenar y paginar en memoria
+      customers.sort((a: any, b: any) => {
+        const dateA = new Date(a.created_at).getTime()
+        const dateB = new Date(b.created_at).getTime()
+        return dateB - dateA // Más recientes primero
+      })
+
+      // Paginación
+      const requestedLimit = parseInt(searchParams.get("limit") || "100")
+      const limit = Math.min(requestedLimit, 200)
+      const offset = parseInt(searchParams.get("offset") || "0")
+      const total = customers.length
+      const paginatedCustomers = customers.slice(offset, offset + limit)
+
+      console.log(`[GET /api/customers] Found ${paginatedCustomers?.length || 0} customers (${total} total) for user ${user.id} (${user.email})`)
+
+      const customersWithStats = paginatedCustomers.map((customer: any) => {
+        return {
+          ...customer,
+          trips: 0,
+          totalSpent: 0,
+        }
+      })
+
+      return NextResponse.json({ 
+        customers: customersWithStats,
+        pagination: {
+          total: total,
+          limit,
+          offset,
+          hasMore: total > offset + limit
+        }
+      })
+    }
 
     if (customersError) {
       console.error("[Customers API] Error fetching customers:", customersError)
