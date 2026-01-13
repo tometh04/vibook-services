@@ -106,24 +106,24 @@ export async function PATCH(
     }
 
     // CRÍTICO: Validar que el cliente pertenezca a la agencia del usuario
-    const { data: customer } = await supabase
+    const { data: existingCustomer } = await supabase
       .from("customers")
       .select("agency_id")
       .eq("id", customerId)
       .single()
     
-    if (!customer) {
+    if (!existingCustomer) {
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
     }
     
-    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(customer.agency_id)) {
+    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(existingCustomer.agency_id)) {
       return NextResponse.json({ error: "No tiene permiso para editar este cliente" }, { status: 403 })
     }
 
     const { data: settings } = await supabase
       .from("customer_settings")
       .select("*")
-      .eq("agency_id", customer.agency_id)
+      .eq("agency_id", existingCustomer.agency_id)
       .maybeSingle()
 
     // Aplicar validaciones de configuración
