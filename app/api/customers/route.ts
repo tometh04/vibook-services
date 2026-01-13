@@ -58,125 +58,67 @@ export async function GET(request: Request) {
     // Ejecutar query
     console.log(`[Customers API] Executing query for user ${user.id}...`)
     const { data: customersRaw, error: customersError } = await customersQuery
-      
-      if (customersError) {
-        console.error("[Customers API] Error fetching customers:", customersError)
-        return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
-      }
-      
-      console.log(`[Customers API] Query executed successfully, got ${(customersRaw || []).length} customers`)
-      
-      // Continuar con el procesamiento...
-      let customers = customersRaw || []
-      
-      // Filtrar por búsqueda en memoria si es necesario
-      const search = searchParams.get("search")
-      if (search) {
-        const searchLower = search.toLowerCase()
-        customers = customers.filter((c: any) => 
-          (c.first_name?.toLowerCase().includes(searchLower)) ||
-          (c.last_name?.toLowerCase().includes(searchLower)) ||
-          (c.email?.toLowerCase().includes(searchLower)) ||
-          (c.phone?.includes(search))
-        )
-      }
 
-      // Ordenar y paginar en memoria
-      customers.sort((a: any, b: any) => {
-        const dateA = new Date(a.created_at).getTime()
-        const dateB = new Date(b.created_at).getTime()
-        return dateB - dateA // Más recientes primero
-      })
-
-      // Paginación
-      const requestedLimit = parseInt(searchParams.get("limit") || "100")
-      const limit = Math.min(requestedLimit, 200)
-      const offset = parseInt(searchParams.get("offset") || "0")
-      const total = customers.length
-      const paginatedCustomers = customers.slice(offset, offset + limit)
-
-      console.log(`[GET /api/customers] Found ${paginatedCustomers?.length || 0} customers (${total} total) for user ${user.id} (${user.email})`)
-
-      const customersWithStats = paginatedCustomers.map((customer: any) => {
-        return {
-          ...customer,
-          trips: 0,
-          totalSpent: 0,
-        }
-      })
-
-      return NextResponse.json({ 
-        customers: customersWithStats,
-        pagination: {
-          total: total,
-          limit,
-          offset,
-          hasMore: total > offset + limit
-        }
-      })
-    } else {
-      // SUPER_ADMIN sin filtros
-      console.log(`[Customers API] Executing query for SUPER_ADMIN ${user.id}...`)
-      const { data: customersRaw, error: customersError } = await (supabase
-        .from("customers") as any)
-        .select("*")
-      
-      if (customersError) {
-        console.error("[Customers API] Error fetching customers:", customersError)
-        return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
-      }
-      
-      console.log(`[Customers API] Query executed successfully, got ${(customersRaw || []).length} customers`)
-      
-      // Continuar con el procesamiento...
-      let customers = customersRaw || []
-      
-      // Filtrar por búsqueda en memoria si es necesario
-      const search = searchParams.get("search")
-      if (search) {
-        const searchLower = search.toLowerCase()
-        customers = customers.filter((c: any) => 
-          (c.first_name?.toLowerCase().includes(searchLower)) ||
-          (c.last_name?.toLowerCase().includes(searchLower)) ||
-          (c.email?.toLowerCase().includes(searchLower)) ||
-          (c.phone?.includes(search))
-        )
-      }
-
-      // Ordenar y paginar en memoria
-      customers.sort((a: any, b: any) => {
-        const dateA = new Date(a.created_at).getTime()
-        const dateB = new Date(b.created_at).getTime()
-        return dateB - dateA // Más recientes primero
-      })
-
-      // Paginación
-      const requestedLimit = parseInt(searchParams.get("limit") || "100")
-      const limit = Math.min(requestedLimit, 200)
-      const offset = parseInt(searchParams.get("offset") || "0")
-      const total = customers.length
-      const paginatedCustomers = customers.slice(offset, offset + limit)
-
-      console.log(`[GET /api/customers] Found ${paginatedCustomers?.length || 0} customers (${total} total) for user ${user.id} (${user.email})`)
-
-      const customersWithStats = paginatedCustomers.map((customer: any) => {
-        return {
-          ...customer,
-          trips: 0,
-          totalSpent: 0,
-        }
-      })
-
-      return NextResponse.json({ 
-        customers: customersWithStats,
-        pagination: {
-          total: total,
-          limit,
-          offset,
-          hasMore: total > offset + limit
-        }
-      })
+    if (customersError) {
+      console.error("[Customers API] Error fetching customers:", customersError)
+      console.error("[Customers API] Error details:", JSON.stringify(customersError, null, 2))
+      return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
     }
+
+    console.log(`[Customers API] Query executed successfully, got ${(customersRaw || []).length} customers`)
+
+    // Filtrar por búsqueda en memoria si es necesario (más simple y confiable)
+    let customers = customersRaw || []
+    if (search) {
+      const searchLower = search.toLowerCase()
+      customers = customers.filter((c: any) => 
+        (c.first_name?.toLowerCase().includes(searchLower)) ||
+        (c.last_name?.toLowerCase().includes(searchLower)) ||
+        (c.email?.toLowerCase().includes(searchLower)) ||
+        (c.phone?.includes(search))
+      )
+    }
+
+    // Ordenar y paginar en memoria
+    customers.sort((a: any, b: any) => {
+      const dateA = new Date(a.created_at).getTime()
+      const dateB = new Date(b.created_at).getTime()
+      return dateB - dateA // Más recientes primero
+    })
+
+    // Paginación
+    const requestedLimit = parseInt(searchParams.get("limit") || "100")
+    const limit = Math.min(requestedLimit, 200)
+    const offset = parseInt(searchParams.get("offset") || "0")
+    const total = customers.length
+    const paginatedCustomers = customers.slice(offset, offset + limit)
+
+    console.log(`[GET /api/customers] Found ${paginatedCustomers?.length || 0} customers (${total} total) for user ${user.id} (${user.email})`)
+    if (paginatedCustomers && paginatedCustomers.length > 0) {
+      console.log(`[GET /api/customers] Sample customer agency_ids:`, paginatedCustomers.slice(0, 3).map((c: any) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, agency_id: c.agency_id })))
+    }
+
+    // Calculate trips and total spent for each customer
+    // SIMPLIFICAR: Primero solo devolver clientes básicos para verificar que funciona
+    // TODO: Agregar stats después si es necesario
+    const customersWithStats = paginatedCustomers.map((customer: any) => {
+      return {
+        ...customer,
+        trips: 0, // TODO: Calcular después
+        totalSpent: 0, // TODO: Calcular después
+      }
+    })
+
+    // Usar el total que ya calculamos (más simple y confiable)
+    return NextResponse.json({ 
+      customers: customersWithStats,
+      pagination: {
+        total: total,
+        limit,
+        offset,
+        hasMore: total > offset + limit
+      }
+    })
   } catch (error) {
     console.error("Error in GET /api/customers:", error)
     return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
