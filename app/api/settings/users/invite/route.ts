@@ -115,11 +115,6 @@ export async function POST(request: Request) {
       is_active: true,
     }
 
-    // Si es vendedor y se especificó comisión
-    if (role === "SELLER" && default_commission_percentage !== undefined && default_commission_percentage !== null) {
-      userInsertData.default_commission_percentage = default_commission_percentage
-    }
-
     const { data: userData, error: userError } = await usersTable
       .insert(userInsertData)
       .select()
