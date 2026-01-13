@@ -103,8 +103,7 @@ const allNavigation: NavItem[] = [
     icon: ShoppingCart,
     module: "leads",
     items: [
-      { title: "Leads", url: "/sales/leads" },
-      { title: "CRM Manychat", url: "/sales/crm-manychat" },
+      { title: "CRM", url: "/sales/leads" },
       { title: "Estadísticas", url: "/sales/statistics" },
     ],
   },

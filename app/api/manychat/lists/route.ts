@@ -191,7 +191,7 @@ export async function PUT(request: Request) {
       .update({ list_name: trimmedNewName })
       .eq("agency_id", agencyId)
       .eq("list_name", oldListName)
-      .eq("source", "Manychat") // Solo leads de Manychat
+      .eq("source", "CRM") // Solo leads del CRM interno
 
     if (updateLeadsError) {
       console.error("Error updating leads list_name:", updateLeadsError)

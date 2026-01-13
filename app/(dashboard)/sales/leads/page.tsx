@@ -70,30 +70,28 @@ export default async function LeadsPage() {
     .select("id, name")
     .order("name")
 
-  // Get leads de Trello SOLO (including trello_list_id)
-  // Para Trello, necesitamos cargar más leads inicialmente (hasta 2000 por agencia)
-  // El cliente cargará el resto con paginación si es necesario
+  // Get leads del CRM interno
   let leads: any[] = []
   let leadsError: any = null
-  const INITIAL_LIMIT = 2000 // Aumentado para Trello (máximo 2000 leads por agencia según el usuario)
+  const INITIAL_LIMIT = 2000
 
   if (user.role === "SELLER") {
     // Vendedor ve:
-    // 1. Leads asignados a él (solo Trello)
-    // 2. Leads SIN asignar de sus agencias (para poder agarrarlos) - solo Trello
+    // 1. Leads asignados a él
+    // 2. Leads SIN asignar de sus agencias (para poder agarrarlos)
     const { data: myLeads, error: myLeadsError } = await supabase
       .from("leads")
       .select("*, agencies(name), users:assigned_seller_id(name, email)")
       .eq("assigned_seller_id", user.id)
-      .eq("source", "Trello")
-      .order("updated_at", { ascending: false }) // Ordenar por updated_at para ver los más recientes primero
+      .eq("source", "CRM")
+      .order("updated_at", { ascending: false })
       .limit(INITIAL_LIMIT)
 
     const { data: unassignedLeads, error: unassignedError } = await supabase
       .from("leads")
       .select("*, agencies(name), users:assigned_seller_id(name, email)")
       .is("assigned_seller_id", null)
-      .eq("source", "Trello")
+      .eq("source", "CRM")
       .in("agency_id", agencyIds.length > 0 ? agencyIds : [])
       .order("updated_at", { ascending: false })
       .limit(INITIAL_LIMIT)
@@ -101,18 +99,18 @@ export default async function LeadsPage() {
     leads = [...(myLeads || []), ...(unassignedLeads || [])]
     leadsError = myLeadsError || unassignedError
   } else {
-    // Admin/otros: cargar leads iniciales (hasta 2000) - solo Trello
+    // Admin/otros: cargar leads iniciales
     let query = supabase
       .from("leads")
       .select("*, agencies(name), users:assigned_seller_id(name, email)")
-      .eq("source", "Trello")
+      .eq("source", "CRM")
     
     if (agencyIds.length > 0 && user.role !== "SUPER_ADMIN") {
       query = query.in("agency_id", agencyIds)
     }
 
     const { data, error } = await query
-      .order("updated_at", { ascending: false }) // Ordenar por updated_at para ver los más recientes primero
+      .order("updated_at", { ascending: false })
       .limit(INITIAL_LIMIT)
     
     leads = data || []
@@ -123,12 +121,11 @@ export default async function LeadsPage() {
     console.error("Error fetching leads:", leadsError)
   }
 
-  // Check if we have Trello leads - verificar si hay leads con trello_list_id
-  // Más eficiente: solo verificar si hay alguno con trello_list_id en lugar de buscar por source
-  const hasTrelloLeads = (leads || []).some((lead: any) => lead.trello_list_id !== null && lead.trello_list_id !== undefined) || false
+  // Verificar si hay leads con list_name (para compatibilidad con datos antiguos)
+  const hasTrelloLeads = (leads || []).some((lead: any) => lead.list_name !== null && lead.list_name !== undefined) || false
 
   return (
-    <PaywallGate feature="trello" requiredPlan="Starter" message="La integración con Trello está disponible en planes Starter y superiores.">
+    <PaywallGate feature="reports" requiredPlan="Starter" message="El CRM está disponible en planes Starter y superiores.">
       <LeadsPageClient
       initialLeads={leads || []}
       agencies={(agencies || []) as Array<{ id: string; name: string }>}
