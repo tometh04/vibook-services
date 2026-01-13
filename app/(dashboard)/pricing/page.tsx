@@ -170,6 +170,14 @@ export default function PricingPage() {
                     )}
                     <span className="text-sm">Reportes avanzados</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    {plan.features.marketing_ads ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <X className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm">Marketing y Ads</span>
+                  </div>
                 </div>
               </CardContent>
 
