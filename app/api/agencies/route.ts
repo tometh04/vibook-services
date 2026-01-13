@@ -4,17 +4,28 @@ import { getCachedAgencies, revalidateTag, CACHE_TAGS } from "@/lib/cache"
 
 /**
  * GET /api/agencies
- * Lista todas las agencias (con caché de 1 hora)
+ * Lista las agencias del usuario actual (SaaS multi-tenant)
  */
 export async function GET() {
   try {
+    const { getCurrentUser } = await import("@/lib/auth")
+    const { user } = await getCurrentUser()
+    
     const agencies = await getCachedAgencies(async () => {
       const supabase = await createServerClient()
+      
+      // Obtener solo las agencias del usuario actual
+      const { getUserAgencyIds } = await import("@/lib/permissions-api")
+      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+      
+      if (agencyIds.length === 0) {
+        return []
+      }
 
-      // Obtener todas las agencias directamente
       const { data, error } = await supabase
         .from("agencies")
         .select("id, name")
+        .in("id", agencyIds)
         .order("name")
 
       if (error) {

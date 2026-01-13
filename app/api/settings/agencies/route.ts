@@ -10,7 +10,20 @@ export async function GET() {
     }
 
     const supabase = await createServerClient()
-    const { data: agencies } = await supabase.from("agencies").select("*").order("name")
+    
+    // Obtener solo las agencias del usuario actual (SaaS multi-tenant)
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    
+    if (agencyIds.length === 0) {
+      return NextResponse.json({ agencies: [] })
+    }
+    
+    const { data: agencies } = await supabase
+      .from("agencies")
+      .select("*")
+      .in("id", agencyIds)
+      .order("name")
 
     return NextResponse.json({ agencies: agencies || [] })
   } catch (error) {
