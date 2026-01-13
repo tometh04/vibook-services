@@ -69,6 +69,13 @@ export async function middleware(req: NextRequest) {
 
   // Si viene del subdominio admin
   if (isAdminSubdomain) {
+    // IMPORTANTE: Redirigir /login, /signup, /forgot-password al admin-login
+    // para evitar confusión con las rutas del sistema principal
+    if (pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
+      const loginUrl = new URL('/admin-login', req.url)
+      return NextResponse.redirect(loginUrl)
+    }
+
     // IMPORTANTE: Permitir explícitamente /admin-login y APIs de admin sin verificación
     // Esto debe estar ANTES de cualquier otra verificación
     if (pathname === '/admin-login' || 

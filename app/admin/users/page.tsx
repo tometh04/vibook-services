@@ -46,11 +46,25 @@ export default async function AdminUsersPage() {
     .order("created_at", { ascending: false })
 
   // Ordenar suscripciones dentro de cada agencia para priorizar TRIAL y ACTIVE
-  if (usersData) {
+  if (usersData && Array.isArray(usersData)) {
     usersData.forEach((user: any) => {
-      user.user_agencies?.forEach((ua: any) => {
-        if (ua.agencies?.subscriptions && Array.isArray(ua.agencies.subscriptions)) {
-          ua.agencies.subscriptions.sort((a: any, b: any) => {
+      if (!user.user_agencies || !Array.isArray(user.user_agencies)) return
+      
+      user.user_agencies.forEach((ua: any) => {
+        if (!ua?.agencies) return
+        
+        // Normalizar subscriptions a array
+        let subscriptions = ua.agencies.subscriptions
+        if (!subscriptions) return
+        
+        // Si es un objeto único, convertirlo a array
+        if (!Array.isArray(subscriptions)) {
+          subscriptions = [subscriptions]
+        }
+        
+        // Ahora sí podemos ordenar
+        if (Array.isArray(subscriptions) && subscriptions.length > 0) {
+          subscriptions.sort((a: any, b: any) => {
             const statusOrder: Record<string, number> = {
               'TRIAL': 1,
               'ACTIVE': 2,
@@ -59,10 +73,13 @@ export default async function AdminUsersPage() {
               'SUSPENDED': 5,
               'PAST_DUE': 6,
             }
-            const aOrder = statusOrder[a.status] || 99
-            const bOrder = statusOrder[b.status] || 99
+            const aOrder = statusOrder[a?.status] || 99
+            const bOrder = statusOrder[b?.status] || 99
             return aOrder - bOrder
           })
+          
+          // Actualizar la referencia
+          ua.agencies.subscriptions = subscriptions
         }
       })
     })
@@ -84,10 +101,22 @@ export default async function AdminUsersPage() {
     withSubscription: usersData?.filter((u: any) => {
       if (!u.user_agencies || !Array.isArray(u.user_agencies)) return false
       return u.user_agencies.some((ua: any) => {
-        const subscriptions = ua.agencies?.subscriptions
-        if (!subscriptions || !Array.isArray(subscriptions)) return false
+        // Asegurarse de que agencies existe y tiene subscriptions
+        if (!ua?.agencies) return false
+        
+        // Supabase puede devolver subscriptions como array o como objeto único
+        // Normalizar siempre a array
+        let subscriptions = ua.agencies.subscriptions
+        if (!subscriptions) return false
+        
+        // Si es un objeto único, convertirlo a array
+        if (!Array.isArray(subscriptions)) {
+          subscriptions = [subscriptions]
+        }
+        
+        // Ahora sí podemos usar .some() de forma segura
         return subscriptions.some((s: any) => 
-          s.plan?.name !== 'FREE' && s.status !== 'UNPAID'
+          s?.plan?.name !== 'FREE' && s?.status !== 'UNPAID'
         )
       })
     }).length || 0,
