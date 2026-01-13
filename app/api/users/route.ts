@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 
 export const dynamic = 'force-dynamic'
 
-// GET - Obtener usuarios de las agencias del usuario actual
+// GET - Obtener usuarios de las agencias del usuario actual (AISLAMIENTO SaaS)
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
@@ -15,36 +15,45 @@ export async function GET(request: Request) {
     const role = searchParams.get("role")
     const search = searchParams.get("search")
     const excludeUserId = searchParams.get("exclude")
+    
+    console.log(`[API /users] GET request - User: ${user.id} (${user.email}), Role: ${user.role}`)
+    console.log(`[API /users] Params - role: ${role}, search: ${search}, exclude: ${excludeUserId}`)
 
     // Obtener agencias del usuario directamente
-    const { data: userAgenciesData, error: agencyError } = await (supabase.from("user_agencies") as any)
+    const { data: userAgenciesData, error: agencyError } = await supabase
+      .from("user_agencies")
       .select("agency_id")
       .eq("user_id", user.id)
 
     if (agencyError) {
-      console.error("Error getting user agencies:", agencyError)
+      console.error("[API /users] Error getting user agencies:", agencyError)
       return NextResponse.json({ users: [] })
     }
 
     const agencyIds = (userAgenciesData || []).map((ua: any) => ua.agency_id)
+    console.log(`[API /users] User ${user.id} has access to agencies:`, agencyIds)
 
-    // Si no hay agencias, retornar vacío
+    // Si no hay agencias, retornar vacío (excepto SUPER_ADMIN que NO debería tener todas)
     if (!agencyIds || agencyIds.length === 0) {
+      console.log(`[API /users] User ${user.id} has no agencies - returning empty`)
       return NextResponse.json({ users: [] })
     }
 
-    // Obtener IDs de usuarios de las agencias
-    const { data: allUserAgencies, error: userAgenciesError } = await (supabase.from("user_agencies") as any)
+    // Obtener IDs de usuarios de SOLO las agencias del usuario actual (AISLAMIENTO!)
+    const { data: allUserAgencies, error: userAgenciesError } = await supabase
+      .from("user_agencies")
       .select("user_id")
       .in("agency_id", agencyIds)
 
     if (userAgenciesError) {
-      console.error("Error fetching user_agencies:", userAgenciesError)
+      console.error("[API /users] Error fetching user_agencies:", userAgenciesError)
       return NextResponse.json({ users: [] })
     }
 
     const allUserIds = (allUserAgencies || []).map((ua: any) => ua.user_id)
     const userIds = Array.from(new Set(allUserIds)) as string[]
+    
+    console.log(`[API /users] Found ${userIds.length} users in user's agencies`)
 
     if (userIds.length === 0) {
       return NextResponse.json({ users: [] })
@@ -70,12 +79,14 @@ export async function GET(request: Request) {
     const { data: usersData, error } = await query
 
     if (error) {
-      console.error("Error fetching users:", error)
+      console.error("[API /users] Error fetching users:", error)
       return NextResponse.json(
         { error: "Error al obtener usuarios" },
         { status: 500 }
       )
     }
+    
+    console.log(`[API /users] Found ${(usersData || []).length} users matching filters`)
     
     // Transformar los datos para compatibilidad con el frontend
     const users = (usersData || []).map((u: any) => {

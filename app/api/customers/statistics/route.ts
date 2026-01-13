@@ -20,52 +20,94 @@ export async function GET(request: Request) {
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
-    // Query base de clientes - CRÍTICO: Filtrar por agency_id ANTES de select
-    let customersQuery: any = supabase.from("customers")
-
-    // Aplicar filtro de agencia ANTES de select (CRÍTICO: .in() debe llamarse antes de .select())
+    // Query base de clientes - ORDEN CORRECTO: .select() ANTES de filtros
+    // Verificar agencias antes de hacer la query
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
-        return NextResponse.json({ customers: [], totalCustomers: 0, newCustomersByMonth: {}, totalSpent: 0, averageSpent: 0, topCustomers: [] })
+        return NextResponse.json({ 
+          overview: { totalCustomers: 0, activeCustomers: 0, inactiveCustomers: 0, newThisMonth: 0, growthPercentage: 0, totalSpent: 0, avgSpentPerCustomer: 0, avgOperationsPerCustomer: 0 },
+          trends: { newCustomersByMonth: [] },
+          distributions: { spendingRanges: [], activeVsInactive: [] },
+          rankings: { topBySpending: [], topByFrequency: [] }
+        })
       }
-      customersQuery = customersQuery.in("agency_id", agencyIds)
     }
-
-    // Si hay un agencyId específico, filtrar por ese
-    if (agencyId && agencyId !== "ALL") {
-      customersQuery = customersQuery.eq("agency_id", agencyId)
+    
+    // Ejecutar query con el orden correcto
+    let customers: any[] | null = null
+    let customersError: any = null
+    
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyId && agencyId !== "ALL") {
+        // Filtrar por agencia específica (y verificar que el usuario tenga acceso)
+        if (!agencyIds.includes(agencyId)) {
+          return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
+        }
+        const result = await supabase
+          .from("customers")
+          .select(`
+            id, agency_id, first_name, last_name, email, phone, created_at,
+            operation_customers (
+              operation_id,
+              operations (id, status, sale_amount_total, departure_date, agency_id)
+            )
+          `)
+          .eq("agency_id", agencyId)
+        customers = result.data
+        customersError = result.error
+      } else {
+        // Filtrar por todas las agencias del usuario
+        const result = await supabase
+          .from("customers")
+          .select(`
+            id, agency_id, first_name, last_name, email, phone, created_at,
+            operation_customers (
+              operation_id,
+              operations (id, status, sale_amount_total, departure_date, agency_id)
+            )
+          `)
+          .in("agency_id", agencyIds)
+        customers = result.data
+        customersError = result.error
+      }
+    } else {
+      // SUPER_ADMIN ve todo (o filtra por agencia específica)
+      if (agencyId && agencyId !== "ALL") {
+        const result = await supabase
+          .from("customers")
+          .select(`
+            id, agency_id, first_name, last_name, email, phone, created_at,
+            operation_customers (
+              operation_id,
+              operations (id, status, sale_amount_total, departure_date, agency_id)
+            )
+          `)
+          .eq("agency_id", agencyId)
+        customers = result.data
+        customersError = result.error
+      } else {
+        const result = await supabase
+          .from("customers")
+          .select(`
+            id, agency_id, first_name, last_name, email, phone, created_at,
+            operation_customers (
+              operation_id,
+              operations (id, status, sale_amount_total, departure_date, agency_id)
+            )
+          `)
+        customers = result.data
+        customersError = result.error
+      }
     }
-
-    // AHORA sí llamar .select() después de los filtros
-    customersQuery = customersQuery.select(`
-      id,
-      agency_id,
-      first_name,
-      last_name,
-      email,
-      phone,
-      created_at,
-      operation_customers (
-        operation_id,
-        operations (
-          id,
-          status,
-          sale_amount_total,
-          departure_date,
-          agency_id
-        )
-      )
-    `)
-
-    const { data: customers, error: customersError } = await customersQuery
 
     if (customersError) {
-      console.error("Error fetching customers:", customersError)
-      return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
+      console.error("Error fetching customers statistics:", customersError)
+      return NextResponse.json({ error: "Error al obtener estadísticas de clientes" }, { status: 500 })
     }
 
-    // Ya no necesitamos filtrar después, la query ya está filtrada
+    // Los datos ya están filtrados por la query
     const filteredCustomers = customers || []
+    console.log(`[Statistics] Fetched ${filteredCustomers.length} customers for user ${user.id}`)
 
     // Estadísticas generales
     const totalCustomers = filteredCustomers.length
