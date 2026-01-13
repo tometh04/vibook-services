@@ -41,25 +41,30 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // Construir query base - EXACTAMENTE como statistics/route.ts que funciona
-    let customersQuery: any = supabase.from("customers")
+    // Construir query base - SOLUCIÓN DEFINITIVA: Construir el query completo en una sola expresión
+    // El problema es que asignar a una variable intermedia rompe el encadenamiento del query builder
+    console.log(`[Customers API] Executing query for user ${user.id}...`)
     
-    // Aplicar filtro de agencia ANTES de select (EXACTAMENTE como statistics/route.ts)
+    let customersRaw: any[] | null = null
+    let customersError: any = null
+    
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      customersQuery = customersQuery.in("agency_id", agencyIds)
+      // Construir query completo en una sola expresión para evitar problemas de encadenamiento
+      const result = await (supabase.from("customers") as any)
+        .in("agency_id", agencyIds)
+        .select("*")
+      customersRaw = result.data
+      customersError = result.error
+    } else {
+      // SUPER_ADMIN sin filtros
+      const result = await (supabase.from("customers") as any)
+        .select("*")
+      customersRaw = result.data
+      customersError = result.error
     }
-    
-    // AHORA sí llamar .select() después de los filtros (EXACTAMENTE como statistics/route.ts)
-    customersQuery = customersQuery.select("*")
-
-    // Ejecutar query
-    console.log(`[Customers API] Executing query for user ${user.id}...`)
-    console.log(`[Customers API] Query type:`, typeof customersQuery)
-    console.log(`[Customers API] Query has .then?:`, typeof (customersQuery as any).then === 'function')
-    const { data: customersRaw, error: customersError } = await customersQuery
 
     if (customersError) {
       console.error("[Customers API] Error fetching customers:", customersError)
