@@ -119,8 +119,15 @@ export async function POST(
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
     }
     
-    if (user.role !== "SUPER_ADMIN" && customer.agency_id !== (operation as any).agency_id) {
+    const customerData = customer as { id: string; agency_id: string | null }
+    const operationData = operation as { id: string; agency_id: string | null }
+    
+    if (user.role !== "SUPER_ADMIN" && customerData.agency_id && operationData.agency_id && customerData.agency_id !== operationData.agency_id) {
       return NextResponse.json({ error: "El cliente no pertenece a la misma agencia que la operación" }, { status: 403 })
+    }
+    
+    if (user.role !== "SUPER_ADMIN" && (!customerData.agency_id || !operationData.agency_id)) {
+      return NextResponse.json({ error: "Cliente u operación sin agencia asignada" }, { status: 400 })
     }
 
     // Verificar que no exista ya
