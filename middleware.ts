@@ -74,13 +74,15 @@ export async function middleware(req: NextRequest) {
 
     // Si está en la raíz, SIEMPRE redirigir a /admin-login si no tiene sesión
     // o a /admin si tiene sesión
-    if (pathname === '/') {
+    if (pathname === '/' || pathname === '') {
       if (hasValidSession) {
         // Redirigir a /admin manteniendo el mismo host
-        return NextResponse.redirect(new URL('/admin', req.url))
+        const adminUrl = new URL('/admin', req.url)
+        return NextResponse.redirect(adminUrl)
       } else {
         // Redirigir a /admin-login manteniendo el mismo host
-        return NextResponse.redirect(new URL('/admin-login', req.url))
+        const loginUrl = new URL('/admin-login', req.url)
+        return NextResponse.redirect(loginUrl)
       }
     }
 
