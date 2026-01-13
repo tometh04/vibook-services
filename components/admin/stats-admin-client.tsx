@@ -43,9 +43,15 @@ export function StatsAdminClient({ stats }: StatsAdminClientProps) {
   }
 
   // Calcular MRR (Monthly Recurring Revenue)
+  // Precios actualizados: Starter $79k, Pro $129k, Business $399k
   const mrr = Object.entries(stats.subscriptions.byPlan).reduce((total, [planName, planStats]) => {
-    if (planName === 'FREE') return total
-    const planPrice = planStats.active * (planName === 'STARTER' ? 15000 : planName === 'PRO' ? 50000 : 0)
+    if (planName === 'FREE' || planName === 'TESTER') return total
+    const planPrice = planStats.active * (
+      planName === 'STARTER' ? 79000 : 
+      planName === 'PRO' ? 129000 : 
+      planName === 'BUSINESS' ? 399000 : 
+      0
+    )
     return total + planPrice
   }, 0)
 
