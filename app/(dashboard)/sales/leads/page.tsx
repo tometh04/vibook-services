@@ -7,6 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { canAccessModule } from "@/lib/permissions"
 import { PaywallGate } from "@/components/billing/paywall-gate"
 
+// Forzar renderizado dinámico para evitar caché
+export const dynamic = 'force-dynamic'
+
 export default async function LeadsPage() {
   const { user } = await getCurrentUser()
   

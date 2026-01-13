@@ -3,6 +3,9 @@ import { createServerClient } from "@/lib/supabase/server"
 import { OperationsPageClient } from "@/components/operations/operations-page-client"
 import { canAccessModule } from "@/lib/permissions"
 
+// Forzar renderizado dinámico para evitar caché
+export const dynamic = 'force-dynamic'
+
 export default async function OperationsPage() {
   const { user } = await getCurrentUser()
   
