@@ -99,7 +99,8 @@ export async function GET(request: Request) {
     })
 
     // Get total count for pagination
-    let countQuery = supabase.from("customers")
+    // IMPORTANTE: Para count, también aplicar select ANTES de filters
+    let countQuery: any = supabase.from("customers").select("*", { count: "exact", head: true })
     
     try {
       countQuery = await applyCustomersFilters(countQuery, user, agencyIds, supabase)
@@ -107,8 +108,8 @@ export async function GET(request: Request) {
       // Ignore if filtering fails
     }
     
-    // Apply select first, then search filter (or() is only available after select)
-    let countSelectQuery = countQuery.select("*", { count: "exact", head: true })
+    // Apply search filter if needed (or() is only available after select)
+    let countSelectQuery = countQuery
     
     if (search) {
       countSelectQuery = countSelectQuery.or(
