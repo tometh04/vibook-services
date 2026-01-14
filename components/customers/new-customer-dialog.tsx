@@ -358,14 +358,14 @@ export function NewCustomerDialog({
               <div>
                 <h4 className="font-medium text-sm">Escanear documento</h4>
                 <p className="text-xs text-muted-foreground">
-                  Sube una foto de DNI o Pasaporte para autocompletar los datos
+                  Sube una foto o PDF de DNI/Pasaporte para autocompletar los datos
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf,.pdf"
                   onChange={handleFileUpload}
                   className="hidden"
                   id="ocr-file-input"
