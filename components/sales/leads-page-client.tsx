@@ -88,9 +88,10 @@ export function LeadsPageClient({
     setLoading(true)
     try {
       const limit = 2000
+      // Cargar TODOS los leads (sin filtrar por source) para mostrar en el CRM
       const url = agencyId === "ALL"
-        ? `/api/leads?page=1&limit=${limit}&source=CRM`
-        : `/api/leads?agencyId=${agencyId}&page=1&limit=${limit}&source=CRM`
+        ? `/api/leads?page=1&limit=${limit}`
+        : `/api/leads?agencyId=${agencyId}&page=1&limit=${limit}`
 
       const response = await fetch(url, { cache: 'no-store' })
       const data = await response.json()
@@ -131,9 +132,8 @@ export function LeadsPageClient({
           
           if (payload.eventType === 'INSERT') {
             const newLead = payload.new as Lead
-            // Solo agregar si coincide con el filtro de agencia actual y es del CRM
-            const shouldAdd = (selectedAgencyId === "ALL" || newLead.agency_id === selectedAgencyId) 
-              && newLead.source === 'CRM'
+            // Solo agregar si coincide con el filtro de agencia actual
+            const shouldAdd = selectedAgencyId === "ALL" || newLead.agency_id === selectedAgencyId
             
             if (shouldAdd) {
               setLeads((prev) => {

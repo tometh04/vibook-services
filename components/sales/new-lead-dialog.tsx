@@ -31,10 +31,11 @@ import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 const leadSchema = z.object({
   agency_id: z.string().min(1, "La agencia es requerida"),
-  source: z.enum(["Instagram", "WhatsApp", "Meta Ads", "Other"]),
+  source: z.enum(["CRM", "Instagram", "WhatsApp", "Meta Ads", "Other"]),
   status: z.enum(["NEW", "IN_PROGRESS", "QUOTED", "WON", "LOST"]),
   region: z.enum(["ARGENTINA", "CARIBE", "BRASIL", "EUROPA", "EEUU", "OTROS", "CRUCEROS"]),
   destination: z.string().min(1, "El destino es requerido"),
@@ -80,7 +81,7 @@ export function NewLeadDialog({
     resolver: zodResolver(leadSchema) as any,
     defaultValues: {
       agency_id: defaultAgencyId || "",
-      source: "Other",
+      source: "CRM",
       status: "NEW",
       region: "ARGENTINA",
       destination: "",
@@ -128,12 +129,14 @@ export function NewLeadDialog({
         throw new Error(error.error || "Error al crear lead")
       }
 
+      const data = await response.json()
+      toast.success(`✅ Lead "${values.contact_name}" creado correctamente`)
       form.reset()
       onOpenChange(false)
       onSuccess()
     } catch (error: any) {
       console.error("Error creating lead:", error)
-      alert(error.message || "Error al crear lead")
+      toast.error(error.message || "Error al crear lead")
     } finally {
       setLoading(false)
     }
@@ -219,6 +222,7 @@ export function NewLeadDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="CRM">CRM</SelectItem>
                         <SelectItem value="Instagram">Instagram</SelectItem>
                         <SelectItem value="WhatsApp">WhatsApp</SelectItem>
                         <SelectItem value="Meta Ads">Meta Ads</SelectItem>
