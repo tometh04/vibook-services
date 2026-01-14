@@ -11,6 +11,8 @@ import { MigrateHistoricalAccounting } from "@/components/settings/migrate-histo
 import { ImportSettings } from "@/components/settings/import-settings"
 import { DestinationRequirementsClient } from "@/components/settings/destination-requirements-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function SettingsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()

@@ -3,6 +3,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { OperationDetailClient } from "@/components/operations/operation-detail-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OperationDetailPage({
   params,
 }: {

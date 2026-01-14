@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { canAccessModule } from "@/lib/permissions"
 import { OperationsStatisticsPageClient } from "@/components/operations/operations-statistics-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OperationsStatisticsPage() {
   const { user } = await getCurrentUser()
   

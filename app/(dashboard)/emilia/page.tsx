@@ -12,6 +12,8 @@ import { EmiliaPageClient } from "@/components/emilia/emilia-page-client"
 import { Sparkles } from "lucide-react"
 import { PaywallGate } from "@/components/billing/paywall-gate"
 
+export const dynamic = 'force-dynamic'
+
 export default async function EmiliaPage() {
   const { user } = await getCurrentUser()
 

@@ -3,6 +3,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { MessagesPageClient } from "@/components/whatsapp/messages-page-client"
 import { PaywallGate } from "@/components/billing/paywall-gate"
 
+export const dynamic = 'force-dynamic'
+
 export default async function MessagesPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()

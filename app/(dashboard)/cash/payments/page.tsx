@@ -3,6 +3,8 @@ import { CashFiltersState } from "@/components/cash/cash-filters"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 
+export const dynamic = 'force-dynamic'
+
 function getDefaultDateRange() {
   const today = new Date()
   const from = new Date()

@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { canAccessModule } from "@/lib/permissions"
 import { SalesStatisticsPageClient } from "@/components/sales/sales-statistics-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function SalesStatisticsPage() {
   const { user } = await getCurrentUser()
   

@@ -3,6 +3,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { OperatorDetailClient } from "@/components/operators/operator-detail-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OperatorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { user } = await getCurrentUser()

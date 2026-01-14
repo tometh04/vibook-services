@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/breadcrumb"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+
 export default async function SettingsUsersPage() {
   const { user } = await getCurrentUser()
   

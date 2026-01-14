@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { canAccessModule } from "@/lib/permissions"
 import { InvoicesPageClient } from "@/components/invoices/invoices-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OperationsBillingPage() {
   const { user } = await getCurrentUser()
   

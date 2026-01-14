@@ -2,6 +2,8 @@ import { IVAPageClient } from "@/components/accounting/iva-page-client"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 
+export const dynamic = 'force-dynamic'
+
 export default async function IVAPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()

@@ -3,6 +3,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { CustomerDetailClient } from "@/components/customers/customer-detail-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function CustomerDetailPage({
   params,
 }: {

@@ -4,6 +4,8 @@ import { canAccessModule } from "@/lib/permissions"
 import { MonthlyPositionPageClient } from "@/components/accounting/monthly-position-page-client"
 import { redirect } from "next/navigation"
 
+export const dynamic = 'force-dynamic'
+
 export default async function MonthlyPositionPage() {
   const { user } = await getCurrentUser()
   

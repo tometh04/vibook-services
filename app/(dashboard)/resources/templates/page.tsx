@@ -1,6 +1,8 @@
 import { getCurrentUser } from "@/lib/auth"
 import { TemplatesPageClient } from "@/components/templates/templates-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ResourcesTemplatesPage() {
   const { user } = await getCurrentUser()
   

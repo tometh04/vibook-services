@@ -3,6 +3,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { ReportsPageClient } from "@/components/reports/reports-page-client"
 import { PaywallGate } from "@/components/billing/paywall-gate"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ReportsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()

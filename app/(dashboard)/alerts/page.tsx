@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { canAccessModule } from "@/lib/permissions"
 
+export const dynamic = 'force-dynamic'
+
 function getDefaultDateRange() {
   const today = new Date()
   const from = new Date()

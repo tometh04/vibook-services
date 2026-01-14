@@ -1,6 +1,8 @@
 import { getCurrentUser } from "@/lib/auth"
 import { ToolsSettingsPageClient } from "@/components/tools/tools-settings-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ToolsSettingsPage() {
   const { user } = await getCurrentUser()
 

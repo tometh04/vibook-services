@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { NotificationsPageClient } from "@/components/notifications/notifications-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function NotificationsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()

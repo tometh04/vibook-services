@@ -1,6 +1,8 @@
 import { getCurrentUser } from "@/lib/auth"
 import { TeamsPageClient } from "@/components/teams/teams-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function SettingsTeamsPage() {
   const { user } = await getCurrentUser()
   

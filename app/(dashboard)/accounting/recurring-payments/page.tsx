@@ -2,6 +2,8 @@ import { RecurringPaymentsPageClient } from "@/components/accounting/recurring-p
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 
+export const dynamic = 'force-dynamic'
+
 export default async function RecurringPaymentsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()

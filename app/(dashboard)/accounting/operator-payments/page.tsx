@@ -2,6 +2,8 @@ import { OperatorPaymentsPageClient } from "@/components/accounting/operator-pay
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OperatorPaymentsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()

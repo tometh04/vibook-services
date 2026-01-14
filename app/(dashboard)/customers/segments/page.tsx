@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { canAccessModule } from "@/lib/permissions"
 import { CustomerSegmentsPageClient } from "@/components/customers/customer-segments-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function CustomerSegmentsPage() {
   const { user } = await getCurrentUser()
   

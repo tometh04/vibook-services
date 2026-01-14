@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { canAccessModule } from "@/lib/permissions"
 import { FinancesSettingsPageClient } from "@/components/finances/finances-settings-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function FinancesSettingsPage() {
   const { user } = await getCurrentUser()
   

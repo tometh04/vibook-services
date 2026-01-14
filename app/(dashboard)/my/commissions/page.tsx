@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { CommissionsPageClient } from "@/components/commissions/commissions-page-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function MyCommissionsPage() {
   const { user } = await getCurrentUser()
 

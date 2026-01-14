@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { CerebroChat } from "@/components/tools/cerebro-chat"
 import { PaywallGate } from "@/components/billing/paywall-gate"
 
+export const dynamic = 'force-dynamic'
+
 export default async function CerebroPage() {
   const { user } = await getCurrentUser()
 
