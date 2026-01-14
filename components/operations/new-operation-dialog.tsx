@@ -13,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -128,6 +138,9 @@ export function NewOperationDialog({
   const [customers, setCustomers] = useState<Array<{ id: string; first_name: string; last_name: string }>>([])
   const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
+
+  // Estados para prevenir cierre accidental
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
   // Sincronizar operadores cuando cambian
   useEffect(() => {
@@ -381,14 +394,52 @@ export function NewOperationDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={(open) => {
-      if (!open) {
+  // Handler para cierre con confirmación
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && form.formState.isDirty) {
+      setShowCloseConfirm(true)
+    } else {
+      if (!newOpen) {
         setApiError(null)
+        form.reset()
+        setOperatorList([])
+        setUseMultipleOperators(false)
       }
-      onOpenChange(open)
-    }}>
-      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[95vh] overflow-y-auto">
+      onOpenChange(newOpen)
+    }
+  }
+
+  // Confirmar cierre
+  const confirmClose = () => {
+    setShowCloseConfirm(false)
+    setApiError(null)
+    form.reset()
+    setOperatorList([])
+    setUseMultipleOperators(false)
+    onOpenChange(false)
+  }
+
+  return (
+    <>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent 
+        className="max-w-[95vw] sm:max-w-2xl max-h-[95vh] overflow-y-auto"
+        onEscapeKeyDown={(e) => {
+          if (form.formState.isDirty) {
+            e.preventDefault()
+            setShowCloseConfirm(true)
+          }
+        }}
+        onPointerDownOutside={(e) => {
+          if (form.formState.isDirty) {
+            e.preventDefault()
+            setShowCloseConfirm(true)
+          }
+        }}
+        onInteractOutside={(e) => {
+          e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Nueva Operación</DialogTitle>
           <DialogDescription>Crear una nueva operación manualmente</DialogDescription>
@@ -1214,6 +1265,27 @@ export function NewOperationDialog({
         }}
       />
     </Dialog>
+
+    {/* Confirmación de cierre */}
+    <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Estás seguro que quieres cerrar?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Perderás todos los cambios no guardados. Esta acción no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setShowCloseConfirm(false)}>
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={confirmClose} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Cerrar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }
 
