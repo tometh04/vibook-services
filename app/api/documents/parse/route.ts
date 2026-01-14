@@ -3,31 +3,13 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import OpenAI from "openai"
 
-async function renderPdfFirstPageToBase64(pdfBuffer: ArrayBuffer) {
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.js")
-  const { createCanvas } = await import("@napi-rs/canvas")
-
-  const loadingTask = pdfjsLib.getDocument({
-    data: new Uint8Array(pdfBuffer),
-    disableWorker: true,
-  })
-  const pdf = await loadingTask.promise
-  const page = await pdf.getPage(1)
-  const viewport = page.getViewport({ scale: 2 })
-
-  const canvas = createCanvas(viewport.width, viewport.height)
-  const context = canvas.getContext("2d")
-
-  await page.render({ canvasContext: context as any, viewport }).promise
-
-  const pngBuffer = canvas.toBuffer("image/png")
-  return pngBuffer.toString("base64")
-}
+// PDF to image conversion deshabilitado en Vercel serverless
+// Los usuarios deben subir imágenes directamente (JPG, PNG, WebP)
 
 async function bufferToBase64Image(buffer: ArrayBuffer, contentType?: string | null) {
   if (contentType?.includes("application/pdf")) {
-    const base64 = await renderPdfFirstPageToBase64(buffer)
-    return { base64, mimeType: "image/png" }
+    // PDF no soportado en serverless - retornar error
+    throw new Error("PDF no soportado. Por favor, suba una imagen (JPG, PNG, WebP).")
   }
 
   return {
