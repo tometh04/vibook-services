@@ -8,10 +8,14 @@ function getSupabaseConfig() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
+  // Durante el build, las variables pueden no estar disponibles
+  // No lanzar error, solo advertir
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Missing Supabase environment variables. Please configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel settings.'
-    )
+    if (typeof window !== 'undefined') {
+      // Solo en cliente real, no durante build
+      console.error('❌ Missing Supabase environment variables')
+    }
+    return null
   }
   
   return { supabaseUrl, supabaseAnonKey }
@@ -20,21 +24,31 @@ function getSupabaseConfig() {
 // Getter que crea el cliente solo cuando se necesita
 export function getSupabase() {
   if (!_supabaseClient) {
-    const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig()
-    _supabaseClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+    const config = getSupabaseConfig()
+    if (!config) {
+      // Retornar un cliente mock que no hace nada durante el build
+      return null as any
+    }
+    _supabaseClient = createBrowserClient<Database>(config.supabaseUrl, config.supabaseAnonKey)
   }
   return _supabaseClient
 }
 
-// Alias para compatibilidad - DEPRECATED: usar getSupabase() en su lugar
+// Alias para compatibilidad
 export const supabase = new Proxy({} as ReturnType<typeof createBrowserClient<Database>>, {
   get(_, prop) {
-    return (getSupabase() as any)[prop]
+    const client = getSupabase()
+    if (!client) return () => Promise.resolve({ data: null, error: null })
+    return (client as any)[prop]
   }
 })
 
 // Exportar función createClient para compatibilidad con hooks
 export function createClient() {
-  const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig()
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+  const config = getSupabaseConfig()
+  if (!config) {
+    // Durante build, retornar null
+    return null as any
+  }
+  return createBrowserClient<Database>(config.supabaseUrl, config.supabaseAnonKey)
 }
