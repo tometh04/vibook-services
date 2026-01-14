@@ -4,6 +4,39 @@ import { getCurrentUser } from "@/lib/auth"
 import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
 
+async function renderPdfFirstPageToBase64(pdfBuffer: ArrayBuffer) {
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.js")
+  const { createCanvas } = await import("@napi-rs/canvas")
+
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(pdfBuffer),
+    disableWorker: true,
+  })
+  const pdf = await loadingTask.promise
+  const page = await pdf.getPage(1)
+  const viewport = page.getViewport({ scale: 2 })
+
+  const canvas = createCanvas(viewport.width, viewport.height)
+  const context = canvas.getContext("2d")
+
+  await page.render({ canvasContext: context as any, viewport }).promise
+
+  const pngBuffer = canvas.toBuffer("image/png")
+  return pngBuffer.toString("base64")
+}
+
+async function bufferToBase64Image(buffer: ArrayBuffer, contentType?: string | null) {
+  if (contentType?.includes("application/pdf")) {
+    const base64 = await renderPdfFirstPageToBase64(buffer)
+    return { base64, mimeType: "image/png" }
+  }
+
+  return {
+    base64: Buffer.from(buffer).toString("base64"),
+    mimeType: contentType || "image/jpeg",
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
@@ -253,8 +286,9 @@ async function scanDocumentWithAI(fileUrl: string, documentType: string): Promis
     const imageBuffer = await imageResponse.arrayBuffer()
     const imageSizeKB = Math.round(imageBuffer.byteLength / 1024)
     console.log(`📄 Imagen descargada: ${imageSizeKB} KB`)
-    
-    const base64Image = Buffer.from(imageBuffer).toString("base64")
+
+    const contentType = imageResponse.headers.get("content-type")
+    const { base64: base64Image, mimeType } = await bufferToBase64Image(imageBuffer, contentType)
 
     // Determinar el prompt según el tipo de documento
     let prompt = ""
@@ -348,7 +382,7 @@ Si algún campo no está disponible o no es legible, usa null. Devuelve SOLO el 
             {
               type: "image_url",
               image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
+                url: `data:${mimeType};base64,${base64Image}`,
                 detail: "high",
               },
             },

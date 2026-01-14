@@ -4,7 +4,7 @@ import OpenAI from "openai"
 
 /**
  * Endpoint para extraer datos de un documento usando OCR sin guardarlo
- * Solo procesa la imagen y devuelve los datos extraídos
+ * Soporta imágenes (JPEG, PNG, WebP) y PDFs
  */
 export async function POST(request: Request) {
   try {
@@ -28,11 +28,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No se proporcionó archivo" }, { status: 400 })
     }
 
-    // Validar tipo de archivo
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+    // Validar tipo de archivo - ahora incluye PDF
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"]
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: "Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, WebP)" },
+        { error: "Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, WebP) y PDF" },
         { status: 400 }
       )
     }
@@ -48,7 +48,26 @@ export async function POST(request: Request) {
 
     // Convertir a base64
     const fileBuffer = await file.arrayBuffer()
-    const base64Image = Buffer.from(fileBuffer).toString("base64")
+    let base64Image: string
+    let mimeType = "image/jpeg"
+
+    // Si es PDF, convertirlo a imagen
+    if (file.type === "application/pdf") {
+      console.log("📄 Convirtiendo PDF a imagen...")
+      try {
+        base64Image = await convertPdfToImage(Buffer.from(fileBuffer))
+        console.log("✅ PDF convertido a imagen correctamente")
+      } catch (error) {
+        console.error("❌ Error convirtiendo PDF:", error)
+        return NextResponse.json(
+          { error: "Error al procesar el PDF. Intentá subir una imagen directamente (JPG, PNG)." },
+          { status: 400 }
+        )
+      }
+    } else {
+      base64Image = Buffer.from(fileBuffer).toString("base64")
+      mimeType = file.type
+    }
 
     // Preparar prompt según tipo de documento
     let prompt = ""
@@ -113,7 +132,7 @@ RESPUESTA: Devuelve ÚNICAMENTE un objeto JSON válido con los campos que puedas
             {
               type: "image_url",
               image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
+                url: `data:${mimeType};base64,${base64Image}`,
                 detail: "high",
               },
             },
@@ -175,4 +194,54 @@ RESPUESTA: Devuelve ÚNICAMENTE un objeto JSON válido con los campos que puedas
       { status: 500 }
     )
   }
+}
+
+/**
+ * Convierte la primera página de un PDF a imagen PNG en base64
+ */
+async function convertPdfToImage(pdfBuffer: Buffer): Promise<string> {
+  // Dynamic imports para evitar problemas de SSR
+  const pdfjsLib = await import("pdfjs-dist")
+  const { createCanvas } = await import("@napi-rs/canvas")
+  
+  // Configurar worker de pdf.js (necesario para Node.js)
+  // @ts-ignore
+  pdfjsLib.GlobalWorkerOptions.workerSrc = ""
+  
+  // Cargar el PDF
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(pdfBuffer),
+    useSystemFonts: true,
+    // Deshabilitar worker en server-side
+    isEvalSupported: false,
+    disableFontFace: true,
+  })
+  
+  const pdfDocument = await loadingTask.promise
+  
+  // Obtener la primera página
+  const page = await pdfDocument.getPage(1)
+  
+  // Escala para buena calidad (2x para documentos)
+  const scale = 2.0
+  const viewport = page.getViewport({ scale })
+  
+  // Crear canvas con las dimensiones de la página
+  const canvas = createCanvas(Math.floor(viewport.width), Math.floor(viewport.height))
+  const context = canvas.getContext("2d")
+  
+  // Fondo blanco
+  context.fillStyle = "white"
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  
+  // Renderizar la página en el canvas
+  // @ts-ignore - el tipo de context es compatible
+  await page.render({
+    canvasContext: context as any,
+    viewport: viewport,
+  }).promise
+  
+  // Convertir a PNG base64
+  const pngBuffer = canvas.toBuffer("image/png")
+  return pngBuffer.toString("base64")
 }
