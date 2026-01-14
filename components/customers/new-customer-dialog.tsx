@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,6 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Form,
   FormControl,
@@ -30,9 +40,10 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2, Upload, CheckCircle2 } from "lucide-react"
 import { useCustomerSettings } from "@/hooks/use-customer-settings"
 import { CustomFieldsForm } from "./custom-fields-form"
+import { Badge } from "@/components/ui/badge"
 
 interface NewCustomerDialogProps {
   open: boolean
@@ -67,15 +78,25 @@ export function NewCustomerDialog({
 }: NewCustomerDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const { settings, loading: settingsLoading } = useCustomerSettings()
+  
+  // Estados para OCR
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [ocrSuccess, setOcrSuccess] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Estados para prevenir cierre accidental
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [pendingClose, setPendingClose] = useState(false)
 
   // Generar schema dinámicamente según configuración
   const customerSchema = useMemo(() => {
-    // Schema base
+    // Schema base - email ahora es opcional por defecto
     const baseFields: Record<string, z.ZodTypeAny> = {
       first_name: z.string().min(1, "Nombre es requerido"),
       last_name: z.string().min(1, "Apellido es requerido"),
       phone: z.string().min(1, "Teléfono es requerido"),
-      email: z.string().email("Email inválido"),
+      email: z.string().email("Email inválido").optional().or(z.literal("")),
       instagram_handle: z.string().optional(),
       document_type: z.string().optional(),
       document_number: z.string().optional(),
@@ -163,6 +184,83 @@ export function NewCustomerDialog({
     }
   }, [settings, settingsLoading, defaultValues, form])
 
+  // Reset OCR states when dialog opens
+  useEffect(() => {
+    if (open) {
+      setUploadedFile(null)
+      setOcrSuccess(false)
+    }
+  }, [open])
+
+  // Función para procesar documento con OCR
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsProcessingOCR(true)
+    setUploadedFile(file)
+    setOcrSuccess(false)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      
+      // Detectar tipo de documento por nombre de archivo
+      const docType = file.name.toLowerCase().includes("passport") ? "PASSPORT" : "DNI"
+      formData.append("type", docType)
+
+      const response = await fetch("/api/documents/ocr-only", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.extractedData) {
+        const extracted = data.extractedData
+        
+        // Autocompletar campos del formulario
+        if (extracted.first_name) {
+          form.setValue("first_name", extracted.first_name)
+        }
+        if (extracted.last_name) {
+          form.setValue("last_name", extracted.last_name)
+        }
+        if (extracted.document_type) {
+          form.setValue("document_type", extracted.document_type)
+        }
+        if (extracted.document_number) {
+          form.setValue("document_number", extracted.document_number)
+        }
+        if (extracted.date_of_birth) {
+          form.setValue("date_of_birth", extracted.date_of_birth)
+        }
+        if (extracted.nationality) {
+          // Normalizar nacionalidad
+          let nationality = extracted.nationality
+          if (nationality === "ARG" || nationality === "ARGENTINA") {
+            nationality = "Argentina"
+          }
+          form.setValue("nationality", nationality)
+        }
+        
+        setOcrSuccess(true)
+        toast.success("Datos extraídos del documento correctamente")
+      } else {
+        toast.error(data.error || "No se pudieron extraer datos del documento")
+      }
+    } catch (error) {
+      console.error("Error en OCR:", error)
+      toast.error("Error al procesar el documento")
+    } finally {
+      setIsProcessingOCR(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
   const onSubmit = async (values: CustomerFormValues) => {
     setIsLoading(true)
     try {
@@ -171,6 +269,7 @@ export function NewCustomerDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...values,
+          email: values.email || null,
           instagram_handle: values.instagram_handle || null,
           document_type: values.document_type || null,
           document_number: values.document_number || null,
@@ -191,6 +290,8 @@ export function NewCustomerDialog({
       const data = await response.json()
       toast.success("Cliente creado correctamente")
       form.reset()
+      setUploadedFile(null)
+      setOcrSuccess(false)
       onSuccess(data.customer)
       onOpenChange(false)
     } catch (error) {
@@ -201,212 +302,303 @@ export function NewCustomerDialog({
     }
   }
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      form.reset()
+  // Handler para cierre con confirmación si hay cambios
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && form.formState.isDirty) {
+      setPendingClose(true)
+      setShowCloseConfirm(true)
+    } else {
+      if (!newOpen) {
+        form.reset()
+        setUploadedFile(null)
+        setOcrSuccess(false)
+      }
+      onOpenChange(newOpen)
     }
-    onOpenChange(open)
+  }
+
+  // Confirmar cierre
+  const confirmClose = () => {
+    setShowCloseConfirm(false)
+    setPendingClose(false)
+    form.reset()
+    setUploadedFile(null)
+    setOcrSuccess(false)
+    onOpenChange(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nuevo Cliente</DialogTitle>
-          <DialogDescription>
-            Completa los datos para registrar un nuevo cliente
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent 
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          onEscapeKeyDown={(e) => {
+            if (form.formState.isDirty) {
+              e.preventDefault()
+              setShowCloseConfirm(true)
+            }
+          }}
+          onPointerDownOutside={(e) => {
+            if (form.formState.isDirty) {
+              e.preventDefault()
+              setShowCloseConfirm(true)
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Nuevo Cliente</DialogTitle>
+            <DialogDescription>
+              Completa los datos para registrar un nuevo cliente
+            </DialogDescription>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="first_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Juan" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="last_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Apellido *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Pérez" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+54 11 1234-5678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email *</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="juan@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="instagram_handle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Instagram</FormLabel>
-                    <FormControl>
-                      <Input placeholder="@usuario" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="document_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de Documento</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {documentTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="document_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número de Documento</FormLabel>
-                    <FormControl>
-                      <Input placeholder="12345678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="date_of_birth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha de Nacimiento</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="nationality"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nacionalidad</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar nacionalidad" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {nationalities.map((nat) => (
-                          <SelectItem key={nat.value} value={nat.value}>
-                            {nat.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Campos personalizados */}
-            {settings?.custom_fields && settings.custom_fields.length > 0 && (
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-medium">Información Adicional</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <CustomFieldsForm 
-                    control={form.control} 
-                    customFields={settings.custom_fields} 
-                  />
-                </div>
+          {/* Sección de OCR */}
+          <div className="bg-muted/50 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-sm">Escanear documento</h4>
+                <p className="text-xs text-muted-foreground">
+                  Sube un DNI o Pasaporte para autocompletar los datos
+                </p>
               </div>
-            )}
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creando...
-                  </>
-                ) : (
-                  "Crear Cliente"
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="ocr-file-input"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isProcessingOCR}
+                >
+                  {isProcessingOCR ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Subir documento
+                    </>
+                  )}
+                </Button>
+                {ocrSuccess && (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Datos extraídos
+                  </Badge>
                 )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              </div>
+            </div>
+            {uploadedFile && !ocrSuccess && !isProcessingOCR && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Archivo: {uploadedFile.name}
+              </p>
+            )}
+          </div>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="first_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Juan" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Apellido *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Pérez" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Teléfono *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+54 11 1234-5678" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="juan@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="document_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo de Documento</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar tipo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {documentTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="document_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número de Documento</FormLabel>
+                      <FormControl>
+                        <Input placeholder="12345678" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="date_of_birth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha de Nacimiento</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="nationality"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nacionalidad</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar nacionalidad" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {nationalities.map((nat) => (
+                            <SelectItem key={nat.value} value={nat.value}>
+                              {nat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Campos personalizados */}
+              {settings?.custom_fields && settings.custom_fields.length > 0 && (
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-sm font-medium">Información Adicional</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <CustomFieldsForm 
+                      control={form.control} 
+                      customFields={settings.custom_fields} 
+                    />
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpenChange(false)}
+                  disabled={isLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creando...
+                    </>
+                  ) : (
+                    "Crear Cliente"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación de cierre */}
+      <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tienes cambios sin guardar. Si cierras el formulario, perderás todos los datos ingresados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowCloseConfirm(false)}>
+              Seguir editando
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClose} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Descartar cambios
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
-

@@ -158,9 +158,9 @@ export async function POST(request: Request) {
       nationality,
     } = body
 
-    // Validations básicas
-    if (!first_name || !last_name || !phone || !email) {
-      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    // Validations básicas - email es opcional ahora
+    if (!first_name || !last_name || !phone) {
+      return NextResponse.json({ error: "Faltan campos requeridos (nombre, apellido, teléfono)" }, { status: 400 })
     }
 
     // Obtener configuración de clientes

@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       agency_id,
       seller_id,
       seller_secondary_id,
+      customer_id, // ← NUEVO: ID del cliente a asociar directamente
       operator_id, // Compatibilidad hacia atrás: operador único
       operators, // Nuevo formato: array de operadores [{operator_id, cost, cost_currency, notes?}]
       type,
@@ -712,6 +713,39 @@ export async function POST(request: Request) {
         console.error("Error transferring ledger movements:", error)
         // No lanzamos error para no romper la creación de la operación
         // pero lo registramos para debugging
+      }
+    }
+
+    // Si se proporciona customer_id directamente (sin lead), asociar el cliente
+    if (customer_id && !lead_id) {
+      try {
+        // Verificar que el cliente existe
+        const { data: customerExists, error: customerCheckError } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("id", customer_id)
+          .single()
+        
+        if (!customerCheckError && customerExists) {
+          // Asociar cliente a la operación
+          const { error: operationCustomerError } = await (supabase.from("operation_customers") as any)
+            .insert({
+              operation_id: operation.id,
+              customer_id: customer_id,
+              role: "MAIN"
+            })
+          
+          if (operationCustomerError) {
+            console.error(`❌ Error associating customer ${customer_id} with operation ${operation.id}:`, operationCustomerError)
+          } else {
+            console.log(`✅ Associated customer ${customer_id} with operation ${operation.id}`)
+          }
+        } else {
+          console.warn(`⚠️ Customer ${customer_id} not found, skipping association`)
+        }
+      } catch (error) {
+        console.error("Error associating customer with operation:", error)
+        // No lanzamos error para no romper la creación de la operación
       }
     }
 

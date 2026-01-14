@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { NewCustomerDialog } from "@/components/customers/new-customer-dialog"
 
 // Configuración de operaciones
 interface OperationSettings {
@@ -55,6 +56,7 @@ const operationSchema = z.object({
   agency_id: z.string().min(1, "La agencia es requerida"),
   seller_id: z.string().min(1, "El vendedor es requerido"),
   seller_secondary_id: z.string().optional().nullable(),
+  customer_id: z.string().optional().nullable(), // ← NUEVO
   operator_id: z.string().optional().nullable(),
   operators: z.array(operatorSchema).optional(),
   type: z.enum(["FLIGHT", "HOTEL", "PACKAGE", "CRUISE", "TRANSFER", "MIXED"]),
@@ -122,6 +124,11 @@ export function NewOperationDialog({
   const [creatingOperator, setCreatingOperator] = useState(false)
   const [localOperators, setLocalOperators] = useState(operators)
 
+  // Estado para clientes
+  const [customers, setCustomers] = useState<Array<{ id: string; first_name: string; last_name: string }>>([])
+  const [loadingCustomers, setLoadingCustomers] = useState(false)
+  const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
+
   // Sincronizar operadores cuando cambian
   useEffect(() => {
     setLocalOperators(operators)
@@ -131,6 +138,7 @@ export function NewOperationDialog({
   useEffect(() => {
     if (open) {
       loadSettings()
+      loadCustomers() // ← NUEVO: Cargar clientes
     }
   }, [open])
 
@@ -143,6 +151,26 @@ export function NewOperationDialog({
       }
     } catch (error) {
       console.error('Error loading operation settings:', error)
+    }
+  }
+
+  // Función para cargar clientes
+  const loadCustomers = async () => {
+    setLoadingCustomers(true)
+    try {
+      const response = await fetch('/api/customers?limit=200')
+      if (response.ok) {
+        const data = await response.json()
+        setCustomers((data.customers || []).map((c: any) => ({
+          id: c.id,
+          first_name: c.first_name,
+          last_name: c.last_name,
+        })))
+      }
+    } catch (error) {
+      console.error('Error loading customers:', error)
+    } finally {
+      setLoadingCustomers(false)
     }
   }
 
@@ -169,6 +197,7 @@ export function NewOperationDialog({
       seller_id: defaultSellerId || "",
       operator_id: null,
       seller_secondary_id: null,
+      customer_id: null, // ← NUEVO
       type: "PACKAGE",
       product_type: null,
       origin: "",
@@ -297,6 +326,7 @@ export function NewOperationDialog({
         operator_id: useMultipleOperators ? null : (values.operator_id || null),
         operators: useMultipleOperators && operatorList.length > 0 ? operatorList : undefined,
         seller_secondary_id: values.seller_secondary_id || null,
+        customer_id: values.customer_id || null, // ← NUEVO
         origin: values.origin || null,
         product_type: values.product_type || null,
         return_date: values.return_date ? values.return_date.toISOString().split("T")[0] : null,
@@ -440,6 +470,52 @@ export function NewOperationDialog({
             <div className="grid gap-4 md:grid-cols-2">
               <FormField
                 control={form.control}
+                name="customer_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente</FormLabel>
+                    <div className="flex gap-2">
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar cliente" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {loadingCustomers ? (
+                            <div className="p-2 text-center text-sm text-muted-foreground">
+                              Cargando...
+                            </div>
+                          ) : customers.length === 0 ? (
+                            <div className="p-2 text-center text-sm text-muted-foreground">
+                              No hay clientes
+                            </div>
+                          ) : (
+                            customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.first_name} {customer.last_name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowNewCustomerDialog(true)}
+                        title="Crear nuevo cliente"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="seller_secondary_id"
                 render={({ field }) => (
                   <FormItem>
@@ -460,31 +536,6 @@ export function NewOperationDialog({
                             {seller.name}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="product_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de Producto</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Se inferirá del tipo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="AEREO">Aéreo</SelectItem>
-                        <SelectItem value="HOTEL">Hotel</SelectItem>
-                        <SelectItem value="PAQUETE">Paquete</SelectItem>
-                        <SelectItem value="CRUCERO">Crucero</SelectItem>
-                        <SelectItem value="OTRO">Otro</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -1149,6 +1200,19 @@ export function NewOperationDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo para crear nuevo cliente */}
+      <NewCustomerDialog
+        open={showNewCustomerDialog}
+        onOpenChange={setShowNewCustomerDialog}
+        onSuccess={(customer) => {
+          if (customer) {
+            // Agregar el nuevo cliente a la lista y seleccionarlo
+            setCustomers((prev) => [...prev, { id: customer.id, first_name: customer.first_name, last_name: customer.last_name }])
+            form.setValue("customer_id", customer.id)
+          }
+        }}
+      />
     </Dialog>
   )
 }
