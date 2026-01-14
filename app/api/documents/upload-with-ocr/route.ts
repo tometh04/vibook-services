@@ -11,7 +11,6 @@ async function bufferToBase64Image(buffer: ArrayBuffer, contentType?: string | n
   if (contentType?.includes("application/pdf")) {
     // PDF no soportado en serverless - retornar error
     throw new Error("PDF no soportado. Por favor, suba una imagen (JPG, PNG, WebP).")
-    return { base64, mimeType: "image/png" }
   }
 
   return {
