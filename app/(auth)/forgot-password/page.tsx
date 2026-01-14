@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Mail, ArrowLeft, CheckCircle2 } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)

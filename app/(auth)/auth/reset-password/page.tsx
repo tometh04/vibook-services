@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, KeyRound } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default function ResetPasswordPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)

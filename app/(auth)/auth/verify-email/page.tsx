@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Mail, Loader2, CheckCircle2, ArrowLeft } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const router = useRouter()

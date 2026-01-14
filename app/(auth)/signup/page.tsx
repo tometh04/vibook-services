@@ -3,6 +3,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { SignupForm } from "@/components/auth/signup-form"
 
+export const dynamic = 'force-dynamic'
+
 export default function SignupPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">

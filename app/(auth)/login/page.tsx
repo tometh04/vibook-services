@@ -4,6 +4,8 @@ import Link from "next/link"
 
 import { LoginForm } from "@/components/auth/login-form"
 
+export const dynamic = 'force-dynamic'
+
 // Configuración de branding para la página de login
 // En un SaaS con subdominios, esto se obtendría dinámicamente
 const LOGIN_BRANDING = {

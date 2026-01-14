@@ -11,6 +11,8 @@ import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+
 function AcceptInviteContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
