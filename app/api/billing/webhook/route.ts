@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server"
 import { getPreApproval } from "@/lib/mercadopago/client"
-import { createClient } from "@supabase/supabase-js"
+import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import crypto from "crypto"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+// Lazy initialization para evitar errores durante el build
+let supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!supabaseAdmin) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing Supabase environment variables")
+    }
+    
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+  }
+  return supabaseAdmin
+}
 
 // Webhook secret de Mercado Pago (opcional pero recomendado)
 const WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
@@ -162,7 +175,7 @@ async function handlePaymentNotification(paymentId: string) {
   try {
     // Aquí deberías obtener el pago de Mercado Pago para ver el external_reference
     // Por simplicidad, lo registramos como evento
-    const { error } = await (supabaseAdmin
+    const { error } = await (getSupabaseAdmin()
       .from("billing_events") as any)
       .insert({
         event_type: "PAYMENT_SUCCEEDED",
@@ -194,7 +207,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     } catch (mpError: any) {
       console.log('⚠️ Preapproval no encontrado en Mercado Pago (puede ser prueba):', mpError.message)
       // Si no existe, solo registrar el evento sin datos del preapproval
-      await (supabaseAdmin
+      await (getSupabaseAdmin()
         .from("billing_events") as any)
         .insert({
           event_type: "PREAPPROVAL_NOT_FOUND",
@@ -207,7 +220,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     }
 
     // Buscar la suscripción por preapproval_id
-    const { data: subscription, error } = await (supabaseAdmin
+    const { data: subscription, error } = await (getSupabaseAdmin()
       .from("subscriptions") as any)
       .select("id, agency_id")
       .eq("mp_preapproval_id", preapprovalId)
@@ -259,7 +272,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       const subData = subscription as any
       
       // Actualizar suscripción existente
-      const { error: updateError } = await (supabaseAdmin
+      const { error: updateError } = await (getSupabaseAdmin()
         .from("subscriptions") as any)
         .update(updateData)
         .eq("id", subData.id)
@@ -287,7 +300,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           eventType = 'SUBSCRIPTION_UPDATED'
       }
 
-      await (supabaseAdmin
+      await (getSupabaseAdmin()
         .from("billing_events") as any)
         .insert({
           agency_id: subData.agency_id,
@@ -302,7 +315,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       // Si no existe, registrar el evento
       console.log('⚠️ Suscripción no encontrada para preapproval:', preapprovalId)
       
-      await (supabaseAdmin
+      await (getSupabaseAdmin()
         .from("billing_events") as any)
         .insert({
           event_type: "SUBSCRIPTION_CREATED",
