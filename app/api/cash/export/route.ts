@@ -122,7 +122,7 @@ export async function GET(request: Request) {
     ])
 
     const csvContent = [header, ...rows]
-      .map((row) => row.map((value) => escapeCsvValue(value)).join(","))
+      .map((row) => row.map((value: string | number | null) => escapeCsvValue(value)).join(","))
       .join("\n")
 
     return new NextResponse(csvContent, {
