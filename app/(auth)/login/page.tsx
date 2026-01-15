@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="flex justify-center gap-2 mb-8">
             <Link href="/" className="flex items-center gap-2 font-medium text-xl">
               <Image 
-                src="/logo-white-2.png" 
+                src="/logo-black-2.png" 
                 alt="Vibook" 
                 width={32} 
                 height={32}
