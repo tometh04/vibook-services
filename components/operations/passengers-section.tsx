@@ -199,7 +199,6 @@ export function PassengersSection({
               label: "Agregar Pasajero",
               onClick: () => setAddDialogOpen(true)
             }}
-            size="sm"
           />
         ) : (
           <div className="space-y-3">
