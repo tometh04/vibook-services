@@ -268,32 +268,32 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:!p-3 data-[slot=sidebar-menu-button]:hover:bg-transparent"
             >
-              <a href="/dashboard" className="flex items-center gap-2">
+              <a href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
                 {brandingLoading ? (
                   <>
-                    <Skeleton className="size-5 rounded" />
-                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="size-6 rounded-lg" />
+                    <Skeleton className="h-5 w-28" />
                   </>
                 ) : branding.logo_url ? (
                   <>
                     <Image 
                       src={branding.logo_url} 
                       alt={branding.app_name} 
-                      width={20} 
-                      height={20}
-                      className="size-5 object-contain"
+                      width={24} 
+                      height={24}
+                      className="size-6 object-contain rounded-lg"
                     />
-                    <span className="text-base font-semibold">{branding.app_name}</span>
+                    <span className="text-base font-bold">{branding.app_name}</span>
                   </>
                 ) : (
                   <>
                     <GalleryVerticalEnd 
-                      className="!size-5" 
+                      className="!size-6" 
                       style={{ color: branding.primary_color }}
                     />
-                    <span className="text-base font-semibold">{branding.app_name}</span>
+                    <span className="text-base font-bold">{branding.app_name}</span>
                   </>
                 )}
               </a>

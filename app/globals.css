@@ -62,11 +62,11 @@
     --chart-6: 340 75% 55%;
     
     /* Sidebar */
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 99%;
     --sidebar-foreground: 240 5.9% 10%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 217 91% 60% / 0.1;
+    --sidebar-accent: 217 91% 60% / 0.12;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 240 5.9% 90%;
     --sidebar-ring: 217 91% 60%;
