@@ -46,6 +46,8 @@ export default function LoginPage() {
                 width={32} 
                 height={32}
                 className="size-8 object-contain"
+                priority
+                unoptimized
               />
               VibookServicesSaaS
             </Link>
