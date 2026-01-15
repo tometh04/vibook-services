@@ -268,32 +268,31 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-3 data-[slot=sidebar-menu-button]:hover:bg-transparent"
+              className="data-[slot=sidebar-menu-button]:!p-2 data-[slot=sidebar-menu-button]:hover:bg-transparent"
             >
-              <a href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+              <a href="/dashboard" className="flex items-center gap-2">
                 {brandingLoading ? (
                   <>
-                    <Skeleton className="size-6 rounded-lg" />
-                    <Skeleton className="h-5 w-28" />
+                    <Skeleton className="size-5 rounded" />
+                    <Skeleton className="h-4 w-24" />
                   </>
                 ) : branding.logo_url ? (
                   <>
                     <Image 
                       src={branding.logo_url} 
                       alt={branding.app_name} 
-                      width={24} 
-                      height={24}
-                      className="size-6 object-contain rounded-lg"
+                      width={20} 
+                      height={20}
+                      className="size-5 object-contain"
                     />
-                    <span className="text-base font-bold">{branding.app_name}</span>
+                    <span className="text-sm font-medium text-gray-900">{branding.app_name}</span>
                   </>
                 ) : (
                   <>
                     <GalleryVerticalEnd 
-                      className="!size-6" 
-                      style={{ color: branding.primary_color }}
+                      className="size-5 text-gray-400" 
                     />
-                    <span className="text-base font-bold">{branding.app_name}</span>
+                    <span className="text-sm font-medium text-gray-900">{branding.app_name}</span>
                   </>
                 )}
               </a>

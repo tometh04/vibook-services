@@ -24,13 +24,7 @@ module.exports = {
   			foreground: 'hsl(var(--foreground))',
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))',
-  				glow: 'hsl(var(--primary-glow))',
-  				dark: 'hsl(var(--primary-dark))'
-  			},
-  			secondary: {
-  				DEFAULT: 'hsl(var(--secondary))',
-  				foreground: 'hsl(var(--secondary-foreground))'
+  				foreground: 'hsl(var(--primary-foreground))'
   			},
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',
@@ -40,11 +34,6 @@ module.exports = {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
   			},
-  			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))',
-  				light: 'hsl(var(--accent-light))'
-  			},
   			success: {
   				DEFAULT: 'hsl(var(--success))',
   				foreground: 'hsl(var(--success-foreground))'
@@ -52,10 +41,6 @@ module.exports = {
   			warning: {
   				DEFAULT: 'hsl(var(--warning))',
   				foreground: 'hsl(var(--warning-foreground))'
-  			},
-  			popover: {
-  				DEFAULT: 'hsl(var(--popover))',
-  				foreground: 'hsl(var(--popover-foreground))'
   			},
   			card: {
   				DEFAULT: 'hsl(var(--card))',
@@ -71,15 +56,6 @@ module.exports = {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			}
-  		},
-  		boxShadow: {
-  			'primary': '0 4px 20px -2px hsl(var(--primary) / 0.25)',
-  			'accent': '0 4px 20px -2px hsl(var(--accent) / 0.25)',
-  			'success': '0 4px 20px -2px hsl(var(--success) / 0.25)',
-  			'card': '0 2px 12px -2px hsl(240 10% 20% / 0.08)',
-  			'card-hover': '0 8px 24px -4px hsl(240 10% 20% / 0.15)',
-  			'lg': '0 12px 40px -8px hsl(240 10% 20% / 0.2)',
-  			'xl': '0 20px 60px -12px hsl(240 10% 20% / 0.25)'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

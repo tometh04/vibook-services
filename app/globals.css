@@ -14,44 +14,33 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     
-    /* Primary - Azul vibrante (cielo, océano) */
-    --primary: 217 91% 60%;        /* Azul brillante #3B82F6 */
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 217 91% 70%;   /* Para efectos glow */
-    --primary-dark: 217 91% 45%;   /* Para hover states */
+    /* Primary - Azul oscuro para SaaS B2B */
+    --primary: 217 91% 50%;        /* Azul #2563EB */
+    --primary-foreground: 0 0% 100%;
     
-    /* Accent - Verde esmeralda (naturaleza, éxito) */
-    --accent: 142 76% 36%;         /* Verde vibrante #10B981 */
-    --accent-foreground: 0 0% 98%;
-    --accent-light: 142 76% 46%;   /* Para gradientes */
+    /* Success - Verde */
+    --success: 142 71% 45%;         /* Verde #059669 */
+    --success-foreground: 0 0% 100%;
     
-    /* Secondary - Naranja/coral (sol, energía) */
-    --secondary: 25 95% 53%;       /* Naranja cálido #F97316 */
-    --secondary-foreground: 0 0% 98%;
+    /* Warning - Amarillo */
+    --warning: 38 92% 50%;         /* Amarillo #F59E0B */
+    --warning-foreground: 0 0% 100%;
     
-    /* Success - Verde esmeralda */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
-    
-    /* Warning - Ámbar dorado */
-    --warning: 38 92% 50%;         /* Ámbar #F59E0B */
-    --warning-foreground: 0 0% 98%;
-    
-    /* Destructive - Rojo coral */
+    /* Destructive - Rojo */
     --destructive: 0 84% 60%;      /* Rojo #EF4444 */
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 100%;
     
     /* Muted */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
     
     /* Borders & Inputs */
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 50%;
     
-    /* Border radius más suave */
-    --radius: 0.75rem;
+    /* Border radius */
+    --radius: 0.375rem;
     
     /* Charts */
     --chart-1: 217 91% 60%;
@@ -62,27 +51,14 @@
     --chart-6: 340 75% 55%;
     
     /* Sidebar */
-    --sidebar-background: 0 0% 99%;
-    --sidebar-foreground: 240 5.9% 10%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 217 91% 60% / 0.12;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 240 5.9% 90%;
-    --sidebar-ring: 217 91% 60%;
-    
-    /* Sombras más pronunciadas y modernas */
-    --shadow-primary: 0 4px 20px -2px hsl(217 91% 60% / 0.25);
-    --shadow-accent: 0 4px 20px -2px hsl(142 76% 36% / 0.25);
-    --shadow-success: 0 4px 20px -2px hsl(142 76% 36% / 0.25);
-    --shadow-card: 0 2px 12px -2px hsl(240 10% 20% / 0.08);
-    --shadow-card-hover: 0 8px 24px -4px hsl(240 10% 20% / 0.15);
-    --shadow-lg: 0 12px 40px -8px hsl(240 10% 20% / 0.2);
-    --shadow-xl: 0 20px 60px -12px hsl(240 10% 20% / 0.25);
-    
-    /* Transiciones */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-spring: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 6% 10%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 240 6% 10%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 217 91% 50%;
   }
 
   .dark {
@@ -162,67 +138,16 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
-  /* Tipografía más bold y moderna */
+  /* Tipografía para SaaS B2B */
   h1 {
-    @apply text-4xl font-extrabold tracking-tight lg:text-5xl;
-    color: hsl(var(--foreground));
-    letter-spacing: -0.02em;
+    @apply text-3xl font-semibold text-gray-900;
   }
   
   h2 {
-    @apply text-3xl font-bold tracking-tight;
-    color: hsl(var(--foreground));
-    letter-spacing: -0.01em;
+    @apply text-2xl font-semibold text-gray-900;
   }
   
   h3 {
-    @apply text-2xl font-bold;
-    color: hsl(var(--foreground));
-  }
-}
-
-@layer utilities {
-  /* Animaciones personalizadas */
-  .animate-fade-in-up {
-    animation: fadeInUp 0.5s ease-out;
-  }
-  
-  .animate-shimmer {
-    animation: shimmer 2s infinite;
-    background: hsl(var(--muted));
-    background-size: 1000px 100%;
-  }
-  
-  .animate-pulse-glow {
-    animation: pulseGlow 2s ease-in-out infinite;
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-  }
-  50% {
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.6);
+    @apply text-xl font-semibold text-gray-900;
   }
 }
