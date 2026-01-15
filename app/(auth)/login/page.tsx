@@ -38,18 +38,17 @@ export default function LoginPage() {
       {/* Login centrado a la derecha */}
       <div className="flex flex-1 items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-md">
-          <div className="flex justify-center gap-2 mb-8">
-            <Link href="/" className="flex items-center gap-2 font-medium text-xl">
+          <div className="flex justify-center mb-8">
+            <Link href="/" className="flex items-center">
               <Image 
                 src="/logo-black-2.png" 
                 alt="Vibook" 
-                width={32} 
-                height={32}
-                className="size-8 object-contain"
+                width={120} 
+                height={40}
+                className="h-10 w-auto object-contain"
                 priority
                 unoptimized
               />
-              VibookServicesSaaS
             </Link>
           </div>
           <LoginForm />
