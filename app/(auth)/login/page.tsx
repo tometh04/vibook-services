@@ -25,10 +25,13 @@ export default function LoginPage() {
           className="object-cover"
           priority
         />
-        {/* Overlay con gradiente */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        {/* Overlay con gradiente mejorado */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
         <div className="absolute bottom-8 left-8 right-8 text-white">
-          <h2 className="text-3xl font-bold mb-2">Gestiona tu agencia de viajes</h2>
+          <h2 className="text-3xl font-bold mb-2 leading-tight">
+            El sistema de gestión definitivo<br />
+            para AGENCIAS de viajes
+          </h2>
           <p className="text-white/80">Operaciones, clientes, finanzas y más en un solo lugar</p>
         </div>
       </div>
@@ -37,20 +40,14 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="flex justify-center gap-2 mb-8">
             <Link href="/" className="flex items-center gap-2 font-medium text-xl">
-              {LOGIN_BRANDING.logoUrl ? (
-                <Image 
-                  src={LOGIN_BRANDING.logoUrl} 
-                  alt={LOGIN_BRANDING.appName} 
-                  width={32} 
-                  height={32}
-                  className="size-8 object-contain"
-                />
-              ) : (
-                <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
-                  <GalleryVerticalEnd className="size-5" />
-                </div>
-              )}
-              {LOGIN_BRANDING.appName}
+              <Image 
+                src="/logo-white-2.png" 
+                alt="Vibook" 
+                width={32} 
+                height={32}
+                className="size-8 object-contain"
+              />
+              VibookServicesSaaS
             </Link>
           </div>
           <LoginForm />

@@ -14,6 +14,11 @@ export default async function Home() {
     redirect("/admin-login")
   }
   
+  // Para app.vibook.ai, redirigir a /login
+  if (host === "app.vibook.ai" || host.includes("app.vibook.ai")) {
+    redirect("/login")
+  }
+  
   // Para la app principal, mostrar home normal
   return <div>Home</div>
 }
