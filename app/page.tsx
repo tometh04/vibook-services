@@ -1,6 +1,8 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
+export const dynamic = 'force-dynamic'
+
 export default async function Home() {
   // Si viene del subdominio admin, el middleware debería redirigir
   // Pero por si acaso, verificamos aquí también
