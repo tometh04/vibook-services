@@ -72,18 +72,14 @@ module.exports = {
   				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
-  		backgroundImage: {
-  			'gradient-primary': 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)))',
-  			'gradient-accent': 'linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-light)))',
-  			'gradient-hero': 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-  			'gradient-card': 'linear-gradient(135deg, hsl(var(--card)), hsl(var(--card) / 0.5))'
-  		},
   		boxShadow: {
-  			'primary': '0 10px 40px -10px hsl(var(--primary) / 0.4)',
-  			'accent': '0 10px 40px -10px hsl(var(--accent) / 0.3)',
-  			'success': '0 10px 40px -10px hsl(var(--success) / 0.3)',
-  			'card': '0 8px 32px -8px hsl(240 10% 20% / 0.1)',
-  			'lg': '0 20px 60px -15px hsl(240 10% 20% / 0.15)'
+  			'primary': '0 4px 20px -2px hsl(var(--primary) / 0.25)',
+  			'accent': '0 4px 20px -2px hsl(var(--accent) / 0.25)',
+  			'success': '0 4px 20px -2px hsl(var(--success) / 0.25)',
+  			'card': '0 2px 12px -2px hsl(240 10% 20% / 0.08)',
+  			'card-hover': '0 8px 24px -4px hsl(240 10% 20% / 0.15)',
+  			'lg': '0 12px 40px -8px hsl(240 10% 20% / 0.2)',
+  			'xl': '0 20px 60px -12px hsl(240 10% 20% / 0.25)'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

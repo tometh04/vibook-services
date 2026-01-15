@@ -200,13 +200,12 @@ export function DashboardPageClient({
 
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent animate-fade-in-up">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50" />
+        <Card className="relative overflow-hidden border-l-4 border-l-primary bg-card/50 animate-fade-in-up">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Ventas Totales
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-primary" />
+            <DollarSign className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent className="relative px-3 pb-3 pt-0">
             {loading ? (
@@ -214,12 +213,12 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-lg font-bold lg:text-xl truncate bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  <span className="text-2xl font-extrabold lg:text-3xl truncate text-primary">
                     ${Math.round(kpis.totalSales / 1000)}K
                   </span>
                   <ComparisonBadge current={kpis.totalSales} previous={previousKpis.totalSales} />
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-1 font-medium">
                   {kpis.operationsCount} ops • vs anterior
                 </p>
               </>
@@ -227,13 +226,12 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-secondary/10 via-secondary/5 to-transparent animate-fade-in-up">
-          <div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-transparent opacity-50" />
+        <Card className="relative overflow-hidden border-l-4 border-l-secondary bg-card/50 animate-fade-in-up">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Total Operaciones
             </CardTitle>
-            <Package className="h-4 w-4 text-secondary" />
+            <Package className="h-5 w-5 text-secondary" />
           </CardHeader>
           <CardContent className="relative px-3 pb-3 pt-0">
             {loading ? (
@@ -241,12 +239,12 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-lg font-bold lg:text-xl text-secondary">
+                  <span className="text-2xl font-extrabold lg:text-3xl text-secondary">
                     {kpis.operationsCount}
                   </span>
                   <ComparisonBadge current={kpis.operationsCount} previous={previousKpis.operationsCount} />
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-1 font-medium">
                   vs período anterior
                 </p>
               </>
@@ -254,13 +252,12 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent animate-fade-in-up">
-          <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-50" />
+        <Card className="relative overflow-hidden border-l-4 border-l-accent bg-card/50 animate-fade-in-up">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Margen Total
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-accent" />
+            <TrendingUp className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent className="relative px-3 pb-3 pt-0">
             {loading ? (
@@ -268,12 +265,12 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-lg font-bold lg:text-xl truncate bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent">
+                  <span className="text-2xl font-extrabold lg:text-3xl truncate text-accent">
                     ${Math.round(kpis.totalMargin / 1000)}K
                   </span>
                   <ComparisonBadge current={kpis.totalMargin} previous={previousKpis.totalMargin} />
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-1 font-medium">
                   {kpis.avgMarginPercent.toFixed(1)}% promedio
                 </p>
               </>
@@ -281,20 +278,19 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent animate-fade-in-up">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 opacity-50" />
+        <Card className="relative overflow-hidden border-l-4 border-l-primary bg-card/50 animate-fade-in-up">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Margen Promedio
             </CardTitle>
-            <Percent className="h-4 w-4 text-primary" />
+            <Percent className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent className="relative px-3 pb-3 pt-0">
             {loading ? (
               <Skeleton className="h-7 w-16" />
             ) : (
               <>
-                <div className="text-lg font-bold lg:text-xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                <div className="text-2xl font-extrabold lg:text-3xl text-primary">
                   {kpis.avgMarginPercent.toFixed(1)}%
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -307,23 +303,22 @@ export function DashboardPageClient({
       </div>
 
       <div className="grid gap-3 grid-cols-2">
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-warning/10 via-warning/5 to-transparent animate-fade-in-up">
-          <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-50" />
+        <Card className="relative overflow-hidden border-l-4 border-l-warning bg-card/50 animate-fade-in-up">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Pendientes Clientes
             </CardTitle>
-            <Users className="h-4 w-4 text-warning" />
+            <Users className="h-5 w-5 text-warning" />
           </CardHeader>
           <CardContent className="relative px-3 pb-3 pt-0">
             {loading ? (
               <Skeleton className="h-7 w-24" />
             ) : (
               <>
-                <div className="text-lg font-bold lg:text-xl truncate text-warning">
+                <div className="text-2xl font-extrabold lg:text-3xl truncate text-warning">
                   ${Math.round(kpis.pendingCustomerPayments / 1000)}K
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-1 font-medium">
                   Por cobrar de clientes
                 </p>
               </>
@@ -331,23 +326,22 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-warning/10 via-warning/5 to-transparent animate-fade-in-up">
-          <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-50" />
+        <Card className="relative overflow-hidden border-l-4 border-l-warning bg-card/50 animate-fade-in-up">
           <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Pendientes Operadores
             </CardTitle>
-            <Building2 className="h-4 w-4 text-warning" />
+            <Building2 className="h-5 w-5 text-warning" />
           </CardHeader>
           <CardContent className="relative px-3 pb-3 pt-0">
             {loading ? (
               <Skeleton className="h-7 w-24" />
             ) : (
               <>
-                <div className="text-lg font-bold lg:text-xl truncate text-warning">
+                <div className="text-2xl font-extrabold lg:text-3xl truncate text-warning">
                   ${Math.round(kpis.pendingOperatorPayments / 1000)}K
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-1 font-medium">
                   Por pagar a operadores
                 </p>
               </>

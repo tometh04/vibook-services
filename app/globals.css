@@ -71,18 +71,14 @@
     --sidebar-border: 240 5.9% 90%;
     --sidebar-ring: 217 91% 60%;
     
-    /* Gradientes */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 70%));
-    --gradient-accent: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%), hsl(142 76% 36%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 98%), hsl(0 0% 100%));
-    
-    /* Sombras con color */
-    --shadow-primary: 0 10px 40px -10px hsl(217 91% 60% / 0.4);
-    --shadow-accent: 0 10px 40px -10px hsl(142 76% 36% / 0.3);
-    --shadow-success: 0 10px 40px -10px hsl(142 76% 36% / 0.3);
-    --shadow-card: 0 8px 32px -8px hsl(240 10% 20% / 0.1);
-    --shadow-lg: 0 20px 60px -15px hsl(240 10% 20% / 0.15);
+    /* Sombras más pronunciadas y modernas */
+    --shadow-primary: 0 4px 20px -2px hsl(217 91% 60% / 0.25);
+    --shadow-accent: 0 4px 20px -2px hsl(142 76% 36% / 0.25);
+    --shadow-success: 0 4px 20px -2px hsl(142 76% 36% / 0.25);
+    --shadow-card: 0 2px 12px -2px hsl(240 10% 20% / 0.08);
+    --shadow-card-hover: 0 8px 24px -4px hsl(240 10% 20% / 0.15);
+    --shadow-lg: 0 12px 40px -8px hsl(240 10% 20% / 0.2);
+    --shadow-xl: 0 20px 60px -12px hsl(240 10% 20% / 0.25);
     
     /* Transiciones */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -166,21 +162,22 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
-  /* Tipografía mejorada */
+  /* Tipografía más bold y moderna */
   h1 {
-    @apply text-4xl font-bold tracking-tight lg:text-5xl;
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply text-4xl font-extrabold tracking-tight lg:text-5xl;
+    color: hsl(var(--foreground));
+    letter-spacing: -0.02em;
   }
   
   h2 {
-    @apply text-3xl font-semibold tracking-tight;
+    @apply text-3xl font-bold tracking-tight;
+    color: hsl(var(--foreground));
+    letter-spacing: -0.01em;
   }
   
   h3 {
-    @apply text-2xl font-semibold;
+    @apply text-2xl font-bold;
+    color: hsl(var(--foreground));
   }
 }
 
@@ -192,12 +189,7 @@
   
   .animate-shimmer {
     animation: shimmer 2s infinite;
-    background: linear-gradient(
-      90deg,
-      hsl(var(--muted)),
-      hsl(var(--primary) / 0.1),
-      hsl(var(--muted))
-    );
+    background: hsl(var(--muted));
     background-size: 1000px 100%;
   }
   
