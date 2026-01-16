@@ -66,31 +66,34 @@ export function LeadsPageClient({
   const [newLeadDialogOpen, setNewLeadDialogOpen] = useState(false)
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>(defaultAgencyId || agencies[0]?.id || "ALL")
 
+  // Función para recargar leads
+  const handleRefresh = useCallback(async () => {
+    try {
+      const limit = 2000
+      const url = selectedAgencyId === "ALL" 
+        ? `/api/leads?page=1&limit=${limit}`
+        : `/api/leads?agencyId=${selectedAgencyId}&page=1&limit=${limit}`
+      const response = await fetch(url, { cache: 'no-store' })
+      const data = await response.json()
+      
+      if (data.leads && data.leads.length > 0) {
+        setLeads(data.leads)
+      } else {
+        setLeads([])
+      }
+    } catch (error) {
+      console.error("Error loading leads:", error)
+    }
+  }, [selectedAgencyId])
+
   // Actualizar leads cuando cambia la agencia seleccionada
   useEffect(() => {
     if (selectedAgencyId === "ALL") {
       setLeads(initialLeads)
     } else {
-      // Cargar leads de la agencia seleccionada
-      const loadLeads = async () => {
-        try {
-          const limit = 2000
-          const url = `/api/leads?agencyId=${selectedAgencyId}&page=1&limit=${limit}`
-          const response = await fetch(url, { cache: 'no-store' })
-          const data = await response.json()
-          
-          if (data.leads && data.leads.length > 0) {
-            setLeads(data.leads)
-          } else {
-            setLeads([])
-          }
-        } catch (error) {
-          console.error("Error loading leads:", error)
-        }
-      }
-      loadLeads()
+      handleRefresh()
     }
-  }, [selectedAgencyId, initialLeads])
+  }, [selectedAgencyId, initialLeads, handleRefresh])
 
   return (
     <div className="space-y-6">
