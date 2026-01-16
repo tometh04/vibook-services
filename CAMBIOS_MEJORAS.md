@@ -327,9 +327,9 @@ const [customerSearchQuery, setCustomerSearchQuery] = useState("")
 </PopoverContent>
 ```
 
-**Función loadCustomers mejorada:**
+**Función loadCustomers mejorada (con useCallback):**
 ```typescript
-const loadCustomers = async () => {
+const loadCustomers = useCallback(async () => {
   setLoadingCustomers(true)
   try {
     const response = await fetch('/api/customers?limit=200', {
@@ -371,7 +371,7 @@ const loadCustomers = async () => {
   } finally {
     setLoadingCustomers(false)
   }
-}
+}, [toast]) // ← Dependencia: toast
 ```
 
 ### Problema de Variables de Entorno de Supabase
@@ -390,9 +390,52 @@ Las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON
 2. Agregar:
    - `NEXT_PUBLIC_SUPABASE_URL` = URL de tu proyecto Supabase
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = Anon key de Supabase
-3. Hacer redeploy después de agregar las variables
+3. Seleccionar **Production**, **Preview**, y **Development**
+4. Hacer redeploy después de agregar las variables
 
 **Nota:** El código en `lib/supabase/server.ts` ya maneja la ausencia de variables de forma segura durante el build, pero en runtime (producción) estas variables son necesarias para que las APIs funcionen.
+
+### Errores de Compilación Corregidos
+
+**Errores encontrados:**
+1. `react/no-unescaped-entities`: Comillas sin escapar en JSX
+2. `react-hooks/exhaustive-deps`: Funciones no envueltas en useCallback
+
+**Soluciones aplicadas:**
+1. **Comillas en JSX:** Usar `&quot;` en lugar de `"` dentro de strings
+2. **cleanDestination:** Envolver en `useCallback` con dependencias vacías `[]`
+3. **loadCustomers:** Envolver en `useCallback` con dependencia `[toast]`
+4. **useEffect:** Agregar todas las funciones a las dependencias
+
+**Código final:**
+```typescript
+// ✅ Todas las funciones en useCallback
+const cleanDestination = useCallback((destination: string): string => {
+  // ... lógica
+}, [])
+
+const loadCustomers = useCallback(async () => {
+  // ... lógica
+}, [toast])
+
+const handleLeadPreload = useCallback(async () => {
+  // ... usa cleanDestination
+}, [lead, form, cleanDestination])
+
+// ✅ useEffect con todas las dependencias
+useEffect(() => {
+  if (open) {
+    loadSettings()
+    loadCustomers()
+    if (lead) {
+      handleLeadPreload()
+    }
+  }
+}, [open, lead, handleLeadPreload, loadCustomers])
+
+// ✅ Comillas escapadas en JSX
+<div>No se encontraron clientes que coincidan con &quot;{query}&quot;</div>
+```
 
 ### Beneficios
 - ✅ Mejor UX: búsqueda rápida de clientes
