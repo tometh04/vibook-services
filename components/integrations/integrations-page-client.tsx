@@ -49,8 +49,6 @@ interface IntegrationLog {
 }
 
 const integrationTypes = [
-  { value: 'trello', label: 'Trello', icon: FileText, color: 'bg-blue-500' },
-  { value: 'manychat', label: 'Manychat', icon: MessageSquare, color: 'bg-purple-500' },
   { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: 'bg-green-500' },
   { value: 'afip', label: 'AFIP', icon: FileText, color: 'bg-sky-500' },
   { value: 'email', label: 'Email/SMTP', icon: Mail, color: 'bg-orange-500' },

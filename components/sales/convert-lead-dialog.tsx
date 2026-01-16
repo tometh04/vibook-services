@@ -179,7 +179,7 @@ const leadStatusKeywords = [
   "contacted", "qualified", "negotiation", "closed"
 ]
 
-// Función para limpiar destino de Trello (si no es un destino válido)
+// Función para limpiar destino (si no es un destino válido)
 function cleanDestination(destination: string): string {
   if (!destination) return ""
   

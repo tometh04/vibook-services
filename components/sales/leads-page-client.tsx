@@ -228,8 +228,8 @@ export function LeadsPageClient({
             <div 
               className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
                 realtimeConnected 
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                  : 'bg-muted text-muted-foreground border border-border'
               }`}
               title={realtimeConnected ? "Conectado - Los cambios se actualizan automáticamente" : "Conectando..."}
             >

@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"))
     const requestedLimit = parseInt(searchParams.get("limit") || "50")
     // Aumentar límite máximo
-    const limit = Math.min(requestedLimit, 1000) // Máximo 1000 para Trello
+    const limit = Math.min(requestedLimit, 1000)
     const offset = (page - 1) * limit
     
     const result = await query

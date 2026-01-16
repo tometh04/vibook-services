@@ -12,11 +12,11 @@ import { LeadDetailDialog } from "@/components/sales/lead-detail-dialog"
 import { toast } from "sonner"
 
 const statusColumns = [
-  { id: "NEW", label: "Nuevo", color: "bg-blue-50 dark:bg-blue-950/30", borderColor: "border-blue-300 dark:border-blue-700" },
-  { id: "IN_PROGRESS", label: "En Progreso", color: "bg-orange-50 dark:bg-orange-950/30", borderColor: "border-orange-300 dark:border-orange-700" },
-  { id: "QUOTED", label: "Cotizado", color: "bg-amber-50 dark:bg-amber-950/30", borderColor: "border-amber-300 dark:border-amber-700" },
-  { id: "WON", label: "Ganado", color: "bg-green-50 dark:bg-green-950/30", borderColor: "border-green-300 dark:border-green-700" },
-  { id: "LOST", label: "Perdido", color: "bg-red-50 dark:bg-red-950/30", borderColor: "border-red-300 dark:border-red-700" },
+  { id: "NEW", label: "Nuevo", color: "bg-blue-500/10", borderColor: "border-blue-500/30" },
+  { id: "IN_PROGRESS", label: "En Progreso", color: "bg-cyan-500/10", borderColor: "border-cyan-500/30" },
+  { id: "QUOTED", label: "Cotizado", color: "bg-purple-500/10", borderColor: "border-purple-500/30" },
+  { id: "WON", label: "Ganado", color: "bg-green-500/10", borderColor: "border-green-500/30" },
+  { id: "LOST", label: "Perdido", color: "bg-red-500/10", borderColor: "border-red-500/30" },
 ]
 
 const regionColors: Record<string, string> = {

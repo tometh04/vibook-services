@@ -63,14 +63,6 @@ export async function DELETE(
       }
     }
 
-    // Si el lead viene de Trello, no permitir eliminarlo desde aquí
-    // Debe eliminarse desde Trello para mantener la sincronización
-    if (lead.source === "Trello" && lead.external_id) {
-      return NextResponse.json(
-        { error: "No se puede eliminar un lead sincronizado con Trello. Elimínalo desde Trello." },
-        { status: 400 }
-      )
-    }
 
     // Check if lead is linked to an operation
     const { data: operations } = await supabase
@@ -160,34 +152,7 @@ export async function PATCH(
       }
     }
 
-    // Si el lead está sincronizado con Trello (tiene external_id), solo permitir editar ciertos campos
-    // Los leads de Manychat que crean tarjetas pero no están sincronizados pueden editarse completamente
-    if (lead.source === "Trello" && lead.external_id) {
-      // Solo permitir editar campos que no afectan la sincronización
-      const allowedFields = ["assigned_seller_id", "notes"]
-      const updateData: any = {}
-      
-      for (const field of allowedFields) {
-        if (body[field] !== undefined) {
-          updateData[field] = body[field]
-        }
-      }
-
-      updateData.updated_at = new Date().toISOString()
-
-      const { error } = await (supabase.from("leads") as any)
-        .update(updateData)
-        .eq("id", id)
-
-      if (error) {
-        console.error("Error updating lead:", error)
-        return NextResponse.json({ error: "Error al actualizar lead" }, { status: 500 })
-      }
-
-      return NextResponse.json({ success: true, lead: { id } })
-    }
-
-    // Lead no sincronizado con Trello (Manychat o Trello sin external_id) - permitir editar todos los campos
+    // Permitir editar todos los campos
     const updateData: any = {
       ...body,
       updated_at: new Date().toISOString(),

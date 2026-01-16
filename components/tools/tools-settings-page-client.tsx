@@ -47,7 +47,7 @@ interface ToolsSettings {
   email_signature?: string
   // WhatsApp
   whatsapp_enabled: boolean
-  whatsapp_provider: 'manual' | 'api' | 'manychat'
+  whatsapp_provider: 'manual' | 'api'
   whatsapp_api_key?: string
   whatsapp_default_country_code: string
   // Notificaciones
@@ -535,7 +535,7 @@ export function ToolsSettingsPageClient() {
                 </div>
                 <Select
                   value={settings.whatsapp_provider}
-                  onValueChange={(value: 'manual' | 'api' | 'manychat') => setSettings({
+                  onValueChange={(value: 'manual' | 'api') => setSettings({
                     ...settings,
                     whatsapp_provider: value,
                   })}
@@ -546,7 +546,6 @@ export function ToolsSettingsPageClient() {
                   <SelectContent>
                     <SelectItem value="manual">Manual (Links)</SelectItem>
                     <SelectItem value="api">API WhatsApp Business</SelectItem>
-                    <SelectItem value="manychat">ManyChat</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
