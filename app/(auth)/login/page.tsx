@@ -1,42 +1,42 @@
-import { GalleryVerticalEnd } from "lucide-react"
+"use client"
+
 import Image from "next/image"
 import Link from "next/link"
-
 import { LoginForm } from "@/components/auth/login-form"
-
-export const dynamic = 'force-dynamic'
-
-// Configuración de branding para la página de login
-// En un SaaS con subdominios, esto se obtendría dinámicamente
-const LOGIN_BRANDING = {
-  appName: process.env.NEXT_PUBLIC_APP_NAME || 'Vibook Gestión',
-  logoUrl: process.env.NEXT_PUBLIC_LOGO_URL || null,
-}
 
 export default function LoginPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
-      {/* Imagen de viajes a la izquierda */}
-      <div className="bg-muted relative hidden lg:block">
-        <Image
-          src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2000&q=80"
-          alt="Viajes"
-          fill
-          className="object-cover"
-          priority
+      {/* Panel izquierdo con branding moderno */}
+      <div className="bg-[#0a0a0f] relative hidden lg:flex items-center justify-center overflow-hidden">
+        {/* Animated background gradient orbs */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px]" />
+        </div>
+
+        {/* Grid pattern overlay */}
+        <div 
+          className="absolute inset-0 opacity-[0.15]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px'
+          }}
         />
-        {/* Overlay con gradiente mejorado */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-        <div className="absolute bottom-8 left-8 right-8 text-white">
-          <h2 className="text-3xl font-bold mb-2 leading-tight">
+
+        {/* Contenido del panel */}
+        <div className="relative z-10 px-8 text-white">
+          <h2 className="text-4xl font-bold mb-4 leading-tight">
             El sistema de gestión definitivo<br />
-            para AGENCIAS de viajes
+            para <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">AGENCIAS</span> de viajes
           </h2>
-          <p className="text-white/80">Operaciones, clientes, finanzas y más en un solo lugar</p>
+          <p className="text-gray-300 text-lg">Operaciones, clientes, finanzas y más en un solo lugar</p>
         </div>
       </div>
       {/* Login centrado a la derecha */}
-      <div className="flex flex-1 items-center justify-center p-6 md:p-10">
+      <div className="flex flex-1 items-center justify-center p-6 md:p-10 bg-white">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
             <Link href="/" className="flex items-center">
