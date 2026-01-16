@@ -14,10 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, RefreshCw, Loader2, Wifi, WifiOff } from "lucide-react"
-import { toast } from "sonner"
-import { createBrowserClient } from "@supabase/ssr"
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
+import { Plus } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -68,141 +65,32 @@ export function LeadsPageClient({
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [newLeadDialogOpen, setNewLeadDialogOpen] = useState(false)
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>(defaultAgencyId || agencies[0]?.id || "ALL")
-  const [loading, setLoading] = useState(false)
-  const [initialLoad, setInitialLoad] = useState(true)
-  const [realtimeConnected, setRealtimeConnected] = useState(false)
-  const supabaseRef = useRef<ReturnType<typeof createBrowserClient> | null>(null)
 
-  // Inicializar Supabase client para Realtime
+  // Actualizar leads cuando cambia la agencia seleccionada
   useEffect(() => {
-    if (!supabaseRef.current) {
-      supabaseRef.current = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-    }
-  }, [])
-
-  // Definir loadLeads como useCallback para poder usarla en Realtime
-  const loadLeads = useCallback(async (agencyId: string) => {
-    setLoading(true)
-    try {
-      const limit = 2000
-      // Cargar TODOS los leads (sin filtrar por source) para mostrar en el CRM
-      const url = agencyId === "ALL"
-        ? `/api/leads?page=1&limit=${limit}`
-        : `/api/leads?agencyId=${agencyId}&page=1&limit=${limit}`
-
-      const response = await fetch(url, { cache: 'no-store' })
-      const data = await response.json()
-      
-      if (data.leads && data.leads.length > 0) {
-        setLeads(data.leads)
-        console.log(`✅ Cargados ${data.leads.length} leads de ${data.pagination?.total || 'N/A'} totales`)
-      } else {
-        setLeads([])
-        console.log("ℹ️ No se encontraron leads")
-      }
-    } catch (error) {
-      console.error("Error loading leads:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  // 🔄 SUPABASE REALTIME - Actualización automática sin recargar
-  useEffect(() => {
-    const supabase = supabaseRef.current
-    if (!supabase) return
-
-    console.log("🔌 Conectando a Supabase Realtime...")
-
-    // Suscribirse a cambios en la tabla leads
-    const channel = supabase
-      .channel('leads-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'leads',
-        },
-        (payload: RealtimePostgresChangesPayload<Lead>) => {
-          console.log('📥 Cambio en tiempo real:', payload.eventType, payload.new || payload.old)
-          
-          if (payload.eventType === 'INSERT') {
-            const newLead = payload.new as Lead
-            // Solo agregar si coincide con el filtro de agencia actual
-            const shouldAdd = selectedAgencyId === "ALL" || newLead.agency_id === selectedAgencyId
-            
-            if (shouldAdd) {
-              setLeads((prev) => {
-                // Evitar duplicados
-                if (prev.some(l => l.id === newLead.id)) return prev
-                toast.success(`🆕 Nuevo lead: ${newLead.contact_name}`, { duration: 3000 })
-                return [newLead, ...prev]
-              })
-            }
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedLead = payload.new as Lead
-            // Actualizar el lead en la lista actual
-            setLeads((prev) => 
-              prev.map((lead) => 
-                lead.id === updatedLead.id ? { ...lead, ...updatedLead } : lead
-              )
-            )
-          } else if (payload.eventType === 'DELETE') {
-            const deletedId = (payload.old as any)?.id
-            if (deletedId) {
-              setLeads((prev) => prev.filter((lead) => lead.id !== deletedId))
-              toast.info(`🗑️ Lead eliminado`, { duration: 2000 })
-            }
-          }
-        }
-      )
-      .subscribe((status: string) => {
-        console.log('📡 Estado de Realtime:', status)
-        setRealtimeConnected(status === 'SUBSCRIBED')
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Conectado a Supabase Realtime')
-        }
-      })
-
-    // Cleanup al desmontar
-    return () => {
-      console.log('🔌 Desconectando de Supabase Realtime...')
-      supabase.removeChannel(channel)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAgencyId, loadLeads])
-
-  // Cargar leads cuando cambia la agencia seleccionada
-  useEffect(() => {
-    // SIEMPRE cargar leads desde la API cuando se selecciona una agencia
-    // Esto asegura que se carguen todos los leads (hasta 2000) y no solo los initialLeads
-    if (selectedAgencyId && selectedAgencyId !== "ALL") {
-      // Si es la carga inicial, usar un delay más corto
-      const delay = initialLoad ? 50 : 100
-      const timer = setTimeout(() => {
-        loadLeads(selectedAgencyId)
-        if (initialLoad) {
-          setInitialLoad(false)
-        }
-      }, delay)
-      return () => clearTimeout(timer)
-    } else if (selectedAgencyId === "ALL") {
-      // Si se selecciona "Todas las agencias", usar los initialLeads
+    if (selectedAgencyId === "ALL") {
       setLeads(initialLeads)
-      if (initialLoad) {
-        setInitialLoad(false)
+    } else {
+      // Cargar leads de la agencia seleccionada
+      const loadLeads = async () => {
+        try {
+          const limit = 2000
+          const url = `/api/leads?agencyId=${selectedAgencyId}&page=1&limit=${limit}`
+          const response = await fetch(url, { cache: 'no-store' })
+          const data = await response.json()
+          
+          if (data.leads && data.leads.length > 0) {
+            setLeads(data.leads)
+          } else {
+            setLeads([])
+          }
+        } catch (error) {
+          console.error("Error loading leads:", error)
+        }
       }
+      loadLeads()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAgencyId, loadLeads, initialLeads])
-
-  const handleRefresh = async () => {
-    await loadLeads(selectedAgencyId)
-  }
+  }, [selectedAgencyId, initialLeads])
 
   return (
     <div className="space-y-6">
@@ -222,32 +110,9 @@ export function LeadsPageClient({
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold">Leads</h1>
-            {/* Indicador de conexión en tiempo real */}
-            <div 
-              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                realtimeConnected 
-                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-                  : 'bg-muted text-muted-foreground border border-border'
-              }`}
-              title={realtimeConnected ? "Conectado - Los cambios se actualizan automáticamente" : "Conectando..."}
-            >
-              {realtimeConnected ? (
-                <>
-                  <Wifi className="h-3 w-3" />
-                  <span>En vivo</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-3 w-3" />
-                  <span>Conectando...</span>
-                </>
-              )}
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold">Leads</h1>
           <p className="text-muted-foreground">
-            Gestiona tus leads y oportunidades • Actualización automática
+            Gestiona tus leads y oportunidades
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -271,26 +136,6 @@ export function LeadsPageClient({
               </Select>
             </div>
           )}
-          {selectedAgencyId !== "ALL" && (
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={loading}
-              title="Actualizar leads"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Actualizando...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Actualizar Leads
-                </>
-              )}
-            </Button>
-          )}
           <Button onClick={() => setNewLeadDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo Lead
@@ -304,28 +149,20 @@ export function LeadsPageClient({
           <TabsTrigger value="table">Tabla</TabsTrigger>
         </TabsList>
         <TabsContent value="kanban">
-          {loading ? (
-            <div className="flex items-center justify-center p-8">
-              <p className="text-muted-foreground">Cargando leads...</p>
-            </div>
-          ) : (
-            <LeadsKanban 
-              leads={leads as any}
-              agencies={agencies}
-              sellers={sellers}
-              operators={operators}
-              onRefresh={handleRefresh}
-              currentUserId={currentUserId}
-              currentUserRole={currentUserRole}
-            />
-          )}
+          <LeadsKanban 
+            leads={leads as any}
+            agencies={agencies}
+            sellers={sellers}
+            operators={operators}
+            currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
+          />
         </TabsContent>
         <TabsContent value="table" className="space-y-4">
           <LeadsTable
             agencies={agencies}
             sellers={sellers}
             operators={operators}
-            onRefresh={handleRefresh}
             agencyId={selectedAgencyId}
             sellerId={defaultSellerId}
           />

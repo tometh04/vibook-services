@@ -13,10 +13,10 @@ import { toast } from "sonner"
 
 const statusColumns = [
   { id: "NEW", label: "Nuevo", color: "bg-blue-500/10", borderColor: "border-blue-500/30" },
-  { id: "IN_PROGRESS", label: "En Progreso", color: "bg-cyan-500/10", borderColor: "border-cyan-500/30" },
-  { id: "QUOTED", label: "Cotizado", color: "bg-purple-500/10", borderColor: "border-purple-500/30" },
-  { id: "WON", label: "Ganado", color: "bg-green-500/10", borderColor: "border-green-500/30" },
-  { id: "LOST", label: "Perdido", color: "bg-red-500/10", borderColor: "border-red-500/30" },
+  { id: "IN_PROGRESS", label: "En Progreso", color: "bg-blue-400/10", borderColor: "border-blue-400/30" },
+  { id: "QUOTED", label: "Cotizado", color: "bg-blue-300/10", borderColor: "border-blue-300/30" },
+  { id: "WON", label: "Ganado", color: "bg-cyan-500/10", borderColor: "border-cyan-500/30" },
+  { id: "LOST", label: "Perdido", color: "bg-blue-600/10", borderColor: "border-blue-600/30" },
 ]
 
 const regionColors: Record<string, string> = {
@@ -54,7 +54,6 @@ interface LeadsKanbanProps {
   agencies?: Array<{ id: string; name: string }>
   sellers?: Array<{ id: string; name: string }>
   operators?: Array<{ id: string; name: string }>
-  onRefresh?: () => void
   currentUserId?: string
   currentUserRole?: string
 }
