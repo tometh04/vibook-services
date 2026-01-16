@@ -206,7 +206,7 @@ export function NewOperationDialog({
   }
 
   // Función para cargar clientes
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     setLoadingCustomers(true)
     try {
       const response = await fetch('/api/customers?limit=200', {
@@ -248,7 +248,7 @@ export function NewOperationDialog({
     } finally {
       setLoadingCustomers(false)
     }
-  }
+  }, [toast])
 
   // Estados disponibles (estándar + personalizados)
   const availableStatuses = React.useMemo(() => {
