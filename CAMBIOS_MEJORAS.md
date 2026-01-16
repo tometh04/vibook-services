@@ -99,10 +99,10 @@ export function ConvertLeadDialog({ lead, agencies, sellers, operators, open, on
 ## 2. Mejoras de UI - Fondos Opacos
 
 ### Problema
-Los elementos desplegables (dropdowns, selects) y el overlay de diálogos tenían fondos transparentes que hacían difícil leer el contenido.
+Los elementos desplegables (dropdowns, selects, popovers, commands) y el overlay de diálogos tenían fondos transparentes que hacían difícil leer el contenido. El problema afectaba a TODOS los componentes desplegables del sistema.
 
 ### Solución
-Se aumentó la opacidad de los fondos y se agregó `backdrop-blur-sm` para mejor legibilidad.
+Se aumentó la opacidad de los fondos a 95% y se agregó `backdrop-blur-sm` para mejor legibilidad en TODOS los componentes desplegables.
 
 ### Cambios Técnicos
 
@@ -131,7 +131,25 @@ Se aumentó la opacidad de los fondos y se agregó `backdrop-blur-sm` para mejor
 **Cambios:**
 - `bg-popover` → `bg-popover/95 backdrop-blur-sm` en `SelectContent`
 
-#### 2.3. Dialog Overlay
+#### 2.3. Popover
+
+**Archivo:** `components/ui/popover.tsx`
+
+**Cambios:**
+- `bg-popover` → `bg-popover/95 backdrop-blur-sm` en `PopoverContent`
+
+**IMPORTANTE:** Este componente es usado por el selector de clientes, por lo que es crítico para la legibilidad.
+
+#### 2.4. Command
+
+**Archivo:** `components/ui/command.tsx`
+
+**Cambios:**
+- `bg-popover` → `bg-popover/95 backdrop-blur-sm` en `Command`
+
+**IMPORTANTE:** Este componente es usado por el selector de clientes con búsqueda.
+
+#### 2.5. Dialog Overlay
 
 **Archivo:** `components/ui/dialog.tsx`
 
@@ -148,10 +166,29 @@ Se aumentó la opacidad de los fondos y se agregó `backdrop-blur-sm` para mejor
 "fixed inset-0 z-50 bg-background/95 backdrop-blur-sm ..."
 ```
 
+#### 2.6. Otros Componentes Desplegables
+
+También se corrigieron:
+- **Menubar** (`components/ui/menubar.tsx`): `MenubarContent` y `MenubarSubContent`
+- **Context Menu** (`components/ui/context-menu.tsx`): `ContextMenuContent` y `ContextMenuSubContent`
+- **Hover Card** (`components/ui/hover-card.tsx`): `HoverCardContent`
+- **Navigation Menu** (`components/ui/navigation-menu.tsx`): `NavigationMenuViewport`
+- **Tooltip** (`components/ui/tooltip.tsx`): `TooltipContent`
+
+**Patrón aplicado en todos:**
+```typescript
+// Antes
+"bg-popover"
+
+// Después
+"bg-popover/95 backdrop-blur-sm"
+```
+
 ### Beneficios
-- ✅ Mejor legibilidad de los menús desplegables
+- ✅ Mejor legibilidad de TODOS los menús desplegables
 - ✅ Overlay más visible y profesional
 - ✅ Mejor contraste en modo claro y oscuro
+- ✅ Consistencia visual en todo el sistema
 
 ---
 
@@ -232,6 +269,43 @@ const [customerSearchQuery, setCustomerSearchQuery] = useState("")
 - ✅ Scroll automático si hay más resultados
 - ✅ Indicador cuando hay más clientes disponibles
 - ✅ Botón + para crear nuevo cliente (sin cambios)
+
+### Correcciones Aplicadas
+
+**Problema encontrado:** El campo de búsqueda no se mostraba correctamente y había problemas de filtrado.
+
+**Solución:**
+1. Agregado `shouldFilter={false}` al componente `Command` para control manual del filtrado
+2. Cambiado el `value` del `CommandItem` de `customer.id` a `${customer.first_name} ${customer.last_name}` para que el filtrado funcione correctamente
+3. Ajustado el ancho del `PopoverContent` para que coincida con el trigger: `w-[var(--radix-popover-trigger-width)]`
+4. Mejorado el manejo de estados vacíos y carga
+5. Agregado `max-h-[200px]` al `CommandList` para mejor control del scroll
+
+**Código corregido:**
+```typescript
+<PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+  <Command shouldFilter={false}>
+    <CommandInput 
+      placeholder="Buscar cliente..." 
+      value={customerSearchQuery}
+      onValueChange={setCustomerSearchQuery}
+    />
+    <CommandList className="max-h-[200px]">
+      {/* ... */}
+      <CommandItem
+        value={`${customer.first_name} ${customer.last_name}`} // ← Cambiado de customer.id
+        onSelect={() => {
+          field.onChange(customer.id)
+          setCustomerSearchOpen(false)
+          setCustomerSearchQuery("")
+        }}
+      >
+        {/* ... */}
+      </CommandItem>
+    </CommandList>
+  </Command>
+</PopoverContent>
+```
 
 ### Beneficios
 - ✅ Mejor UX: búsqueda rápida de clientes
@@ -330,15 +404,37 @@ const [customerSearchQuery, setCustomerSearchQuery] = useState("")
 4. Probar precarga de datos desde lead
 
 ### 2. Fondos Opacos
-1. Actualizar `dropdown-menu.tsx`: `bg-popover` → `bg-popover/95 backdrop-blur-sm`
-2. Actualizar `select.tsx`: `bg-popover` → `bg-popover/95 backdrop-blur-sm`
-3. Actualizar `dialog.tsx`: `bg-background/80` → `bg-background/95`
+**IMPORTANTE:** Aplicar a TODOS los componentes desplegables:
+
+1. `dropdown-menu.tsx`: `DropdownMenuContent` y `DropdownMenuSubContent`
+2. `select.tsx`: `SelectContent`
+3. `popover.tsx`: `PopoverContent` ⚠️ **CRÍTICO para selector de clientes**
+4. `command.tsx`: `Command` ⚠️ **CRÍTICO para selector de clientes**
+5. `dialog.tsx`: `DialogOverlay`
+6. `menubar.tsx`: `MenubarContent` y `MenubarSubContent`
+7. `context-menu.tsx`: `ContextMenuContent` y `ContextMenuSubContent`
+8. `hover-card.tsx`: `HoverCardContent`
+9. `navigation-menu.tsx`: `NavigationMenuViewport`
+10. `tooltip.tsx`: `TooltipContent`
+
+**Patrón a aplicar:**
+```typescript
+// Buscar todas las instancias de:
+"bg-popover"
+
+// Reemplazar por:
+"bg-popover/95 backdrop-blur-sm"
+```
 
 ### 3. Selector de Clientes
 1. Reemplazar `Select` por `Popover` + `Command`
-2. Agregar estados para búsqueda
-3. Implementar filtrado y límite de 5 resultados
-4. Agregar indicador de más resultados
+2. Agregar estados para búsqueda (`customerSearchOpen`, `customerSearchQuery`)
+3. Implementar filtrado manual (usar `shouldFilter={false}` en `Command`)
+4. Límite de 5 resultados visibles con scroll
+5. Agregar indicador de más resultados
+6. **CRÍTICO:** Usar `value={`${customer.first_name} ${customer.last_name}`}` en `CommandItem` (no `customer.id`) para que el filtrado funcione
+7. **CRÍTICO:** Ajustar ancho del `PopoverContent` con `w-[var(--radix-popover-trigger-width)]`
+8. Agregar `max-h-[200px]` al `CommandList` para control de scroll
 
 ### 4. Testing
 - Probar creación de operación normal

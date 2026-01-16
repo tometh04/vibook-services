@@ -681,51 +681,52 @@ export function NewOperationDialog({
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-full p-0" align="start">
-                            <Command>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                            <Command shouldFilter={false}>
                               <CommandInput 
                                 placeholder="Buscar cliente..." 
                                 value={customerSearchQuery}
                                 onValueChange={setCustomerSearchQuery}
                               />
-                              <CommandList>
-                                <CommandEmpty>
-                                  {loadingCustomers ? (
+                              <CommandList className="max-h-[200px]">
+                                {loadingCustomers ? (
+                                  <div className="p-2 text-center text-sm text-muted-foreground">
+                                    Cargando...
+                                  </div>
+                                ) : displayCustomers.length === 0 ? (
+                                  <CommandEmpty>
                                     <div className="p-2 text-center text-sm text-muted-foreground">
-                                      Cargando...
+                                      {customerSearchQuery ? "No se encontraron clientes" : "No hay clientes"}
                                     </div>
-                                  ) : (
-                                    <div className="p-2 text-center text-sm text-muted-foreground">
-                                      No se encontraron clientes
-                                    </div>
-                                  )}
-                                </CommandEmpty>
-                                <CommandGroup>
-                                  {displayCustomers.map((customer) => (
-                                    <CommandItem
-                                      key={customer.id}
-                                      value={customer.id}
-                                      onSelect={() => {
-                                        field.onChange(customer.id)
-                                        setCustomerSearchOpen(false)
-                                        setCustomerSearchQuery("")
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          field.value === customer.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {customer.first_name} {customer.last_name}
-                                    </CommandItem>
-                                  ))}
-                                  {filteredCustomers.length > 5 && (
-                                    <div className="px-2 py-1.5 text-xs text-muted-foreground text-center border-t">
-                                      Mostrando 5 de {filteredCustomers.length} clientes. Usa la búsqueda para filtrar.
-                                    </div>
-                                  )}
-                                </CommandGroup>
+                                  </CommandEmpty>
+                                ) : (
+                                  <CommandGroup>
+                                    {displayCustomers.map((customer) => (
+                                      <CommandItem
+                                        key={customer.id}
+                                        value={`${customer.first_name} ${customer.last_name}`}
+                                        onSelect={() => {
+                                          field.onChange(customer.id)
+                                          setCustomerSearchOpen(false)
+                                          setCustomerSearchQuery("")
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            field.value === customer.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {customer.first_name} {customer.last_name}
+                                      </CommandItem>
+                                    ))}
+                                    {filteredCustomers.length > 5 && (
+                                      <div className="px-2 py-1.5 text-xs text-muted-foreground text-center border-t">
+                                        Mostrando 5 de {filteredCustomers.length} clientes. Usa la búsqueda para filtrar.
+                                      </div>
+                                    )}
+                                  </CommandGroup>
+                                )}
                               </CommandList>
                             </Command>
                           </PopoverContent>
