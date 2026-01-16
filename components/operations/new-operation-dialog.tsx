@@ -161,88 +161,6 @@ export function NewOperationDialog({
     setLocalOperators(operators)
   }, [operators])
 
-  // Función para precargar datos del lead
-  const handleLeadPreload = useCallback(async () => {
-    if (!lead) return
-    
-    try {
-      // Buscar cliente existente por email o teléfono
-      let customerId: string | null = null
-      
-      if (lead.contact_email || lead.contact_phone) {
-        const searchParams = new URLSearchParams()
-        if (lead.contact_email) searchParams.append('email', lead.contact_email)
-        if (lead.contact_phone) searchParams.append('phone', lead.contact_phone)
-        
-        const response = await fetch(`/api/customers?${searchParams.toString()}&limit=1`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.customers && data.customers.length > 0) {
-            customerId = data.customers[0].id
-          }
-        }
-      }
-      
-      // Si no existe, crear cliente con datos del lead
-      if (!customerId) {
-        const nameParts = (lead.contact_name || "").trim().split(" ")
-        const firstName = nameParts[0] || "Sin nombre"
-        const lastName = nameParts.slice(1).join(" ") || "-"
-        
-        const createResponse = await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            first_name: firstName,
-            last_name: lastName,
-            phone: lead.contact_phone || "",
-            email: lead.contact_email || "",
-          }),
-        })
-        
-        if (createResponse.ok) {
-          const newCustomer = await createResponse.json()
-          customerId = newCustomer.customer?.id || newCustomer.id
-          // Agregar a la lista local
-          if (customerId) {
-            setCustomers(prev => [...prev, {
-              id: customerId!,
-              first_name: firstName,
-              last_name: lastName,
-            }])
-          }
-        }
-      }
-      
-      // Precargar campos del formulario
-      if (lead.agency_id) form.setValue("agency_id", lead.agency_id)
-      if (lead.assigned_seller_id) form.setValue("seller_id", lead.assigned_seller_id)
-      if (customerId) form.setValue("customer_id", customerId)
-      if (lead.destination) {
-        // Limpiar destino si no es válido
-        const cleanedDest = cleanDestination(lead.destination)
-        if (cleanedDest) form.setValue("destination", cleanedDest)
-      }
-      if (lead.notes) form.setValue("notes", lead.notes)
-      
-    } catch (error) {
-      console.error("Error precargando datos del lead:", error)
-    }
-  }, [lead, form])
-
-  // Cargar configuración de operaciones
-  useEffect(() => {
-    if (open) {
-      loadSettings()
-      loadCustomers()
-      
-      // Si hay un lead, buscar o crear cliente y precargar datos
-      if (lead) {
-        handleLeadPreload()
-      }
-    }
-  }, [open, lead, handleLeadPreload])
-
   // Función para limpiar destino (copiada de convert-lead-dialog)
   const cleanDestination = (destination: string): string => {
     if (!destination) return ""
@@ -343,12 +261,94 @@ export function NewOperationDialog({
     },
   })
 
+  // Función para precargar datos del lead
+  const handleLeadPreload = useCallback(async () => {
+    if (!lead) return
+    
+    try {
+      // Buscar cliente existente por email o teléfono
+      let customerId: string | null = null
+      
+      if (lead.contact_email || lead.contact_phone) {
+        const searchParams = new URLSearchParams()
+        if (lead.contact_email) searchParams.append('email', lead.contact_email)
+        if (lead.contact_phone) searchParams.append('phone', lead.contact_phone)
+        
+        const response = await fetch(`/api/customers?${searchParams.toString()}&limit=1`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.customers && data.customers.length > 0) {
+            customerId = data.customers[0].id
+          }
+        }
+      }
+      
+      // Si no existe, crear cliente con datos del lead
+      if (!customerId) {
+        const nameParts = (lead.contact_name || "").trim().split(" ")
+        const firstName = nameParts[0] || "Sin nombre"
+        const lastName = nameParts.slice(1).join(" ") || "-"
+        
+        const createResponse = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            phone: lead.contact_phone || "",
+            email: lead.contact_email || "",
+          }),
+        })
+        
+        if (createResponse.ok) {
+          const newCustomer = await createResponse.json()
+          customerId = newCustomer.customer?.id || newCustomer.id
+          // Agregar a la lista local
+          if (customerId) {
+            setCustomers(prev => [...prev, {
+              id: customerId!,
+              first_name: firstName,
+              last_name: lastName,
+            }])
+          }
+        }
+      }
+      
+      // Precargar campos del formulario
+      if (lead.agency_id) form.setValue("agency_id", lead.agency_id)
+      if (lead.assigned_seller_id) form.setValue("seller_id", lead.assigned_seller_id)
+      if (customerId) form.setValue("customer_id", customerId)
+      if (lead.destination) {
+        // Limpiar destino si no es válido
+        const cleanedDest = cleanDestination(lead.destination)
+        if (cleanedDest) form.setValue("destination", cleanedDest)
+      }
+      if (lead.notes) form.setValue("notes", lead.notes)
+      
+    } catch (error) {
+      console.error("Error precargando datos del lead:", error)
+    }
+  }, [lead, form, cleanDestination])
+
   // Actualizar estado por defecto cuando se carga la configuración
   useEffect(() => {
     if (settings?.default_status) {
       form.setValue('status', settings.default_status)
     }
   }, [settings, form])
+
+  // Cargar configuración de operaciones
+  useEffect(() => {
+    if (open) {
+      loadSettings()
+      loadCustomers()
+      
+      // Si hay un lead, buscar o crear cliente y precargar datos
+      if (lead) {
+        handleLeadPreload()
+      }
+    }
+  }, [open, lead, handleLeadPreload])
 
   // Calcular costo total de operadores
   const totalOperatorCost = operatorList.reduce((sum, op) => sum + (op.cost || 0), 0)
