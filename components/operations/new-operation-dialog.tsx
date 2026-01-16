@@ -34,7 +34,15 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Plus, Trash2, AlertCircle, Loader2 } from "lucide-react"
+import { CalendarIcon, Plus, Trash2, AlertCircle, Loader2, Check, ChevronsUpDown } from "lucide-react"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Label } from "@/components/ui/label"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -152,6 +160,8 @@ export function NewOperationDialog({
   const [customers, setCustomers] = useState<Array<{ id: string; first_name: string; last_name: string }>>([])
   const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false)
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("")
 
   // Estados para prevenir cierre accidental
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
@@ -640,47 +650,100 @@ export function NewOperationDialog({
               <FormField
                 control={form.control}
                 name="customer_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <div className="flex gap-2">
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar cliente" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {loadingCustomers ? (
-                            <div className="p-2 text-center text-sm text-muted-foreground">
-                              Cargando...
-                            </div>
-                          ) : customers.length === 0 ? (
-                            <div className="p-2 text-center text-sm text-muted-foreground">
-                              No hay clientes
-                            </div>
-                          ) : (
-                            customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.first_name} {customer.last_name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setShowNewCustomerDialog(true)}
-                        title="Crear nuevo cliente"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedCustomer = customers.find(c => c.id === field.value)
+                  const filteredCustomers = customerSearchQuery
+                    ? customers.filter(c => 
+                        `${c.first_name} ${c.last_name}`.toLowerCase().includes(customerSearchQuery.toLowerCase())
+                      )
+                    : customers
+                  const displayCustomers = filteredCustomers.slice(0, 5)
+                  
+                  return (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Cliente</FormLabel>
+                      <div className="flex gap-2">
+                        <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                  "w-full justify-between flex-1",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {selectedCustomer
+                                  ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
+                                  : "Seleccionar cliente"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                              <CommandInput 
+                                placeholder="Buscar cliente..." 
+                                value={customerSearchQuery}
+                                onValueChange={setCustomerSearchQuery}
+                              />
+                              <CommandList>
+                                <CommandEmpty>
+                                  {loadingCustomers ? (
+                                    <div className="p-2 text-center text-sm text-muted-foreground">
+                                      Cargando...
+                                    </div>
+                                  ) : (
+                                    <div className="p-2 text-center text-sm text-muted-foreground">
+                                      No se encontraron clientes
+                                    </div>
+                                  )}
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {displayCustomers.map((customer) => (
+                                    <CommandItem
+                                      key={customer.id}
+                                      value={customer.id}
+                                      onSelect={() => {
+                                        field.onChange(customer.id)
+                                        setCustomerSearchOpen(false)
+                                        setCustomerSearchQuery("")
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          field.value === customer.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {customer.first_name} {customer.last_name}
+                                    </CommandItem>
+                                  ))}
+                                  {filteredCustomers.length > 5 && (
+                                    <div className="px-2 py-1.5 text-xs text-muted-foreground text-center border-t">
+                                      Mostrando 5 de {filteredCustomers.length} clientes. Usa la búsqueda para filtrar.
+                                    </div>
+                                  )}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setShowNewCustomerDialog(true)}
+                          title="Crear nuevo cliente"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
               />
 
               <FormField
