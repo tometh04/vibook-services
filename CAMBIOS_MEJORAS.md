@@ -269,6 +269,9 @@ const [customerSearchQuery, setCustomerSearchQuery] = useState("")
 - ✅ Scroll automático si hay más resultados
 - ✅ Indicador cuando hay más clientes disponibles
 - ✅ Botón + para crear nuevo cliente (sin cambios)
+- ✅ Manejo robusto de errores con mensajes informativos
+- ✅ Indicador de carga con spinner
+- ✅ Mensajes claros cuando no hay clientes
 
 ### Correcciones Aplicadas
 
@@ -291,21 +294,105 @@ const [customerSearchQuery, setCustomerSearchQuery] = useState("")
       onValueChange={setCustomerSearchQuery}
     />
     <CommandList className="max-h-[200px]">
-      {/* ... */}
-      <CommandItem
-        value={`${customer.first_name} ${customer.last_name}`} // ← Cambiado de customer.id
-        onSelect={() => {
-          field.onChange(customer.id)
-          setCustomerSearchOpen(false)
-          setCustomerSearchQuery("")
-        }}
-      >
-        {/* ... */}
-      </CommandItem>
+      {loadingCustomers ? (
+        <div className="p-4 text-center text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+          Cargando clientes...
+        </div>
+      ) : customers.length === 0 ? (
+        <CommandEmpty>
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            No hay clientes disponibles. Usa el botón + para crear uno nuevo.
+          </div>
+        </CommandEmpty>
+      ) : (
+        <CommandGroup>
+          {displayCustomers.map((customer) => (
+            <CommandItem
+              key={customer.id}
+              value={`${customer.first_name} ${customer.last_name}`} // ← Cambiado de customer.id
+              onSelect={() => {
+                field.onChange(customer.id)
+                setCustomerSearchOpen(false)
+                setCustomerSearchQuery("")
+              }}
+            >
+              {/* ... */}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      )}
     </CommandList>
   </Command>
 </PopoverContent>
 ```
+
+**Función loadCustomers mejorada:**
+```typescript
+const loadCustomers = async () => {
+  setLoadingCustomers(true)
+  try {
+    const response = await fetch('/api/customers?limit=200', {
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
+      console.error('Error loading customers:', response.status, errorData)
+      toast({
+        title: "Error al cargar clientes",
+        description: errorData.error || `Error ${response.status}: ${response.statusText}`,
+        variant: "destructive",
+      })
+      setCustomers([])
+      return
+    }
+    
+    const data = await response.json()
+    const customersList = (data.customers || []).map((c: any) => ({
+      id: c.id,
+      first_name: c.first_name || '',
+      last_name: c.last_name || '',
+    }))
+    
+    setCustomers(customersList)
+    console.log(`[NewOperationDialog] Loaded ${customersList.length} customers`)
+  } catch (error) {
+    console.error('Error loading customers:', error)
+    toast({
+      title: "Error al cargar clientes",
+      description: error instanceof Error ? error.message : "Error desconocido al cargar clientes",
+      variant: "destructive",
+    })
+    setCustomers([])
+  } finally {
+    setLoadingCustomers(false)
+  }
+}
+```
+
+### Problema de Variables de Entorno de Supabase
+
+**Error en logs de Vercel:**
+```
+Missing required Supabase environment variables
+500 Internal Server Error
+```
+
+**Causa:**
+Las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` no están configuradas en Vercel.
+
+**Solución:**
+1. Ir a Vercel Dashboard → Proyecto → Settings → Environment Variables
+2. Agregar:
+   - `NEXT_PUBLIC_SUPABASE_URL` = URL de tu proyecto Supabase
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = Anon key de Supabase
+3. Hacer redeploy después de agregar las variables
+
+**Nota:** El código en `lib/supabase/server.ts` ya maneja la ausencia de variables de forma segura durante el build, pero en runtime (producción) estas variables son necesarias para que las APIs funcionen.
 
 ### Beneficios
 - ✅ Mejor UX: búsqueda rápida de clientes

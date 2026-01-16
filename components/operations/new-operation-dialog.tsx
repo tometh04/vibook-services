@@ -209,17 +209,42 @@ export function NewOperationDialog({
   const loadCustomers = async () => {
     setLoadingCustomers(true)
     try {
-      const response = await fetch('/api/customers?limit=200')
-      if (response.ok) {
-        const data = await response.json()
-        setCustomers((data.customers || []).map((c: any) => ({
-          id: c.id,
-          first_name: c.first_name,
-          last_name: c.last_name,
-        })))
+      const response = await fetch('/api/customers?limit=200', {
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
+        console.error('Error loading customers:', response.status, errorData)
+        toast({
+          title: "Error al cargar clientes",
+          description: errorData.error || `Error ${response.status}: ${response.statusText}`,
+          variant: "destructive",
+        })
+        setCustomers([])
+        return
       }
+      
+      const data = await response.json()
+      const customersList = (data.customers || []).map((c: any) => ({
+        id: c.id,
+        first_name: c.first_name || '',
+        last_name: c.last_name || '',
+      }))
+      
+      setCustomers(customersList)
+      console.log(`[NewOperationDialog] Loaded ${customersList.length} customers`)
     } catch (error) {
       console.error('Error loading customers:', error)
+      toast({
+        title: "Error al cargar clientes",
+        description: error instanceof Error ? error.message : "Error desconocido al cargar clientes",
+        variant: "destructive",
+      })
+      setCustomers([])
     } finally {
       setLoadingCustomers(false)
     }
@@ -690,13 +715,20 @@ export function NewOperationDialog({
                               />
                               <CommandList className="max-h-[200px]">
                                 {loadingCustomers ? (
-                                  <div className="p-2 text-center text-sm text-muted-foreground">
-                                    Cargando...
+                                  <div className="p-4 text-center text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                                    Cargando clientes...
                                   </div>
+                                ) : customers.length === 0 ? (
+                                  <CommandEmpty>
+                                    <div className="p-4 text-center text-sm text-muted-foreground">
+                                      {customerSearchQuery ? "No se encontraron clientes con ese criterio" : "No hay clientes disponibles. Usa el botón + para crear uno nuevo."}
+                                    </div>
+                                  </CommandEmpty>
                                 ) : displayCustomers.length === 0 ? (
                                   <CommandEmpty>
-                                    <div className="p-2 text-center text-sm text-muted-foreground">
-                                      {customerSearchQuery ? "No se encontraron clientes" : "No hay clientes"}
+                                    <div className="p-4 text-center text-sm text-muted-foreground">
+                                      No se encontraron clientes que coincidan con "{customerSearchQuery}"
                                     </div>
                                   </CommandEmpty>
                                 ) : (
