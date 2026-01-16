@@ -554,4 +554,68 @@ Las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON
 
 ---
 
+## 6. Solución de Problemas Comunes
+
+### 6.1. Error: "Missing required Supabase environment variables"
+
+**Síntoma:**
+- Errores 500 en los logs de Vercel
+- APIs no responden correctamente
+- Los clientes no se cargan en el selector
+
+**Causa:**
+Las variables de entorno de Supabase no están configuradas en Vercel.
+
+**Solución:**
+1. Ir a [Vercel Dashboard](https://vercel.com/dashboard)
+2. Seleccionar el proyecto `vibook-services`
+3. Ir a **Settings** → **Environment Variables**
+4. Agregar las siguientes variables:
+   - **Name:** `NEXT_PUBLIC_SUPABASE_URL`
+     **Value:** `https://[tu-proyecto].supabase.co`
+   - **Name:** `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+     **Value:** `[tu-anon-key]` (obtener de Supabase Dashboard → Settings → API)
+5. Seleccionar **Production**, **Preview**, y **Development**
+6. Guardar
+7. Hacer **Redeploy** del proyecto
+
+**Verificación:**
+- Los logs de Vercel no deberían mostrar errores de variables faltantes
+- Las APIs deberían responder correctamente
+- Los clientes deberían cargarse en el selector
+
+### 6.2. Clientes no se cargan en el selector
+
+**Síntoma:**
+- El selector muestra "Cargando..." indefinidamente
+- No aparecen clientes en la lista
+
+**Posibles causas y soluciones:**
+
+1. **Variables de entorno faltantes** (ver 6.1)
+2. **Error en la API:** Revisar logs de Vercel para ver errores específicos
+3. **Permisos:** Verificar que el usuario tenga permisos para ver clientes
+4. **Agencias:** Verificar que el usuario tenga agencias asignadas
+
+**Debugging:**
+- Abrir DevTools → Console
+- Buscar logs que empiecen con `[NewOperationDialog]` o `[Customers API]`
+- Verificar respuesta de `/api/customers` en Network tab
+
+**Código de debugging agregado:**
+```typescript
+console.log(`[NewOperationDialog] Loaded ${customersList.length} customers`)
+```
+
+### 6.3. Fondos transparentes en desplegables
+
+**Síntoma:**
+- Los menús desplegables tienen fondos muy transparentes
+- Difícil leer el contenido
+
+**Solución:**
+Aplicar `bg-popover/95 backdrop-blur-sm` a todos los componentes desplegables (ver sección 2).
+
+---
+
 *Última actualización: Diciembre 2024*
