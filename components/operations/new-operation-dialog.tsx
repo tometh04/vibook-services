@@ -86,6 +86,7 @@ const operationSchema = z.object({
   currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
   sale_currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
   operator_cost_currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
+  notes: z.string().optional().nullable(),
 })
 
 type OperationFormValues = z.infer<typeof operationSchema>
@@ -99,6 +100,17 @@ const operationTypeOptions = [
   { value: "MIXED", label: "Mixto" },
 ]
 
+interface LeadData {
+  id: string
+  contact_name: string
+  contact_email?: string | null
+  contact_phone?: string | null
+  destination: string
+  agency_id?: string
+  assigned_seller_id?: string | null
+  notes?: string | null
+}
+
 interface NewOperationDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -108,6 +120,7 @@ interface NewOperationDialogProps {
   operators: Array<{ id: string; name: string }>
   defaultAgencyId?: string
   defaultSellerId?: string
+  lead?: LeadData // Lead opcional para precargar datos
 }
 
 export function NewOperationDialog({
@@ -119,6 +132,7 @@ export function NewOperationDialog({
   operators,
   defaultAgencyId,
   defaultSellerId,
+  lead,
 }: NewOperationDialogProps) {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -151,9 +165,105 @@ export function NewOperationDialog({
   useEffect(() => {
     if (open) {
       loadSettings()
-      loadCustomers() // ← NUEVO: Cargar clientes
+      loadCustomers()
+      
+      // Si hay un lead, buscar o crear cliente y precargar datos
+      if (lead) {
+        handleLeadPreload()
+      }
     }
-  }, [open])
+  }, [open, lead])
+  
+  // Función para precargar datos del lead
+  const handleLeadPreload = async () => {
+    if (!lead) return
+    
+    try {
+      // Buscar cliente existente por email o teléfono
+      let customerId: string | null = null
+      
+      if (lead.contact_email || lead.contact_phone) {
+        const searchParams = new URLSearchParams()
+        if (lead.contact_email) searchParams.append('email', lead.contact_email)
+        if (lead.contact_phone) searchParams.append('phone', lead.contact_phone)
+        
+        const response = await fetch(`/api/customers?${searchParams.toString()}&limit=1`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.customers && data.customers.length > 0) {
+            customerId = data.customers[0].id
+          }
+        }
+      }
+      
+      // Si no existe, crear cliente con datos del lead
+      if (!customerId) {
+        const nameParts = (lead.contact_name || "").trim().split(" ")
+        const firstName = nameParts[0] || "Sin nombre"
+        const lastName = nameParts.slice(1).join(" ") || "-"
+        
+        const createResponse = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            phone: lead.contact_phone || "",
+            email: lead.contact_email || "",
+          }),
+        })
+        
+        if (createResponse.ok) {
+          const newCustomer = await createResponse.json()
+          customerId = newCustomer.customer?.id || newCustomer.id
+          // Agregar a la lista local
+          if (customerId) {
+            setCustomers(prev => [...prev, {
+              id: customerId!,
+              first_name: firstName,
+              last_name: lastName,
+            }])
+          }
+        }
+      }
+      
+      // Precargar campos del formulario
+      if (lead.agency_id) form.setValue("agency_id", lead.agency_id)
+      if (lead.assigned_seller_id) form.setValue("seller_id", lead.assigned_seller_id)
+      if (customerId) form.setValue("customer_id", customerId)
+      if (lead.destination) {
+        // Limpiar destino si no es válido
+        const cleanedDest = cleanDestination(lead.destination)
+        if (cleanedDest) form.setValue("destination", cleanedDest)
+      }
+      if (lead.notes) form.setValue("notes", lead.notes)
+      
+    } catch (error) {
+      console.error("Error precargando datos del lead:", error)
+    }
+  }
+  
+  // Función para limpiar destino (copiada de convert-lead-dialog)
+  const cleanDestination = (destination: string): string => {
+    if (!destination) return ""
+    const destLower = destination.toLowerCase().trim()
+    const leadStatusKeywords = [
+      "presupuesto", "enviado", "nuevo", "contactado", "calificado",
+      "negociacion", "negociación", "ganado", "perdido", "pendiente",
+      "seguimiento", "cerrado", "cancelado", "won", "lost", "new",
+      "contacted", "qualified", "negotiation", "closed"
+    ]
+    for (const status of leadStatusKeywords) {
+      if (destLower.includes(status)) return ""
+    }
+    const invalidPatterns = [/^@/, /@.*\.com$/, /^[a-z0-9_]+$/, /^\d+$/]
+    for (const pattern of invalidPatterns) {
+      if (pattern.test(destLower)) return ""
+    }
+    if (destination.length < 3 || destination.length > 50) return ""
+    if (/\d/.test(destination) || /[^a-záéíóúüñ\s]/i.test(destination)) return ""
+    return destination
+  }
 
   const loadSettings = async () => {
     try {
@@ -229,6 +339,7 @@ export function NewOperationDialog({
       sale_currency: "ARS",
       operator_cost_currency: "ARS",
       operators: [],
+      notes: null,
     },
   })
 
@@ -336,10 +447,11 @@ export function NewOperationDialog({
       // Si se usan múltiples operadores, enviar el array; si no, usar formato antiguo
       const requestBody: any = {
         ...values,
+        lead_id: lead?.id || null, // Incluir lead_id si viene de un lead
         operator_id: useMultipleOperators ? null : (values.operator_id || null),
         operators: useMultipleOperators && operatorList.length > 0 ? operatorList : undefined,
         seller_secondary_id: values.seller_secondary_id || null,
-        customer_id: values.customer_id || null, // ← NUEVO
+        customer_id: values.customer_id || null,
         origin: values.origin || null,
         product_type: values.product_type || null,
         return_date: values.return_date ? values.return_date.toISOString().split("T")[0] : null,
@@ -350,6 +462,7 @@ export function NewOperationDialog({
         operator_cost_currency: values.operator_cost_currency || values.currency || "ARS",
         // Si hay múltiples operadores, el costo total ya está calculado en operator_cost
         operator_cost: useMultipleOperators ? totalOperatorCost : (values.operator_cost || 0),
+        notes: values.notes || null,
       }
 
       const response = await fetch("/api/operations", {
@@ -441,8 +554,13 @@ export function NewOperationDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>Nueva Operación</DialogTitle>
-          <DialogDescription>Crear una nueva operación manualmente</DialogDescription>
+          <DialogTitle>{lead ? "Convertir Lead a Operación" : "Nueva Operación"}</DialogTitle>
+          <DialogDescription>
+            {lead 
+              ? `Crear una nueva operación desde el lead de ${lead.contact_name}`
+              : "Crear una nueva operación manualmente"
+            }
+          </DialogDescription>
         </DialogHeader>
 
         {/* Mostrar error del API */}
@@ -1179,6 +1297,20 @@ export function NewOperationDialog({
                 </div>
               )}
             </div>
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notas (opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Observaciones adicionales..." {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
