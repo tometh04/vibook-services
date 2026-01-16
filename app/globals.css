@@ -4,18 +4,18 @@
 
 @layer base {
   :root {
-    /* Background & Foreground - Nuevo branding oscuro */
-    --background: 240 10% 4%;      /* #0a0a0f */
-    --foreground: 0 0% 98%;
+    /* Background & Foreground - Tema claro */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
     
     /* Cards */
-    --card: 240 8% 6%;              /* Slightly lighter than background */
-    --card-foreground: 0 0% 98%;
-    --popover: 240 8% 6%;
-    --popover-foreground: 0 0% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
     
-    /* Primary - Gradiente blue-cyan-purple */
-    --primary: 217 91% 60%;         /* Blue-400 */
+    /* Primary - Azul vibrante */
+    --primary: 217 91% 50%;         /* Blue-500 */
     --primary-foreground: 0 0% 100%;
     
     /* Success - Verde */
@@ -31,13 +31,13 @@
     --destructive-foreground: 0 0% 100%;
     
     /* Muted */
-    --muted: 240 6% 10%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
     
     /* Borders & Inputs */
-    --border: 240 6% 15%;
-    --input: 240 6% 15%;
-    --ring: 217 91% 60%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 50%;
     
     /* Border radius */
     --radius: 0.5rem;
@@ -50,28 +50,30 @@
     --chart-5: 142 76% 46%;         /* Green */
     --chart-6: 0 84% 60%;           /* Red */
     
-    /* Sidebar - Tema oscuro */
-    --sidebar-background: 240 8% 6%;
-    --sidebar-foreground: 240 5% 96%;
-    --sidebar-primary: 217 91% 60%;
+    /* Sidebar - Tema claro */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 6% 10%;
+    --sidebar-primary: 217 91% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 12%;
-    --sidebar-accent-foreground: 240 5% 96%;
-    --sidebar-border: 240 6% 15%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 240 6% 10%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 217 91% 50%;
   }
 
   .dark {
-    /* Dark mode usa los mismos valores que root (ya es oscuro por defecto) */
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 8% 6%;
+    /* Background & Foreground - Tema oscuro mejorado */
+    --background: 240 10% 4%;      /* #0a0a0f - Fondo oscuro elegante */
+    --foreground: 0 0% 98%;       /* Texto casi blanco para buen contraste */
+    
+    /* Cards - Con mejor contraste */
+    --card: 240 8% 8%;             /* Ligeramente más claro que background */
     --card-foreground: 0 0% 98%;
-    --popover: 240 8% 6%;
+    --popover: 240 8% 8%;
     --popover-foreground: 0 0% 98%;
     
-    /* Primary con gradiente */
-    --primary: 217 91% 60%;
+    /* Primary - Azul vibrante para dark mode */
+    --primary: 217 91% 60%;        /* Blue-400 - Más brillante en dark */
     --primary-foreground: 0 0% 100%;
     
     /* Success */
@@ -86,31 +88,31 @@
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Muted */
-    --muted: 240 6% 10%;
-    --muted-foreground: 240 5% 65%;
+    /* Muted - Mejor contraste */
+    --muted: 240 6% 12%;           /* Más claro para mejor legibilidad */
+    --muted-foreground: 240 5% 70%; /* Texto muted más visible */
     
-    /* Borders */
-    --border: 240 6% 15%;
-    --input: 240 6% 15%;
+    /* Borders - Más visibles */
+    --border: 240 6% 18%;         /* Bordes más visibles */
+    --input: 240 6% 18%;
     --ring: 217 91% 60%;
     
-    /* Charts */
-    --chart-1: 217 91% 60%;
-    --chart-2: 188 94% 50%;
-    --chart-3: 270 91% 65%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 142 76% 46%;
-    --chart-6: 0 84% 60%;
+    /* Charts - Colores vibrantes */
+    --chart-1: 217 91% 60%;        /* Blue */
+    --chart-2: 188 94% 50%;        /* Cyan */
+    --chart-3: 270 91% 65%;        /* Purple */
+    --chart-4: 38 92% 50%;         /* Yellow */
+    --chart-5: 142 76% 46%;        /* Green */
+    --chart-6: 0 84% 60%;           /* Red */
     
-    /* Sidebar */
+    /* Sidebar - Tema oscuro mejorado */
     --sidebar-background: 240 8% 6%;
     --sidebar-foreground: 240 5% 96%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 12%;
+    --sidebar-accent: 240 6% 12%;   /* Hover más visible */
     --sidebar-accent-foreground: 240 5% 96%;
-    --sidebar-border: 240 6% 15%;
+    --sidebar-border: 240 6% 18%;  /* Bordes más visibles */
     --sidebar-ring: 217 91% 60%;
   }
 }
