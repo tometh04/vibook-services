@@ -135,10 +135,10 @@ export default async function DashboardLayout({
         }}
         agencyId={activeAgencyId}
       />
-      <SidebarInset className="min-w-0">
+      <SidebarInset className="min-w-0 bg-[#0a0a0f]">
         <SiteHeader />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-[#0a0a0f]">
             {children}
           </div>
         </div>

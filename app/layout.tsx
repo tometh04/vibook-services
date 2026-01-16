@@ -19,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es">
-      <body className={inter.variable}>
+    <html lang="es" className="dark">
+      <body className={`${inter.variable} bg-[#0a0a0f] text-white`}>
         {children}
         <Toaster richColors position="top-right" />
       </body>

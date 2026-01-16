@@ -285,14 +285,14 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
                       height={20}
                       className="size-5 object-contain"
                     />
-                    <span className="text-sm font-medium text-gray-900">{branding.app_name}</span>
+                    <span className="text-sm font-medium text-foreground">{branding.app_name}</span>
                   </>
                 ) : (
                   <>
                     <GalleryVerticalEnd 
                       className="size-5 text-gray-400" 
                     />
-                    <span className="text-sm font-medium text-gray-900">{branding.app_name}</span>
+                    <span className="text-sm font-medium text-foreground">{branding.app_name}</span>
                   </>
                 )}
               </a>
