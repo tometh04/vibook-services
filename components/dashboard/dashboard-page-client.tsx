@@ -202,20 +202,20 @@ export function DashboardPageClient({
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-gray-500">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Ventas Totales
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-gray-400" />
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <>
-                <div className="text-4xl font-bold text-gray-900">
+                <div className="text-4xl font-bold text-foreground">
                   ${Math.round(kpis.totalSales / 1000)}K
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {kpis.operationsCount} ops • vs anterior
                 </p>
               </>
@@ -225,20 +225,20 @@ export function DashboardPageClient({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-gray-500">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Total Operaciones
             </CardTitle>
-            <Package className="h-4 w-4 text-gray-400" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-4xl font-bold text-gray-900">
+                <div className="text-4xl font-bold text-foreground">
                   {kpis.operationsCount}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   vs período anterior
                 </p>
               </>
@@ -248,20 +248,20 @@ export function DashboardPageClient({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-gray-500">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Margen Total
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-gray-400" />
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <>
-                <div className="text-4xl font-bold text-gray-900">
+                <div className="text-4xl font-bold text-foreground">
                   ${Math.round(kpis.totalMargin / 1000)}K
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {kpis.avgMarginPercent.toFixed(1)}% promedio
                 </p>
               </>
@@ -271,20 +271,20 @@ export function DashboardPageClient({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-gray-500">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Margen Promedio
             </CardTitle>
-            <Percent className="h-4 w-4 text-gray-400" />
+            <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-4xl font-bold text-gray-900">
+                <div className="text-4xl font-bold text-foreground">
                   {kpis.avgMarginPercent.toFixed(1)}%
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Margen promedio
                 </p>
               </>
@@ -296,20 +296,20 @@ export function DashboardPageClient({
       <div className="grid gap-3 grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-gray-500">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Pendientes Clientes
             </CardTitle>
-            <Users className="h-4 w-4 text-gray-400" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <>
-                <div className="text-4xl font-bold text-gray-900">
+                <div className="text-4xl font-bold text-foreground">
                   ${Math.round(kpis.pendingCustomerPayments / 1000)}K
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Por cobrar de clientes
                 </p>
               </>
@@ -319,20 +319,20 @@ export function DashboardPageClient({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-gray-500">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Pendientes Operadores
             </CardTitle>
-            <Building2 className="h-4 w-4 text-gray-400" />
+            <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <>
-                <div className="text-4xl font-bold text-gray-900">
+                <div className="text-4xl font-bold text-foreground">
                   ${Math.round(kpis.pendingOperatorPayments / 1000)}K
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Por pagar a operadores
                 </p>
               </>
