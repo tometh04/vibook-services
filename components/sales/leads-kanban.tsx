@@ -58,7 +58,7 @@ interface LeadsKanbanProps {
   currentUserRole?: string
 }
 
-export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], operators = [], onRefresh, currentUserId, currentUserRole }: LeadsKanbanProps) {
+export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], operators = [], currentUserId, currentUserRole }: LeadsKanbanProps) {
   // Estado local para los leads (permite actualizaciones optimistas sin reload)
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [draggedLead, setDraggedLead] = useState<string | null>(null)
@@ -96,10 +96,12 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
         toast.warning(data.warning, { duration: 5000 })
       }
 
-      // Refrescar la lista
-      if (onRefresh) {
-        onRefresh()
-      }
+      // Actualizar el lead localmente
+      setLeads((prev) => 
+        prev.map((lead) => 
+          lead.id === leadId ? { ...lead, assigned_seller_id: currentUserId || null } : lead
+        )
+      )
     } catch (error) {
       console.error("Error claiming lead:", error)
       toast.error("Error al agarrar el lead")
@@ -179,11 +181,6 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
       }
 
       toast.success(`Lead movido a "${statusColumns.find(c => c.id === newStatus)?.label}"`)
-      
-      // Refrescar para obtener datos actualizados del servidor
-      if (onRefresh) {
-        onRefresh()
-      }
     } catch (error) {
       console.error("Error updating status:", error)
       // Revertir cambio optimista en caso de error
@@ -348,22 +345,32 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
         <LeadDetailDialog
           lead={selectedLead as any}
           open={dialogOpen}
-          onOpenChange={(open) => {
-            setDialogOpen(open)
-            if (!open) {
-              // Refrescar al cerrar el dialog para obtener datos actualizados
-              if (onRefresh) {
-                onRefresh()
-              }
-            }
-          }}
+          onOpenChange={setDialogOpen}
           agencies={agencies}
           sellers={sellers}
           operators={operators}
-          onDelete={onRefresh}
-          onConvert={onRefresh}
+          onDelete={() => {
+            if (selectedLead) {
+              setLeads((prev) => prev.filter((lead) => lead.id !== selectedLead.id))
+              setDialogOpen(false)
+            }
+          }}
+          onConvert={() => {
+            if (selectedLead) {
+              setLeads((prev) => prev.filter((lead) => lead.id !== selectedLead.id))
+              setDialogOpen(false)
+            }
+          }}
           canClaimLeads={canClaimLeads}
-          onClaim={onRefresh}
+          onClaim={() => {
+            if (selectedLead && currentUserId) {
+              setLeads((prev) => 
+                prev.map((lead) => 
+                  lead.id === selectedLead.id ? { ...lead, assigned_seller_id: currentUserId } : lead
+                )
+              )
+            }
+          }}
         />
       )}
     </div>
