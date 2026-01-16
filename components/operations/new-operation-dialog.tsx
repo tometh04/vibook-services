@@ -172,7 +172,7 @@ export function NewOperationDialog({
   }, [operators])
 
   // Función para limpiar destino (copiada de convert-lead-dialog)
-  const cleanDestination = (destination: string): string => {
+  const cleanDestination = useCallback((destination: string): string => {
     if (!destination) return ""
     const destLower = destination.toLowerCase().trim()
     const leadStatusKeywords = [
@@ -191,7 +191,7 @@ export function NewOperationDialog({
     if (destination.length < 3 || destination.length > 50) return ""
     if (/\d/.test(destination) || /[^a-záéíóúüñ\s]/i.test(destination)) return ""
     return destination
-  }
+  }, [])
 
   const loadSettings = async () => {
     try {
@@ -383,7 +383,7 @@ export function NewOperationDialog({
         handleLeadPreload()
       }
     }
-  }, [open, lead, handleLeadPreload])
+  }, [open, lead, handleLeadPreload, loadCustomers])
 
   // Calcular costo total de operadores
   const totalOperatorCost = operatorList.reduce((sum, op) => sum + (op.cost || 0), 0)
@@ -728,7 +728,7 @@ export function NewOperationDialog({
                                 ) : displayCustomers.length === 0 ? (
                                   <CommandEmpty>
                                     <div className="p-4 text-center text-sm text-muted-foreground">
-                                      No se encontraron clientes que coincidan con "{customerSearchQuery}"
+                                      No se encontraron clientes que coincidan con &quot;{customerSearchQuery}&quot;
                                     </div>
                                   </CommandEmpty>
                                 ) : (
