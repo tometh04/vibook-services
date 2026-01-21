@@ -32,6 +32,8 @@ export async function POST(request: Request) {
       method,
       amount,
       currency,
+      exchange_rate, // Tipo de cambio (obligatorio para ARS)
+      amount_usd,    // Monto equivalente en USD (calculado en frontend)
       date_paid,
       date_due,
       status,
@@ -40,6 +42,11 @@ export async function POST(request: Request) {
 
     if (!operation_id || !payer_type || !direction || !amount || !currency) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    }
+
+    // Validar que para pagos en ARS se incluya el tipo de cambio
+    if (currency === "ARS" && (!exchange_rate || exchange_rate <= 0)) {
+      return NextResponse.json({ error: "El tipo de cambio es obligatorio para pagos en ARS" }, { status: 400 })
     }
 
     // Validaciones de montos
@@ -74,6 +81,16 @@ export async function POST(request: Request) {
       }
     }
 
+    // Calcular amount_usd si no viene del frontend
+    let finalAmountUsd = amount_usd
+    if (!finalAmountUsd) {
+      if (currency === "USD") {
+        finalAmountUsd = parseFloat(amount)
+      } else if (exchange_rate && exchange_rate > 0) {
+        finalAmountUsd = parseFloat(amount) / parseFloat(exchange_rate)
+      }
+    }
+
     // 1. Crear el pago en tabla payments
     // IMPORTANTE: Si status no se especifica, crear como PENDING para evitar crear movimientos contables duplicados
     // Los movimientos contables se crearán cuando se marque como PAID
@@ -84,6 +101,8 @@ export async function POST(request: Request) {
       method: method || "Otro",
       amount,
         currency,
+      exchange_rate: currency === "ARS" ? exchange_rate : null,
+      amount_usd: finalAmountUsd || null,
       date_paid: date_paid || null,
       date_due: date_due || date_paid,
       status: status || "PENDING", // Cambiar default a PENDING para evitar duplicados
