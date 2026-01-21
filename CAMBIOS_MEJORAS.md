@@ -660,7 +660,9 @@ Corregir la funcionalidad de conversión de moneda en el dialog de "Cargar Pago 
 
 ### 22. División de Caja en 3 Secciones (Resumen, Caja USD, Caja ARS)
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Reestructurar la página de Caja para dividirla en 3 secciones usando tabs:
