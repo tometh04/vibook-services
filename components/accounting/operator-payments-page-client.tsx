@@ -28,7 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { DateInputWithCalendar } from "@/components/ui/date-input-with-calendar"
+import { DatePicker } from "@/components/ui/date-picker"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { AlertTriangle, Download, HelpCircle, X, Search } from "lucide-react"
@@ -67,8 +67,8 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
   
   // Nuevos filtros avanzados
   const [operatorFilter, setOperatorFilter] = useState<string>("ALL")
-  const [dueDateFrom, setDueDateFrom] = useState<Date | undefined>(undefined)
-  const [dueDateTo, setDueDateTo] = useState<Date | undefined>(undefined)
+  const [dueDateFrom, setDueDateFrom] = useState<string>("")
+  const [dueDateTo, setDueDateTo] = useState<string>("")
   const [amountMin, setAmountMin] = useState<string>("")
   const [amountMax, setAmountMax] = useState<string>("")
   const [operationSearch, setOperationSearch] = useState<string>("")
@@ -87,10 +87,10 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
         params.append("operatorId", operatorFilter)
       }
       if (dueDateFrom) {
-        params.append("dueDateFrom", dueDateFrom.toISOString().split("T")[0])
+        params.append("dueDateFrom", dueDateFrom)
       }
       if (dueDateTo) {
-        params.append("dueDateTo", dueDateTo.toISOString().split("T")[0])
+        params.append("dueDateTo", dueDateTo)
       }
 
       const response = await fetch(`/api/accounting/operator-payments?${params.toString()}`)
@@ -137,8 +137,8 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
     setStatusFilter("ALL")
     setAgencyFilter("ALL")
     setOperatorFilter("ALL")
-    setDueDateFrom(undefined)
-    setDueDateTo(undefined)
+    setDueDateFrom("")
+    setDueDateTo("")
     setAmountMin("")
     setAmountMax("")
     setOperationSearch("")
@@ -148,8 +148,8 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
     statusFilter !== "ALL" || 
     agencyFilter !== "ALL" || 
     operatorFilter !== "ALL" || 
-    dueDateFrom !== undefined || 
-    dueDateTo !== undefined || 
+    dueDateFrom !== "" || 
+    dueDateTo !== "" || 
     amountMin !== "" || 
     amountMax !== "" || 
     operationSearch !== ""
@@ -387,20 +387,20 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
             {/* Fecha Desde */}
             <div className="space-y-1.5">
               <Label className="text-xs">Venc. Desde</Label>
-              <DateInputWithCalendar
+              <DatePicker
                 value={dueDateFrom}
                 onChange={setDueDateFrom}
-                placeholder="dd/MM/yyyy"
+                placeholder="Seleccionar fecha"
               />
             </div>
 
             {/* Fecha Hasta */}
             <div className="space-y-1.5">
               <Label className="text-xs">Venc. Hasta</Label>
-              <DateInputWithCalendar
+              <DatePicker
                 value={dueDateTo}
                 onChange={setDueDateTo}
-                placeholder="dd/MM/yyyy"
+                placeholder="Seleccionar fecha"
               />
             </div>
 
