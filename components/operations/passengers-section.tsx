@@ -29,10 +29,18 @@ import {
   Loader2,
   User,
   Mail,
-  Phone
+  Phone,
+  HelpCircle
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { NewCustomerDialog } from "@/components/customers/new-customer-dialog"
 
 interface Customer {
   id: string
@@ -70,6 +78,7 @@ export function PassengersSection({
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [selectedRole, setSelectedRole] = useState<"MAIN" | "COMPANION">("COMPANION")
   const [adding, setAdding] = useState(false)
+  const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
 
   // Buscar clientes
   const searchCustomers = useCallback(async (query: string) => {
@@ -310,7 +319,18 @@ export function PassengersSection({
           <div className="space-y-4">
             {/* Búsqueda */}
             <div className="space-y-2">
-              <Label>Buscar cliente</Label>
+              <div className="flex items-center justify-between">
+                <Label>Buscar cliente</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewCustomerDialog(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Crear Cliente Nuevo (OCR)
+                </Button>
+              </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -393,6 +413,49 @@ export function PassengersSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para crear nuevo cliente con OCR */}
+      <NewCustomerDialog
+        open={showNewCustomerDialog}
+        onOpenChange={setShowNewCustomerDialog}
+        onSuccess={(newCustomer) => {
+          if (newCustomer) {
+            // Agregar el nuevo cliente automáticamente como pasajero
+            const addNewCustomer = async () => {
+              try {
+                const response = await fetch(`/api/operations/${operationId}/customers`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    customer_id: newCustomer.id,
+                    role: selectedRole,
+                  }),
+                })
+
+                if (!response.ok) {
+                  throw new Error("Error al agregar cliente")
+                }
+
+                const data = await response.json()
+                
+                // Agregar al estado local
+                setCustomers(prev => [...prev, {
+                  ...data.operationCustomer,
+                  customers: newCustomer
+                }])
+
+                toast.success(`${newCustomer.first_name} creado y agregado como pasajero`)
+                onUpdate?.()
+              } catch (error) {
+                console.error("Error adding new customer:", error)
+                toast.error("Cliente creado pero no se pudo agregar a la operación")
+              }
+            }
+            addNewCustomer()
+            setShowNewCustomerDialog(false)
+          }
+        }}
+      />
     </Card>
   )
 }
