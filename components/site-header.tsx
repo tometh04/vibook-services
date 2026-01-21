@@ -9,6 +9,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell"
 import { Button } from "@/components/ui/button"
 import { Search } from "lucide-react"
 import { CommandMenu } from "@/components/command-menu"
+import Image from "next/image"
 
 const getPageTitle = (pathname: string): string => {
   const routes: Record<string, string> = {
@@ -62,7 +63,7 @@ export function SiteHeader() {
             className="mx-2 data-[orientation=vertical]:h-4 bg-border"
           />
           <h1 className="text-base font-medium text-foreground">{title}</h1>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
@@ -74,6 +75,21 @@ export function SiteHeader() {
             </Button>
             <NotificationBell />
             <ThemeToggle />
+            <Separator orientation="vertical" className="h-6 bg-border" />
+            <Image 
+              src="/logo-black-2.png" 
+              alt="Vibook" 
+              width={100} 
+              height={28}
+              className="dark:hidden"
+            />
+            <Image 
+              src="/logo-white-2.png" 
+              alt="Vibook" 
+              width={100} 
+              height={28}
+              className="hidden dark:block"
+            />
           </div>
         </div>
       </header>
