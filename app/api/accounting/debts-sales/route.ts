@@ -1,0 +1,240 @@
+import { NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/auth"
+import { canAccessModule } from "@/lib/permissions"
+import { getUserAgencyIds } from "@/lib/permissions-api"
+import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
+
+export const dynamic = 'force-dynamic'
+
+export async function GET(request: Request) {
+  try {
+    const { user } = await getCurrentUser()
+    const supabase = await createServerClient()
+    const { searchParams } = new URL(request.url)
+
+    // Obtener filtros de query params
+    const currencyFilter = searchParams.get("currency") // "ALL" | "USD" | "ARS"
+    const customerIdFilter = searchParams.get("customerId") // ID de cliente
+    const sellerIdFilter = searchParams.get("sellerId") // ID de vendedor
+    const dateFromFilter = searchParams.get("dateFrom") // YYYY-MM-DD
+    const dateToFilter = searchParams.get("dateTo") // YYYY-MM-DD
+
+    // Verificar permiso de acceso
+    if (!canAccessModule(user.role as any, "accounting")) {
+      return NextResponse.json({ error: "No tiene permiso para ver esta sección" }, { status: 403 })
+    }
+
+    // Get user agencies
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    // Get all customers with their operations
+    const { data: customers, error: customersError } = await supabase
+      .from("customers")
+      .select(`
+        *,
+        operation_customers(
+          operation_id,
+          operations:operation_id(
+            id,
+            file_code,
+            destination,
+            sale_amount_total,
+            sale_currency,
+            currency,
+            status,
+            departure_date,
+            seller_id,
+            agency_id
+          )
+        )
+      `)
+      .order("created_at", { ascending: false })
+
+    if (customersError) {
+      console.error("Error fetching customers:", customersError)
+      return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
+    }
+
+    // Filtrar operaciones por agencia del usuario
+    const filteredCustomers = (customers || []).map((customer: any) => ({
+      ...customer,
+      operation_customers: (customer.operation_customers || []).filter((oc: any) => {
+        const operation = oc.operations
+        return operation && agencyIds.includes(operation.agency_id)
+      })
+    }))
+
+    // Get all operation IDs
+    const allOperationIds: string[] = []
+    filteredCustomers.forEach((customer: any) => {
+      customer.operation_customers?.forEach((oc: any) => {
+        if (oc.operation_id) {
+          allOperationIds.push(oc.operation_id)
+        }
+      })
+    })
+
+    // Get all payments for these operations
+    let paymentsByOperation: Record<string, { paidUsd: number; currency: string }> = {}
+    if (allOperationIds.length > 0) {
+      const { data: payments } = await supabase
+        .from("payments")
+        .select("operation_id, amount, amount_usd, currency, exchange_rate, status, direction")
+        .in("operation_id", allOperationIds)
+        .eq("direction", "INCOME")
+        .eq("payer_type", "CUSTOMER")
+
+      if (payments) {
+        payments.forEach((payment: any) => {
+          const opId = payment.operation_id
+          if (!paymentsByOperation[opId]) {
+            paymentsByOperation[opId] = { paidUsd: 0, currency: payment.currency || "ARS" }
+          }
+          if (payment.status === "PAID") {
+            let paidUsd = 0
+            if (payment.amount_usd != null) {
+              paidUsd = Number(payment.amount_usd)
+            } else if (payment.currency === "USD") {
+              paidUsd = Number(payment.amount) || 0
+            } else if (payment.currency === "ARS" && payment.exchange_rate) {
+              paidUsd = (Number(payment.amount) || 0) / Number(payment.exchange_rate)
+            }
+            paymentsByOperation[opId].paidUsd += paidUsd
+          }
+        })
+      }
+    }
+
+    // Obtener nombres de vendedores
+    const sellerIds = new Set<string>()
+    filteredCustomers.forEach((customer: any) => {
+      customer.operation_customers?.forEach((oc: any) => {
+        if (oc.operations?.seller_id) {
+          sellerIds.add(oc.operations.seller_id)
+        }
+      })
+    })
+    
+    const sellerNamesMap: Record<string, string> = {}
+    if (sellerIds.size > 0) {
+      const { data: sellers } = await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", Array.from(sellerIds))
+      
+      if (sellers) {
+        sellers.forEach((seller: any) => {
+          sellerNamesMap[seller.id] = seller.name || "Sin nombre"
+        })
+      }
+    }
+
+    // Calculate debt for each customer
+    const debtors: Array<{
+      customer: any
+      totalDebt: number
+      currency: string
+      operationsWithDebt: Array<{
+        id: string
+        file_code: string | null
+        destination: string
+        sale_amount_total: number
+        currency: string
+        paid: number
+        debt: number
+        departure_date: string | null
+        seller_id: string | null
+        seller_name: string | null
+      }>
+    }> = []
+
+    // Obtener tasa de cambio más reciente
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+
+    for (const customer of filteredCustomers) {
+      const operations = (customer.operation_customers || []) as any[]
+      const operationsWithDebt: Array<{
+        id: string
+        file_code: string | null
+        destination: string
+        sale_amount_total: number
+        currency: string
+        paid: number
+        debt: number
+        departure_date: string | null
+        seller_id: string | null
+        seller_name: string | null
+      }> = []
+      let totalDebt = 0
+      let currency = "USD"
+
+      for (const oc of operations) {
+        const operation = oc.operations
+        if (!operation) continue
+
+        // Aplicar filtro de vendedor si existe
+        if (sellerIdFilter && sellerIdFilter !== "ALL" && operation.seller_id !== sellerIdFilter) {
+          continue
+        }
+
+        const opId = operation.id
+        const saleCurrency = operation.sale_currency || operation.currency || "USD"
+        const saleAmount = Number(operation.sale_amount_total) || 0
+        
+        // Convertir sale_amount_total a USD
+        let saleAmountUsd = saleAmount
+        if (saleCurrency === "ARS") {
+          const operationDate = operation.departure_date || operation.created_at
+          let exchangeRate = await getExchangeRate(supabase, operationDate ? new Date(operationDate) : new Date())
+          if (!exchangeRate) {
+            exchangeRate = latestExchangeRate
+          }
+          saleAmountUsd = saleAmount / exchangeRate
+        }
+        
+        const paymentData = paymentsByOperation[opId] || { paidUsd: 0, currency: saleCurrency }
+        const paidUsd = paymentData.paidUsd
+        const debtUsd = Math.max(0, saleAmountUsd - paidUsd)
+
+        if (debtUsd > 0) {
+          operationsWithDebt.push({
+            id: opId,
+            file_code: operation.file_code,
+            destination: operation.destination || "Sin destino",
+            sale_amount_total: saleAmountUsd,
+            currency: "USD",
+            paid: paidUsd,
+            debt: debtUsd,
+            departure_date: operation.departure_date,
+            seller_id: operation.seller_id || null,
+            seller_name: operation.seller_id ? (sellerNamesMap[operation.seller_id] || "Sin vendedor") : null,
+          })
+          totalDebt += debtUsd
+        }
+      }
+
+      // Filtro por ID de cliente
+      if (customerIdFilter && customer.id !== customerIdFilter) {
+        continue
+      }
+
+      if (operationsWithDebt.length > 0) {
+        debtors.push({
+          customer,
+          totalDebt,
+          currency,
+          operationsWithDebt,
+        })
+      }
+    }
+
+    // Sort by total debt (descending)
+    debtors.sort((a, b) => b.totalDebt - a.totalDebt)
+
+    return NextResponse.json({ debtors })
+  } catch (error) {
+    console.error("Error in GET /api/accounting/debts-sales:", error)
+    return NextResponse.json({ error: "Error al obtener deudores" }, { status: 500 })
+  }
+}
