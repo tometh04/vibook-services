@@ -105,6 +105,19 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
     }
   }, [accounts])
 
+  // Filtrar y ordenar cuentas por moneda y saldo (descendente)
+  const usdAccounts = useMemo(() => {
+    return accounts
+      .filter((acc) => acc.currency === "USD")
+      .sort((a, b) => (b.current_balance || 0) - (a.current_balance || 0))
+  }, [accounts])
+
+  const arsAccounts = useMemo(() => {
+    return accounts
+      .filter((acc) => acc.currency === "ARS")
+      .sort((a, b) => (b.current_balance || 0) - (a.current_balance || 0))
+  }, [accounts])
+
   // Preparar datos para el gráfico
   const chartData = useMemo(() => {
     return dailyBalances.map((item) => ({
@@ -273,6 +286,61 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
           )}
         </CardContent>
       </Card>
+
+      {/* Lista de cuentas ordenadas por saldo */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Cuentas USD */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Cuentas USD</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {usdAccounts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay cuentas USD</p>
+            ) : (
+              <div className="space-y-2">
+                {usdAccounts.map((account) => (
+                  <div 
+                    key={account.id} 
+                    className="flex items-center justify-between p-2 border rounded hover:bg-muted/50"
+                  >
+                    <span className="text-sm">{account.name}</span>
+                    <span className={`font-medium ${(account.current_balance || 0) < 0 ? 'text-red-600' : ''}`}>
+                      {formatCurrency(account.current_balance || 0, "USD")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Cuentas ARS */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Cuentas ARS</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {arsAccounts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay cuentas ARS</p>
+            ) : (
+              <div className="space-y-2">
+                {arsAccounts.map((account) => (
+                  <div 
+                    key={account.id} 
+                    className="flex items-center justify-between p-2 border rounded hover:bg-muted/50"
+                  >
+                    <span className="text-sm">{account.name}</span>
+                    <span className={`font-medium ${(account.current_balance || 0) < 0 ? 'text-red-600' : ''}`}>
+                      {formatCurrency(account.current_balance || 0, "ARS")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
