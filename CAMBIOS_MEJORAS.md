@@ -730,12 +730,34 @@ Implementar un sistema completo para distribuir ganancias mensuales entre socios
 
 ---
 
-### 24. Conversión de Moneda USD a ARS en Facturación AFIP
+### 24. Integración AFIP SDK - Facturación Electrónica
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR (relacionado con integración AFIP)
+**Fecha:** 2025-01-21 (Implementado - Base)
+
+**Estado:** 🔄 PARCIALMENTE IMPLEMENTADO
 
 **Descripción:**
-Implementar funcionalidad para facturar en pesos argentinos operaciones que están en dólares, cumpliendo con normativa AFIP/ARCA.
+Módulo de Facturación Electrónica con integración AFIP SDK para emitir facturas con CAE.
+
+**Funcionalidades implementadas:**
+- ✅ Nueva sección "Facturación AFIP" en sidebar
+- ✅ Página de configuración (CUIT, Access Token, Punto de Venta)
+- ✅ Selector de entorno (Sandbox/Producción)
+- ✅ Lista de operaciones pendientes de facturar
+- ✅ Migración con tabla `afip_config` y campos en `operations`
+
+**Pendiente:**
+- ⬜ Llamada real a AFIP SDK para emitir factura
+- ⬜ Generación de PDF con CAE
+- ⬜ Conversión USD a ARS automática
+- ⬜ Historial de facturas emitidas
+
+**Archivos:**
+- `app/(dashboard)/accounting/invoicing/page.tsx`
+- `components/accounting/invoicing-page-client.tsx`
+- `app/api/accounting/invoicing/config/route.ts`
+- `app/api/accounting/invoicing/pending/route.ts`
+- `supabase/migrations/023_create_afip_config.sql`
 
 ---
 
