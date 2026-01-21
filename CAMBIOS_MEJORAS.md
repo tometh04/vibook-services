@@ -69,29 +69,31 @@ Se implementó una funcionalidad de búsqueda global accesible desde cualquier p
 
 ### 2. Códigos de Reserva en Operaciones
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
-Agregar dos campos opcionales a las operaciones para registrar códigos de reserva:
+Se agregaron dos campos opcionales a las operaciones para registrar códigos de reserva:
 - Código de Reserva Aéreo (`reservation_code_air`)
 - Código de Reserva Hotel (`reservation_code_hotel`)
 
-**Funcionalidades a implementar:**
-- Campos disponibles en formularios de creación y edición de operaciones
-- Visualización en tabla de operaciones
-- Búsqueda por códigos de reserva en búsqueda global
-- Campos opcionales (no requeridos)
+**Funcionalidades implementadas:**
+- ✅ Campos disponibles en formularios de creación y edición de operaciones
+- ✅ Visualización en tabla de operaciones con iconos (✈️ y 🏨)
+- ✅ Búsqueda por códigos de reserva en búsqueda global
+- ✅ Campos opcionales (no requeridos)
 
-**Archivos a modificar:**
+**Archivos modificados:**
 - `components/operations/new-operation-dialog.tsx` - Formulario de creación
 - `components/operations/edit-operation-dialog.tsx` - Formulario de edición
-- `components/operations/operations-table.tsx` - Tabla de operaciones
-- `app/api/operations/route.ts` - API de creación/lista
-- `app/api/operations/[id]/route.ts` - API de actualización
-- `app/api/search/route.ts` - Búsqueda por códigos
-- `components/command-menu.tsx` - Muestra códigos en resultados
+- `components/operations/operations-table.tsx` - Tabla de operaciones (columna "Reservas")
+- `app/api/operations/route.ts` - API de creación
+- `app/api/search/route.ts` - Búsqueda por códigos con iconos en resultados
 
-**Migración de base de datos necesaria:**
+**Migración de base de datos:**
+- `supabase/migrations/016_add_reservation_codes_to_operations.sql`
+
 ```sql
 ALTER TABLE operations
 ADD COLUMN IF NOT EXISTS reservation_code_air TEXT,
@@ -102,6 +104,8 @@ CREATE INDEX IF NOT EXISTS idx_operations_reservation_code_air
 CREATE INDEX IF NOT EXISTS idx_operations_reservation_code_hotel 
   ON operations(reservation_code_hotel) WHERE reservation_code_hotel IS NOT NULL;
 ```
+
+**Nota:** Debes ejecutar la migración SQL en Supabase para agregar las columnas a la base de datos.
 
 ---
 
