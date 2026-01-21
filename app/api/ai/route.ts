@@ -3,12 +3,12 @@ import { getCurrentUser } from "@/lib/auth"
 import OpenAI from "openai"
 import { createServerClient } from "@/lib/supabase/server"
 
-// Esquema REAL de la base de datos
+// Esquema REAL de la base de datos - Actualizado 2025-01-21
 const DATABASE_SCHEMA = `
 ## ESQUEMA DE BASE DE DATOS - VIBOOK GESTIÓN
 
 ### users (Usuarios)
-- id, name, email, role ('SUPER_ADMIN','ADMIN','SELLER','VIEWER'), is_active
+- id, name, email, role ('SUPER_ADMIN','ADMIN','CONTABLE','SELLER','VIEWER'), is_active
 
 ### agencies (Agencias)  
 - id, name, city
@@ -17,7 +17,7 @@ const DATABASE_SCHEMA = `
 - id, name, contact_name, contact_email, contact_phone, credit_limit
 
 ### customers (Clientes)
-- id, first_name, last_name, phone, email, document_type, document_number, date_of_birth
+- id, first_name, last_name, phone, email, document_type, document_number, procedure_number, date_of_birth
 
 ### leads (Consultas)
 - id, agency_id, source, status ('NEW','IN_PROGRESS','QUOTED','WON','LOST'), region, destination
@@ -27,31 +27,56 @@ const DATABASE_SCHEMA = `
 - id, file_code, agency_id, seller_id, operator_id, customer_id
 - type, origin, destination, departure_date, return_date, checkin_date, checkout_date
 - adults, children, infants
-- status ('PRE_RESERVATION','RESERVED','CONFIRMED','CANCELLED','TRAVELLED','CLOSED')
+- status ('PRE_RESERVATION','RESERVED','CONFIRMED','CANCELLED','TRAVELLING','TRAVELLED','CLOSED')
 - sale_amount_total (venta), sale_currency
 - operator_cost (costo), margin_amount (ganancia)
 - commission_amount, created_at
 
+### operation_customers (Pasajeros de operación)
+- id, operation_id, customer_id, role ('MAIN','COMPANION')
+
 ### payments (Pagos)
 - id, operation_id, payer_type ('CUSTOMER','OPERATOR'), direction ('INCOME','EXPENSE')
-- method, amount, currency
+- method, amount, currency, exchange_rate, amount_usd
 - date_due (fecha vencimiento), date_paid (fecha pago)
-- status ('PENDING','PAID','OVERDUE'), reference, created_at
+- status ('PENDING','PAID','OVERDUE'), reference, notes, created_at
 
-### cash_boxes (Cajas)
-- id, name, currency ('ARS','USD'), initial_balance, current_balance, is_active
+### operator_payments (Pagos a operadores)
+- id, operation_id, operator_id, amount, paid_amount, currency
+- due_date, paid_at, status ('PENDING','PAID','OVERDUE'), notes
+
+### financial_accounts (Cuentas financieras)
+- id, name, type ('CASH_ARS','CASH_USD','SAVINGS_ARS','SAVINGS_USD','BANK_ARS','BANK_USD')
+- currency ('ARS','USD'), current_balance, is_active
 
 ### cash_movements (Movimientos de caja)
-- id, cash_box_id, type ('INCOME','EXPENSE'), amount, currency, description, payment_id, created_at
+- id, financial_account_id, type ('INCOME','EXPENSE'), amount, currency, concept, reference, created_at
+
+### ledger_movements (Movimientos contables)
+- id, type, concept, currency, amount_original, amount_ars_equivalent, exchange_rate
+- financial_account_id, operation_id, created_at
+
+### recurring_payments (Gastos recurrentes)
+- id, provider_id, provider_name, amount, currency, frequency ('WEEKLY','BIWEEKLY','MONTHLY','QUARTERLY','YEARLY')
+- category_id, next_due_date, is_active
+
+### recurring_payment_categories (Categorías de gastos)
+- id, name, description, color, is_active
 
 ### quotations (Cotizaciones)
 - id, lead_id, status ('DRAFT','SENT','APPROVED','REJECTED','CONVERTED'), total_amount, currency
 
+### alerts (Alertas)
+- id, type ('PAYMENT_DUE','OPERATOR_DUE','UPCOMING_TRIP','MISSING_DOC','GENERIC')
+- status ('PENDING','DONE','IGNORED'), title, message, due_date
+
 ### NOTAS IMPORTANTES:
 - Fechas: usar CURRENT_DATE, date_trunc('month', CURRENT_DATE), etc.
 - En payments la fecha de vencimiento es "date_due" (NO "due_date")
-- Balance caja = initial_balance + ingresos - egresos
+- Para deudores: sale_amount_total - SUM(pagos INCOME) = deuda cliente
+- Para deuda operadores: operator_payments WHERE status IN ('PENDING','OVERDUE')
 - Margen = sale_amount_total - operator_cost
+- Tipos de cambio: usar exchange_rate de payments o latest de exchange_rates
 `
 
 const SYSTEM_PROMPT = `Eres "Cerebro", el asistente de Vibook Gestión para agencias de viajes.
@@ -75,20 +100,24 @@ WHERE (departure_date >= CURRENT_DATE OR checkin_date >= CURRENT_DATE)
 AND status NOT IN ('CANCELLED')
 ORDER BY COALESCE(departure_date, checkin_date) ASC LIMIT 10
 
--- Pagos pendientes (la columna es date_due, NO due_date)
+-- Pagos pendientes de clientes (la columna es date_due, NO due_date)
 SELECT p.amount, p.currency, p.date_due, p.status
 FROM payments p
-WHERE p.status = 'PENDING'
+WHERE p.status = 'PENDING' AND p.direction = 'INCOME'
 ORDER BY p.date_due ASC LIMIT 10
 
--- Balance de cajas
-SELECT cb.name, cb.currency, cb.initial_balance,
-  COALESCE(SUM(CASE WHEN cm.type = 'INCOME' THEN cm.amount ELSE 0 END), 0) as ingresos,
-  COALESCE(SUM(CASE WHEN cm.type = 'EXPENSE' THEN cm.amount ELSE 0 END), 0) as egresos
-FROM cash_boxes cb
-LEFT JOIN cash_movements cm ON cm.cash_box_id = cb.id
-WHERE cb.is_active = true
-GROUP BY cb.id, cb.name, cb.currency, cb.initial_balance
+-- Deuda a operadores (pagos pendientes)
+SELECT op.amount, op.paid_amount, op.currency, op.due_date, op.status, o.name as operador
+FROM operator_payments op
+JOIN operators o ON o.id = op.operator_id
+WHERE op.status IN ('PENDING', 'OVERDUE')
+ORDER BY op.due_date ASC LIMIT 10
+
+-- Balance de cuentas financieras
+SELECT name, currency, current_balance
+FROM financial_accounts
+WHERE is_active = true
+ORDER BY current_balance DESC
 
 -- Ventas del mes
 SELECT COUNT(*) as cantidad, COALESCE(SUM(sale_amount_total), 0) as total
@@ -104,6 +133,24 @@ SELECT COUNT(*) as total FROM operations WHERE status NOT IN ('CANCELLED')
 
 -- Total clientes
 SELECT COUNT(*) as total FROM customers
+
+-- Gastos recurrentes activos
+SELECT rp.provider_name, rp.amount, rp.currency, rp.frequency, rpc.name as categoria
+FROM recurring_payments rp
+LEFT JOIN recurring_payment_categories rpc ON rpc.id = rp.category_id
+WHERE rp.is_active = true
+ORDER BY rp.amount DESC
+
+-- Deudores por ventas (clientes que deben)
+SELECT c.first_name, c.last_name, o.file_code, o.sale_amount_total, 
+  COALESCE(SUM(p.amount), 0) as pagado
+FROM operations o
+JOIN customers c ON c.id = o.customer_id
+LEFT JOIN payments p ON p.operation_id = o.id AND p.direction = 'INCOME' AND p.status = 'PAID'
+WHERE o.status NOT IN ('CANCELLED')
+GROUP BY c.id, c.first_name, c.last_name, o.id, o.file_code, o.sale_amount_total
+HAVING o.sale_amount_total > COALESCE(SUM(p.amount), 0)
+LIMIT 20
 
 SI UNA QUERY FALLA:
 - Intenta con una versión más simple

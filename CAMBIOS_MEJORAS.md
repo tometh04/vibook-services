@@ -653,10 +653,18 @@ Sección completa de "Deudores por Ventas" con filtro de vendedor, búsqueda, ex
 
 ### 21. Corrección de Conversión de Moneda en Pago a Operadores
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO (incluido en bulk-payment-dialog)
 
 **Descripción:**
 Corregir la funcionalidad de conversión de moneda en el dialog de "Cargar Pago Masivo" para detectar automáticamente cuando la cuenta seleccionada tiene una moneda diferente a la de las deudas.
+
+**Implementación:** El bulk-payment-dialog ya incluye:
+- Selección de moneda de deuda (USD/ARS)
+- Selección de moneda de pago
+- Campo de tipo de cambio obligatorio cuando difieren las monedas
+- Cálculo automático de equivalencias
 
 ---
 
