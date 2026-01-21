@@ -78,9 +78,7 @@ const allNavigation: NavItem[] = [
     module: "customers",
     items: [
       { title: "Clientes", url: "/customers" },
-      { title: "Segmentos", url: "/customers/segments" },
       { title: "Estadísticas", url: "/customers/statistics" },
-      { title: "Configuración", url: "/customers/settings" },
     ],
   },
   // Operaciones - Colapsable
@@ -148,10 +146,9 @@ const allNavigation: NavItem[] = [
   // Recursos - Colapsable
   {
     title: "Recursos",
-    url: "/resources/notes",
+    url: "/calendar",
     icon: BookOpen,
     items: [
-      { title: "Notas", url: "/resources/notes" },
       { title: "Calendario", url: "/calendar" },
       { title: "Templates", url: "/resources/templates" },
     ],

@@ -228,25 +228,20 @@ Se mejoró la legibilidad del sidebar aumentando el ancho y reduciendo el espaci
 
 ### 7. Eliminación de Funcionalidad de Segmentos
 
-**Fecha:** 2025-01-21 (Evaluado)
+**Fecha:** 2025-01-21 (Implementado)
 
-**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
+**Estado:** ✅ ELIMINADO
 
 **Descripción:**
-Evaluar si la funcionalidad de "Segmentos" de clientes se está utilizando. Si no, eliminarla completamente.
+La funcionalidad de "Segmentos" de clientes fue eliminada por no estar en uso.
 
-**Evaluación:**
-- ✅ La funcionalidad existe y está accesible desde el sidebar
-- ✅ Ruta: `/customers/segments`
-- ⚠️ Requiere confirmación del usuario si desea eliminarla
-
-**Archivos a eliminar (si se confirma):**
+**Archivos eliminados:**
 - `app/(dashboard)/customers/segments/page.tsx`
 - `components/customers/customer-segments-page-client.tsx`
 - `app/api/customers/segments/route.ts`
 - `app/api/customers/segments/[id]/route.ts`
 - `app/api/customers/segments/[id]/members/route.ts`
-- `components/app-sidebar.tsx` - Remover ruta "Segmentos"
+- `components/app-sidebar.tsx` - Removida ruta "Segmentos"
 
 ---
 
@@ -508,46 +503,52 @@ Se implementó la funcionalidad completa para eliminar operaciones desde la tabl
 
 ### 13. Limpieza de Configuración de Operaciones
 
-**Fecha:** 2025-01-21 (Evaluado)
+**Fecha:** 2025-01-21 (Implementado)
 
-**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
+**Estado:** ✅ SIMPLIFICADO
 
 **Descripción:**
-Evaluar si es necesario eliminar tabs de configuración innecesarios en "Configuración de Operaciones".
+Simplificada la página de Configuración de Operaciones eliminando tabs no utilizados.
 
-**Funcionalidades a evaluar:**
-1. **Tab "Estados" (statuses):** ¿Se usa? Si no, eliminar
-2. **Tab "Flujos de Trabajo":** ¿Se usa? Si no, eliminar
-3. **Tab "Integraciones":** Forzar valores a `true` siempre activos
-4. **Card duplicado de Alertas:** Eliminar duplicados
-
-**Nota:** Requiere confirmación del usuario para proceder.
+**Cambios realizados:**
+- ❌ Eliminado Tab "Estados" (estados personalizados no se usaban)
+- ❌ Eliminado Tab "Flujos de Trabajo" (funcionalidad pendiente)
+- ✅ Mantenido Tab "Alertas" (útil)
+- ✅ Mantenido Tab "Validaciones" (útil)
+- ✅ Mantenido Tab "Integraciones" (útil)
 
 ---
 
 ### 14. Eliminación de Configuración de Clientes
 
-**Fecha:** 2025-01-21 (Evaluado)
+**Fecha:** 2025-01-21 (Implementado)
 
-**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
+**Estado:** ✅ ELIMINADO
 
 **Descripción:**
-Evaluar si la página de "Configuración de Clientes" (`/customers/settings`) se está utilizando. Si no, eliminarla completamente.
+Eliminada la página de "Configuración de Clientes" (`/customers/settings`) por no estar en uso.
 
-**Nota:** Requiere confirmación del usuario para proceder.
+**Archivos eliminados:**
+- `app/(dashboard)/customers/settings/page.tsx`
+- `app/api/customers/settings/route.ts`
+- Removido del sidebar
 
 ---
 
 ### 15. Reorganización del Sidebar y Eliminación de Notas
 
-**Fecha:** 2025-01-21 (Evaluado)
+**Fecha:** 2025-01-21 (Implementado)
 
-**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
+**Estado:** ✅ ELIMINADO
 
 **Descripción:**
-Reorganizar la sección "Recursos" del sidebar y evaluar si la funcionalidad de "Notas" se utiliza.
+Eliminada la funcionalidad de "Notas" y reorganizada la sección "Recursos".
 
-**Nota:** Requiere confirmación del usuario para proceder con eliminación de Notas.
+**Archivos eliminados:**
+- `app/(dashboard)/resources/notes/page.tsx`
+- `components/notes/notes-page-client.tsx`
+- `app/api/notes/` (todas las rutas)
+- Sidebar: Removido "Notas", URL por defecto ahora es "/calendar"
 
 ---
 
