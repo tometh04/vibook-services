@@ -87,7 +87,6 @@ export function NewCustomerDialog({
   
   // Estados para prevenir cierre accidental
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
-  const [pendingClose, setPendingClose] = useState(false)
 
   // Generar schema dinámicamente según configuración
   const customerSchema = useMemo(() => {
@@ -220,25 +219,26 @@ export function NewCustomerDialog({
 
       if (data.success && data.extractedData) {
         const extracted = data.extractedData
+        const opts = { shouldDirty: true }
         
-        // Autocompletar campos del formulario
+        // Autocompletar campos del formulario (shouldDirty para que el cierre outside pida confirmación)
         if (extracted.first_name) {
-          form.setValue("first_name", extracted.first_name)
+          form.setValue("first_name", extracted.first_name, opts)
         }
         if (extracted.last_name) {
-          form.setValue("last_name", extracted.last_name)
+          form.setValue("last_name", extracted.last_name, opts)
         }
         if (extracted.document_type) {
-          form.setValue("document_type", extracted.document_type)
+          form.setValue("document_type", extracted.document_type, opts)
         }
         if (extracted.document_number) {
-          form.setValue("document_number", extracted.document_number)
+          form.setValue("document_number", extracted.document_number, opts)
         }
         if (extracted.procedure_number) {
-          form.setValue("procedure_number", extracted.procedure_number)
+          form.setValue("procedure_number", extracted.procedure_number, opts)
         }
         if (extracted.date_of_birth) {
-          form.setValue("date_of_birth", extracted.date_of_birth)
+          form.setValue("date_of_birth", extracted.date_of_birth, opts)
         }
         if (extracted.nationality) {
           // Normalizar nacionalidad
@@ -246,7 +246,7 @@ export function NewCustomerDialog({
           if (nationality === "ARG" || nationality === "ARGENTINA") {
             nationality = "Argentina"
           }
-          form.setValue("nationality", nationality)
+          form.setValue("nationality", nationality, opts)
         }
         
         setOcrSuccess(true)
@@ -308,10 +308,16 @@ export function NewCustomerDialog({
     }
   }
 
+  // Detectar si hay datos que se perderían (isDirty o campos con valor, p. ej. tras OCR)
+  const hasUnsavedChanges = () => {
+    if (form.formState.isDirty) return true
+    const v = form.getValues()
+    return !!(v.first_name || v.last_name || v.phone || v.document_number || v.procedure_number)
+  }
+
   // Handler para cierre con confirmación si hay cambios
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen && form.formState.isDirty) {
-      setPendingClose(true)
+    if (!newOpen && hasUnsavedChanges()) {
       setShowCloseConfirm(true)
     } else {
       if (!newOpen) {
@@ -326,7 +332,6 @@ export function NewCustomerDialog({
   // Confirmar cierre
   const confirmClose = () => {
     setShowCloseConfirm(false)
-    setPendingClose(false)
     form.reset()
     setUploadedFile(null)
     setOcrSuccess(false)
@@ -339,13 +344,19 @@ export function NewCustomerDialog({
         <DialogContent 
           className="max-w-2xl max-h-[90vh] overflow-y-auto"
           onEscapeKeyDown={(e) => {
-            if (form.formState.isDirty) {
+            if (hasUnsavedChanges()) {
               e.preventDefault()
               setShowCloseConfirm(true)
             }
           }}
           onPointerDownOutside={(e) => {
-            if (form.formState.isDirty) {
+            if (hasUnsavedChanges()) {
+              e.preventDefault()
+              setShowCloseConfirm(true)
+            }
+          }}
+          onInteractOutside={(e) => {
+            if (hasUnsavedChanges()) {
               e.preventDefault()
               setShowCloseConfirm(true)
             }
