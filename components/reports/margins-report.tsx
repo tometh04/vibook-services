@@ -198,6 +198,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
               <DatePicker
                 value={dateTo}
                 onChange={(value) => setDateTo(value)}
+                minDate={dateFrom ? new Date(dateFrom + "T12:00:00") : undefined}
               />
             </div>
             {userRole !== "SELLER" && (

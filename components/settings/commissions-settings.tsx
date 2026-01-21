@@ -426,7 +426,9 @@ export function CommissionsSettings() {
                 <FormField
                   control={form.control}
                   name="valid_to"
-                  render={({ field }) => (
+                  render={({ field }) => {
+                    const validFrom = form.watch("valid_from")
+                    return (
                     <FormItem>
                       <FormLabel>Válido Hasta (opcional)</FormLabel>
                       <FormControl>
@@ -434,11 +436,13 @@ export function CommissionsSettings() {
                           value={field.value || ""}
                           onChange={(value) => field.onChange(value || null)}
                           placeholder="Seleccionar fecha"
+                          minDate={validFrom ? new Date(validFrom + "T12:00:00") : undefined}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
-                  )}
+                    )
+                  }}
                 />
               </div>
 

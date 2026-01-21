@@ -426,6 +426,7 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
                 value={dueDateTo}
                 onChange={setDueDateTo}
                 placeholder="Seleccionar fecha"
+                minDate={dueDateFrom ? new Date(dueDateFrom + "T12:00:00") : undefined}
               />
             </div>
 

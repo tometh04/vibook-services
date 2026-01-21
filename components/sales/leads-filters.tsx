@@ -172,6 +172,7 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
             <DatePicker
               value={dateTo}
               onChange={(value) => setDateTo(value)}
+              minDate={dateFrom ? new Date(dateFrom + "T12:00:00") : undefined}
             />
           </div>
         </div>

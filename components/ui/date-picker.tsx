@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { format } from "date-fns"
+import { format, startOfDay } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon } from "lucide-react"
 
@@ -19,6 +19,8 @@ interface DatePickerProps {
   onChange: (value: string) => void
   placeholder?: string
   disabled?: boolean
+  minDate?: Date
+  maxDate?: Date
 }
 
 export function DatePicker({
@@ -26,6 +28,8 @@ export function DatePicker({
   onChange,
   placeholder = "Seleccionar fecha",
   disabled = false,
+  minDate,
+  maxDate,
 }: DatePickerProps) {
   const date = value ? new Date(value) : undefined
 
@@ -54,6 +58,11 @@ export function DatePicker({
             }
           }}
           initialFocus
+          disabled={(d) => {
+            if (minDate && startOfDay(d) < startOfDay(minDate)) return true
+            if (maxDate && startOfDay(d) > startOfDay(maxDate)) return true
+            return false
+          }}
         />
       </PopoverContent>
     </Popover>

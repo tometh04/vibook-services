@@ -168,6 +168,7 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
               <DatePicker
                 value={dateTo}
                 onChange={(value) => setDateTo(value)}
+                minDate={dateFrom ? new Date(dateFrom + "T12:00:00") : undefined}
               />
             </div>
             {userRole !== "SELLER" && (
