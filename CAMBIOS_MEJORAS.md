@@ -729,7 +729,9 @@ Mejorar los gráficos de Gastos Recurrentes usando UI moderna con diseño compac
 
 ### 27. Pagos Manuales en Deudores por Ventas y Pagos a Operadores
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Implementar funcionalidad para crear deudas manuales sin operación asociada.
