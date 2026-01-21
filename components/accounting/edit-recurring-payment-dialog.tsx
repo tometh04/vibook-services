@@ -39,6 +39,7 @@ const recurringPaymentSchema = z.object({
   notes: z.string().optional().nullable(),
   invoice_number: z.string().optional().nullable(),
   reference: z.string().optional().nullable(),
+  category_id: z.string().optional().nullable(),
 })
 
 type RecurringPaymentFormValues = z.infer<typeof recurringPaymentSchema>
@@ -67,6 +68,20 @@ export function EditRecurringPaymentDialog({
   const [isLoading, setIsLoading] = useState(false)
   const [hasEndDate, setHasEndDate] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string }>>([])
+
+  // Cargar categorías
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch("/api/accounting/recurring-payments/categories")
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+    }
+  }
 
   const form = useForm<RecurringPaymentFormValues>({
     resolver: zodResolver(recurringPaymentSchema) as any,
@@ -82,6 +97,7 @@ export function EditRecurringPaymentDialog({
       notes: null,
       invoice_number: null,
       reference: null,
+      category_id: null,
     },
   })
 
@@ -99,8 +115,10 @@ export function EditRecurringPaymentDialog({
         notes: payment.notes || null,
         invoice_number: payment.invoice_number || null,
         reference: payment.reference || null,
+        category_id: payment.category_id || null,
       })
       setHasEndDate(!!payment.end_date)
+      fetchCategories()
     }
   }, [open, payment, form])
 
@@ -113,6 +131,7 @@ export function EditRecurringPaymentDialog({
         body: JSON.stringify({
           ...values,
           end_date: hasEndDate ? values.end_date : null,
+          category_id: values.category_id === "none" ? null : values.category_id,
         }),
       })
 
@@ -209,26 +228,62 @@ export function EditRecurringPaymentDialog({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="is_active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col justify-end">
-                      <FormLabel>Estado</FormLabel>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        <span className="text-sm">{field.value ? "Activo" : "Inactivo"}</span>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col justify-end">
+                    <FormLabel>Estado</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <span className="text-sm">{field.value ? "Activo" : "Inactivo"}</span>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="amount"
+            {/* Categoría */}
+            <FormField
+              control={form.control}
+              name="category_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoría</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "none" ? null : value)} 
+                    value={field.value || "none"}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Sin categoría</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: category.color }}
+                            />
+                            {category.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="amount"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Monto *</FormLabel>

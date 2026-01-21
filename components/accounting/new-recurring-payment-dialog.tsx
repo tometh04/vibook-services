@@ -53,6 +53,7 @@ const recurringPaymentSchema = z.object({
   notes: z.string().optional().nullable(),
   invoice_number: z.string().optional().nullable(),
   reference: z.string().optional().nullable(),
+  category_id: z.string().optional().nullable(),
 })
 
 type RecurringPaymentFormValues = z.infer<typeof recurringPaymentSchema>
@@ -82,6 +83,8 @@ export function NewRecurringPaymentDialog({
   const [providers, setProviders] = useState<string[]>([])
   const [providerSearch, setProviderSearch] = useState("")
   const [loadingProviders, setLoadingProviders] = useState(false)
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string }>>([])
+  const [loadingCategories, setLoadingCategories] = useState(false)
 
   const form = useForm<RecurringPaymentFormValues>({
     resolver: zodResolver(recurringPaymentSchema) as any,
@@ -96,6 +99,7 @@ export function NewRecurringPaymentDialog({
       notes: null,
       invoice_number: null,
       reference: null,
+      category_id: null,
     },
   })
 
@@ -115,12 +119,29 @@ export function NewRecurringPaymentDialog({
     }
   }
 
+  // Cargar categorías
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true)
+      const response = await fetch("/api/accounting/recurring-payments/categories")
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+    } finally {
+      setLoadingCategories(false)
+    }
+  }
+
   useEffect(() => {
     if (open) {
       form.reset()
       setHasEndDate(false)
       setProviderSearch("")
       fetchProviders()
+      fetchCategories()
     }
   }, [open, form])
 
@@ -184,6 +205,7 @@ export function NewRecurringPaymentDialog({
         body: JSON.stringify({
           ...values,
           end_date: hasEndDate ? values.end_date : null,
+          category_id: values.category_id === "none" ? null : values.category_id,
         }),
       })
 
@@ -338,6 +360,42 @@ export function NewRecurringPaymentDialog({
                 )}
               />
             </div>
+
+            {/* Categoría */}
+            <FormField
+              control={form.control}
+              name="category_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoría</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "none" ? null : value)} 
+                    value={field.value || "none"}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Sin categoría</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: category.color }}
+                            />
+                            {category.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

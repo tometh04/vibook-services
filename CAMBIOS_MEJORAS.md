@@ -111,7 +111,9 @@ CREATE INDEX IF NOT EXISTS idx_operations_reservation_code_hotel
 
 ### 3. Número de Trámite en Clientes
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Agregar el campo "Número de Trámite" (`procedure_number`) a los clientes, permitiendo registrar el número de trámite del documento de identidad (DNI o Pasaporte).
