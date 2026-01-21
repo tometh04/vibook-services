@@ -740,7 +740,9 @@ Implementar funcionalidad para crear deudas manuales sin operación asociada.
 
 ### 28. Ordenamiento de Cuentas por Saldo en Caja
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Implementar ordenamiento automático de cuentas financieras por saldo descendente en los tabs "Caja USD" y "Caja ARS".
