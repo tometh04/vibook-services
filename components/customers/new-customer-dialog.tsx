@@ -100,6 +100,7 @@ export function NewCustomerDialog({
       instagram_handle: z.string().optional(),
       document_type: z.string().optional(),
       document_number: z.string().optional(),
+      procedure_number: z.string().optional(),
       date_of_birth: z.string().optional(),
       nationality: z.string().optional(),
     }
@@ -158,6 +159,7 @@ export function NewCustomerDialog({
       instagram_handle: "",
       document_type: "",
       document_number: "",
+      procedure_number: "",
       date_of_birth: "",
       nationality: "",
     }
@@ -232,6 +234,9 @@ export function NewCustomerDialog({
         if (extracted.document_number) {
           form.setValue("document_number", extracted.document_number)
         }
+        if (extracted.procedure_number) {
+          form.setValue("procedure_number", extracted.procedure_number)
+        }
         if (extracted.date_of_birth) {
           form.setValue("date_of_birth", extracted.date_of_birth)
         }
@@ -273,6 +278,7 @@ export function NewCustomerDialog({
           instagram_handle: values.instagram_handle || null,
           document_type: values.document_type || null,
           document_number: values.document_number || null,
+          procedure_number: values.procedure_number || null,
           date_of_birth: values.date_of_birth || null,
           nationality: values.nationality || null,
         }),
@@ -496,6 +502,20 @@ export function NewCustomerDialog({
                       <FormLabel>Número de Documento</FormLabel>
                       <FormControl>
                         <Input placeholder="12345678" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="procedure_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número de Trámite</FormLabel>
+                      <FormControl>
+                        <Input placeholder="12345678901" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
