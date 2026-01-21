@@ -686,16 +686,22 @@ Reestructurar la página de Caja para dividirla en 3 secciones usando tabs:
 
 ### 23. Sistema de Distribución de Ganancias a Socios
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Parcialmente implementado)
+
+**Estado:** 🔄 PARCIALMENTE IMPLEMENTADO
 
 **Descripción:**
 Implementar un sistema completo para distribuir ganancias mensuales entre socios según porcentajes asignados y rastrear las deudas de socios que gastaron más de lo asignado.
 
-**Funcionalidades:**
-1. Campo de porcentaje en socios (`profit_percentage`)
-2. Botón "Distribuir a Socios" en Posición Mensual
-3. Dialog de distribución con vista previa
-4. Tracking de deuda de socios
+**Funcionalidades implementadas:**
+1. ✅ Campo de porcentaje en socios (`profit_percentage`)
+2. ✅ KPI "% Ganancias Asignado" con validación 
+3. ✅ UI mejorada con badges de porcentaje
+4. ⬜ Botón "Distribuir a Socios" en Posición Mensual (pendiente)
+5. ⬜ Dialog de distribución con vista previa (pendiente)
+6. ⬜ Tracking de deuda de socios (pendiente)
+
+**Migración:** `022_add_profit_percentage_to_partners.sql`
 
 ---
 
