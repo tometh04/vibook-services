@@ -31,8 +31,9 @@ import {
 import { DatePicker } from "@/components/ui/date-picker"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { AlertTriangle, Download, HelpCircle, X, Search } from "lucide-react"
+import { AlertTriangle, Download, HelpCircle, X, Search, CreditCard } from "lucide-react"
 import * as XLSX from "xlsx"
+import { BulkPaymentDialog } from "./bulk-payment-dialog"
 
 function formatCurrency(amount: number, currency: string = "ARS"): string {
   return new Intl.NumberFormat("es-AR", {
@@ -72,6 +73,9 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
   const [amountMin, setAmountMin] = useState<string>("")
   const [amountMax, setAmountMax] = useState<string>("")
   const [operationSearch, setOperationSearch] = useState<string>("")
+  
+  // Estado para pago masivo
+  const [bulkPaymentOpen, setBulkPaymentOpen] = useState(false)
 
   const fetchPayments = useCallback(async () => {
     setLoading(true)
@@ -447,6 +451,10 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
               <Download className="h-4 w-4 mr-2" />
               Exportar Excel
             </Button>
+            <Button onClick={() => setBulkPaymentOpen(true)}>
+              <CreditCard className="h-4 w-4 mr-2" />
+              Pago Masivo
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -526,6 +534,17 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Pago Masivo */}
+      <BulkPaymentDialog
+        open={bulkPaymentOpen}
+        onOpenChange={setBulkPaymentOpen}
+        operators={operators}
+        onSuccess={() => {
+          fetchPayments()
+          setBulkPaymentOpen(false)
+        }}
+      />
     </div>
   )
 }
