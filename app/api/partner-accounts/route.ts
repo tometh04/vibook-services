@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     const supabase = await createServerClient()
     const body = await request.json()
 
-    const { partner_name, user_id, notes } = body
+    const { partner_name, user_id, notes, profit_percentage } = body
 
     if (!partner_name) {
       return NextResponse.json({ error: "El nombre del socio es requerido" }, { status: 400 })
@@ -107,6 +107,7 @@ export async function POST(request: Request) {
         partner_name,
         user_id: user_id || null,
         notes: notes || null,
+        profit_percentage: profit_percentage || 0,
       })
       .select()
       .single()

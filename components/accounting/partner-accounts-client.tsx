@@ -42,6 +42,7 @@ interface Partner {
   user_id: string | null
   is_active: boolean
   notes: string | null
+  profit_percentage: number
   created_at: string
   users?: { id: string; name: string; email: string } | null
   total_withdrawn_ars: number
@@ -82,6 +83,7 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
   // Form states
   const [partnerName, setPartnerName] = useState("")
   const [partnerNotes, setPartnerNotes] = useState("")
+  const [partnerPercentage, setPartnerPercentage] = useState("0")
   const [selectedPartnerId, setSelectedPartnerId] = useState("")
   const [withdrawalAmount, setWithdrawalAmount] = useState("")
   const [withdrawalCurrency, setWithdrawalCurrency] = useState("ARS")
@@ -144,6 +146,7 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
         body: JSON.stringify({
           partner_name: partnerName,
           notes: partnerNotes || null,
+          profit_percentage: parseFloat(partnerPercentage) || 0,
         }),
       })
 
@@ -156,6 +159,7 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
       setNewPartnerOpen(false)
       setPartnerName("")
       setPartnerNotes("")
+      setPartnerPercentage("0")
       fetchPartners()
     } catch (error: any) {
       toast.error(error.message || "Error al crear socio")
@@ -240,6 +244,7 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
   // Calcular totales
   const totalWithdrawnARS = partners.reduce((sum, p) => sum + p.total_withdrawn_ars, 0)
   const totalWithdrawnUSD = partners.reduce((sum, p) => sum + p.total_withdrawn_usd, 0)
+  const totalPercentage = partners.reduce((sum, p) => sum + (p.profit_percentage || 0), 0)
 
   if (loading) {
     return (
@@ -278,6 +283,25 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
                       onChange={(e) => setPartnerName(e.target.value)}
                       placeholder="Ej: Maxi"
                     />
+                  </div>
+                  <div>
+                    <Label>% de Ganancias</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={partnerPercentage}
+                        onChange={(e) => setPartnerPercentage(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        className="w-24"
+                      />
+                      <span className="text-muted-foreground">%</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Porcentaje de las ganancias que le corresponden a este socio
+                    </p>
                   </div>
                   <div>
                     <Label>Notas (opcional)</Label>
@@ -388,7 +412,7 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
       </div>
 
       {/* Resumen */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -424,6 +448,24 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{partners.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              % Ganancias Asignado
+            </CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${totalPercentage > 100 ? "text-red-600" : totalPercentage === 100 ? "text-green-600" : ""}`}>
+              {totalPercentage}%
+            </div>
+            {totalPercentage !== 100 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {totalPercentage > 100 ? "⚠️ Excede 100%" : `${100 - totalPercentage}% sin asignar`}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -478,15 +520,26 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
               {partners.map((partner) => (
                 <Card key={partner.id}>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      {partner.partner_name}
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        {partner.partner_name}
+                      </div>
+                      <Badge variant="outline" className="text-lg font-bold">
+                        {partner.profit_percentage || 0}%
+                      </Badge>
                     </CardTitle>
                     {partner.users && (
                       <CardDescription>{partner.users.email}</CardDescription>
                     )}
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">% de Ganancias:</span>
+                      <span className="font-semibold text-primary">
+                        {partner.profit_percentage || 0}%
+                      </span>
+                    </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Retiros ARS:</span>
                       <span className="font-semibold">
