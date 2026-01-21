@@ -160,25 +160,27 @@ Extender la funcionalidad OCR para soportar archivos PDF además de imágenes.
 
 ### 5. Sistema de Pagos con Tipo de Cambio Obligatorio
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
-Mejorar el sistema de pagos para garantizar que todos los cálculos se realicen correctamente en USD, incluyendo conversión obligatoria de ARS a USD mediante tipo de cambio.
+Se mejoró el sistema de pagos para garantizar que todos los cálculos se realicen correctamente en USD, incluyendo conversión obligatoria de ARS a USD mediante tipo de cambio.
 
-**Funcionalidades a implementar:**
-- Campo `exchange_rate` obligatorio para pagos en ARS
-- Cálculo automático de `amount_usd` para todos los pagos
-- Visualización de equivalente USD en tiempo real en el formulario
-- Validación que exige tipo de cambio para pagos en ARS
-- Creación de movimiento en CAJA además del movimiento en RESULTADO
-- Todos los KPIs ahora se calculan en USD
+**Funcionalidades implementadas:**
+- ✅ Campo `exchange_rate` obligatorio para pagos en ARS
+- ✅ Cálculo automático de `amount_usd` para todos los pagos
+- ✅ Visualización de equivalente USD en tiempo real en el formulario
+- ✅ Validación que exige tipo de cambio para pagos en ARS (frontend + backend)
+- ✅ Visualización de equivalente USD en tabla de pagos
 
-**Archivos a modificar:**
-- `components/operations/operation-payments-section.tsx` - Campo exchange_rate en formularios
-- `app/api/payments/route.ts` - Guardado de exchange_rate y amount_usd, creación de movimiento en CAJA
-- `components/cash/cash-summary-client.tsx` - Cálculo de KPIs en USD
+**Archivos modificados:**
+- `components/operations/operation-payments-section.tsx` - Campo exchange_rate, cálculo en tiempo real
+- `app/api/payments/route.ts` - Validación y guardado de exchange_rate y amount_usd
 
-**Migración de base de datos necesaria:**
+**Migración de base de datos:**
+- `supabase/migrations/017_add_exchange_rate_to_payments.sql`
+
 ```sql
 ALTER TABLE payments
 ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC(18,4);
@@ -191,6 +193,8 @@ COMMENT ON COLUMN payments.amount_usd IS 'Monto equivalente en USD';
 
 CREATE INDEX IF NOT EXISTS idx_payments_amount_usd ON payments(amount_usd) WHERE amount_usd IS NOT NULL;
 ```
+
+**Nota:** Debes ejecutar la migración SQL en Supabase para agregar las columnas a la base de datos.
 
 ---
 
