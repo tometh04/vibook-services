@@ -9,15 +9,37 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, CheckCircle2, AlertTriangle, FileSpreadsheet } from "lucide-react"
+import { CalendarIcon, Download, CheckCircle2, AlertTriangle, FileSpreadsheet, Users, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface MonthlyPositionPageClientProps {
   agencies: Array<{ id: string; name: string }>
   userRole: string
+}
+
+interface Partner {
+  id: string
+  partner_name: string
+  profit_percentage: number
 }
 
 interface MonthlyPosition {
@@ -86,6 +108,11 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
   const [position, setPosition] = useState<MonthlyPosition | null>(null)
   const [loading, setLoading] = useState(true)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
+  
+  // Estado para distribución a socios
+  const [distributionOpen, setDistributionOpen] = useState(false)
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [loadingPartners, setLoadingPartners] = useState(false)
 
   const fetchPosition = useCallback(async () => {
     setLoading(true)
@@ -122,6 +149,39 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
       setMonth(date.getMonth() + 1)
       setDatePickerOpen(false)
     }
+  }
+
+  // Cargar socios y abrir dialog de distribución
+  const handleOpenDistribution = async () => {
+    setLoadingPartners(true)
+    try {
+      const response = await fetch("/api/partner-accounts")
+      if (response.ok) {
+        const data = await response.json()
+        setPartners(data.partners || [])
+        setDistributionOpen(true)
+      } else {
+        toast.error("Error al cargar socios")
+      }
+    } catch (error) {
+      toast.error("Error al cargar socios")
+    } finally {
+      setLoadingPartners(false)
+    }
+  }
+
+  // Calcular distribución por socio
+  const getDistribution = () => {
+    if (!position || partners.length === 0) return []
+    
+    const resultado = position.resultado.resultadoARS || position.resultado.total
+    const resultadoUSD = position.resultado.resultadoUSD || 0
+    
+    return partners.map(partner => ({
+      ...partner,
+      amountARS: (resultado * (partner.profit_percentage / 100)),
+      amountUSD: (resultadoUSD * (partner.profit_percentage / 100)),
+    }))
   }
 
   const selectedDate = new Date(year, month - 1, 1)
@@ -202,10 +262,22 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
           <p className="text-muted-foreground">Estado de situación patrimonial al cierre del mes</p>
         </div>
         {position && (
-          <Button onClick={handleExportExcel} variant="outline">
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Exportar Excel
-          </Button>
+          <div className="flex gap-2">
+            {(userRole === "SUPER_ADMIN" || userRole === "ADMIN") && (
+              <Button onClick={handleOpenDistribution} variant="outline" disabled={loadingPartners}>
+                {loadingPartners ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Users className="mr-2 h-4 w-4" />
+                )}
+                Distribuir a Socios
+              </Button>
+            )}
+            <Button onClick={handleExportExcel} variant="outline">
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </div>
         )}
       </div>
 
@@ -600,6 +672,104 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de Distribución a Socios */}
+      <Dialog open={distributionOpen} onOpenChange={setDistributionOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Distribución de Ganancias a Socios</DialogTitle>
+            <DialogDescription>
+              Vista previa de la distribución del resultado de {monthNames[month - 1]} {year}
+            </DialogDescription>
+          </DialogHeader>
+
+          {position && (
+            <div className="space-y-4">
+              {/* Resultado del mes */}
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Resultado del Mes</span>
+                  <div className="text-right">
+                    <span className={`font-bold ${(position.resultado.resultadoARS || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatCurrency(position.resultado.resultadoARS || position.resultado.total, "ARS")}
+                    </span>
+                    {(position.resultado.resultadoUSD || 0) !== 0 && (
+                      <span className="ml-2 text-muted-foreground">
+                        ({formatCurrency(position.resultado.resultadoUSD || 0, "USD")})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabla de distribución */}
+              {partners.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Socio</TableHead>
+                      <TableHead className="text-right">%</TableHead>
+                      <TableHead className="text-right">ARS</TableHead>
+                      <TableHead className="text-right">USD</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {getDistribution().map((partner) => (
+                      <TableRow key={partner.id}>
+                        <TableCell className="font-medium">{partner.partner_name}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="outline">{partner.profit_percentage}%</Badge>
+                        </TableCell>
+                        <TableCell className={`text-right ${partner.amountARS >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {formatCurrency(partner.amountARS, "ARS")}
+                        </TableCell>
+                        <TableCell className={`text-right ${partner.amountUSD >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {formatCurrency(partner.amountUSD, "USD")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {/* Total */}
+                    <TableRow className="font-bold border-t-2">
+                      <TableCell>TOTAL</TableCell>
+                      <TableCell className="text-right">
+                        {partners.reduce((sum, p) => sum + (p.profit_percentage || 0), 0)}%
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(getDistribution().reduce((sum, p) => sum + p.amountARS, 0), "ARS")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(getDistribution().reduce((sum, p) => sum + p.amountUSD, 0), "USD")}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No hay socios configurados con porcentajes de ganancia.</p>
+                  <p className="text-sm mt-1">Configuralos en Contabilidad → Cuentas de Socios</p>
+                </div>
+              )}
+
+              {/* Advertencia si no suma 100% */}
+              {partners.length > 0 && partners.reduce((sum, p) => sum + (p.profit_percentage || 0), 0) !== 100 && (
+                <div className="flex items-center gap-2 p-3 bg-yellow-500/10 rounded-lg text-yellow-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm">
+                    Los porcentajes no suman 100%. Hay {100 - partners.reduce((sum, p) => sum + (p.profit_percentage || 0), 0)}% sin asignar.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDistributionOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
