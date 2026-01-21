@@ -9,8 +9,11 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download } from "lucide-react"
+import { CalendarIcon, Download, CheckCircle2, AlertTriangle, FileSpreadsheet } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
+import * as XLSX from "xlsx"
 
 interface MonthlyPositionPageClientProps {
   agencies: Array<{ id: string; name: string }>
@@ -123,13 +126,87 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
 
   const selectedDate = new Date(year, month - 1, 1)
 
+  // Verificación contable: Activo = Pasivo + Patrimonio Neto
+  const verificacionContable = position ? {
+    activo: position.activo.total.ars,
+    pasivoPlusPN: position.pasivo.total.ars + position.patrimonio_neto.total,
+    balanceado: Math.abs(position.activo.total.ars - (position.pasivo.total.ars + position.patrimonio_neto.total)) < 1, // Tolerancia de $1
+    diferencia: position.activo.total.ars - (position.pasivo.total.ars + position.patrimonio_neto.total),
+  } : null
+
+  // Exportar a Excel
+  const handleExportExcel = () => {
+    if (!position) return
+
+    const wb = XLSX.utils.book_new()
+
+    // Hoja 1: Balance General
+    const balanceData = [
+      ["BALANCE GENERAL - " + monthNames[month - 1] + " " + year],
+      [""],
+      ["ACTIVO"],
+      ["Activo Corriente (ARS)", formatCurrency(position.activo.corriente.ars, "ARS")],
+      ["Activo Corriente (USD)", formatCurrency(position.activo.corriente.usd, "USD")],
+      ["Activo No Corriente (ARS)", formatCurrency(position.activo.no_corriente.ars, "ARS")],
+      ["Activo No Corriente (USD)", formatCurrency(position.activo.no_corriente.usd, "USD")],
+      ["TOTAL ACTIVO (ARS)", formatCurrency(position.activo.total.ars, "ARS")],
+      ["TOTAL ACTIVO (USD)", formatCurrency(position.activo.total.usd, "USD")],
+      [""],
+      ["PASIVO"],
+      ["Pasivo Corriente (ARS)", formatCurrency(position.pasivo.corriente.ars, "ARS")],
+      ["Pasivo Corriente (USD)", formatCurrency(position.pasivo.corriente.usd, "USD")],
+      ["Pasivo No Corriente (ARS)", formatCurrency(position.pasivo.no_corriente.ars, "ARS")],
+      ["Pasivo No Corriente (USD)", formatCurrency(position.pasivo.no_corriente.usd, "USD")],
+      ["TOTAL PASIVO (ARS)", formatCurrency(position.pasivo.total.ars, "ARS")],
+      ["TOTAL PASIVO (USD)", formatCurrency(position.pasivo.total.usd, "USD")],
+      [""],
+      ["PATRIMONIO NETO"],
+      ["Total Patrimonio Neto", formatCurrency(position.patrimonio_neto.total, "ARS")],
+      [""],
+      ["VERIFICACIÓN CONTABLE"],
+      ["Activo", formatCurrency(position.activo.total.ars, "ARS")],
+      ["Pasivo + Patrimonio Neto", formatCurrency(position.pasivo.total.ars + position.patrimonio_neto.total, "ARS")],
+      ["Diferencia", formatCurrency(verificacionContable?.diferencia || 0, "ARS")],
+      ["Estado", verificacionContable?.balanceado ? "✓ BALANCEADO" : "⚠ DESCUADRADO"],
+    ]
+
+    const ws1 = XLSX.utils.aoa_to_sheet(balanceData)
+    XLSX.utils.book_append_sheet(wb, ws1, "Balance General")
+
+    // Hoja 2: Estado de Resultados
+    const resultadoData = [
+      ["ESTADO DE RESULTADOS - " + monthNames[month - 1] + " " + year],
+      [""],
+      ["Concepto", "ARS", "USD"],
+      ["Ingresos", formatCurrency(position.resultado.ingresosARS || 0, "ARS"), formatCurrency(position.resultado.ingresosUSD || 0, "USD")],
+      ["(-) Costos", formatCurrency(position.resultado.costosARS || 0, "ARS"), formatCurrency(position.resultado.costosUSD || 0, "USD")],
+      ["(-) Gastos", formatCurrency(position.resultado.gastosARS || 0, "ARS"), formatCurrency(position.resultado.gastosUSD || 0, "USD")],
+      [""],
+      ["RESULTADO DEL MES", formatCurrency(position.resultado.resultadoARS || 0, "ARS"), formatCurrency(position.resultado.resultadoUSD || 0, "USD")],
+    ]
+
+    const ws2 = XLSX.utils.aoa_to_sheet(resultadoData)
+    XLSX.utils.book_append_sheet(wb, ws2, "Estado de Resultados")
+
+    // Descargar archivo
+    const fileName = `posicion-contable-${year}-${String(month).padStart(2, "0")}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    toast.success("Archivo exportado correctamente")
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Posición Contable Mensual</h1>
           <p className="text-muted-foreground">Estado de situación patrimonial al cierre del mes</p>
         </div>
+        {position && (
+          <Button onClick={handleExportExcel} variant="outline">
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Exportar Excel
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -264,6 +341,43 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
               </CardContent>
             </Card>
           </div>
+
+          {/* Verificación Contable */}
+          {verificacionContable && (
+            <Card className={verificacionContable.balanceado ? "border-green-500/50 bg-green-500/5" : "border-yellow-500/50 bg-yellow-500/5"}>
+              <CardContent className="py-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    {verificacionContable.balanceado ? (
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    ) : (
+                      <AlertTriangle className="h-6 w-6 text-yellow-600" />
+                    )}
+                    <div>
+                      <p className="font-semibold">Verificación Contable</p>
+                      <p className="text-sm text-muted-foreground">
+                        Activo = Pasivo + Patrimonio Neto
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="text-right">
+                      <p className="text-muted-foreground">Activo</p>
+                      <p className="font-mono font-medium">{formatCurrency(verificacionContable.activo, "ARS")}</p>
+                    </div>
+                    <span className="text-muted-foreground">=</span>
+                    <div className="text-right">
+                      <p className="text-muted-foreground">Pasivo + PN</p>
+                      <p className="font-mono font-medium">{formatCurrency(verificacionContable.pasivoPlusPN, "ARS")}</p>
+                    </div>
+                    <Badge variant={verificacionContable.balanceado ? "default" : "secondary"} className={verificacionContable.balanceado ? "bg-green-600" : "bg-yellow-600"}>
+                      {verificacionContable.balanceado ? "Balanceado" : `Dif: ${formatCurrency(verificacionContable.diferencia, "ARS")}`}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Detalle por Rubros */}
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
