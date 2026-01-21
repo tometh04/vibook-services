@@ -5,7 +5,6 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { CommandMenu } from "@/components/command-menu"
 import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
@@ -143,7 +142,6 @@ export default async function DashboardLayout({
           </div>
         </div>
       </SidebarInset>
-      <CommandMenu />
     </SidebarProvider>
   )
 }

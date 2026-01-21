@@ -10,11 +10,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const query = searchParams.get("q")
 
+    console.log("[Search API] Received query:", query)
+
     if (!query || query.length < 2) {
+      console.log("[Search API] Query too short, returning empty results")
       return NextResponse.json({ results: [] })
     }
 
     const searchTerm = `%${query}%`
+    console.log("[Search API] Search term:", searchTerm)
     const results: Array<{
       id: string
       type: string
@@ -102,6 +106,7 @@ export async function GET(request: Request) {
 
     // Ejecutar todas las búsquedas en paralelo
     const searchResults = await Promise.all(searchPromises)
+    console.log("[Search API] All searches completed:", searchResults.length, "results")
 
     // Procesar resultados
     searchResults.forEach((result: any) => {
@@ -129,20 +134,28 @@ export async function GET(request: Request) {
           CLOSED: "Cerrado",
         }
         result.data.forEach((o: any) => {
-          // Construir subtítulo con códigos de reserva si existen
-          let subtitle = `${o.destination || "Sin destino"} - ${statusLabels[o.status] || o.status}`
-          const codes: string[] = []
-          if (o.reservation_code_air) codes.push(`✈️ ${o.reservation_code_air}`)
-          if (o.reservation_code_hotel) codes.push(`🏨 ${o.reservation_code_hotel}`)
-          if (codes.length > 0) {
-            subtitle = `${codes.join(" ")} | ${subtitle}`
+          // Determinar qué mostramos en el título según qué coincidió
+          const queryLower = query.toLowerCase()
+          let title = o.file_code || o.destination || "Sin código"
+          
+          // Si el código de búsqueda coincide con un código de reserva, mostrarlo primero
+          if (o.reservation_code_air && o.reservation_code_air.toLowerCase().includes(queryLower)) {
+            title = `Cod. Aéreo: ${o.reservation_code_air}`
+          } else if (o.reservation_code_hotel && o.reservation_code_hotel.toLowerCase().includes(queryLower)) {
+            title = `Cod. Hotel: ${o.reservation_code_hotel}`
           }
+          
+          const subtitleParts = []
+          if (o.destination) subtitleParts.push(o.destination)
+          if (o.reservation_code_air) subtitleParts.push(`Rva Aéreo: ${o.reservation_code_air}`)
+          if (o.reservation_code_hotel) subtitleParts.push(`Rva Hotel: ${o.reservation_code_hotel}`)
+          subtitleParts.push(statusLabels[o.status] || o.status)
           
           results.push({
             id: o.id,
             type: "operation",
-            title: o.file_code || o.destination || "Sin código",
-            subtitle,
+            title: title,
+            subtitle: subtitleParts.join(" - "),
           })
         })
       } else if (result.type === 'operators' && result.data) {
@@ -173,10 +186,10 @@ export async function GET(request: Request) {
       }
     })
 
+    console.log("[Search API] Returning", results.length, "total results")
     return NextResponse.json({ results })
   } catch (error) {
-    console.error("Error in search:", error)
+    console.error("[Search API] Error in search:", error)
     return NextResponse.json({ results: [] })
   }
 }
-
