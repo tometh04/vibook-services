@@ -806,39 +806,47 @@ Actualizar el esquema de base de datos en "Cerebro" (asistente AI) con todas las
 
 ---
 
-### Error: SelectItem sin value (A VERIFICAR)
+### Error: SelectItem sin value (VERIFICADO)
 
-**Estado:** ⬜ PENDIENTE DE VERIFICAR
+**Estado:** ✅ NO APLICA (verificado 2025-01-21)
 
 **Problema:**
 React Select no permite `value=""` en `SelectItem`, causando error: "A <Select.Item /> must have a value prop that is not an empty string"
 
-**Solución si aplica:**
-- Cambiar `value=""` a `value="ALL"` o `value="none"`
-- Actualizar lógica de filtrado para manejar estos valores
+**Verificación:**
+- Se buscó `value=""` en todos los componentes
+- No se encontró ningún SelectItem con value vacío
+- Todos los Select usan value="ALL" o valores específicos
 
 ---
 
-### Error: Pagos no impactaban en la caja (A VERIFICAR)
+### Error: Pagos no impactaban en la caja (VERIFICADO)
 
-**Estado:** ⬜ PENDIENTE DE VERIFICAR
+**Estado:** ✅ CORREGIDO (verificado 2025-01-21)
 
 **Problema:**
 - Los pagos se registraban en RESULTADO pero NO en CAJA
 - El balance de efectivo no se actualizaba
 
-**Solución si aplica:**
-- Agregar creación de `ledger_movement` en cuenta de CAJA además del de RESULTADO
+**Verificación:**
+- El API de payments crea movimientos tanto en `ledger_movements` como en `cash_movements`
+- Los pagos se vinculan con `payment_id` en cash_movements
+- El sistema verifica duplicados antes de crear nuevos movimientos
 
 ---
 
-### Error: KPI de pagos sumaba incorrectamente monedas (A VERIFICAR)
+### Error: KPI de pagos sumaba incorrectamente monedas (CORREGIDO)
 
-**Estado:** ⬜ PENDIENTE DE VERIFICAR
+**Estado:** ✅ CORREGIDO (2025-01-21)
 
 **Problema:**
 - El KPI sumaba `amount` directamente sin convertir ARS a USD
 - Ejemplo: 150,000 ARS se sumaba como 150,000 USD (incorrecto)
+
+**Solución aplicada:**
+- Separado en dos KPIs: "Total a Pagar (USD)" y "Total a Pagar (ARS)"
+- Cada uno suma solo pagos de su moneda correspondiente
+- Grid de KPIs ampliado a 4 columnas
 
 **Solución si aplica:**
 - KPI debe calcular totales EN USD usando `amount_usd`

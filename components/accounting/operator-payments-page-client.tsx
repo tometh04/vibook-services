@@ -236,8 +236,18 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
 
   const overdueCount = payments.filter((p) => p.status === "OVERDUE" || (p.status === "PENDING" && new Date(p.due_date) < new Date())).length
   const pendingCount = payments.filter((p) => p.status === "PENDING").length
-  const totalPending = payments
-    .filter((p) => p.status === "PENDING" || p.status === "OVERDUE")
+  
+  // Separar totales por moneda para evitar sumar incorrectamente
+  const totalPendingUSD = payments
+    .filter((p) => (p.status === "PENDING" || p.status === "OVERDUE") && p.currency === "USD")
+    .reduce((sum, p) => {
+      const amount = parseFloat(p.amount || "0")
+      const paidAmount = parseFloat(p.paid_amount || "0")
+      return sum + (amount - paidAmount)
+    }, 0)
+  
+  const totalPendingARS = payments
+    .filter((p) => (p.status === "PENDING" || p.status === "OVERDUE") && p.currency === "ARS")
     .reduce((sum, p) => {
       const amount = parseFloat(p.amount || "0")
       const paidAmount = parseFloat(p.paid_amount || "0")
@@ -279,7 +289,7 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
       </p>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
@@ -300,11 +310,20 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Total a Pagar</CardTitle>
+            <CardTitle className="text-sm font-medium">Total a Pagar (USD)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalPending)}</div>
-            <p className="text-xs text-muted-foreground mt-1">monto pendiente</p>
+            <div className="text-2xl font-bold">{formatCurrency(totalPendingUSD, "USD")}</div>
+            <p className="text-xs text-muted-foreground mt-1">en dólares</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Total a Pagar (ARS)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalPendingARS, "ARS")}</div>
+            <p className="text-xs text-muted-foreground mt-1">en pesos</p>
           </CardContent>
         </Card>
       </div>
