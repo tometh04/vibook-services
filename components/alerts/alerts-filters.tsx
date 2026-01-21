@@ -64,9 +64,9 @@ export function AlertsFilters({ agencies, value, defaultValue, onChange }: Alert
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        <div className="space-y-2">
-          <Label>Tipo</Label>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 items-end">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Tipo</Label>
           <Select value={filters.type} onValueChange={(newValue) => handleChange("type", newValue)}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar" />
@@ -81,8 +81,8 @@ export function AlertsFilters({ agencies, value, defaultValue, onChange }: Alert
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Estado</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Estado</Label>
           <Select value={filters.status} onValueChange={(newValue) => handleChange("status", newValue)}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar" />
@@ -97,8 +97,8 @@ export function AlertsFilters({ agencies, value, defaultValue, onChange }: Alert
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Rango de fechas</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Rango de fechas</Label>
           <DateRangePicker
             dateFrom={filters.dateFrom}
             dateTo={filters.dateTo}
@@ -109,8 +109,8 @@ export function AlertsFilters({ agencies, value, defaultValue, onChange }: Alert
           />
         </div>
 
-        <div className="space-y-2">
-          <Label>Agencia</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Agencia</Label>
           <Select value={filters.agencyId} onValueChange={(newValue) => handleChange("agencyId", newValue)}>
             <SelectTrigger>
               <SelectValue placeholder="Todas" />
@@ -127,8 +127,8 @@ export function AlertsFilters({ agencies, value, defaultValue, onChange }: Alert
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end">
-        <Button variant="outline" onClick={handleReset}>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" onClick={handleReset} className="w-full sm:w-auto">
           Reiniciar filtros
         </Button>
       </div>

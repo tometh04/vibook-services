@@ -101,9 +101,9 @@ export function OperationsFilters({ sellers, agencies, customStatuses = [], onFi
   return (
     <Card>
       <CardContent className="pt-4 sm:pt-6">
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          <div className="space-y-2">
-            <Label htmlFor="status">Estado</Label>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 items-end">
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="status">Estado</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger id="status">
                 <SelectValue placeholder="Seleccionar estado" />
@@ -118,8 +118,8 @@ export function OperationsFilters({ sellers, agencies, customStatuses = [], onFi
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="seller">Vendedor</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="seller">Vendedor</Label>
             <Select value={sellerId} onValueChange={setSellerId}>
               <SelectTrigger id="seller">
                 <SelectValue placeholder="Seleccionar vendedor" />
@@ -135,8 +135,8 @@ export function OperationsFilters({ sellers, agencies, customStatuses = [], onFi
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="agency">Agencia</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="agency">Agencia</Label>
             <Select value={agencyId} onValueChange={setAgencyId}>
               <SelectTrigger id="agency">
                 <SelectValue placeholder="Seleccionar agencia" />
@@ -152,8 +152,8 @@ export function OperationsFilters({ sellers, agencies, customStatuses = [], onFi
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Rango de fechas (viaje)</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Rango de fechas (viaje)</Label>
             <DateRangePicker
               dateFrom={dateFrom}
               dateTo={dateTo}
@@ -165,8 +165,8 @@ export function OperationsFilters({ sellers, agencies, customStatuses = [], onFi
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="paymentDateType">Filtrar por fecha de</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="paymentDateType">Filtrar por fecha de</Label>
             <Select value={paymentDateType} onValueChange={setPaymentDateType}>
               <SelectTrigger id="paymentDateType">
                 <SelectValue placeholder="Ninguno" />
@@ -181,8 +181,8 @@ export function OperationsFilters({ sellers, agencies, customStatuses = [], onFi
           </div>
 
           {paymentDateType && (
-            <div className="space-y-2">
-              <Label>Rango de fechas ({paymentDateType === "COBRO" ? "cobro" : paymentDateType === "PAGO" ? "pago" : "vencimiento"})</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Rango de fechas ({paymentDateType === "COBRO" ? "cobro" : paymentDateType === "PAGO" ? "pago" : "vencimiento"})</Label>
               <DateRangePicker
                 dateFrom={paymentDateFrom}
                 dateTo={paymentDateTo}

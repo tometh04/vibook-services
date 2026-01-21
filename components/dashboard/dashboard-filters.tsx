@@ -54,9 +54,9 @@ export function DashboardFilters({
 
   return (
     <div className="rounded-lg border bg-card p-3 shadow-sm sm:p-4">
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-        <div className="space-y-2">
-          <Label>Rango de fechas</Label>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 items-end">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Rango de fechas</Label>
           <DateRangePicker
             dateFrom={filters.dateFrom}
             dateTo={filters.dateTo}
@@ -66,8 +66,8 @@ export function DashboardFilters({
             placeholder="Seleccionar rango"
           />
         </div>
-        <div className="space-y-2">
-          <Label>Agencia</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Agencia</Label>
           <Select value={filters.agencyId} onValueChange={(newValue) => handleChange("agencyId", newValue)}>
             <SelectTrigger>
               <SelectValue placeholder="Todas" />
@@ -82,8 +82,8 @@ export function DashboardFilters({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label>Vendedor</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Vendedor</Label>
           <Select value={filters.sellerId} onValueChange={(newValue) => handleChange("sellerId", newValue)}>
             <SelectTrigger>
               <SelectValue placeholder="Todos" />
@@ -100,8 +100,8 @@ export function DashboardFilters({
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end">
-        <Button variant="outline" onClick={handleReset}>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" onClick={handleReset} className="w-full sm:w-auto">
           Reiniciar filtros
         </Button>
       </div>

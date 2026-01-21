@@ -92,10 +92,10 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
 
   return (
     <Card>
-      <CardContent className="pt-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <Label htmlFor="search">Buscar</Label>
+      <CardContent className="pt-4 sm:pt-6">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 items-end">
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="search">Buscar</Label>
             <Input
               id="search"
               placeholder="Nombre, teléfono, email..."
@@ -109,8 +109,8 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Estado</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="status">Estado</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger id="status">
                 <SelectValue placeholder="Seleccionar estado" />
@@ -125,8 +125,8 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="region">Región</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="region">Región</Label>
             <Select value={region} onValueChange={setRegion}>
               <SelectTrigger id="region">
                 <SelectValue placeholder="Seleccionar región" />
@@ -141,8 +141,8 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="seller">Vendedor</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="seller">Vendedor</Label>
             <Select value={sellerId} onValueChange={setSellerId}>
               <SelectTrigger id="seller">
                 <SelectValue placeholder="Seleccionar vendedor" />
@@ -158,8 +158,8 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dateFrom">Fecha desde</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="dateFrom">Fecha desde</Label>
             <Input
               id="dateFrom"
               type="date"
@@ -168,8 +168,8 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dateTo">Fecha hasta</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="dateTo">Fecha hasta</Label>
             <Input
               id="dateTo"
               type="date"
@@ -179,10 +179,10 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
-          <Button onClick={handleApplyFilters}>Aplicar Filtros</Button>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button onClick={handleApplyFilters} className="w-full sm:w-auto">Aplicar Filtros</Button>
           {hasActiveFilters && (
-            <Button variant="outline" onClick={handleClearFilters}>
+            <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
               <X className="mr-2 h-4 w-4" />
               Limpiar
             </Button>

@@ -27,13 +27,13 @@ export function CustomersFilters({ onFilterChange }: CustomersFiltersProps) {
 
   return (
     <Card>
-      <CardContent className="pt-6">
-        <div className="flex gap-4 items-end">
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="search">Buscar</Label>
+      <CardContent className="pt-4 sm:pt-6">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 items-end">
+          <div className="space-y-1.5 sm:col-span-2 md:col-span-2">
+            <Label className="text-xs" htmlFor="search">Buscar</Label>
             <Input
               id="search"
-              placeholder="Nombre, teléfono, email..."
+              placeholder="Nombre, teléfono, email, documento..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -43,15 +43,16 @@ export function CustomersFilters({ onFilterChange }: CustomersFiltersProps) {
               }}
             />
           </div>
-          <div className="flex gap-2">
-            <Button onClick={handleApplyFilters}>Buscar</Button>
-            {hasActiveFilters && (
-              <Button variant="outline" onClick={handleClearFilters}>
-                <X className="mr-2 h-4 w-4" />
-                Limpiar
-              </Button>
-            )}
-          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button onClick={handleApplyFilters} className="w-full sm:w-auto">Buscar</Button>
+          {hasActiveFilters && (
+            <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
+              <X className="mr-2 h-4 w-4" />
+              Limpiar
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

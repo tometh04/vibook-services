@@ -51,9 +51,9 @@ export function LedgerFilters({ agencies, onFiltersChange }: LedgerFiltersProps)
 
   return (
     <div className="space-y-4 rounded-lg border p-4">
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
-        <div>
-          <Label>Rango de fechas</Label>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 items-end">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Rango de fechas</Label>
           <DateRangePicker
             dateFrom={dateFrom}
             dateTo={dateTo}
@@ -64,8 +64,8 @@ export function LedgerFilters({ agencies, onFiltersChange }: LedgerFiltersProps)
             placeholder="Seleccionar rango"
           />
         </div>
-        <div>
-          <Label>Agencia</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Agencia</Label>
           <Select value={agencyId} onValueChange={setAgencyId}>
             <SelectTrigger>
               <SelectValue />
@@ -80,8 +80,8 @@ export function LedgerFilters({ agencies, onFiltersChange }: LedgerFiltersProps)
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Tipo</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Tipo</Label>
           <Select value={type} onValueChange={setType}>
             <SelectTrigger>
               <SelectValue />
@@ -97,8 +97,8 @@ export function LedgerFilters({ agencies, onFiltersChange }: LedgerFiltersProps)
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Moneda</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Moneda</Label>
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger>
               <SelectValue />
@@ -111,7 +111,7 @@ export function LedgerFilters({ agencies, onFiltersChange }: LedgerFiltersProps)
           </Select>
         </div>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Button onClick={handleApply} className="w-full sm:w-auto">Aplicar Filtros</Button>
         <Button variant="outline" onClick={handleReset} className="w-full sm:w-auto">
           Reiniciar

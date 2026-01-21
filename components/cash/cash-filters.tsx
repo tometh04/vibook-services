@@ -53,9 +53,9 @@ export function CashFilters({ agencies, value, defaultValue, onChange }: CashFil
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-        <div className="space-y-2">
-          <Label>Rango de fechas</Label>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 items-end">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Rango de fechas</Label>
           <DateRangePicker
             dateFrom={filters.dateFrom}
             dateTo={filters.dateTo}
@@ -65,8 +65,8 @@ export function CashFilters({ agencies, value, defaultValue, onChange }: CashFil
             placeholder="Seleccionar rango"
           />
         </div>
-        <div className="space-y-2">
-          <Label>Agencia</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Agencia</Label>
           <Select value={filters.agencyId} onValueChange={(newValue) => handleChange("agencyId", newValue)}>
             <SelectTrigger>
               <SelectValue placeholder="Todas" />
@@ -81,8 +81,8 @@ export function CashFilters({ agencies, value, defaultValue, onChange }: CashFil
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label>Moneda</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Moneda</Label>
           <Select value={filters.currency} onValueChange={(newValue) => handleChange("currency", newValue)}>
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar" />
@@ -98,8 +98,8 @@ export function CashFilters({ agencies, value, defaultValue, onChange }: CashFil
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end">
-        <Button variant="outline" onClick={handleReset}>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" onClick={handleReset} className="w-full sm:w-auto">
           Reiniciar filtros
         </Button>
       </div>

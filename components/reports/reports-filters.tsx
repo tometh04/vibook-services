@@ -66,11 +66,11 @@ export function ReportsFilters({
 
   return (
     <Card className="w-full">
-      <CardContent className="pt-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <CardContent className="pt-4 sm:pt-6">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 items-end">
           {/* Date From */}
-          <div className="space-y-2">
-            <Label htmlFor="dateFrom" className="text-xs sm:text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="dateFrom" className="text-xs">
               Desde
             </Label>
             <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
@@ -105,8 +105,8 @@ export function ReportsFilters({
           </div>
 
           {/* Date To */}
-          <div className="space-y-2">
-            <Label htmlFor="dateTo" className="text-xs sm:text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="dateTo" className="text-xs">
               Hasta
             </Label>
             <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
@@ -141,8 +141,8 @@ export function ReportsFilters({
           </div>
 
           {/* Agency */}
-          <div className="space-y-2">
-            <Label htmlFor="agencyId" className="text-xs sm:text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="agencyId" className="text-xs">
               Agencia
             </Label>
             <Select value={filters.agencyId} onValueChange={(value) => handleFilterChange("agencyId", value)}>
@@ -161,8 +161,8 @@ export function ReportsFilters({
           </div>
 
           {/* Seller */}
-          <div className="space-y-2">
-            <Label htmlFor="sellerId" className="text-xs sm:text-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="sellerId" className="text-xs">
               Vendedor
             </Label>
             <Select value={filters.sellerId} onValueChange={(value) => handleFilterChange("sellerId", value)}>
