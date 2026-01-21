@@ -245,7 +245,9 @@ Evaluar si la funcionalidad de "Segmentos" de clientes se está utilizando. Si n
 
 ### 8. Renombrado "Pagos Recurrentes" → "Gastos Recurrentes" y Sistema de Categorías
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Parcialmente Implementado)
+
+**Estado:** ✅ PARCIALMENTE IMPLEMENTADO (Categorías implementadas, falta renombrado UI)
 
 **Descripción:**
 Renombrar la funcionalidad "Pagos Recurrentes" a "Gastos Recurrentes" e implementar un sistema de categorías para clasificar los gastos recurrentes.
