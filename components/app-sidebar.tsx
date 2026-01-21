@@ -288,10 +288,20 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
                   </>
                 ) : (
                   <>
-                    <GalleryVerticalEnd 
-                      className="size-5 text-gray-400" 
+                    <Image 
+                      src="/logo-black-2.png" 
+                      alt="Vibook" 
+                      width={100} 
+                      height={28}
+                      className="h-6 w-auto dark:hidden"
                     />
-                    <span className="text-sm font-medium text-foreground">{branding.app_name}</span>
+                    <Image 
+                      src="/logo-white-2.png" 
+                      alt="Vibook" 
+                      width={100} 
+                      height={28}
+                      className="h-6 w-auto hidden dark:block"
+                    />
                   </>
                 )}
               </a>
