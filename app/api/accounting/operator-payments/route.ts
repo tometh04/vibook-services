@@ -12,6 +12,10 @@ export async function GET(request: Request) {
     const operatorId = searchParams.get("operatorId") || undefined
     const status = searchParams.get("status") || undefined
     const agencyId = searchParams.get("agencyId")
+    const dueDateFrom = searchParams.get("dueDateFrom")
+    const dueDateTo = searchParams.get("dueDateTo")
+
+    console.log("[OperatorPayments API] Params:", { operatorId, status, agencyId, dueDateFrom, dueDateTo })
 
     // Update overdue payments first
     await updateOverduePayments(supabase)
@@ -35,12 +39,23 @@ export async function GET(request: Request) {
       query = query.eq("status", status)
     }
 
+    // Filtro de fecha de vencimiento
+    if (dueDateFrom) {
+      query = query.gte("due_date", dueDateFrom)
+    }
+    if (dueDateTo) {
+      // Agregar hora 23:59:59 para incluir todo el día
+      query = query.lte("due_date", `${dueDateTo}T23:59:59`)
+    }
+
     const { data: payments, error } = await query
 
     if (error) {
       console.error("Error fetching operator payments:", error)
       return NextResponse.json({ error: "Error al obtener pagos a operadores" }, { status: 500 })
     }
+
+    console.log("[OperatorPayments API] Total payments found:", payments?.length || 0)
 
     // Filtrar por agencia si se especifica
     let filteredPayments = payments || []

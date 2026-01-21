@@ -10,7 +10,7 @@ import { es } from "date-fns/locale"
 import { DataTable } from "@/components/ui/data-table"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 import { ServerPagination } from "@/components/ui/server-pagination"
-import { MoreHorizontal, Pencil, Eye } from "lucide-react"
+import { MoreHorizontal, Pencil, Eye, Trash2, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { EditOperationDialog } from "./edit-operation-dialog"
+import { toast } from "sonner"
 
 const statusLabels: Record<string, string> = {
   PRE_RESERVATION: "Pre-reserva",
@@ -85,6 +96,11 @@ export function OperationsTable({
   const [editingOperation, setEditingOperation] = useState<Operation | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   
+  // Estados para eliminación
+  const [deletingOperation, setDeletingOperation] = useState<Operation | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  
   // Estado de paginación server-side
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(50)
@@ -146,6 +162,13 @@ export function OperationsTable({
     setEditDialogOpen(true)
   }, [agencies.length, loadDialogData])
 
+  // Funciones de eliminación
+  const handleDeleteClick = useCallback((operation: Operation) => {
+    setDeletingOperation(operation)
+    setDeleteDialogOpen(true)
+  }, [])
+
+  // Definición de fetchOperations (movida hacia arriba para uso en handleDeleteConfirm)
   const fetchOperations = useCallback(async () => {
     setLoading(true)
     try {
@@ -177,6 +200,32 @@ export function OperationsTable({
       setLoading(false)
     }
   }, [filters, page, limit])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deletingOperation) return
+    
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/operations/${deletingOperation.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Error al eliminar la operación")
+      }
+
+      toast.success("Operación eliminada correctamente")
+      setDeleteDialogOpen(false)
+      setDeletingOperation(null)
+      fetchOperations() // Recargar la tabla
+    } catch (error: any) {
+      console.error("Error deleting operation:", error)
+      toast.error(error.message || "Error al eliminar la operación")
+    } finally {
+      setDeleting(false)
+    }
+  }, [deletingOperation, fetchOperations])
 
   useEffect(() => {
     fetchOperations()
@@ -408,13 +457,25 @@ export function OperationsTable({
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar
                 </DropdownMenuItem>
+                {(userRole === "ADMIN" || userRole === "SUPER_ADMIN") && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => handleDeleteClick(operation)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )
         },
       },
     ],
-    [handleEditClick]
+    [handleEditClick, handleDeleteClick, userRole]
   )
 
   if (loading) {
@@ -475,6 +536,50 @@ export function OperationsTable({
           operators={allOperators}
         />
       )}
+      
+      {/* Diálogo de confirmación de eliminación */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar operación?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Estás a punto de eliminar la operación <strong>{deletingOperation?.destination}</strong>.
+                  Esta acción es <strong>irreversible</strong> y eliminará:
+                </p>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  <li>✅ Todos los pagos y cobranzas asociados</li>
+                  <li>✅ Movimientos contables (libro mayor, caja)</li>
+                  <li>✅ Pagos a operadores pendientes</li>
+                  <li>✅ Alertas y documentos</li>
+                  <li>✅ Comisiones calculadas</li>
+                </ul>
+                <p className="text-amber-600 text-sm font-medium">
+                  ⚠️ El cliente asociado NO se elimina (se mantiene en la base de datos).
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar operación"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

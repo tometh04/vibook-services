@@ -25,17 +25,14 @@ export default async function OperatorPaymentsPage() {
     agencies = data || []
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Pagos a Operadores</h1>
-        <p className="text-muted-foreground">
-          Gestión de cuentas a pagar a operadores
-        </p>
-      </div>
+  // Get operators
+  const { data: operatorsData } = await supabase
+    .from("operators")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name")
+  const operators = operatorsData || []
 
-      <OperatorPaymentsPageClient agencies={agencies} />
-    </div>
-  )
+  return <OperatorPaymentsPageClient agencies={agencies} operators={operators} />
 }
 

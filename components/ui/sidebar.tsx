@@ -27,7 +27,7 @@ import {
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = "16rem"
+const SIDEBAR_WIDTH = "18rem" // Aumentado de 16rem para mejor legibilidad de textos largos
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
@@ -700,7 +700,7 @@ const SidebarMenuSub = React.forwardRef<
     ref={ref}
     data-sidebar="menu-sub"
     className={cn(
-      "mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5",
+      "mx-1 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-1.5 py-0.5", // Reducido mx y px para mejor espaciado
       "group-data-[collapsible=icon]:hidden",
       className
     )}
@@ -732,7 +732,7 @@ const SidebarMenuSubButton = React.forwardRef<
       data-size={size}
       data-active={isActive}
       className={cn(
-        "flex h-7 min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-1.5 text-sm text-gray-600 outline-none ring-sidebar-ring transition-colors hover:bg-gray-50 hover:text-primary focus-visible:ring-2 active:bg-gray-50 active:text-primary disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-gray-400",
+        "flex h-7 min-w-0 items-center gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sm text-gray-600 outline-none ring-sidebar-ring transition-colors hover:bg-gray-50 hover:text-primary focus-visible:ring-2 active:bg-gray-50 active:text-primary disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-gray-400", // Reducido px de 3 a 2
         "data-[active=true]:text-primary data-[active=true]:font-medium",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",

@@ -56,20 +56,34 @@ interface LeadsKanbanProps {
   operators?: Array<{ id: string; name: string }>
   currentUserId?: string
   currentUserRole?: string
+  initialLeadId?: string // ID del lead a abrir automáticamente desde búsqueda global
 }
 
-export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], operators = [], currentUserId, currentUserRole }: LeadsKanbanProps) {
+export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], operators = [], currentUserId, currentUserRole, initialLeadId }: LeadsKanbanProps) {
   // Estado local para los leads (permite actualizaciones optimistas sin reload)
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [draggedLead, setDraggedLead] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
   const [claimingLeadId, setClaimingLeadId] = useState<string | null>(null)
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null)
+  const [selectedLeadFromSearch, setSelectedLeadFromSearch] = useState<Lead | null>(null)
+  const [showLeadDetailFromSearch, setShowLeadDetailFromSearch] = useState(false)
 
   // Sincronizar con props cuando cambien
   useEffect(() => {
     setLeads(initialLeads)
   }, [initialLeads])
+  
+  // Abrir automáticamente el dialog cuando hay un initialLeadId (desde búsqueda global)
+  useEffect(() => {
+    if (initialLeadId && leads.length > 0) {
+      const leadToOpen = leads.find(l => l.id === initialLeadId)
+      if (leadToOpen) {
+        setSelectedLeadFromSearch(leadToOpen)
+        setShowLeadDetailFromSearch(true)
+      }
+    }
+  }, [initialLeadId, leads])
 
   // Función para "agarrar" un lead
   const handleClaimLead = async (leadId: string, e: React.MouseEvent) => {
@@ -367,6 +381,47 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
               setLeads((prev) => 
                 prev.map((lead) => 
                   lead.id === selectedLead.id ? { ...lead, assigned_seller_id: currentUserId } : lead
+                )
+              )
+            }
+          }}
+        />
+      )}
+      
+      {/* Dialog para lead abierto desde búsqueda global */}
+      {selectedLeadFromSearch && (
+        <LeadDetailDialog
+          lead={selectedLeadFromSearch as any}
+          open={showLeadDetailFromSearch}
+          onOpenChange={(open) => {
+            setShowLeadDetailFromSearch(open)
+            if (!open) {
+              setSelectedLeadFromSearch(null)
+            }
+          }}
+          agencies={agencies}
+          sellers={sellers}
+          operators={operators}
+          onDelete={() => {
+            if (selectedLeadFromSearch) {
+              setLeads((prev) => prev.filter((lead) => lead.id !== selectedLeadFromSearch.id))
+              setShowLeadDetailFromSearch(false)
+              setSelectedLeadFromSearch(null)
+            }
+          }}
+          onConvert={() => {
+            if (selectedLeadFromSearch) {
+              setLeads((prev) => prev.filter((lead) => lead.id !== selectedLeadFromSearch.id))
+              setShowLeadDetailFromSearch(false)
+              setSelectedLeadFromSearch(null)
+            }
+          }}
+          canClaimLeads={canClaimLeads}
+          onClaim={() => {
+            if (selectedLeadFromSearch && currentUserId) {
+              setLeads((prev) => 
+                prev.map((lead) => 
+                  lead.id === selectedLeadFromSearch.id ? { ...lead, assigned_seller_id: currentUserId } : lead
                 )
               )
             }

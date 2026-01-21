@@ -11,6 +11,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command"
+import { Badge } from "@/components/ui/badge"
 import {
   Users,
   Plane,
@@ -32,6 +33,21 @@ interface SearchResult {
   type: "customer" | "operation" | "operator" | "lead"
   title: string
   subtitle?: string
+}
+
+// Labels y colores para los badges de tipo
+const typeLabels: Record<string, string> = {
+  customer: "Cliente",
+  operation: "Operación",
+  operator: "Operador",
+  lead: "Lead",
+}
+
+const typeBadgeColors: Record<string, string> = {
+  customer: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+  operation: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+  operator: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+  lead: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
 }
 
 export function CommandMenu() {
@@ -123,26 +139,37 @@ export function CommandMenu() {
           <CommandGroup heading="Resultados">
             {results.map((result) => {
               const Icon = getIcon(result.type)
+              // Corregida ruta de leads: ahora usa /sales/leads?leadId= en lugar de /sales?lead=
               const path = result.type === "customer" 
                 ? `/customers/${result.id}`
                 : result.type === "operation"
                   ? `/operations/${result.id}`
                   : result.type === "operator"
                     ? `/operators/${result.id}`
-                    : `/sales?lead=${result.id}`
+                    : `/sales/leads?leadId=${result.id}`
 
               return (
                 <CommandItem
                   key={`${result.type}-${result.id}`}
                   onSelect={() => navigateTo(path)}
+                  className="flex items-center justify-between"
                 >
-                  <Icon className="mr-2 h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>{result.title}</span>
-                    {result.subtitle && (
-                      <span className="text-xs text-muted-foreground">{result.subtitle}</span>
-                    )}
+                  <div className="flex items-center">
+                    <Icon className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span>{result.title}</span>
+                      {result.subtitle && (
+                        <span className="text-xs text-muted-foreground">{result.subtitle}</span>
+                      )}
+                    </div>
                   </div>
+                  {/* Badge de tipo para identificar cada resultado */}
+                  <Badge 
+                    variant="secondary" 
+                    className={`ml-2 text-xs ${typeBadgeColors[result.type] || "bg-muted text-muted-foreground"}`}
+                  >
+                    {typeLabels[result.type] || result.type}
+                  </Badge>
                 </CommandItem>
               )
             })}

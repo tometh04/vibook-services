@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -20,9 +22,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { DateInputWithCalendar } from "@/components/ui/date-input-with-calendar"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Download, HelpCircle, X, Search } from "lucide-react"
+import * as XLSX from "xlsx"
 
 function formatCurrency(amount: number, currency: string = "ARS"): string {
   return new Intl.NumberFormat("es-AR", {
@@ -40,52 +50,193 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-500",
-  PAID: "bg-amber-500",
+  PAID: "bg-green-500",
   OVERDUE: "bg-red-500",
 }
 
 interface OperatorPaymentsPageClientProps {
   agencies: Array<{ id: string; name: string }>
+  operators?: Array<{ id: string; name: string }>
 }
 
-export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageClientProps) {
+export function OperatorPaymentsPageClient({ agencies, operators = [] }: OperatorPaymentsPageClientProps) {
   const [loading, setLoading] = useState(true)
   const [payments, setPayments] = useState<any[]>([])
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [agencyFilter, setAgencyFilter] = useState<string>("ALL")
+  
+  // Nuevos filtros avanzados
+  const [operatorFilter, setOperatorFilter] = useState<string>("ALL")
+  const [dueDateFrom, setDueDateFrom] = useState<Date | undefined>(undefined)
+  const [dueDateTo, setDueDateTo] = useState<Date | undefined>(undefined)
+  const [amountMin, setAmountMin] = useState<string>("")
+  const [amountMax, setAmountMax] = useState<string>("")
+  const [operationSearch, setOperationSearch] = useState<string>("")
+
+  const fetchPayments = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter !== "ALL") {
+        params.append("status", statusFilter)
+      }
+      if (agencyFilter !== "ALL") {
+        params.append("agencyId", agencyFilter)
+      }
+      if (operatorFilter !== "ALL") {
+        params.append("operatorId", operatorFilter)
+      }
+      if (dueDateFrom) {
+        params.append("dueDateFrom", dueDateFrom.toISOString().split("T")[0])
+      }
+      if (dueDateTo) {
+        params.append("dueDateTo", dueDateTo.toISOString().split("T")[0])
+      }
+
+      const response = await fetch(`/api/accounting/operator-payments?${params.toString()}`)
+      if (!response.ok) throw new Error("Error al obtener pagos")
+
+      const data = await response.json()
+      let filteredPayments = data.payments || []
+      
+      // Filtros aplicados en frontend para mayor flexibilidad
+      if (amountMin) {
+        const min = parseFloat(amountMin)
+        if (!isNaN(min)) {
+          filteredPayments = filteredPayments.filter((p: any) => parseFloat(p.amount) >= min)
+        }
+      }
+      if (amountMax) {
+        const max = parseFloat(amountMax)
+        if (!isNaN(max)) {
+          filteredPayments = filteredPayments.filter((p: any) => parseFloat(p.amount) <= max)
+        }
+      }
+      if (operationSearch.trim()) {
+        const searchLower = operationSearch.toLowerCase().trim()
+        filteredPayments = filteredPayments.filter((p: any) => 
+          (p.operations?.file_code?.toLowerCase().includes(searchLower)) ||
+          (p.operations?.destination?.toLowerCase().includes(searchLower))
+        )
+      }
+      
+      setPayments(filteredPayments)
+    } catch (error) {
+      console.error("Error fetching operator payments:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [statusFilter, agencyFilter, operatorFilter, dueDateFrom, dueDateTo, amountMin, amountMax, operationSearch])
 
   useEffect(() => {
-    async function fetchPayments() {
-      setLoading(true)
-      try {
-        const params = new URLSearchParams()
-        if (statusFilter !== "ALL") {
-          params.append("status", statusFilter)
-        }
-        if (agencyFilter !== "ALL") {
-          params.append("agencyId", agencyFilter)
-        }
-
-        const response = await fetch(`/api/accounting/operator-payments?${params.toString()}`)
-        if (!response.ok) throw new Error("Error al obtener pagos")
-
-        const data = await response.json()
-        setPayments(data.payments || [])
-      } catch (error) {
-        console.error("Error fetching operator payments:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchPayments()
-  }, [statusFilter, agencyFilter])
+  }, [fetchPayments])
 
-  const overdueCount = payments.filter((p) => p.status === "OVERDUE").length
+  // Limpiar todos los filtros
+  const clearFilters = () => {
+    setStatusFilter("ALL")
+    setAgencyFilter("ALL")
+    setOperatorFilter("ALL")
+    setDueDateFrom(undefined)
+    setDueDateTo(undefined)
+    setAmountMin("")
+    setAmountMax("")
+    setOperationSearch("")
+  }
+
+  const hasActiveFilters = 
+    statusFilter !== "ALL" || 
+    agencyFilter !== "ALL" || 
+    operatorFilter !== "ALL" || 
+    dueDateFrom !== undefined || 
+    dueDateTo !== undefined || 
+    amountMin !== "" || 
+    amountMax !== "" || 
+    operationSearch !== ""
+
+  // Exportación a Excel
+  const handleExportExcel = () => {
+    if (payments.length === 0) return
+
+    // Hoja 1: Resumen por Operador
+    const operatorSummary: Record<string, any> = {}
+    payments.forEach((p) => {
+      const operatorId = p.operator_id || "unknown"
+      const operatorName = p.operators?.name || "Sin operador"
+      if (!operatorSummary[operatorId]) {
+        operatorSummary[operatorId] = {
+          operador: operatorName,
+          totalAPagar: 0,
+          moneda: p.currency || "ARS",
+          pagado: 0,
+          pendiente: 0,
+          cantidadPagos: 0,
+          vencidos: 0,
+        }
+      }
+      const amount = parseFloat(p.amount || "0")
+      const paidAmount = parseFloat(p.paid_amount || "0")
+      operatorSummary[operatorId].totalAPagar += amount
+      operatorSummary[operatorId].pagado += paidAmount
+      operatorSummary[operatorId].pendiente += amount - paidAmount
+      operatorSummary[operatorId].cantidadPagos += 1
+      if (p.status === "OVERDUE" || (p.status === "PENDING" && new Date(p.due_date) < new Date())) {
+        operatorSummary[operatorId].vencidos += 1
+      }
+    })
+
+    const summaryData = Object.values(operatorSummary).map((s: any) => ({
+      Operador: s.operador,
+      "Total a Pagar": s.totalAPagar.toFixed(2),
+      Moneda: s.moneda,
+      Pagado: s.pagado.toFixed(2),
+      Pendiente: s.pendiente.toFixed(2),
+      "Cantidad Pagos": s.cantidadPagos,
+      Vencidos: s.vencidos,
+    }))
+
+    // Hoja 2: Detalle de Pagos
+    const detailData = payments.map((p) => {
+      const amount = parseFloat(p.amount || "0")
+      const paidAmount = parseFloat(p.paid_amount || "0")
+      const isOverdue = p.status === "PENDING" && new Date(p.due_date) < new Date()
+      return {
+        "Código Operación": p.operations?.file_code || "-",
+        Destino: p.operations?.destination || "-",
+        Operador: p.operators?.name || "-",
+        "Monto Total": amount.toFixed(2),
+        Moneda: p.currency || "ARS",
+        "Monto Pagado": paidAmount.toFixed(2),
+        Pendiente: (amount - paidAmount).toFixed(2),
+        "Fecha Vencimiento": p.due_date ? format(new Date(p.due_date), "dd/MM/yyyy") : "-",
+        Estado: isOverdue ? "Vencido" : statusLabels[p.status] || p.status,
+        "Fecha Pago": p.paid_at ? format(new Date(p.paid_at), "dd/MM/yyyy") : "-",
+        Parcial: paidAmount > 0 && paidAmount < amount ? "Sí" : "No",
+      }
+    })
+
+    // Crear libro Excel
+    const wb = XLSX.utils.book_new()
+    const ws1 = XLSX.utils.json_to_sheet(summaryData)
+    const ws2 = XLSX.utils.json_to_sheet(detailData)
+    
+    XLSX.utils.book_append_sheet(wb, ws1, "Resumen por Operador")
+    XLSX.utils.book_append_sheet(wb, ws2, "Detalle Pagos")
+
+    // Descargar
+    const today = new Date().toISOString().split("T")[0]
+    XLSX.writeFile(wb, `cuentas-por-pagar-${today}.xlsx`)
+  }
+
+  const overdueCount = payments.filter((p) => p.status === "OVERDUE" || (p.status === "PENDING" && new Date(p.due_date) < new Date())).length
   const pendingCount = payments.filter((p) => p.status === "PENDING").length
   const totalPending = payments
     .filter((p) => p.status === "PENDING" || p.status === "OVERDUE")
-    .reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0)
+    .reduce((sum, p) => {
+      const amount = parseFloat(p.amount || "0")
+      const paidAmount = parseFloat(p.paid_amount || "0")
+      return sum + (amount - paidAmount)
+    }, 0)
 
   if (loading) {
     return (
@@ -98,6 +249,29 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
 
   return (
     <div className="space-y-6">
+      {/* Header con tooltip */}
+      <div className="flex items-center gap-2">
+        <h1 className="text-3xl font-bold">Pagos a Operadores</h1>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="font-medium mb-1">¿Cómo funciona?</p>
+              <p className="text-xs">
+                Aquí ves todas las cuentas por pagar a operadores. Puedes filtrar por operador, 
+                fecha de vencimiento, monto y estado. Usa el botón &quot;Exportar Excel&quot; 
+                para descargar un reporte completo.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <p className="text-muted-foreground">
+        Gestiona las cuentas por pagar a operadores y proveedores
+      </p>
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -129,15 +303,42 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filtros Avanzados */}
       <Card>
         <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Filtros</CardTitle>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-1" />
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="w-48">
-              <Label>Agencia</Label>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 items-end">
+            {/* Operador */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Operador</Label>
+              <Select value={operatorFilter} onValueChange={setOperatorFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos</SelectItem>
+                  {operators.map((op) => (
+                    <SelectItem key={op.id} value={op.id}>
+                      {op.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Agencia */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Agencia</Label>
               <Select value={agencyFilter} onValueChange={setAgencyFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -152,19 +353,77 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-48">
-              <Label>Estado</Label>
+
+            {/* Estado */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Estado</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">Todos los estados</SelectItem>
+                  <SelectItem value="ALL">Todos</SelectItem>
                   <SelectItem value="PENDING">Pendientes</SelectItem>
                   <SelectItem value="OVERDUE">Vencidos</SelectItem>
                   <SelectItem value="PAID">Pagados</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Búsqueda por operación */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Buscar Operación</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Código o destino..."
+                  value={operationSearch}
+                  onChange={(e) => setOperationSearch(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+
+            {/* Fecha Desde */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Venc. Desde</Label>
+              <DateInputWithCalendar
+                value={dueDateFrom}
+                onChange={setDueDateFrom}
+                placeholder="dd/MM/yyyy"
+              />
+            </div>
+
+            {/* Fecha Hasta */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Venc. Hasta</Label>
+              <DateInputWithCalendar
+                value={dueDateTo}
+                onChange={setDueDateTo}
+                placeholder="dd/MM/yyyy"
+              />
+            </div>
+
+            {/* Monto Mínimo */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Monto Mín.</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={amountMin}
+                onChange={(e) => setAmountMin(e.target.value)}
+              />
+            </div>
+
+            {/* Monto Máximo */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Monto Máx.</Label>
+              <Input
+                type="number"
+                placeholder="999999"
+                value={amountMax}
+                onChange={(e) => setAmountMax(e.target.value)}
+              />
             </div>
           </div>
         </CardContent>
@@ -173,13 +432,27 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
       {/* Payments Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Pagos a Operadores</CardTitle>
-          <CardDescription>Cuentas a pagar a operadores</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Cuentas por Pagar</CardTitle>
+              <CardDescription>
+                {payments.length} pago{payments.length !== 1 ? "s" : ""} encontrado{payments.length !== 1 ? "s" : ""}
+              </CardDescription>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleExportExcel}
+              disabled={payments.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Exportar Excel
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {payments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No se encontraron pagos
+              No se encontraron pagos con los filtros seleccionados
             </div>
           ) : (
             <Table>
@@ -188,16 +461,22 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
                   <TableHead>Operación</TableHead>
                   <TableHead>Operador</TableHead>
                   <TableHead>Monto</TableHead>
+                  <TableHead>Pagado</TableHead>
+                  <TableHead>Pendiente</TableHead>
                   <TableHead>Fecha Vencimiento</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {payments.map((payment) => {
+                  const amount = parseFloat(payment.amount || "0")
+                  const paidAmount = parseFloat(payment.paid_amount || "0")
+                  const pendingAmount = amount - paidAmount
                   const isOverdue =
                     payment.status === "PENDING" &&
                     new Date(payment.due_date) < new Date()
                   const displayStatus = isOverdue ? "OVERDUE" : payment.status
+                  const isPartial = paidAmount > 0 && paidAmount < amount
 
                   return (
                     <TableRow key={payment.id}>
@@ -211,7 +490,13 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
                       </TableCell>
                       <TableCell>{payment.operators?.name || "-"}</TableCell>
                       <TableCell className="font-medium">
-                        {formatCurrency(payment.amount, payment.currency)}
+                        {formatCurrency(amount, payment.currency)}
+                      </TableCell>
+                      <TableCell className="text-green-600">
+                        {paidAmount > 0 ? formatCurrency(paidAmount, payment.currency) : "-"}
+                      </TableCell>
+                      <TableCell className={pendingAmount > 0 ? "text-orange-600 font-medium" : ""}>
+                        {formatCurrency(pendingAmount, payment.currency)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -222,9 +507,16 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusColors[displayStatus] || "bg-gray-500"}>
-                          {statusLabels[displayStatus] || displayStatus}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge className={statusColors[displayStatus] || "bg-gray-500"}>
+                            {statusLabels[displayStatus] || displayStatus}
+                          </Badge>
+                          {isPartial && (
+                            <Badge variant="outline" className="text-xs">
+                              Parcial
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -237,4 +529,3 @@ export function OperatorPaymentsPageClient({ agencies }: OperatorPaymentsPageCli
     </div>
   )
 }
-

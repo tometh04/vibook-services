@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { LeadsKanban } from "@/components/sales/leads-kanban"
 import { LeadsTable } from "@/components/sales/leads-table"
 import { NewLeadDialog } from "@/components/sales/new-lead-dialog"
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus } from "lucide-react"
+import { Plus, HelpCircle } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -23,6 +24,12 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import Link from "next/link"
 
 interface Lead {
@@ -62,9 +69,22 @@ export function LeadsPageClient({
   currentUserId,
   currentUserRole,
 }: LeadsPageClientProps) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [newLeadDialogOpen, setNewLeadDialogOpen] = useState(false)
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>(defaultAgencyId || agencies[0]?.id || "ALL")
+  
+  // Obtener leadId de query params para abrir dialog automáticamente
+  const initialLeadId = searchParams.get("leadId")
+  
+  // Limpiar query params después de obtener el leadId
+  useEffect(() => {
+    if (initialLeadId) {
+      // Limpiar la URL sin recargar la página
+      router.replace("/sales/leads", { scroll: false })
+    }
+  }, [initialLeadId, router])
 
   // Función para recargar leads
   const handleRefresh = useCallback(async () => {
@@ -113,7 +133,24 @@ export function LeadsPageClient({
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Leads</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold">Leads</h1>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="font-medium mb-1">¿Cómo funciona?</p>
+                  <p className="text-xs">
+                    Los leads son oportunidades de venta. Arrastra las tarjetas entre columnas 
+                    para cambiar su estado. Cuando un lead está listo, conviértelo en operación 
+                    para comenzar la gestión del viaje.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <p className="text-muted-foreground">
             Gestiona tus leads y oportunidades
           </p>
@@ -159,6 +196,7 @@ export function LeadsPageClient({
             operators={operators}
             currentUserId={currentUserId}
             currentUserRole={currentUserRole}
+            initialLeadId={initialLeadId || undefined}
           />
         </TabsContent>
         <TabsContent value="table" className="space-y-4">
