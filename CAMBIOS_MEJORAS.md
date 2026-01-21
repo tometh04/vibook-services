@@ -623,9 +623,11 @@ Refactorizar todos los componentes de filtros en el sistema para lograr una alin
 
 ---
 
-### 19. Reemplazo de Inputs type="date" por DateInputWithCalendar
+### 19. Reemplazo de Inputs type="date" por DatePicker
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Parcialmente implementado)
+
+**Estado:** ✅ PARCIALMENTE IMPLEMENTADO
 
 **Descripción:**
 Reemplazar todos los inputs nativos `type="date"` por el componente personalizado `DateInputWithCalendar` para consistencia visual y mejor UX.
