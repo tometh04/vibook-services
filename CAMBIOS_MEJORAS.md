@@ -769,10 +769,17 @@ Implementar ordenamiento automático de cuentas financieras por saldo descendent
 
 ### 29. Actualización de Cerebro - Esquema de Base de Datos
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Actualizar el esquema de base de datos en "Cerebro" (asistente AI) con todas las tablas, relaciones, campos y métricas del sistema.
+
+**Cambios realizados:**
+- Documentadas nuevas tablas: operation_customers, operator_payments, financial_accounts, ledger_movements, recurring_payments, recurring_payment_categories, alerts
+- Campos nuevos: procedure_number, exchange_rate, amount_usd, paid_amount
+- Queries de ejemplo actualizadas para deudores, gastos recurrentes, etc.
 
 ---
 
