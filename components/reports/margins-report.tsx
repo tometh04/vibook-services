@@ -189,15 +189,15 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
             <div>
               <Label>Desde</Label>
               <DatePicker
-                date={dateFrom ? new Date(dateFrom) : undefined}
-                onSelect={(date) => setDateFrom(date ? format(date, "yyyy-MM-dd") : "")}
+                value={dateFrom}
+                onChange={(value) => setDateFrom(value)}
               />
             </div>
             <div>
               <Label>Hasta</Label>
               <DatePicker
-                date={dateTo ? new Date(dateTo) : undefined}
-                onSelect={(date) => setDateTo(date ? format(date, "yyyy-MM-dd") : "")}
+                value={dateTo}
+                onChange={(value) => setDateTo(value)}
               />
             </div>
             {userRole !== "SELLER" && (

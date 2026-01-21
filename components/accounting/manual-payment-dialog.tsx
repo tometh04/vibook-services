@@ -311,8 +311,8 @@ export function ManualPaymentDialog({
                   <FormLabel>Fecha de Vencimiento</FormLabel>
                   <FormControl>
                     <DatePicker
-                      date={field.value ? new Date(field.value) : undefined}
-                      onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      value={field.value}
+                      onChange={field.onChange}
                     />
                   </FormControl>
                   <FormMessage />

@@ -451,8 +451,8 @@ export function BulkPaymentDialog({
               <div className="space-y-2">
                 <Label>Fecha de Pago *</Label>
                 <DatePicker
-                  date={paymentDate ? new Date(paymentDate) : undefined}
-                  onSelect={(date) => setPaymentDate(date ? format(date, "yyyy-MM-dd") : new Date().toISOString().split("T")[0])}
+                  value={paymentDate}
+                  onChange={(value) => setPaymentDate(value)}
                 />
               </div>
 
