@@ -142,21 +142,23 @@ COMMENT ON COLUMN customers.procedure_number IS
 
 ### 4. Soporte para PDF en OCR
 
-**Estado:** ⬜ PENDIENTE DE VERIFICAR
+**Fecha:** 2025-01-21 (Verificado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Extender la funcionalidad OCR para soportar archivos PDF además de imágenes.
 
-**Funcionalidades:**
-- Subida de archivos PDF (máximo 15MB)
-- Extracción de imágenes desde PDF usando `pdf-lib`
-- Fallback para búsqueda directa de imágenes en bytes del PDF
-- Extracción de datos de documentos (DNI, Pasaporte) desde PDF
+**Funcionalidades implementadas:**
+- ✅ Subida de archivos PDF (máximo 15MB)
+- ✅ Extracción de imágenes desde PDF usando `pdf-lib`
+- ✅ Fallback para búsqueda directa de imágenes en bytes del PDF
+- ✅ Extracción de datos de documentos (DNI, Pasaporte) desde PDF
+- ✅ Input acepta "image/jpeg,image/jpg,image/png,image/webp,application/pdf,.pdf"
 
-**Archivos a verificar/modificar:**
-- `app/api/documents/ocr-only/route.ts` - Procesamiento de PDF
+**Archivos:**
+- `app/api/documents/ocr-only/route.ts` - Procesamiento completo de PDF
 - `components/customers/new-customer-dialog.tsx` - Input acepta PDF
-- `package.json` - Dependencia `pdf-lib` agregada
 
 ---
 
@@ -226,19 +228,24 @@ Se mejoró la legibilidad del sidebar aumentando el ancho y reduciendo el espaci
 
 ### 7. Eliminación de Funcionalidad de Segmentos
 
-**Estado:** ⬜ PENDIENTE DE EVALUAR
+**Fecha:** 2025-01-21 (Evaluado)
+
+**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
 
 **Descripción:**
 Evaluar si la funcionalidad de "Segmentos" de clientes se está utilizando. Si no, eliminarla completamente.
 
-**Archivos a eliminar (si procede):**
+**Evaluación:**
+- ✅ La funcionalidad existe y está accesible desde el sidebar
+- ✅ Ruta: `/customers/segments`
+- ⚠️ Requiere confirmación del usuario si desea eliminarla
+
+**Archivos a eliminar (si se confirma):**
 - `app/(dashboard)/customers/segments/page.tsx`
 - `components/customers/customer-segments-page-client.tsx`
 - `app/api/customers/segments/route.ts`
 - `app/api/customers/segments/[id]/route.ts`
 - `app/api/customers/segments/[id]/members/route.ts`
-
-**Archivos a modificar:**
 - `components/app-sidebar.tsx` - Remover ruta "Segmentos"
 
 ---
@@ -501,7 +508,9 @@ Se implementó la funcionalidad completa para eliminar operaciones desde la tabl
 
 ### 13. Limpieza de Configuración de Operaciones
 
-**Estado:** ⬜ PENDIENTE DE EVALUAR
+**Fecha:** 2025-01-21 (Evaluado)
+
+**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
 
 **Descripción:**
 Evaluar si es necesario eliminar tabs de configuración innecesarios en "Configuración de Operaciones".
@@ -512,23 +521,33 @@ Evaluar si es necesario eliminar tabs de configuración innecesarios en "Configu
 3. **Tab "Integraciones":** Forzar valores a `true` siempre activos
 4. **Card duplicado de Alertas:** Eliminar duplicados
 
+**Nota:** Requiere confirmación del usuario para proceder.
+
 ---
 
 ### 14. Eliminación de Configuración de Clientes
 
-**Estado:** ⬜ PENDIENTE DE EVALUAR
+**Fecha:** 2025-01-21 (Evaluado)
+
+**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
 
 **Descripción:**
-Evaluar si la página de "Configuración de Clientes" se está utilizando. Si no, eliminarla completamente.
+Evaluar si la página de "Configuración de Clientes" (`/customers/settings`) se está utilizando. Si no, eliminarla completamente.
+
+**Nota:** Requiere confirmación del usuario para proceder.
 
 ---
 
 ### 15. Reorganización del Sidebar y Eliminación de Notas
 
-**Estado:** ⬜ PENDIENTE DE EVALUAR
+**Fecha:** 2025-01-21 (Evaluado)
+
+**Estado:** ⏸️ EVALUADO - DECISIÓN PENDIENTE
 
 **Descripción:**
 Reorganizar la sección "Recursos" del sidebar y evaluar si la funcionalidad de "Notas" se utiliza.
+
+**Nota:** Requiere confirmación del usuario para proceder con eliminación de Notas.
 
 ---
 
