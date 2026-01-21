@@ -510,12 +510,20 @@ export function NewOperationDialog({
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        const errorMessage = error.error || "Error al crear operación"
-        setApiError(errorMessage)
+        let errorMessage = "Error al crear operación"
+        let detail: string | undefined
+        try {
+          const err = await response.json()
+          errorMessage = err?.error || errorMessage
+          detail = err?.detail || err?.hint
+        } catch {
+          errorMessage = response.status === 400 ? "Datos inválidos. Revisá agencia, vendedor, fechas y cliente (si es obligatorio)." : errorMessage
+        }
+        const fullMessage = detail ? `${errorMessage}. ${detail}` : errorMessage
+        setApiError(fullMessage)
         toast({
-          title: "Error de validación",
-          description: errorMessage,
+          title: response.status === 500 ? "Error del servidor" : "Error de validación",
+          description: fullMessage,
           variant: "destructive",
         })
         return

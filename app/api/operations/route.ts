@@ -66,8 +66,13 @@ export async function POST(request: Request) {
     const settingsData = operationSettings as any
 
     // Validar campos requeridos según configuración
-    if (!agency_id || !seller_id || !type || sale_amount_total === undefined) {
-      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    const missing: string[] = []
+    if (!agency_id) missing.push("agencia")
+    if (!seller_id) missing.push("vendedor")
+    if (!type) missing.push("tipo de operación")
+    if (sale_amount_total === undefined) missing.push("monto de venta total")
+    if (missing.length > 0) {
+      return NextResponse.json({ error: `Faltan campos requeridos: ${missing.join(", ")}` }, { status: 400 })
     }
 
     // VALIDACIÓN CRÍTICA: Verificar que agency_id pertenece al usuario (aislamiento SaaS)
@@ -116,6 +121,10 @@ export async function POST(request: Request) {
 
     if (settingsData?.require_operator && !operator_id && (!operators || operators.length === 0)) {
       return NextResponse.json({ error: "El operador es requerido" }, { status: 400 })
+    }
+
+    if (settingsData?.require_customer && !customer_id && !lead_id) {
+      return NextResponse.json({ error: "Se debe asociar al menos un cliente" }, { status: 400 })
     }
 
     // Procesar operadores: soportar formato nuevo (array) y formato antiguo (operator_id + operator_cost)
@@ -167,32 +176,35 @@ export async function POST(request: Request) {
       totalOperatorCost = 0
     }
 
-    // Validaciones de fechas
+    // Validaciones de fechas (solo cuando departure_date está presente)
     const today = new Date()
-    today.setHours(0, 0, 0, 0) // Resetear a medianoche para comparación
+    today.setHours(0, 0, 0, 0)
 
     const operationDate = operation_date ? new Date(operation_date) : new Date()
     operationDate.setHours(0, 0, 0, 0)
-
-    const departureDate = new Date(departure_date)
-    departureDate.setHours(0, 0, 0, 0)
 
     // Validar que operation_date no sea futuro
     if (operationDate > today) {
       return NextResponse.json({ error: "La fecha de operación no puede ser futura" }, { status: 400 })
     }
 
-    // Validar que departure_date sea después de operation_date
-    if (departureDate < operationDate) {
-      return NextResponse.json({ error: "La fecha de salida debe ser posterior a la fecha de operación" }, { status: 400 })
-    }
-
-    // Validar que return_date sea después de departure_date (si ambos están presentes)
-    if (return_date) {
-      const returnDate = new Date(return_date)
-      returnDate.setHours(0, 0, 0, 0)
-      if (returnDate < departureDate) {
-        return NextResponse.json({ error: "La fecha de regreso debe ser posterior a la fecha de salida" }, { status: 400 })
+    if (departure_date) {
+      const departureDate = new Date(departure_date)
+      departureDate.setHours(0, 0, 0, 0)
+      if (isNaN(departureDate.getTime())) {
+        return NextResponse.json({ error: "La fecha de salida no es válida" }, { status: 400 })
+      }
+      // Validar que departure_date sea después de operation_date
+      if (departureDate < operationDate) {
+        return NextResponse.json({ error: "La fecha de salida debe ser posterior a la fecha de operación" }, { status: 400 })
+      }
+      // Validar que return_date sea después de departure_date (si ambos están presentes)
+      if (return_date) {
+        const returnDate = new Date(return_date)
+        returnDate.setHours(0, 0, 0, 0)
+        if (!isNaN(returnDate.getTime()) && returnDate < departureDate) {
+          return NextResponse.json({ error: "La fecha de regreso debe ser posterior a la fecha de salida" }, { status: 400 })
+        }
       }
     }
 
@@ -260,8 +272,25 @@ export async function POST(request: Request) {
       .single()
 
     if (operationError) {
-      console.error("Error creating operation:", operationError)
-      return NextResponse.json({ error: "Error al crear operación" }, { status: 500 })
+      const errMsg = operationError?.message || String(operationError)
+      console.error("[api/operations POST 500] Error creating operation:", errMsg, operationError)
+      return NextResponse.json(
+        {
+          error: "Error al crear operación",
+          detail: errMsg,
+        },
+        { status: 500 }
+      )
+    }
+
+    if (!operation) {
+      console.error("[api/operations POST 500] Insert devolvió data null. Revisá variables de Supabase en Vercel.")
+      return NextResponse.json(
+        {
+          error: "Error al crear operación. Comprobá en Vercel que estén configuradas NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY, y que la base de datos sea accesible.",
+        },
+        { status: 500 }
+      )
     }
 
     // Auto-generate file_code after operation is created (so we can use the real ID)
@@ -810,9 +839,20 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.DASHBOARD)
 
     return NextResponse.json({ operation })
-  } catch (error) {
-    console.error("Error in POST /api/operations:", error)
-    return NextResponse.json({ error: "Error al crear operación" }, { status: 500 })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? error.stack : undefined
+    console.error("[api/operations POST 500]", msg, stack || error)
+    return NextResponse.json(
+      {
+        error: "Error al crear operación",
+        detail: process.env.NODE_ENV === "development" ? msg : undefined,
+        hint: process.env.NODE_ENV !== "development"
+          ? "Revisá en Vercel: Proyecto → Logs (pestaña Runtime) el momento del error. Buscá «api/operations POST 500»."
+          : undefined,
+      },
+      { status: 500 }
+    )
   }
 }
 
