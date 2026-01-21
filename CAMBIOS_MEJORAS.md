@@ -632,10 +632,12 @@ Reemplazar todos los inputs nativos `type="date"` por el componente personalizad
 
 ### 20. Mejora de Deudores por Ventas (Vendedor y Cobranza)
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
-Agregar funcionalidad de filtrar y mostrar el vendedor en "Deudores por Ventas", y corregir bug donde las cobranzas con transferencia bancaria no piden la cuenta receptiva.
+Sección completa de "Deudores por Ventas" con filtro de vendedor, búsqueda, exportación Excel y vista expandible con detalle de operaciones.
 
 **Funcionalidades a implementar:**
 1. **Filtro de Vendedor:** Selector dropdown para filtrar por vendedor
