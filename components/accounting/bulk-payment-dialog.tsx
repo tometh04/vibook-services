@@ -33,6 +33,7 @@ import { Loader2, ChevronRight, ChevronLeft, Check, AlertTriangle } from "lucide
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface Operator {
   id: string
@@ -76,18 +77,18 @@ export function BulkPaymentDialog({
   // Estado del wizard (4 pasos)
   const [step, setStep] = useState(1)
   
-  // Paso 1: Selección de operador
+  // Paso 1: Selecciรณn de operador
   const [selectedOperatorId, setSelectedOperatorId] = useState<string>("")
   
-  // Paso 2: Selección de moneda
+  // Paso 2: Selecciรณn de moneda
   const [selectedCurrency, setSelectedCurrency] = useState<"ARS" | "USD">("USD")
   
-  // Paso 3: Deudas pendientes y selección
+  // Paso 3: Deudas pendientes y selecciรณn
   const [pendingDebts, setPendingDebts] = useState<PendingDebt[]>([])
   const [selectedDebts, setSelectedDebts] = useState<SelectedDebt[]>([])
   const [loadingDebts, setLoadingDebts] = useState(false)
   
-  // Paso 4: Información del pago
+  // Paso 4: Informaciรณn del pago
   const [paymentCurrency, setPaymentCurrency] = useState<"ARS" | "USD">("USD")
   const [exchangeRate, setExchangeRate] = useState<string>("")
   const [receiptNumber, setReceiptNumber] = useState<string>("")
@@ -150,7 +151,7 @@ export function BulkPaymentDialog({
     }
   }, [open])
 
-  // Toggle selección de deuda
+  // Toggle selecciรณn de deuda
   const toggleDebtSelection = (debt: PendingDebt) => {
     const isSelected = selectedDebts.some(d => d.id === debt.id)
     if (isSelected) {
@@ -197,7 +198,7 @@ export function BulkPaymentDialog({
     return totalToPay / rate
   }, [totalToPay, selectedCurrency, paymentCurrency, exchangeRate])
 
-  // Validación por paso
+  // Validaciรณn por paso
   const canProceed = () => {
     switch (step) {
       case 1:
@@ -296,12 +297,12 @@ export function BulkPaymentDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">USD (Dólares)</SelectItem>
+                  <SelectItem value="USD">USD (Dรณlares)</SelectItem>
                   <SelectItem value="ARS">ARS (Pesos Argentinos)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">
-                Se mostrarán solo las deudas en la moneda seleccionada
+                Se mostrarรกn solo las deudas en la moneda seleccionada
               </p>
             </div>
           </div>
@@ -333,7 +334,7 @@ export function BulkPaymentDialog({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[50px]"></TableHead>
-                      <TableHead>Operación</TableHead>
+                      <TableHead>Operaciรณn</TableHead>
                       <TableHead className="text-right">Pendiente</TableHead>
                       <TableHead className="text-right">A Pagar</TableHead>
                       <TableHead>Venc.</TableHead>
@@ -449,15 +450,14 @@ export function BulkPaymentDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Fecha de Pago *</Label>
-                <Input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
+                <DatePicker
+                  date={paymentDate ? new Date(paymentDate) : undefined}
+                  onSelect={(date) => setPaymentDate(date ? format(date, "yyyy-MM-dd") : new Date().toISOString().split("T")[0])}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>N° Comprobante</Label>
+                <Label>Nยฐ Comprobante</Label>
                 <Input
                   placeholder="Opcional"
                   value={receiptNumber}
@@ -504,9 +504,9 @@ export function BulkPaymentDialog({
                 )}
               </div>
 
-              {/* Desglose por operación */}
+              {/* Desglose por operaciรณn */}
               <div className="pt-3 border-t">
-                <p className="text-xs text-muted-foreground mb-2">Desglose por operación:</p>
+                <p className="text-xs text-muted-foreground mb-2">Desglose por operaciรณn:</p>
                 <div className="space-y-1 max-h-[120px] overflow-y-auto">
                   {selectedDebts.map(debt => (
                     <div key={debt.id} className="flex justify-between text-xs">
@@ -537,7 +537,7 @@ export function BulkPaymentDialog({
               step === 1 ? "Seleccionar Operador" :
               step === 2 ? "Seleccionar Moneda" :
               step === 3 ? "Seleccionar Deudas" :
-              "Información del Pago"
+              "Informaciรณn del Pago"
             }
           </DialogDescription>
         </DialogHeader>

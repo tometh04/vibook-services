@@ -12,7 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
+import { DatePicker } from "@/components/ui/date-picker"
 import { X } from "lucide-react"
+import { format } from "date-fns"
 
 const statusOptions = [
   { value: "ALL", label: "Todos los estados" },
@@ -159,22 +161,18 @@ export function LeadsFilters({ sellers, onFilterChange }: LeadsFiltersProps) {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs" htmlFor="dateFrom">Fecha desde</Label>
-            <Input
-              id="dateFrom"
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+            <Label className="text-xs">Fecha desde</Label>
+            <DatePicker
+              date={dateFrom ? new Date(dateFrom) : undefined}
+              onSelect={(date) => setDateFrom(date ? format(date, "yyyy-MM-dd") : "")}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs" htmlFor="dateTo">Fecha hasta</Label>
-            <Input
-              id="dateTo"
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+            <Label className="text-xs">Fecha hasta</Label>
+            <DatePicker
+              date={dateTo ? new Date(dateTo) : undefined}
+              onSelect={(date) => setDateTo(date ? format(date, "yyyy-MM-dd") : "")}
             />
           </div>
         </div>

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DatePicker } from "@/components/ui/date-picker"
 import { TrendingUp, Download, Loader2, Building2, Package, Users } from "lucide-react"
 import { toast } from "sonner"
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns"
@@ -187,18 +188,16 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
           <div className="grid gap-4 md:grid-cols-6">
             <div>
               <Label>Desde</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
+              <DatePicker
+                date={dateFrom ? new Date(dateFrom) : undefined}
+                onSelect={(date) => setDateFrom(date ? format(date, "yyyy-MM-dd") : "")}
               />
             </div>
             <div>
               <Label>Hasta</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
+              <DatePicker
+                date={dateTo ? new Date(dateTo) : undefined}
+                onSelect={(date) => setDateTo(date ? format(date, "yyyy-MM-dd") : "")}
               />
             </div>
             {userRole !== "SELLER" && (
