@@ -66,6 +66,9 @@ interface Operation {
   customer_name?: string
   paid_amount?: number
   pending_amount?: number
+  // Códigos de reserva
+  reservation_code_air?: string | null
+  reservation_code_hotel?: string | null
 }
 
 interface OperationsTableProps {
@@ -296,6 +299,35 @@ export function OperationsTable({
             <div className="max-w-[120px] truncate text-xs font-medium" title={destination}>
               {destination}
           </div>
+          )
+        },
+      },
+      {
+        id: "reservation_codes",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Reservas" />
+        ),
+        cell: ({ row }) => {
+          const codeAir = row.original.reservation_code_air
+          const codeHotel = row.original.reservation_code_hotel
+          
+          if (!codeAir && !codeHotel) {
+            return <div className="text-xs text-muted-foreground">-</div>
+          }
+          
+          return (
+            <div className="space-y-1">
+              {codeAir && (
+                <div className="text-xs font-mono" title={`Aéreo: ${codeAir}`}>
+                  ✈️ {codeAir}
+                </div>
+              )}
+              {codeHotel && (
+                <div className="text-xs font-mono" title={`Hotel: ${codeHotel}`}>
+                  🏨 {codeHotel}
+                </div>
+              )}
+            </div>
           )
         },
       },

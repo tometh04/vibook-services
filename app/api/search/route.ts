@@ -45,10 +45,10 @@ export async function GET(request: Request) {
         .catch((err: any) => ({ type: 'customers', data: null, error: err }))
     )
 
-    // Buscar operaciones (por código, destino)
+    // Buscar operaciones (por código, destino, códigos de reserva)
     let operationQuery = (supabase.from("operations") as any)
-      .select("id, file_code, destination, status, agency_id")
-      .or(`file_code.ilike.${searchTerm},destination.ilike.${searchTerm}`)
+      .select("id, file_code, destination, status, agency_id, reservation_code_air, reservation_code_hotel")
+      .or(`file_code.ilike.${searchTerm},destination.ilike.${searchTerm},reservation_code_air.ilike.${searchTerm},reservation_code_hotel.ilike.${searchTerm}`)
       .limit(5)
     
     // Aplicar filtros de permisos para operaciones
@@ -129,11 +129,20 @@ export async function GET(request: Request) {
           CLOSED: "Cerrado",
         }
         result.data.forEach((o: any) => {
+          // Construir subtítulo con códigos de reserva si existen
+          let subtitle = `${o.destination || "Sin destino"} - ${statusLabels[o.status] || o.status}`
+          const codes: string[] = []
+          if (o.reservation_code_air) codes.push(`✈️ ${o.reservation_code_air}`)
+          if (o.reservation_code_hotel) codes.push(`🏨 ${o.reservation_code_hotel}`)
+          if (codes.length > 0) {
+            subtitle = `${codes.join(" ")} | ${subtitle}`
+          }
+          
           results.push({
             id: o.id,
             type: "operation",
             title: o.file_code || o.destination || "Sin código",
-            subtitle: `${o.destination || "Sin destino"} - ${statusLabels[o.status] || o.status}`,
+            subtitle,
           })
         })
       } else if (result.type === 'operators' && result.data) {

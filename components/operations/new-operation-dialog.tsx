@@ -95,6 +95,9 @@ const operationSchema = z.object({
   sale_currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
   operator_cost_currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
   notes: z.string().optional().nullable(),
+  // Códigos de reserva (opcionales)
+  reservation_code_air: z.string().optional().nullable(),
+  reservation_code_hotel: z.string().optional().nullable(),
 })
 
 type OperationFormValues = z.infer<typeof operationSchema>
@@ -293,6 +296,9 @@ export function NewOperationDialog({
       operator_cost_currency: "ARS",
       operators: [],
       notes: null,
+      // Códigos de reserva
+      reservation_code_air: null,
+      reservation_code_hotel: null,
     },
   })
 
@@ -498,6 +504,9 @@ export function NewOperationDialog({
         // Si hay múltiples operadores, el costo total ya está calculado en operator_cost
         operator_cost: useMultipleOperators ? totalOperatorCost : (values.operator_cost || 0),
         notes: values.notes || null,
+        // Códigos de reserva
+        reservation_code_air: values.reservation_code_air || null,
+        reservation_code_hotel: values.reservation_code_hotel || null,
       }
 
       const response = await fetch("/api/operations", {
@@ -1407,6 +1416,48 @@ export function NewOperationDialog({
                 </FormItem>
               )}
             />
+
+            {/* Códigos de Reserva */}
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold mb-4">Códigos de Reserva (opcional)</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="reservation_code_air"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código Reserva Aéreo</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Ej: ABC123" 
+                          {...field} 
+                          value={field.value || ""} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="reservation_code_hotel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código Reserva Hotel</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Ej: HOTEL-456" 
+                          {...field} 
+                          value={field.value || ""} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
