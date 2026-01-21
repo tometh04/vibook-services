@@ -696,7 +696,9 @@ Implementar funcionalidad para facturar en pesos argentinos operaciones que est�
 
 ### 25. Agregar Clientes con OCR a Operaciones
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Implementar funcionalidad para agregar clientes a operaciones usando el dialog de OCR existente, perfecto para viajes grupales.
