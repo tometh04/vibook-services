@@ -532,7 +532,9 @@ Reorganizar la sección "Recursos" del sidebar y evaluar si la funcionalidad de 
 
 ### 16. Corrección de KPIs de Deudores y Deuda en Dashboard
 
-**Estado:** ⬜ PENDIENTE DE IMPLEMENTAR
+**Fecha:** 2025-01-21 (Implementado)
+
+**Estado:** ✅ IMPLEMENTADO
 
 **Descripción:**
 Corregir los textos y el cálculo de los KPIs de "Deudores por Ventas" y "Deuda a Operadores" en el dashboard principal.
