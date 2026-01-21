@@ -31,9 +31,10 @@ import {
 import { DatePicker } from "@/components/ui/date-picker"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { AlertTriangle, Download, HelpCircle, X, Search, CreditCard } from "lucide-react"
+import { AlertTriangle, Download, HelpCircle, X, Search, CreditCard, Plus } from "lucide-react"
 import * as XLSX from "xlsx"
 import { BulkPaymentDialog } from "./bulk-payment-dialog"
+import { ManualPaymentDialog } from "./manual-payment-dialog"
 
 function formatCurrency(amount: number, currency: string = "ARS"): string {
   return new Intl.NumberFormat("es-AR", {
@@ -76,6 +77,7 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
   
   // Estado para pago masivo
   const [bulkPaymentOpen, setBulkPaymentOpen] = useState(false)
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false)
 
   const fetchPayments = useCallback(async () => {
     setLoading(true)
@@ -455,6 +457,10 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
               <CreditCard className="h-4 w-4 mr-2" />
               Pago Masivo
             </Button>
+            <Button variant="outline" onClick={() => setManualPaymentOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Deuda Manual
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -544,6 +550,16 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
           fetchPayments()
           setBulkPaymentOpen(false)
         }}
+      />
+
+      {/* Dialog para deuda manual a operador */}
+      <ManualPaymentDialog
+        open={manualPaymentOpen}
+        onOpenChange={setManualPaymentOpen}
+        onSuccess={() => {
+          fetchPayments()
+        }}
+        direction="EXPENSE"
       />
     </div>
   )

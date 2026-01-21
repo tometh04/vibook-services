@@ -31,8 +31,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { ChevronDown, ChevronRight, Download, HelpCircle, ExternalLink, X } from "lucide-react"
+import { ChevronDown, ChevronRight, Download, HelpCircle, ExternalLink, X, Plus } from "lucide-react"
 import * as XLSX from "xlsx"
+import { ManualPaymentDialog } from "./manual-payment-dialog"
 
 interface DebtorOperation {
   id: string
@@ -75,6 +76,7 @@ export function DebtsSalesPageClient({ sellers }: DebtsSalesPageClientProps) {
   // Filtros
   const [customerFilter, setCustomerFilter] = useState<string>("")
   const [sellerFilter, setSellerFilter] = useState<string>("ALL")
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false)
 
   const fetchDebtors = useCallback(async () => {
     setLoading(true)
@@ -264,6 +266,11 @@ export function DebtsSalesPageClient({ sellers }: DebtsSalesPageClientProps) {
               <Download className="h-4 w-4 mr-2" />
               Exportar Excel
             </Button>
+
+            <Button onClick={() => setManualPaymentOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Cuenta por Cobrar
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -420,11 +427,21 @@ export function DebtsSalesPageClient({ sellers }: DebtsSalesPageClientProps) {
                     </>
                   )
                 })}
-              </TableBody>
+                </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog para cuenta por cobrar manual */}
+      <ManualPaymentDialog
+        open={manualPaymentOpen}
+        onOpenChange={setManualPaymentOpen}
+        onSuccess={() => {
+          fetchDebtors()
+        }}
+        direction="INCOME"
+      />
     </div>
   )
 }
