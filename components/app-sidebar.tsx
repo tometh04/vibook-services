@@ -287,22 +287,22 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
                     <span className="text-sm font-medium text-foreground">{branding.app_name}</span>
                   </>
                 ) : (
-                  <>
+                  <div className="flex w-full justify-center">
                     <Image 
                       src="/logo-black-2.png" 
                       alt="Vibook" 
-                      width={100} 
-                      height={28}
-                      className="h-6 w-auto dark:hidden"
+                      width={120} 
+                      height={34}
+                      className="h-8 w-auto dark:hidden"
                     />
                     <Image 
                       src="/logo-white-2.png" 
                       alt="Vibook" 
-                      width={100} 
-                      height={28}
-                      className="h-6 w-auto hidden dark:block"
+                      width={120} 
+                      height={34}
+                      className="h-8 w-auto hidden dark:block"
                     />
-                  </>
+                  </div>
                 )}
               </a>
             </SidebarMenuButton>

@@ -88,6 +88,7 @@ TAREA: Extraer los datos visibles del pasaporte y devolverlos en formato JSON.
 CAMPOS A EXTRAER:
 - document_type: "PASSPORT"
 - document_number: Número del pasaporte (ej: "AAE422895")
+- procedure_number: Número de trámite o documento (si está visible en el pasaporte)
 - first_name: Nombre(s) 
 - last_name: Apellido(s)
 - full_name: Nombre completo
@@ -110,6 +111,7 @@ TAREA: Extraer los datos visibles del DNI y devolverlos en formato JSON.
 CAMPOS A EXTRAER:
 - document_type: "DNI"
 - document_number: Número de documento
+- procedure_number: Número de trámite del DNI (el número de 8-11 dígitos que suele aparecer en el anverso, arriba o junto al número de documento; si está visible)
 - first_name: Nombre(s)
 - last_name: Apellido(s)
 - full_name: Nombre completo tal como aparece
@@ -187,6 +189,11 @@ RESPUESTA: Devuelve ÚNICAMENTE un objeto JSON válido con los campos que puedas
         error: "No se pudieron parsear los datos del documento",
         extractedData: null 
       }, { status: 200 })
+    }
+
+    // Normalizar: si el modelo devolvió tramite_number, usarlo como procedure_number
+    if (extractedData.tramite_number && !extractedData.procedure_number) {
+      extractedData.procedure_number = extractedData.tramite_number
     }
 
     console.log("✅ Datos extraídos:", Object.keys(extractedData))
