@@ -431,9 +431,9 @@ export function OperationPaymentsSection({
 
   // Calcular equivalente en USD
   const calculatedUSD = watchCurrency === "ARS" && watchAmount > 0 && watchExchangeRate && watchExchangeRate > 0
-    ? (watchAmount / watchExchangeRate).toFixed(2)
-    : watchCurrency === "USD" 
-      ? watchAmount.toFixed(2) 
+    ? (Number(watchAmount) / Number(watchExchangeRate)).toFixed(2)
+    : watchCurrency === "USD" && watchAmount 
+      ? Number(watchAmount).toFixed(2) 
       : null
 
   // Calcular totales

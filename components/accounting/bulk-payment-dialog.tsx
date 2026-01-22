@@ -201,7 +201,7 @@ export function BulkPaymentDialog({
 
   // Calcular totales
   const totalToPay = useMemo(() => {
-    return selectedDebts.reduce((sum, d) => sum + d.amountToPay, 0)
+    return selectedDebts.reduce((sum, d) => sum + (Number(d.amountToPay) || 0), 0)
   }, [selectedDebts])
 
   const totalToPayInPaymentCurrency = useMemo(() => {
@@ -393,7 +393,7 @@ export function BulkPaymentDialog({
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {selectedCurrency} {debt.pending_amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                            {selectedCurrency} {(Number(debt.pending_amount) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell className="text-right">
                             {isSelected ? (
@@ -426,7 +426,7 @@ export function BulkPaymentDialog({
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Total a Pagar:</span>
                   <span className="font-bold text-lg">
-                    {selectedCurrency} {totalToPay.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                    {selectedCurrency} {(Number(totalToPay) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -533,14 +533,14 @@ export function BulkPaymentDialog({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total en {selectedCurrency}:</span>
                   <span className="font-mono">
-                    {selectedCurrency} {totalToPay.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                    {selectedCurrency} {(Number(totalToPay) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 {selectedCurrency !== paymentCurrency && exchangeRate && parseFloat(exchangeRate) > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Total a pagar en {paymentCurrency}:</span>
                     <span className="font-mono font-bold">
-                      {paymentCurrency} {totalToPayInPaymentCurrency.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      {paymentCurrency} {(Number(totalToPayInPaymentCurrency) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
@@ -554,7 +554,7 @@ export function BulkPaymentDialog({
                     <div key={debt.id} className="flex justify-between text-xs">
                       <span>{debt.operations?.file_code || debt.operation_id.slice(0, 8)}</span>
                       <span className="font-mono">
-                        {selectedCurrency} {debt.amountToPay.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                        {selectedCurrency} {(Number(debt.amountToPay) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   ))}

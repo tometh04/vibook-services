@@ -291,8 +291,8 @@ export function ManualPaymentDialog({
                       />
                     </FormControl>
                     <FormDescription>
-                      {field.value && form.getValues("amount")
-                        ? `Equivale a USD ${(parseFloat(form.getValues("amount") as any) / (field.value as any)).toFixed(2)}`
+                      {field.value && form.getValues("amount") && Number(field.value) > 0
+                        ? `Equivale a USD ${(Number(form.getValues("amount")) / Number(field.value)).toFixed(2)}`
                         : "Ingrese el tipo de cambio"}
                     </FormDescription>
                     <FormMessage />
