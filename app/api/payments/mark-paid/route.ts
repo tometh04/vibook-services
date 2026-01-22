@@ -413,13 +413,13 @@ export async function POST(request: Request) {
         resultAccountId = costosFinancialAccount.id
       } else {
         // Fallback
-    const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
-        accountId = await getOrCreateDefaultAccount(
-      accountType,
-      paymentData.currency as "ARS" | "USD",
-      user.id,
-      supabase
-    )
+        const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
+        resultAccountId = await getOrCreateDefaultAccount(
+          accountType,
+          paymentData.currency as "ARS" | "USD",
+          user.id,
+          supabase
+        )
       }
     } else {
       // GASTOS: usar cuenta de RESULTADO > GASTOS > "4.3.03" - Comisiones de Vendedores (o genérico)
@@ -455,7 +455,7 @@ export async function POST(request: Request) {
       } else {
         // Fallback
         const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
-        accountId = await getOrCreateDefaultAccount(
+        resultAccountId = await getOrCreateDefaultAccount(
           accountType,
           paymentData.currency as "ARS" | "USD",
           user.id,
