@@ -16,10 +16,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Faltan parámetros dateFrom y dateTo" }, { status: 400 })
     }
 
-    // Obtener todas las cuentas financieras de efectivo y caja de ahorro
+    // Obtener todas las cuentas financieras de efectivo y caja de ahorro (incluyendo cuentas corrientes)
     const { data: accounts } = await (supabase.from("financial_accounts") as any)
       .select("*")
-      .in("type", ["CASH_ARS", "CASH_USD", "SAVINGS_ARS", "SAVINGS_USD"])
+      .in("type", ["CASH_ARS", "CASH_USD", "SAVINGS_ARS", "SAVINGS_USD", "CHECKING_ARS", "CHECKING_USD"])
 
     if (!accounts || accounts.length === 0) {
       return NextResponse.json({ dailyBalances: [] })

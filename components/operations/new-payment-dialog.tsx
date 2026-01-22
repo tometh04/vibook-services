@@ -315,11 +315,14 @@ export function NewPaymentDialog({
                     <SelectContent>
                       {financialAccounts
                         .filter(acc => acc.currency === form.watch("currency"))
-                        .map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.name} ({account.currency})
-                          </SelectItem>
-                        ))}
+                        .map((account) => {
+                          const balance = account.current_balance || account.initial_balance || 0
+                          return (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.name} ({account.currency}) - {account.currency} {Number(balance).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                            </SelectItem>
+                          )
+                        })}
                     </SelectContent>
                   </Select>
                   <FormMessage />

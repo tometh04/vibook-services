@@ -110,22 +110,26 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
     fetchSummary()
   }, [fetchSummary])
 
-  // Calcular KPIs
+  // Calcular KPIs - Incluir todos los tipos de cuenta bancaria
   const kpis = useMemo(() => {
+    // Efectivo ARS: CASH_ARS
     const efectivoARS = accounts
       .filter((acc) => acc.type === "CASH_ARS")
       .reduce((sum, acc) => sum + (acc.current_balance || 0), 0)
 
+    // Efectivo USD: CASH_USD
     const efectivoUSD = accounts
       .filter((acc) => acc.type === "CASH_USD")
       .reduce((sum, acc) => sum + (acc.current_balance || 0), 0)
 
+    // Caja Ahorro ARS: SAVINGS_ARS + CHECKING_ARS (cuentas corrientes también)
     const cajaAhorroARS = accounts
-      .filter((acc) => acc.type === "SAVINGS_ARS")
+      .filter((acc) => acc.type === "SAVINGS_ARS" || acc.type === "CHECKING_ARS")
       .reduce((sum, acc) => sum + (acc.current_balance || 0), 0)
 
+    // Caja Ahorro USD: SAVINGS_USD + CHECKING_USD (cuentas corrientes también)
     const cajaAhorroUSD = accounts
-      .filter((acc) => acc.type === "SAVINGS_USD")
+      .filter((acc) => acc.type === "SAVINGS_USD" || acc.type === "CHECKING_USD")
       .reduce((sum, acc) => sum + (acc.current_balance || 0), 0)
 
     return {
