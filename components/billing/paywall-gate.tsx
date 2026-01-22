@@ -52,7 +52,7 @@ export function PaywallGate({
           {children}
         </div>
         {/* Overlay de paywall */}
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-10">
           <div className="text-center p-6 space-y-4 max-w-md">
             <Lock className="h-12 w-12 mx-auto text-muted-foreground" />
             <div>

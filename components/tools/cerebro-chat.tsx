@@ -283,7 +283,7 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
           </ScrollArea>
 
           {/* Input Area - Chat Mode */}
-          <div className="p-4 border-t bg-background/80 backdrop-blur-sm">
+          <div className="p-4 border-t bg-white">
             <div className="max-w-3xl mx-auto relative">
               <Textarea
                 ref={textareaRef}

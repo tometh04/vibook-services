@@ -475,7 +475,7 @@ export function EmiliaChat({ conversationId, userId, userName, onConversationUpd
                 </ScrollArea>
 
                 {/* Input Area */}
-                <CardContent className="p-4 border-t bg-background/80 backdrop-blur-sm">
+                <CardContent className="p-4 border-t bg-white">
                     <div className="flex gap-2">
                         <div className="relative flex-1">
                             <Input
