@@ -97,7 +97,7 @@ export function DataTable<TData, TValue>({
         )}
         <DataTableViewOptions table={table} />
       </div>
-      <div className="rounded-md border border-gray-200 overflow-hidden">
+      <div className="rounded-md border border-gray-200 bg-white overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[800px]">
           <TableHeader>

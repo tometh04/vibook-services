@@ -240,7 +240,7 @@ export function StatsCardSkeleton() {
 // Loading overlay para acciones
 export function LoadingOverlay({ message = "Cargando..." }: { message?: string }) {
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <Card className="w-[200px]">
         <CardContent className="pt-6 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
