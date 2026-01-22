@@ -55,6 +55,9 @@ export async function POST(request: Request) {
     const paymentData = payment as any
     const operation = paymentData.operations || null
 
+    // Declarar paymentsTable aquí para poder usarlo más abajo
+    const paymentsTable = supabase.from("payments") as any
+
     // Verificar que el pago tenga account_id (obligatorio)
     // Si no tiene, asignar uno por defecto basado en dirección y tipo de pagador
     let accountId = paymentData.account_id
@@ -129,7 +132,6 @@ export async function POST(request: Request) {
     const alreadyHasLedgerMovement = paymentData.status === "PAID" && paymentData.ledger_movement_id
 
     // Update payment
-    const paymentsTable = supabase.from("payments") as any
     await paymentsTable
       .update({
         date_paid: datePaid,
