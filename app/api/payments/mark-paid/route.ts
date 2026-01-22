@@ -334,8 +334,9 @@ export async function POST(request: Request) {
     }
     
     // 2. Crear movimiento en RESULTADO (INGRESOS/COSTOS/GASTOS)
-    // Determinar cuenta financiera según el tipo de movimiento y el plan de cuentas
-    let accountId: string
+    // Usar la cuenta financiera del pago (ya validada/obtenida arriba)
+    // Si necesitamos una cuenta diferente para el movimiento de resultado, la obtenemos aquí
+    let resultAccountId: string
     
     if (paymentData.direction === "INCOME") {
       // INGRESOS: usar cuenta de RESULTADO > INGRESOS > "4.1.01" - Ventas de Viajes
@@ -368,11 +369,11 @@ export async function POST(request: Request) {
             .single()
           ingresosFinancialAccount = newFA
         }
-        accountId = ingresosFinancialAccount.id
+        resultAccountId = ingresosFinancialAccount.id
       } else {
         // Fallback si no existe el plan de cuentas
         const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
-        accountId = await getOrCreateDefaultAccount(
+        resultAccountId = await getOrCreateDefaultAccount(
           accountType,
           paymentData.currency as "ARS" | "USD",
           user.id,
@@ -409,7 +410,7 @@ export async function POST(request: Request) {
             .single()
           costosFinancialAccount = newFA
         }
-        accountId = costosFinancialAccount.id
+        resultAccountId = costosFinancialAccount.id
       } else {
         // Fallback
     const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
@@ -450,7 +451,7 @@ export async function POST(request: Request) {
             .single()
           gastosFinancialAccount = newFA
         }
-        accountId = gastosFinancialAccount.id
+        resultAccountId = gastosFinancialAccount.id
       } else {
         // Fallback
         const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
@@ -530,7 +531,7 @@ export async function POST(request: Request) {
         exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
         amount_ars_equivalent: amountARS,
         method: ledgerMethod,
-        account_id: accountId,
+        account_id: resultAccountId,
         seller_id: sellerId,
         operator_id: operatorId,
         receipt_number: reference || null,
