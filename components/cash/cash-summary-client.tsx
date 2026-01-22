@@ -80,6 +80,8 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
   const [activeTab, setActiveTab] = useState("resumen")
   const [accountMovements, setAccountMovements] = useState<Record<string, CashMovement[]>>({})
   const [loadingMovements, setLoadingMovements] = useState<Record<string, boolean>>({})
+  const [totalIncome, setTotalIncome] = useState({ ars: 0, usd: 0 })
+  const [totalExpenses, setTotalExpenses] = useState({ ars: 0, usd: 0 })
 
   const fetchSummary = useCallback(async () => {
     setLoading(true)
@@ -98,6 +100,44 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
       if (dailyResponse.ok) {
         const dailyData = await dailyResponse.json()
         setDailyBalances(dailyData.dailyBalances || [])
+      }
+
+      // Obtener ingresos totales
+      const incomeParams = new URLSearchParams()
+      incomeParams.set("dateFrom", dateFrom)
+      incomeParams.set("dateTo", dateTo)
+      incomeParams.set("direction", "INCOME")
+      incomeParams.set("status", "PAID")
+      const incomeResponse = await fetch(`/api/payments?${incomeParams.toString()}`)
+      if (incomeResponse.ok) {
+        const incomeData = await incomeResponse.json()
+        const payments = incomeData.payments || []
+        const ars = payments
+          .filter((p: any) => p.currency === "ARS")
+          .reduce((sum: number, p: any) => sum + parseFloat(p.amount?.toString() || "0"), 0)
+        const usd = payments
+          .filter((p: any) => p.currency === "USD")
+          .reduce((sum: number, p: any) => sum + parseFloat(p.amount?.toString() || "0"), 0)
+        setTotalIncome({ ars, usd })
+      }
+
+      // Obtener egresos totales
+      const expenseParams = new URLSearchParams()
+      expenseParams.set("dateFrom", dateFrom)
+      expenseParams.set("dateTo", dateTo)
+      expenseParams.set("direction", "EXPENSE")
+      expenseParams.set("status", "PAID")
+      const expenseResponse = await fetch(`/api/payments?${expenseParams.toString()}`)
+      if (expenseResponse.ok) {
+        const expenseData = await expenseResponse.json()
+        const payments = expenseData.payments || []
+        const ars = payments
+          .filter((p: any) => p.currency === "ARS")
+          .reduce((sum: number, p: any) => sum + parseFloat(p.amount?.toString() || "0"), 0)
+        const usd = payments
+          .filter((p: any) => p.currency === "USD")
+          .reduce((sum: number, p: any) => sum + parseFloat(p.amount?.toString() || "0"), 0)
+        setTotalExpenses({ ars, usd })
       }
     } catch (error) {
       console.error("Error fetching summary:", error)
@@ -372,7 +412,43 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
 
         {/* TAB: Resumen */}
         <TabsContent value="resumen" className="space-y-6">
-          {/* KPIs */}
+          {/* KPIs de Ingresos y Egresos */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresos Totales ARS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{formatCurrency(totalIncome.ars, "ARS")}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresos Totales USD</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{formatCurrency(totalIncome.usd, "USD")}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Egresos Totales ARS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses.ars, "ARS")}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Egresos Totales USD</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses.usd, "USD")}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* KPIs de Saldos de Cuentas */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

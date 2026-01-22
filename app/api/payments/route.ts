@@ -141,38 +141,26 @@ export async function POST(request: Request) {
     // Si status no se especifica, el default es PENDING, así que no crear movimientos
     if (status === "PAID") {
       try {
-        // Llamar al endpoint mark-paid para crear los movimientos contables correctamente
+        // Usar la función compartida para marcar el pago como pagado
         // Esto asegura que se sigan los mismos pasos que cuando se marca un pago como pagado
-        const markPaidResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/payments/mark-paid`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentId: payment.id,
-            datePaid: date_paid || new Date().toISOString().split("T")[0],
-            reference: notes || null,
-          }),
+        const { markPaymentAsPaid } = await import("@/lib/accounting/mark-payment-paid")
+        const markPaidData = await markPaymentAsPaid({
+          paymentId: payment.id,
+          datePaid: date_paid || new Date().toISOString().split("T")[0],
+          reference: notes || null,
+          userId: user.id,
+          supabase,
         })
 
-        if (!markPaidResponse.ok) {
-          const errorData = await markPaidResponse.json()
-          console.error("Error calling mark-paid:", errorData)
-          // No fallamos completamente, el pago ya se creó
-          return NextResponse.json({ 
-            payment,
-            warning: "Pago creado pero hubo error en movimientos contables: " + (errorData.error || "Error desconocido")
-          })
-        }
-
-        const markPaidData = await markPaidResponse.json()
         console.log(`✅ Pago ${payment.id} creado y marcado como pagado con ledger ${markPaidData.ledger_movement_id}`)
 
-      } catch (accountingError) {
+      } catch (accountingError: any) {
         console.error("Error creating accounting movements:", accountingError)
         // El pago se creó, pero los movimientos contables fallaron
         // Retornamos el pago pero con una advertencia
         return NextResponse.json({ 
           payment,
-          warning: "Pago creado pero hubo error en movimientos contables"
+          warning: "Pago creado pero hubo error en movimientos contables: " + (accountingError.message || "Error desconocido")
         })
       }
     }
