@@ -141,140 +141,30 @@ export async function POST(request: Request) {
     // Si status no se especifica, el default es PENDING, así que no crear movimientos
     if (status === "PAID") {
       try {
-        // 2. Obtener datos de la operación para seller_id y operator_id
-        const { data: operation } = await (supabase.from("operations") as any)
-          .select("seller_id, operator_id, agency_id")
-          .eq("id", operation_id)
-          .single()
+        // Llamar al endpoint mark-paid para crear los movimientos contables correctamente
+        // Esto asegura que se sigan los mismos pasos que cuando se marca un pago como pagado
+        const markPaidResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/payments/mark-paid`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentId: payment.id,
+            datePaid: date_paid || new Date().toISOString().split("T")[0],
+            reference: notes || null,
+          }),
+        })
 
-        const sellerId = operation?.seller_id || null
-        const operatorId = operation?.operator_id || null
-        const agencyId = operation?.agency_id
-
-        // 3. Calcular tasa de cambio si es USD
-        let exchangeRate: number | null = null
-        if (currency === "USD") {
-          const rateDate = date_paid ? new Date(date_paid) : new Date()
-          exchangeRate = await getExchangeRate(supabase, rateDate)
-          if (!exchangeRate) {
-            exchangeRate = await getLatestExchangeRate(supabase)
-          }
-          if (!exchangeRate) {
-            exchangeRate = 1000 // Fallback
-          }
+        if (!markPaidResponse.ok) {
+          const errorData = await markPaidResponse.json()
+          console.error("Error calling mark-paid:", errorData)
+          // No fallamos completamente, el pago ya se creó
+          return NextResponse.json({ 
+            payment,
+            warning: "Pago creado pero hubo error en movimientos contables: " + (errorData.error || "Error desconocido")
+          })
         }
 
-        const amountARS = calculateARSEquivalent(
-          parseFloat(amount),
-          currency as "ARS" | "USD",
-          exchangeRate
-        )
-
-        // 4. Usar la cuenta financiera proporcionada (ya validada arriba)
-        const accountId = account_id
-
-        // 5. Mapear método de pago a método de ledger
-        const methodMap: Record<string, "CASH" | "BANK" | "MP" | "USD" | "OTHER"> = {
-          "Transferencia": "BANK",
-          "Efectivo": "CASH",
-          "Tarjeta Crédito": "OTHER",
-          "Tarjeta Débito": "OTHER",
-          "MercadoPago": "MP",
-          "PayPal": "OTHER",
-          "Otro": "OTHER",
-        }
-        const ledgerMethod = methodMap[method || "Otro"] || "OTHER"
-
-        // 6. Determinar tipo de ledger movement
-        const ledgerType = direction === "INCOME" 
-          ? "INCOME" 
-          : (payer_type === "OPERATOR" ? "OPERATOR_PAYMENT" : "EXPENSE")
-
-        // 7. Crear movimiento en libro mayor (ledger_movements)
-        const { id: ledgerMovementId } = await createLedgerMovement(
-          {
-            operation_id,
-            lead_id: null,
-            type: ledgerType,
-            concept: direction === "INCOME" 
-              ? `Pago de cliente - Operación ${operation_id.slice(0, 8)}`
-              : `Pago a operador - Operación ${operation_id.slice(0, 8)}`,
-            currency: currency as "ARS" | "USD",
-            amount_original: parseFloat(amount),
-            exchange_rate: exchangeRate,
-            amount_ars_equivalent: amountARS,
-            method: ledgerMethod,
-            account_id: accountId,
-            seller_id: sellerId,
-            operator_id: payer_type === "OPERATOR" ? operatorId : null,
-            receipt_number: null,
-            notes: notes || null,
-            created_by: user.id,
-          },
-          supabase
-        )
-
-        // 8. Actualizar payment con referencia al ledger_movement
-        await (supabase.from("payments") as any)
-          .update({ ledger_movement_id: ledgerMovementId })
-          .eq("id", payment.id)
-
-        // 9. Crear movimiento de caja (cash_movements)
-        // Obtener caja por defecto
-        const { data: defaultCashBox } = await supabase
-          .from("cash_boxes")
-          .select("id")
-          .eq("agency_id", agencyId || "")
-          .eq("currency", currency)
-          .eq("is_default", true)
-          .eq("is_active", true)
-          .maybeSingle()
-
-        const cashMovementData = {
-          operation_id,
-          cash_box_id: (defaultCashBox as any)?.id || null,
-          user_id: user.id,
-          type: direction === "INCOME" ? "INCOME" : "EXPENSE",
-          category: direction === "INCOME" ? "SALE" : "OPERATOR_PAYMENT",
-          amount: parseFloat(amount),
-          currency,
-          movement_date: date_paid || new Date().toISOString(),
-          notes: notes || null,
-          is_touristic: true,
-          payment_id: payment.id, // Referencia al pago
-        }
-
-        const { data: cashMovement, error: cashError } = await (supabase.from("cash_movements") as any)
-          .insert(cashMovementData)
-          .select("id")
-          .single()
-
-        if (cashError) {
-          console.warn("Warning: Could not create cash movement:", cashError)
-          // No fallamos, el pago ya se creó
-        }
-
-        // 10. Si es pago a operador, marcar operator_payment como PAID
-        if (payer_type === "OPERATOR") {
-          const { data: operatorPayment } = await (supabase.from("operator_payments") as any)
-            .select("id")
-            .eq("operation_id", operation_id)
-            .eq("status", "PENDING")
-            .limit(1)
-            .maybeSingle()
-
-          if (operatorPayment) {
-            await (supabase.from("operator_payments") as any)
-              .update({ 
-                status: "PAID",
-                ledger_movement_id: ledgerMovementId,
-                updated_at: new Date().toISOString()
-              })
-              .eq("id", operatorPayment.id)
-          }
-        }
-
-        console.log(`✅ Pago ${payment.id} creado con ledger ${ledgerMovementId}`)
+        const markPaidData = await markPaidResponse.json()
+        console.log(`✅ Pago ${payment.id} creado y marcado como pagado con ledger ${markPaidData.ledger_movement_id}`)
 
       } catch (accountingError) {
         console.error("Error creating accounting movements:", accountingError)
