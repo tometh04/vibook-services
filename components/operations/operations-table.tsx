@@ -473,7 +473,7 @@ export function OperationsTable({
         ),
         cell: ({ row }) => (
           <div className="text-xs font-medium">
-            {row.original.currency} {Math.round(row.original.sale_amount_total).toLocaleString("es-AR")}
+            {row.original.currency} {Math.round(Number(row.original.sale_amount_total) || 0).toLocaleString("es-AR")}
           </div>
         ),
       },
@@ -484,7 +484,7 @@ export function OperationsTable({
           <DataTableColumnHeader column={column} title="Monto Cobrado" />
         ),
         cell: ({ row }) => {
-          const paid = row.original.paid_amount || 0
+          const paid = Number(row.original.paid_amount) || 0
           return (
             <div className="text-xs text-green-600 font-medium">
               {row.original.currency} {Math.round(paid).toLocaleString("es-AR")}
@@ -499,9 +499,10 @@ export function OperationsTable({
           <DataTableColumnHeader column={column} title="A cobrar" />
         ),
         cell: ({ row }) => {
-          const pending = row.original.pending_amount || 0
-          const total = row.original.sale_amount_total || 0
-          const pendingCalc = pending > 0 ? pending : Math.max(0, total - (row.original.paid_amount || 0))
+          const pending = Number(row.original.pending_amount) || 0
+          const total = Number(row.original.sale_amount_total) || 0
+          const paid = Number(row.original.paid_amount) || 0
+          const pendingCalc = pending > 0 ? pending : Math.max(0, total - paid)
           return (
             <div className="text-xs text-orange-600 font-medium">
               {row.original.currency} {Math.round(pendingCalc).toLocaleString("es-AR")}
@@ -516,7 +517,7 @@ export function OperationsTable({
           <DataTableColumnHeader column={column} title="Pagado" />
         ),
         cell: ({ row }) => {
-          const operatorPaid = row.original.operator_paid_amount || 0
+          const operatorPaid = Number(row.original.operator_paid_amount) || 0
           // Usar operator_currency si está disponible, sino buscar en operation_operators o operator_cost_currency
           const operation = row.original as any
           const operatorCurrency = row.original.operator_currency || 
@@ -537,7 +538,7 @@ export function OperationsTable({
           <DataTableColumnHeader column={column} title="A pagar" />
         ),
         cell: ({ row }) => {
-          const operatorPending = row.original.operator_pending_amount || 0
+          const operatorPending = Number(row.original.operator_pending_amount) || 0
           // Usar operator_currency si está disponible, sino buscar en operation_operators o operator_cost_currency
           const operation = row.original as any
           const operatorCurrency = row.original.operator_currency || 
@@ -560,10 +561,10 @@ export function OperationsTable({
         cell: ({ row }) => (
           <div className="text-xs">
             <span className="font-medium">
-              {row.original.currency} {Math.round(row.original.margin_amount).toLocaleString("es-AR")}
+              {row.original.currency} {Math.round(Number(row.original.margin_amount) || 0).toLocaleString("es-AR")}
             </span>
             <span className="text-muted-foreground ml-1">
-              {Math.round(row.original.margin_percentage)}%
+              {Math.round(Number(row.original.margin_percentage) || 0)}%
             </span>
           </div>
         ),
