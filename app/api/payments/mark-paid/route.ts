@@ -518,7 +518,7 @@ export async function POST(request: Request) {
         ? "OPERATOR_PAYMENT"
         : "EXPENSE"
 
-    // Crear ledger movement
+    // Crear ledger movement en RESULTADO (para contabilidad)
     const { id: ledgerMovementId } = await createLedgerMovement(
       {
         operation_id: paymentData.operation_id || null,
@@ -542,6 +542,40 @@ export async function POST(request: Request) {
       },
       supabase
     )
+
+    // IMPORTANTE: También crear un movimiento en la cuenta financiera seleccionada
+    // Esto es necesario para que el balance de la cuenta se actualice correctamente
+    // La cuenta financiera (account_id del pago) es donde realmente se recibió/entregó el dinero
+    if (accountId && accountId !== resultAccountId) {
+      try {
+        await createLedgerMovement(
+          {
+            operation_id: paymentData.operation_id || null,
+            lead_id: null,
+            type: paymentData.direction === "INCOME" ? "INCOME" : "EXPENSE",
+            concept: paymentData.direction === "INCOME"
+              ? `Ingreso en ${paymentData.currency} - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`
+              : `Egreso en ${paymentData.currency} - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`,
+            currency: paymentData.currency as "ARS" | "USD",
+            amount_original: parseFloat(paymentData.amount),
+            exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
+            amount_ars_equivalent: amountARS,
+            method: ledgerMethod,
+            account_id: accountId, // La cuenta financiera seleccionada por el usuario
+            seller_id: sellerId,
+            operator_id: operatorId,
+            receipt_number: reference || null,
+            notes: `Movimiento en cuenta financiera: ${reference || ""}`,
+            created_by: user.id,
+          },
+          supabase
+        )
+        console.log(`✅ Movimiento creado en cuenta financiera ${accountId} para pago ${paymentId}`)
+      } catch (error) {
+        console.error(`Error creando movimiento en cuenta financiera ${accountId}:`, error)
+        // No fallamos completamente, el movimiento en RESULTADO ya se creó
+      }
+    }
 
     // Si es un pago a operador, marcar operator_payment como PAID
     if (paymentData.payer_type === "OPERATOR" && paymentData.operation_id) {
