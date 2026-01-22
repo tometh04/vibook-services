@@ -234,6 +234,18 @@ export function OperationsTable({
     fetchOperations()
   }, [fetchOperations])
 
+  // Escuchar evento de refresh desde NewOperationDialog
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchOperations()
+    }
+    
+    window.addEventListener("refresh-operations", handleRefresh)
+    return () => {
+      window.removeEventListener("refresh-operations", handleRefresh)
+    }
+  }, [fetchOperations])
+
   useEffect(() => {
     setFilters(initialFilters)
     setPage(1) // Resetear a página 1 cuando cambian los filtros
