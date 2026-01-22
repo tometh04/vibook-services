@@ -72,7 +72,7 @@ export function NewPaymentDialog({
   defaultCurrency = "ARS",
 }: NewPaymentDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string }>>([])
+  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string; current_balance?: number; initial_balance?: number }>>([])
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema) as any,

@@ -107,7 +107,7 @@ export function OperationPaymentsSection({
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null)
   const [sendingReceiptId, setSendingReceiptId] = useState<string | null>(null)
-  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string }>>([])
+  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string; current_balance?: number; initial_balance?: number }>>([])
 
   // Pagos pendientes (los auto-generados que nunca se pagaron)
   const pendingPayments = payments.filter(p => p.status === "PENDING")
