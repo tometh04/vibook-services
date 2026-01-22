@@ -811,7 +811,7 @@ export function OperationPaymentsSection({
               {/* Mostrar equivalente USD para pagos en USD */}
               {watchCurrency === "USD" && watchAmount > 0 && (
                 <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                  Monto en USD: <span className="font-semibold">USD {watchAmount.toFixed(2)}</span>
+                  Monto en USD: <span className="font-semibold">USD {Number(watchAmount).toFixed(2)}</span>
                 </div>
               )}
 
