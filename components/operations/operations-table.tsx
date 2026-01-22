@@ -64,8 +64,12 @@ interface Operation {
   status: string
   created_at: string
   customer_name?: string
-  paid_amount?: number
-  pending_amount?: number
+  paid_amount?: number // Monto Cobrado (INCOME PAID)
+  pending_amount?: number // A cobrar (INCOME no PAID)
+  operator_paid_amount?: number // Pagado a operadores (EXPENSE PAID)
+  operator_pending_amount?: number // A pagar a operadores (EXPENSE no PAID)
+  operator_currency?: string // Moneda de pagos a operadores
+  operator_cost_currency?: string // Moneda del costo de operador
   // Códigos de reserva
   reservation_code_air?: string | null
   reservation_code_hotel?: string | null
@@ -264,219 +268,11 @@ export function OperationsTable({
         enableHiding: false,
         enableSorting: false,
       },
-      {
-        accessorKey: "operation_date",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Fecha" />
-        ),
-        cell: ({ row }) => {
-          const opDate = row.original.operation_date || row.original.created_at
-          if (!opDate) return <div className="text-xs">-</div>
-          try {
-            const dateStr = typeof opDate === 'string' && opDate.includes('T') ? opDate : `${opDate}T12:00:00`
-            return (
-              <div className="text-xs font-medium">
-                {format(new Date(dateStr), "dd/MM/yy", { locale: es })}
-              </div>
-            )
-          } catch {
-            return <div className="text-xs">-</div>
-          }
-        },
-      },
-      {
-        accessorKey: "customer_name",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Cliente" />
-        ),
-        cell: ({ row }) => {
-          const customerName = row.original.customer_name || row.original.leads?.contact_name || "-"
-          return (
-            <div className="max-w-[140px] truncate text-xs" title={customerName}>
-              {customerName}
-            </div>
-          )
-        },
-      },
-      {
-        accessorKey: "destination",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Destino" />
-        ),
-        enableHiding: false, // No permitir ocultar esta columna importante
-        cell: ({ row }) => {
-          // Priorizar destino de la operación, si no existe usar el destino del lead
-          const destination = row.original.destination || row.original.leads?.destination || "-"
-          return (
-            <div className="max-w-[120px] truncate text-xs font-medium" title={destination}>
-              {destination}
-          </div>
-          )
-        },
-      },
-      {
-        id: "reservation_codes",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Reservas" />
-        ),
-        cell: ({ row }) => {
-          const codeAir = row.original.reservation_code_air
-          const codeHotel = row.original.reservation_code_hotel
-          
-          if (!codeAir && !codeHotel) {
-            return <div className="text-xs text-muted-foreground">-</div>
-          }
-          
-          return (
-            <div className="space-y-1">
-              {codeAir && (
-                <div className="text-xs font-mono" title={`Aéreo: ${codeAir}`}>
-                  ✈️ {codeAir}
-                </div>
-              )}
-              {codeHotel && (
-                <div className="text-xs font-mono" title={`Hotel: ${codeHotel}`}>
-                  🏨 {codeHotel}
-                </div>
-              )}
-            </div>
-          )
-        },
-      },
-      {
-        accessorKey: "departure_date",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Viaje" />
-        ),
-        cell: ({ row }) => {
-          if (!row.original.departure_date) return <div className="text-xs">-</div>
-          try {
-            const depDate = `${row.original.departure_date}T12:00:00`
-            const retDate = row.original.return_date ? `${row.original.return_date}T12:00:00` : null
-            return (
-              <div className="text-xs">
-                <div>{format(new Date(depDate), "dd/MM", { locale: es })}</div>
-                {retDate && (
-                  <div className="text-muted-foreground">
-                    al {format(new Date(retDate), "dd/MM", { locale: es })}
-                  </div>
-                )}
-              </div>
-            )
-          } catch {
-            return <div className="text-xs">-</div>
-          }
-        },
-      },
-      {
-        accessorKey: "sellers.name",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Vend." />
-        ),
-        cell: ({ row }) => (
-          <div className="text-xs max-w-[60px] truncate" title={row.original.sellers?.name || "-"}>
-            {row.original.sellers?.name || "-"}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "operators",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Operador(es)" />
-        ),
-        cell: ({ row }) => {
-          const operation = row.original as any
-          // Si hay operation_operators, mostrar todos; si no, mostrar el operador principal
-          if (operation.operation_operators && operation.operation_operators.length > 0) {
-            const operatorsList = operation.operation_operators
-              .map((oo: any) => oo.operators?.name || "Sin nombre")
-              .join(", ")
-            return (
-              <div className="text-xs max-w-[120px] truncate" title={operatorsList}>
-                {operatorsList}
-              </div>
-            )
-          } else if (operation.operators?.name) {
-            return (
-              <div className="text-xs max-w-[80px] truncate" title={operation.operators.name}>
-                {operation.operators.name}
-              </div>
-            )
-          }
-          return <div className="text-xs">-</div>
-        },
-      },
-      {
-        accessorKey: "sale_amount_total",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Venta" />
-        ),
-        cell: ({ row }) => (
-          <div className="text-xs font-medium">
-            {row.original.currency} {Math.round(row.original.sale_amount_total).toLocaleString("es-AR")}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "paid_amount",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Pagado" />
-        ),
-        cell: ({ row }) => {
-          const paid = row.original.paid_amount || 0
-          return (
-            <div className="text-xs text-green-600 font-medium">
-              {row.original.currency} {Math.round(paid).toLocaleString("es-AR")}
-            </div>
-          )
-        },
-      },
-      {
-        accessorKey: "pending_amount",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Pendiente" />
-        ),
-        cell: ({ row }) => {
-          const pending = row.original.pending_amount || 0
-          const total = row.original.sale_amount_total || 0
-          const pendingCalc = pending > 0 ? pending : Math.max(0, total - (row.original.paid_amount || 0))
-          return (
-            <div className="text-xs text-orange-600 font-medium">
-              {row.original.currency} {Math.round(pendingCalc).toLocaleString("es-AR")}
-            </div>
-          )
-        },
-      },
-      {
-        accessorKey: "margin_amount",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Margen" />
-        ),
-        cell: ({ row }) => (
-          <div className="text-xs">
-            <span className="font-medium">
-              {row.original.currency} {Math.round(row.original.margin_amount).toLocaleString("es-AR")}
-            </span>
-            <span className="text-muted-foreground ml-1">
-              {Math.round(row.original.margin_percentage)}%
-            </span>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "status",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Estado" />
-        ),
-        cell: ({ row }) => (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            {statusLabels[row.original.status] || row.original.status}
-          </Badge>
-        ),
-      },
+      // 1. Acciones
       {
         id: "actions",
         enableHiding: false,
+        header: "Acciones",
         cell: ({ row }) => {
           const operation = row.original
 
@@ -517,6 +313,272 @@ export function OperationsTable({
             </DropdownMenu>
           )
         },
+      },
+      // 2. Fecha
+      {
+        accessorKey: "operation_date",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Fecha" />
+        ),
+        cell: ({ row }) => {
+          const opDate = row.original.operation_date || row.original.created_at
+          if (!opDate) return <div className="text-xs">-</div>
+          try {
+            const dateStr = typeof opDate === 'string' && opDate.includes('T') ? opDate : `${opDate}T12:00:00`
+            return (
+              <div className="text-xs font-medium">
+                {format(new Date(dateStr), "dd/MM/yy", { locale: es })}
+              </div>
+            )
+          } catch {
+            return <div className="text-xs">-</div>
+          }
+        },
+      },
+      // 3. Cliente
+      {
+        accessorKey: "customer_name",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Cliente" />
+        ),
+        cell: ({ row }) => {
+          const customerName = row.original.customer_name || row.original.leads?.contact_name || "-"
+          return (
+            <div className="max-w-[140px] truncate text-xs" title={customerName}>
+              {customerName}
+            </div>
+          )
+        },
+      },
+      // 4. Destino
+      {
+        accessorKey: "destination",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Destino" />
+        ),
+        enableHiding: false,
+        cell: ({ row }) => {
+          const destination = row.original.destination || row.original.leads?.destination || "-"
+          return (
+            <div className="max-w-[120px] truncate text-xs font-medium" title={destination}>
+              {destination}
+            </div>
+          )
+        },
+      },
+      // 5. Viaje
+      {
+        accessorKey: "departure_date",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Viaje" />
+        ),
+        cell: ({ row }) => {
+          if (!row.original.departure_date) return <div className="text-xs">-</div>
+          try {
+            const depDate = `${row.original.departure_date}T12:00:00`
+            const retDate = row.original.return_date ? `${row.original.return_date}T12:00:00` : null
+            return (
+              <div className="text-xs">
+                <div>{format(new Date(depDate), "dd/MM", { locale: es })}</div>
+                {retDate && (
+                  <div className="text-muted-foreground">
+                    al {format(new Date(retDate), "dd/MM", { locale: es })}
+                  </div>
+                )}
+              </div>
+            )
+          } catch {
+            return <div className="text-xs">-</div>
+          }
+        },
+      },
+      // 6. Vend. (Vendedor)
+      {
+        accessorKey: "sellers.name",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Vend." />
+        ),
+        cell: ({ row }) => (
+          <div className="text-xs max-w-[60px] truncate" title={row.original.sellers?.name || "-"}>
+            {row.original.sellers?.name || "-"}
+          </div>
+        ),
+      },
+      // 7. Operador(es)
+      {
+        accessorKey: "operators",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Operador(es)" />
+        ),
+        cell: ({ row }) => {
+          const operation = row.original as any
+          if (operation.operation_operators && operation.operation_operators.length > 0) {
+            const operatorsList = operation.operation_operators
+              .map((oo: any) => oo.operators?.name || "Sin nombre")
+              .join(", ")
+            return (
+              <div className="text-xs max-w-[120px] truncate" title={operatorsList}>
+                {operatorsList}
+              </div>
+            )
+          } else if (operation.operators?.name) {
+            return (
+              <div className="text-xs max-w-[80px] truncate" title={operation.operators.name}>
+                {operation.operators.name}
+              </div>
+            )
+          }
+          return <div className="text-xs">-</div>
+        },
+      },
+      // 8. Cod. Rva Aéreo
+      {
+        accessorKey: "reservation_code_air",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Cod. Rva Aéreo" />
+        ),
+        cell: ({ row }) => {
+          const codeAir = row.original.reservation_code_air
+          return codeAir ? (
+            <div className="text-xs font-mono" title={`Aéreo: ${codeAir}`}>
+              {codeAir}
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">-</div>
+          )
+        },
+      },
+      // 9. Cod. Rva Hotel
+      {
+        accessorKey: "reservation_code_hotel",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Cod. Rva Hotel" />
+        ),
+        cell: ({ row }) => {
+          const codeHotel = row.original.reservation_code_hotel
+          return codeHotel ? (
+            <div className="text-xs font-mono" title={`Hotel: ${codeHotel}`}>
+              {codeHotel}
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">-</div>
+          )
+        },
+      },
+      // 10. Venta
+      {
+        accessorKey: "sale_amount_total",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Venta" />
+        ),
+        cell: ({ row }) => (
+          <div className="text-xs font-medium">
+            {row.original.currency} {Math.round(row.original.sale_amount_total).toLocaleString("es-AR")}
+          </div>
+        ),
+      },
+      // 11. Monto Cobrado
+      {
+        accessorKey: "paid_amount",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Monto Cobrado" />
+        ),
+        cell: ({ row }) => {
+          const paid = row.original.paid_amount || 0
+          return (
+            <div className="text-xs text-green-600 font-medium">
+              {row.original.currency} {Math.round(paid).toLocaleString("es-AR")}
+            </div>
+          )
+        },
+      },
+      // 12. A cobrar
+      {
+        accessorKey: "pending_amount",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="A cobrar" />
+        ),
+        cell: ({ row }) => {
+          const pending = row.original.pending_amount || 0
+          const total = row.original.sale_amount_total || 0
+          const pendingCalc = pending > 0 ? pending : Math.max(0, total - (row.original.paid_amount || 0))
+          return (
+            <div className="text-xs text-orange-600 font-medium">
+              {row.original.currency} {Math.round(pendingCalc).toLocaleString("es-AR")}
+            </div>
+          )
+        },
+      },
+      // 13. Pagado (a operadores)
+      {
+        accessorKey: "operator_paid_amount",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Pagado" />
+        ),
+        cell: ({ row }) => {
+          const operatorPaid = row.original.operator_paid_amount || 0
+          // Usar operator_currency si está disponible, sino buscar en operation_operators o operator_cost_currency
+          const operation = row.original as any
+          const operatorCurrency = row.original.operator_currency || 
+                                   operation.operation_operators?.[0]?.cost_currency || 
+                                   operation.operator_cost_currency || 
+                                   row.original.currency || "ARS"
+          return (
+            <div className="text-xs text-blue-600 font-medium">
+              {operatorCurrency} {Math.round(operatorPaid).toLocaleString("es-AR")}
+            </div>
+          )
+        },
+      },
+      // 14. A pagar (a operadores)
+      {
+        accessorKey: "operator_pending_amount",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="A pagar" />
+        ),
+        cell: ({ row }) => {
+          const operatorPending = row.original.operator_pending_amount || 0
+          // Usar operator_currency si está disponible, sino buscar en operation_operators o operator_cost_currency
+          const operation = row.original as any
+          const operatorCurrency = row.original.operator_currency || 
+                                   operation.operation_operators?.[0]?.cost_currency || 
+                                   operation.operator_cost_currency || 
+                                   row.original.currency || "ARS"
+          return (
+            <div className="text-xs text-red-600 font-medium">
+              {operatorCurrency} {Math.round(operatorPending).toLocaleString("es-AR")}
+            </div>
+          )
+        },
+      },
+      // 15. Margen
+      {
+        accessorKey: "margin_amount",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Margen" />
+        ),
+        cell: ({ row }) => (
+          <div className="text-xs">
+            <span className="font-medium">
+              {row.original.currency} {Math.round(row.original.margin_amount).toLocaleString("es-AR")}
+            </span>
+            <span className="text-muted-foreground ml-1">
+              {Math.round(row.original.margin_percentage)}%
+            </span>
+          </div>
+        ),
+      },
+      // 16. Estado
+      {
+        accessorKey: "status",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Estado" />
+        ),
+        cell: ({ row }) => (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            {statusLabels[row.original.status] || row.original.status}
+          </Badge>
+        ),
       },
     ],
     [handleEditClick, handleDeleteClick, userRole]
