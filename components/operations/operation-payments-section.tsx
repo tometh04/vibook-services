@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +58,7 @@ const paymentSchema = z.object({
     required_error: "Fecha de pago es requerida",
   }),
   notes: z.string().optional(),
+  account_id: z.string().min(1, "La cuenta financiera es requerida"),
 }).refine(
   (data) => {
     // Si la moneda es ARS, el tipo de cambio es obligatorio
@@ -106,6 +107,7 @@ export function OperationPaymentsSection({
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null)
   const [sendingReceiptId, setSendingReceiptId] = useState<string | null>(null)
+  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string }>>([])
 
   // Pagos pendientes (los auto-generados que nunca se pagaron)
   const pendingPayments = payments.filter(p => p.status === "PENDING")
@@ -421,8 +423,27 @@ export function OperationPaymentsSection({
       exchange_rate: undefined,
       date_paid: new Date(),
       notes: "",
+      account_id: "",
     },
   })
+
+  // Cargar cuentas financieras cuando se abre el diálogo
+  useEffect(() => {
+    async function loadAccounts() {
+      try {
+        const response = await fetch("/api/accounting/financial-accounts")
+        if (response.ok) {
+          const data = await response.json()
+          setFinancialAccounts((data.accounts || []).filter((acc: any) => acc.is_active))
+        }
+      } catch (error) {
+        console.error("Error loading financial accounts:", error)
+      }
+    }
+    if (dialogOpen) {
+      loadAccounts()
+    }
+  }, [dialogOpen])
 
   const watchPayerType = form.watch("payer_type")
   const watchCurrency = form.watch("currency")
@@ -463,7 +484,7 @@ export function OperationPaymentsSection({
       const response = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+          body: JSON.stringify({
           operation_id: operationId,
           ...values,
           exchange_rate: values.currency === "ARS" ? values.exchange_rate : null,
@@ -471,6 +492,7 @@ export function OperationPaymentsSection({
           date_paid: values.date_paid.toISOString().split("T")[0],
           date_due: values.date_paid.toISOString().split("T")[0], // Pago ya realizado
           status: "PAID",
+          account_id: values.account_id,
         }),
       })
 
@@ -849,6 +871,36 @@ export function OperationPaymentsSection({
                         />
                       </PopoverContent>
                     </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="account_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cuenta Financiera *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar cuenta" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {financialAccounts
+                          .filter(acc => acc.currency === form.watch("currency"))
+                          .map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.name} ({account.currency})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
