@@ -234,6 +234,7 @@ export function BulkPaymentDialog({
           receipt_number: receiptNumber || null,
           payment_date: paymentDate,
           notes: notes || null,
+          account_id: accountId,
           payments: selectedDebts.map(d => ({
             operator_payment_id: d.id,
             operation_id: d.operation_id,
@@ -464,6 +465,27 @@ export function BulkPaymentDialog({
                   onChange={(e) => setReceiptNumber(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cuenta Financiera *</Label>
+              <Select 
+                value={accountId} 
+                onValueChange={setAccountId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cuenta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {financialAccounts
+                    .filter(acc => acc.currency === paymentCurrency)
+                    .map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} ({account.currency})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
