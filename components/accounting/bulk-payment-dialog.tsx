@@ -94,12 +94,32 @@ export function BulkPaymentDialog({
   const [receiptNumber, setReceiptNumber] = useState<string>("")
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0])
   const [notes, setNotes] = useState<string>("")
+  const [accountId, setAccountId] = useState<string>("")
+  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string }>>([])
   
   // Estado de carga
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Obtener nombre del operador seleccionado
   const selectedOperator = operators.find(op => op.id === selectedOperatorId)
+
+  // Cargar cuentas financieras
+  useEffect(() => {
+    async function loadAccounts() {
+      try {
+        const response = await fetch("/api/accounting/financial-accounts")
+        if (response.ok) {
+          const data = await response.json()
+          setFinancialAccounts((data.accounts || []).filter((acc: any) => acc.is_active))
+        }
+      } catch (error) {
+        console.error("Error loading financial accounts:", error)
+      }
+    }
+    if (open) {
+      loadAccounts()
+    }
+  }, [open])
 
   // Cargar deudas cuando cambia el operador o la moneda
   useEffect(() => {
@@ -211,7 +231,7 @@ export function BulkPaymentDialog({
         if (selectedCurrency !== paymentCurrency && (!exchangeRate || parseFloat(exchangeRate) <= 0)) {
           return false
         }
-        return !!paymentDate
+        return !!paymentDate && !!accountId
       default:
         return false
     }
