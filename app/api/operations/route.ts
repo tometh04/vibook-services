@@ -1167,11 +1167,11 @@ export async function GET(request: Request) {
       return {
         ...op,
         customer_name: customerName,
-        paid_amount: paymentData.paid, // Monto Cobrado (INCOME PAID)
-        pending_amount: paymentData.pending, // A cobrar (INCOME no PAID)
-        operator_paid_amount: paymentData.operator_paid, // Pagado (a operadores - EXPENSE PAID)
-        operator_pending_amount: paymentData.operator_pending, // A pagar (a operadores - EXPENSE no PAID)
-        operator_currency: paymentData.operator_currency, // Moneda de pagos a operadores
+        paid_amount: Number(paymentData.paid) || 0, // Monto Cobrado (INCOME PAID)
+        pending_amount: Number(paymentData.pending) || 0, // A cobrar (INCOME no PAID)
+        operator_paid_amount: Number(paymentData.operator_paid) || 0, // Pagado (a operadores - EXPENSE PAID)
+        operator_pending_amount: Number(paymentData.operator_pending) || 0, // A pagar (a operadores - EXPENSE no PAID)
+        operator_currency: paymentData.operator_currency || op.operator_cost_currency || op.currency || "ARS", // Moneda de pagos a operadores
       }
     })
 
