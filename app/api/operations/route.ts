@@ -114,6 +114,11 @@ export async function POST(request: Request) {
     if (settingsData?.require_destination && !destination) {
       return NextResponse.json({ error: "El destino es requerido" }, { status: 400 })
     }
+    
+    // Validar que destination no sea null (es NOT NULL en el schema)
+    if (!destination) {
+      return NextResponse.json({ error: "El destino es requerido" }, { status: 400 })
+    }
 
     if (settingsData?.require_departure_date && !departure_date) {
       return NextResponse.json({ error: "La fecha de salida es requerida" }, { status: 400 })
@@ -243,7 +248,7 @@ export async function POST(request: Request) {
       origin: origin || null,
       destination,
       operation_date: operation_date || new Date().toISOString().split("T")[0], // Fecha de operación (hoy por defecto)
-      departure_date,
+      departure_date: departure_date || null, // Puede ser null si no es requerida
       return_date: return_date || null,
       checkin_date: checkin_date || null,
       checkout_date: checkout_date || null,
@@ -306,12 +311,15 @@ export async function POST(request: Request) {
     // Auto-generate IVA records
     try {
       if (sale_amount_total > 0) {
+        // Usar departure_date o operation_date o fecha actual para IVA
+        const dateForIVA = departure_date || operation_date || new Date().toISOString().split("T")[0]
+        
         // Convertir costo del operador a la misma moneda de venta si es necesario
         let operatorCostForIVA = totalOperatorCost
         if (finalOperatorCostCurrency !== finalSaleCurrency && totalOperatorCost > 0) {
           // Si las monedas son diferentes, necesitamos convertir
           try {
-            const exchangeRate = await getExchangeRate(supabase, departure_date)
+            const exchangeRate = await getExchangeRate(supabase, dateForIVA)
             if (exchangeRate) {
               if (finalOperatorCostCurrency === "USD" && finalSaleCurrency === "ARS") {
                 // Convertir USD a ARS
@@ -323,7 +331,7 @@ export async function POST(request: Request) {
                 console.warn(`⚠️ Conversión de moneda no soportada: ${finalOperatorCostCurrency} → ${finalSaleCurrency}`)
               }
             } else {
-              console.warn(`⚠️ No se encontró tasa de cambio para ${departure_date}, usando costo sin convertir`)
+              console.warn(`⚠️ No se encontró tasa de cambio para ${dateForIVA}, usando costo sin convertir`)
             }
           } catch (error) {
             console.error("Error convirtiendo moneda para IVA:", error)
@@ -336,7 +344,7 @@ export async function POST(request: Request) {
           op.id,
           sale_amount_total,
           finalSaleCurrency,
-          departure_date,
+          dateForIVA,
           operatorCostForIVA // Pasar el costo del operador (convertido si es necesario) para calcular IVA sobre ganancia
         )
         const ganancia = sale_amount_total - operatorCostForIVA
@@ -345,6 +353,7 @@ export async function POST(request: Request) {
 
       // Crear IVA para cada operador (si hay operadores)
       if (operatorsList.length > 0) {
+        const dateForIVA = departure_date || operation_date || new Date().toISOString().split("T")[0]
         for (const operatorData of operatorsList) {
           if (operatorData.cost > 0) {
             try {
@@ -354,7 +363,7 @@ export async function POST(request: Request) {
                 operatorData.operator_id,
                 operatorData.cost,
                 operatorData.cost_currency as "ARS" | "USD",
-          departure_date
+          dateForIVA
         )
               console.log(`✅ Created purchase IVA record for operator ${operatorData.operator_id} in operation ${operation.id}`)
             } catch (error) {
@@ -459,7 +468,8 @@ export async function POST(request: Request) {
         // Calcular ARS equivalent para la venta
         let saleExchangeRate: number | null = null
         if (finalSaleCurrency === "USD") {
-          saleExchangeRate = await getExchangeRate(supabase, new Date(departure_date))
+          const dateForExchange = departure_date || operation_date || new Date().toISOString().split("T")[0]
+          saleExchangeRate = await getExchangeRate(supabase, new Date(dateForExchange))
           if (!saleExchangeRate) {
             saleExchangeRate = await getLatestExchangeRate(supabase)
           }
@@ -526,13 +536,14 @@ export async function POST(request: Request) {
           // Calcular ARS equivalent para el costo total
           let costExchangeRate: number | null = null
           if (finalOperatorCostCurrency === "USD") {
-            costExchangeRate = await getExchangeRate(supabase, new Date(departure_date))
+            const dateForExchange = departure_date || operation_date || new Date().toISOString().split("T")[0]
+            costExchangeRate = await getExchangeRate(supabase, new Date(dateForExchange))
             if (!costExchangeRate) {
               costExchangeRate = await getLatestExchangeRate(supabase)
             }
             if (!costExchangeRate) {
               // No usar fallback silencioso - lanzar error para que el usuario sepa
-              console.error(`❌ ERROR: No se encontró tasa de cambio para USD en fecha ${departure_date}. Se requiere tasa de cambio para operaciones en USD.`)
+              console.error(`❌ ERROR: No se encontró tasa de cambio para USD en fecha ${dateForExchange}. Se requiere tasa de cambio para operaciones en USD.`)
               throw new Error("No se encontró tasa de cambio para USD. Por favor, configure una tasa de cambio antes de crear la operación.")
             }
           }
@@ -784,21 +795,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // Generar alertas de requisitos por destino
-    try {
-      await generateDestinationRequirementAlerts(supabase, operation.id, destination, departure_date, seller_id)
-    } catch (error) {
-      console.error("Error generating destination requirement alerts:", error)
-      // No lanzamos error para no romper la creación de la operación
+    // Generar alertas de requisitos por destino (solo si hay departure_date)
+    if (departure_date) {
+      try {
+        await generateDestinationRequirementAlerts(supabase, operation.id, destination, departure_date, seller_id)
+      } catch (error) {
+        console.error("Error generating destination requirement alerts:", error)
+        // No lanzamos error para no romper la creación de la operación
+      }
     }
 
     // Generar alertas automáticas (check-in, check-out, cumpleaños)
     try {
       await generateOperationAlerts(supabase, operation.id, {
-        departure_date,
-        return_date,
-        checkin_date,
-        checkout_date,
+        departure_date: departure_date || undefined,
+        return_date: return_date || undefined,
+        checkin_date: checkin_date || undefined,
+        checkout_date: checkout_date || undefined,
         destination,
         seller_id,
       })
@@ -1329,7 +1342,7 @@ async function generateOperationAlerts(
   supabase: any,
   operationId: string,
   data: {
-    departure_date: string
+    departure_date?: string | null
     return_date?: string | null
     checkin_date?: string | null
     checkout_date?: string | null
