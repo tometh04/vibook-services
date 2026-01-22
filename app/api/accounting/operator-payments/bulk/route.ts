@@ -21,12 +21,31 @@ export async function POST(request: Request) {
       receipt_number,
       payment_date,
       notes,
+      account_id,          // Cuenta financiera (OBLIGATORIO)
       payments,           // Array de { operator_payment_id, operation_id, amount }
     } = body
 
     // Validaciones
     if (!operator_id) {
       return NextResponse.json({ error: "operator_id es requerido" }, { status: 400 })
+    }
+
+    if (!account_id) {
+      return NextResponse.json({ error: "account_id es requerido. Todos los pagos deben estar asociados a una cuenta financiera." }, { status: 400 })
+    }
+
+    // Validar que la cuenta financiera existe y está activa
+    const { data: account, error: accountError } = await (supabase.from("financial_accounts") as any)
+      .select("id, is_active, currency")
+      .eq("id", account_id)
+      .single()
+
+    if (accountError || !account) {
+      return NextResponse.json({ error: "Cuenta financiera no encontrada" }, { status: 400 })
+    }
+
+    if (!account.is_active) {
+      return NextResponse.json({ error: "La cuenta financiera seleccionada no está activa" }, { status: 400 })
     }
 
     if (!payments || !Array.isArray(payments) || payments.length === 0) {
@@ -144,6 +163,7 @@ export async function POST(request: Request) {
           date_due: opPayment.due_date,
           status: "PAID",
           reference: receipt_number ? `Comprobante: ${receipt_number}` : notes || null,
+          account_id, // Cuenta financiera obligatoria
         }
 
         const { data: newPayment, error: paymentError } = await (supabase.from("payments") as any)
@@ -172,36 +192,19 @@ export async function POST(request: Request) {
             debt_currency === "USD" ? exchange_rate : null
           )
 
-          // Obtener cuenta de costos de operadores
-          const { data: costosChart } = await (supabase.from("chart_of_accounts") as any)
-            .select("id")
-            .eq("account_code", "4.2.01")
-            .eq("is_active", true)
-            .maybeSingle()
-
-          let accountId: string | null = null
-          if (costosChart) {
-            const { data: costosAccount } = await (supabase.from("financial_accounts") as any)
-              .select("id")
-              .eq("chart_account_id", costosChart.id)
-              .eq("is_active", true)
-              .maybeSingle()
-            accountId = costosAccount?.id || null
-          }
-
-          if (accountId) {
-            await createLedgerMovement(
-              {
-                operation_id,
-                lead_id: null,
-                type: "OPERATOR_PAYMENT",
-                concept: `Pago masivo a ${(operator as any).name} - Op ${operation_id.slice(0, 8)}`,
-                currency: debt_currency as "ARS" | "USD",
-                amount_original: amount,
-                exchange_rate: debt_currency === "USD" ? exchange_rate : null,
-                amount_ars_equivalent: amountARS,
-                method: "BANK",
-                account_id: accountId,
+          // Usar la cuenta financiera proporcionada
+          await createLedgerMovement(
+            {
+              operation_id,
+              lead_id: null,
+              type: "OPERATOR_PAYMENT",
+              concept: `Pago masivo a ${(operator as any).name} - Op ${operation_id.slice(0, 8)}`,
+              currency: debt_currency as "ARS" | "USD",
+              amount_original: amount,
+              exchange_rate: debt_currency === "USD" ? exchange_rate : null,
+              amount_ars_equivalent: amountARS,
+              method: "BANK",
+              account_id: account_id,
                 seller_id: (operation as any)?.seller_id || null,
                 operator_id: operator_id,
                 receipt_number: receipt_number || null,
@@ -210,7 +213,6 @@ export async function POST(request: Request) {
               },
               supabase
             )
-          }
 
           // Crear movimiento de caja
           const { data: defaultCashBox } = await supabase

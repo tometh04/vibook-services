@@ -38,10 +38,27 @@ export async function POST(request: Request) {
       date_due,
       status,
       notes,
+      account_id,    // Cuenta financiera (OBLIGATORIO)
     } = body
 
-    if (!operation_id || !payer_type || !direction || !amount || !currency) {
-      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    if (!operation_id || !payer_type || !direction || !amount || !currency || !account_id) {
+      return NextResponse.json({ 
+        error: "Faltan campos requeridos. account_id es obligatorio para todos los pagos." 
+      }, { status: 400 })
+    }
+
+    // Validar que la cuenta financiera existe y está activa
+    const { data: account, error: accountError } = await (supabase.from("financial_accounts") as any)
+      .select("id, is_active, currency, agency_id")
+      .eq("id", account_id)
+      .single()
+
+    if (accountError || !account) {
+      return NextResponse.json({ error: "Cuenta financiera no encontrada" }, { status: 400 })
+    }
+
+    if (!account.is_active) {
+      return NextResponse.json({ error: "La cuenta financiera seleccionada no está activa" }, { status: 400 })
     }
 
     // Validar que para pagos en ARS se incluya el tipo de cambio
@@ -107,6 +124,7 @@ export async function POST(request: Request) {
       date_due: date_due || date_paid,
       status: status || "PENDING", // Cambiar default a PENDING para evitar duplicados
       reference: notes || null,
+      account_id, // Cuenta financiera obligatoria
     }
 
     const { data: payment, error: paymentError } = await (supabase.from("payments") as any)
@@ -152,134 +170,8 @@ export async function POST(request: Request) {
           exchangeRate
         )
 
-        // 4. Determinar tipo de cuenta y obtenerla
-        // Obtener o crear cuenta financiera según el tipo de movimiento y el plan de cuentas
-        let accountId: string
-        
-        if (direction === "INCOME") {
-          // INGRESOS: usar cuenta de RESULTADO > INGRESOS > "4.1.01" - Ventas de Viajes
-          const { data: ingresosChart } = await (supabase.from("chart_of_accounts") as any)
-            .select("id")
-            .eq("account_code", "4.1.01")
-            .eq("is_active", true)
-            .maybeSingle()
-          
-          if (ingresosChart) {
-            let ingresosFinancialAccount = await (supabase.from("financial_accounts") as any)
-              .select("id")
-              .eq("chart_account_id", ingresosChart.id)
-              .eq("is_active", true)
-              .maybeSingle()
-            
-            if (!ingresosFinancialAccount) {
-              const { data: newFA } = await (supabase.from("financial_accounts") as any)
-                .insert({
-                  name: "Ventas de Viajes",
-                  type: "CASH_ARS",
-                  currency: currency as "ARS" | "USD",
-                  chart_account_id: ingresosChart.id,
-                  initial_balance: 0,
-                  is_active: true,
-                  created_by: user.id,
-                })
-                .select("id")
-                .single()
-              ingresosFinancialAccount = newFA
-            }
-            accountId = ingresosFinancialAccount.id
-          } else {
-            // Fallback
-            const accountType = currency === "USD" ? "USD" : "CASH"
-            accountId = await getOrCreateDefaultAccount(
-              accountType,
-              currency as "ARS" | "USD",
-              user.id,
-              supabase
-            )
-          }
-        } else if (payer_type === "OPERATOR") {
-          // COSTOS: usar cuenta de RESULTADO > COSTOS > "4.2.01" - Costo de Operadores
-          const { data: costosChart } = await (supabase.from("chart_of_accounts") as any)
-            .select("id")
-            .eq("account_code", "4.2.01")
-            .eq("is_active", true)
-            .maybeSingle()
-          
-          if (costosChart) {
-            let costosFinancialAccount = await (supabase.from("financial_accounts") as any)
-              .select("id")
-              .eq("chart_account_id", costosChart.id)
-              .eq("is_active", true)
-              .maybeSingle()
-            
-            if (!costosFinancialAccount) {
-              const { data: newFA } = await (supabase.from("financial_accounts") as any)
-                .insert({
-                  name: "Costo de Operadores",
-                  type: "CASH_ARS",
-                  currency: currency as "ARS" | "USD",
-                  chart_account_id: costosChart.id,
-                  initial_balance: 0,
-                  is_active: true,
-                  created_by: user.id,
-                })
-                .select("id")
-                .single()
-              costosFinancialAccount = newFA
-            }
-            accountId = costosFinancialAccount.id
-          } else {
-            // Fallback
-            const accountType = currency === "USD" ? "USD" : "CASH"
-            accountId = await getOrCreateDefaultAccount(
-              accountType,
-              currency as "ARS" | "USD",
-              user.id,
-              supabase
-            )
-          }
-        } else {
-          // GASTOS: usar cuenta de RESULTADO > GASTOS > "4.3.01" - Gastos Administrativos
-          const { data: gastosChart } = await (supabase.from("chart_of_accounts") as any)
-            .select("id")
-            .eq("account_code", "4.3.01")
-            .eq("is_active", true)
-            .maybeSingle()
-          
-          if (gastosChart) {
-            let gastosFinancialAccount = await (supabase.from("financial_accounts") as any)
-              .select("id")
-              .eq("chart_account_id", gastosChart.id)
-              .eq("is_active", true)
-              .maybeSingle()
-            
-            if (!gastosFinancialAccount) {
-              const { data: newFA } = await (supabase.from("financial_accounts") as any)
-                .insert({
-                  name: "Gastos Administrativos",
-                  type: "CASH_ARS",
-                  currency: currency as "ARS" | "USD",
-                  chart_account_id: gastosChart.id,
-                  initial_balance: 0,
-                  is_active: true,
-                  created_by: user.id,
-                })
-                .select("id")
-                .single()
-              gastosFinancialAccount = newFA
-            }
-            accountId = gastosFinancialAccount.id
-          } else {
-            // Fallback
-            const accountType = currency === "USD" ? "USD" : "CASH"
-            accountId = await getOrCreateDefaultAccount(
-              accountType,
-              currency as "ARS" | "USD",
-              user.id,
-              supabase
-            )
-          }
-        }
+        // 4. Usar la cuenta financiera proporcionada (ya validada arriba)
+        const accountId = account_id
 
         // 5. Mapear método de pago a método de ledger
         const methodMap: Record<string, "CASH" | "BANK" | "MP" | "USD" | "OTHER"> = {

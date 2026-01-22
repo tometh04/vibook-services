@@ -44,6 +44,7 @@ const manualPaymentSchema = z.object({
   date_due: z.string().min(1, "La fecha de vencimiento es requerida"),
   reference: z.string().optional(),
   notes: z.string().optional(),
+  account_id: z.string().min(1, "La cuenta financiera es requerida"),
 })
 
 type ManualPaymentFormValues = z.infer<typeof manualPaymentSchema>
@@ -74,6 +75,7 @@ export function ManualPaymentDialog({
 }: ManualPaymentDialogProps) {
   const [loading, setLoading] = useState(false)
   const [needsExchangeRate, setNeedsExchangeRate] = useState(false)
+  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string }>>([])
 
   const form = useForm<ManualPaymentFormValues>({
     resolver: zodResolver(manualPaymentSchema) as any,
@@ -86,11 +88,30 @@ export function ManualPaymentDialog({
       date_due: format(new Date(), "yyyy-MM-dd"),
       reference: "",
       notes: "",
+      account_id: "",
     },
   })
 
   // Obtener moneda actual del formulario
   const formCurrency = form.watch("currency")
+
+  // Cargar cuentas financieras
+  useEffect(() => {
+    async function loadAccounts() {
+      try {
+        const response = await fetch("/api/accounting/financial-accounts")
+        if (response.ok) {
+          const data = await response.json()
+          setFinancialAccounts((data.accounts || []).filter((acc: any) => acc.is_active))
+        }
+      } catch (error) {
+        console.error("Error loading financial accounts:", error)
+      }
+    }
+    if (open) {
+      loadAccounts()
+    }
+  }, [open])
 
   useEffect(() => {
     // Si es ARS, siempre requerir tipo de cambio
@@ -121,6 +142,7 @@ export function ManualPaymentDialog({
         date_due: format(new Date(), "yyyy-MM-dd"),
         reference: "",
         notes: "",
+        account_id: "",
       })
     }
   }, [open, form, defaultCurrency])
@@ -150,6 +172,7 @@ export function ManualPaymentDialog({
           status: "PENDING",
           reference: values.reference || null,
           notes: values.notes ? `${values.customer_name}: ${values.notes}` : `Pago manual - ${values.customer_name}`,
+          account_id: values.account_id,
         }),
       })
 
@@ -315,6 +338,36 @@ export function ManualPaymentDialog({
                       onChange={field.onChange}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="account_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cuenta Financiera *</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar cuenta" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {financialAccounts
+                        .filter(acc => acc.currency === form.watch("currency"))
+                        .map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.name} ({account.currency})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

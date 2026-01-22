@@ -34,6 +34,7 @@ export async function POST(request: Request) {
         method,
         status,
         ledger_movement_id,
+        account_id,
         operations:operation_id(
           id,
           agency_id,
@@ -53,6 +54,74 @@ export async function POST(request: Request) {
 
     const paymentData = payment as any
     const operation = paymentData.operations || null
+
+    // Verificar que el pago tenga account_id (obligatorio)
+    // Si no tiene, asignar uno por defecto basado en dirección y tipo de pagador
+    let accountId = paymentData.account_id
+    if (!accountId) {
+      // Obtener cuenta por defecto según dirección y tipo
+      if (paymentData.direction === "INCOME") {
+        // INGRESOS: buscar cuenta de Ventas de Viajes (4.1.01)
+        const { data: ingresosChart } = await (supabase.from("chart_of_accounts") as any)
+          .select("id")
+          .eq("account_code", "4.1.01")
+          .eq("is_active", true)
+          .maybeSingle()
+        
+        if (ingresosChart) {
+          const { data: ingresosAccount } = await (supabase.from("financial_accounts") as any)
+            .select("id")
+            .eq("chart_account_id", ingresosChart.id)
+            .eq("is_active", true)
+            .maybeSingle()
+          accountId = ingresosAccount?.id || null
+        }
+      } else if (paymentData.payer_type === "OPERATOR") {
+        // PAGOS A OPERADORES: buscar cuenta de Costos (4.2.01)
+        const { data: costosChart } = await (supabase.from("chart_of_accounts") as any)
+          .select("id")
+          .eq("account_code", "4.2.01")
+          .eq("is_active", true)
+          .maybeSingle()
+        
+        if (costosChart) {
+          const { data: costosAccount } = await (supabase.from("financial_accounts") as any)
+            .select("id")
+            .eq("chart_account_id", costosChart.id)
+            .eq("is_active", true)
+            .maybeSingle()
+          accountId = costosAccount?.id || null
+        }
+      } else {
+        // OTROS EGRESOS: buscar cuenta de Gastos (4.3.01)
+        const { data: gastosChart } = await (supabase.from("chart_of_accounts") as any)
+          .select("id")
+          .eq("account_code", "4.3.01")
+          .eq("is_active", true)
+          .maybeSingle()
+        
+        if (gastosChart) {
+          const { data: gastosAccount } = await (supabase.from("financial_accounts") as any)
+            .select("id")
+            .eq("chart_account_id", gastosChart.id)
+            .eq("is_active", true)
+            .maybeSingle()
+          accountId = gastosAccount?.id || null
+        }
+      }
+
+      // Si aún no hay account_id, retornar error
+      if (!accountId) {
+        return NextResponse.json({ 
+          error: "El pago no tiene cuenta financiera asociada y no se pudo asignar una por defecto. Por favor, actualice el pago con una cuenta financiera." 
+        }, { status: 400 })
+      }
+
+      // Actualizar el pago con el account_id
+      await paymentsTable
+        .update({ account_id: accountId })
+        .eq("id", paymentId)
+    }
 
     // Verificar si el pago ya está marcado como PAID y tiene ledger_movement_id
     // Si ya tiene ledger_movement_id, significa que los movimientos contables ya fueron creados

@@ -32,6 +32,7 @@ import {
 import { DatePicker } from "@/components/ui/date-picker"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { useEffect } from "react"
 
 const paymentSchema = z.object({
   payer_type: z.enum(["CUSTOMER", "OPERATOR"]),
@@ -41,6 +42,7 @@ const paymentSchema = z.object({
   currency: z.enum(["ARS", "USD"]),
   date_due: z.string().min(1, "La fecha de vencimiento es requerida"),
   reference: z.string().optional(),
+  account_id: z.string().min(1, "La cuenta financiera es requerida"),
 })
 
 type PaymentFormValues = z.infer<typeof paymentSchema>
@@ -70,6 +72,7 @@ export function NewPaymentDialog({
   defaultCurrency = "ARS",
 }: NewPaymentDialogProps) {
   const [loading, setLoading] = useState(false)
+  const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string }>>([])
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema) as any,
@@ -81,8 +84,27 @@ export function NewPaymentDialog({
       currency: defaultCurrency as "ARS" | "USD",
       date_due: new Date().toISOString().split("T")[0],
       reference: "",
+      account_id: "",
     },
   })
+
+  // Cargar cuentas financieras
+  useEffect(() => {
+    async function loadAccounts() {
+      try {
+        const response = await fetch("/api/accounting/financial-accounts")
+        if (response.ok) {
+          const data = await response.json()
+          setFinancialAccounts((data.accounts || []).filter((acc: any) => acc.is_active))
+        }
+      } catch (error) {
+        console.error("Error loading financial accounts:", error)
+      }
+    }
+    if (open) {
+      loadAccounts()
+    }
+  }, [open])
 
   // Auto-ajustar dirección según tipo de pagador
   const payerType = form.watch("payer_type")
@@ -270,6 +292,36 @@ export function NewPaymentDialog({
                       placeholder="Seleccionar fecha"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="account_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cuenta Financiera *</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar cuenta" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {financialAccounts
+                        .filter(acc => acc.currency === form.watch("currency"))
+                        .map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.name} ({account.currency})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
