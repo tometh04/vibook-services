@@ -492,7 +492,7 @@ export function OperationPaymentsSection({
           amount_usd: amountUsd,
           date_paid: values.date_paid.toISOString().split("T")[0],
           date_due: values.date_paid.toISOString().split("T")[0], // Pago ya realizado
-          status: "PAID",
+          status: "PAID", // PAID para crear también movimientos en RESULTADO
           account_id: values.account_id,
         }),
       })

@@ -137,8 +137,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Error al crear pago: ${paymentError.message}` }, { status: 500 })
     }
 
-    // Solo crear movimientos contables si el pago está PAID explícitamente
-    // Si status no se especifica, el default es PENDING, así que no crear movimientos
+    // IMPORTANTE: SIEMPRE crear movimiento en la cuenta financiera para actualizar el saldo
+    // Esto se hace para TODOS los pagos (PENDING o PAID)
+    try {
+      const { createFinancialAccountMovement } = await import("@/lib/accounting/create-financial-account-movement")
+      await createFinancialAccountMovement({
+        paymentId: payment.id,
+        accountId,
+        amount: parseFloat(amount),
+        currency: currency as "ARS" | "USD",
+        direction: direction as "INCOME" | "EXPENSE",
+        operationId: operation_id || null,
+        datePaid: date_paid || undefined,
+        reference: notes || null,
+        method: method || "Transferencia",
+        userId: user.id,
+        supabase,
+      })
+      console.log(`✅ Movimiento creado en cuenta financiera ${accountId} para pago ${payment.id}`)
+    } catch (financialAccountError: any) {
+      console.error("❌ Error creando movimiento en cuenta financiera:", financialAccountError)
+      // Eliminar el pago si no se pudo crear el movimiento en la cuenta financiera
+      await (supabase.from("payments") as any)
+        .delete()
+        .eq("id", payment.id)
+      
+      return NextResponse.json({ 
+        error: "Error crítico: No se pudo crear movimiento en cuenta financiera: " + (financialAccountError.message || "Error desconocido")
+      }, { status: 500 })
+    }
+
+    // Solo crear movimientos contables en RESULTADO si el pago está PAID explícitamente
+    // Los movimientos en RESULTADO son para contabilidad (plan contable)
     if (status === "PAID") {
       try {
         // Usar la función compartida para marcar el pago como pagado
@@ -157,24 +187,13 @@ export async function POST(request: Request) {
         console.log(`✅ Pago ${payment.id} creado y marcado como pagado con ledger ${markPaidData.ledger_movement_id}`)
 
       } catch (accountingError: any) {
-        console.error("❌ Error creating accounting movements:", accountingError)
-        // Si el error es crítico (no se pudo crear movimiento en cuenta financiera), fallar completamente
-        if (accountingError.message && accountingError.message.includes("Error crítico")) {
-          // Eliminar el pago que se creó porque no tiene movimientos contables
-          await (supabase.from("payments") as any)
-            .delete()
-            .eq("id", payment.id)
-          
-          return NextResponse.json({ 
-            error: "Error crítico al crear movimientos contables: " + accountingError.message
-          }, { status: 500 })
-        }
-        
-        // Para otros errores, retornar warning pero mantener el pago
+        console.error("❌ Error creating accounting movements in RESULTADO:", accountingError)
+        // El movimiento en cuenta financiera ya se creó, así que el pago es válido
+        // Solo retornar warning sobre el movimiento en RESULTADO
         return NextResponse.json({ 
           payment,
-          warning: "Pago creado pero hubo error en movimientos contables: " + (accountingError.message || "Error desconocido")
-        }, { status: 201 }) // 201 porque el pago se creó, pero hay un warning
+          warning: "Pago creado y saldo de cuenta actualizado, pero hubo error en movimientos contables (RESULTADO): " + (accountingError.message || "Error desconocido")
+        }, { status: 201 }) // 201 porque el pago se creó y el saldo se actualizó
       }
     } else {
       console.log(`ℹ️ Pago ${payment.id} creado con status ${status || "PENDING"}, no se crearán movimientos contables hasta que se marque como PAID`)
