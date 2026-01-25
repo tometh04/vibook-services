@@ -550,35 +550,58 @@ export async function markPaymentAsPaid({
   // IMPORTANTE: También crear un movimiento en la cuenta financiera seleccionada
   // Esto es necesario para que el balance de la cuenta se actualice correctamente
   // La cuenta financiera (account_id del pago) es donde realmente se recibió/entregó el dinero
-  if (accountId && accountId !== resultAccountId) {
+  // SIEMPRE crear este movimiento, incluso si accountId === resultAccountId (aunque no debería pasar)
+  if (accountId) {
     try {
-      await createLedgerMovement(
-        {
-          operation_id: paymentData.operation_id || null,
-          lead_id: null,
-          type: paymentData.direction === "INCOME" ? "INCOME" : "EXPENSE",
-          concept: paymentData.direction === "INCOME"
-            ? `Ingreso en ${paymentData.currency} - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`
-            : `Egreso en ${paymentData.currency} - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`,
-          currency: paymentData.currency as "ARS" | "USD",
-          amount_original: parseFloat(paymentData.amount),
-          exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
-          amount_ars_equivalent: amountARS,
-          method: ledgerMethod,
-          account_id: accountId, // La cuenta financiera seleccionada por el usuario
-          seller_id: sellerId,
-          operator_id: operatorId,
-          receipt_number: reference || null,
-          notes: `Movimiento en cuenta financiera: ${reference || ""}`,
-          created_by: userId,
-        },
-        supabase
-      )
-      console.log(`✅ Movimiento creado en cuenta financiera ${accountId} para pago ${paymentId}`)
-    } catch (error) {
-      console.error(`Error creando movimiento en cuenta financiera ${accountId}:`, error)
+      // Verificar que la cuenta financiera existe
+      const { data: financialAccount, error: accountError } = await (supabase.from("financial_accounts") as any)
+        .select("id, name, chart_account_id")
+        .eq("id", accountId)
+        .single()
+
+      if (accountError || !financialAccount) {
+        console.error(`⚠️ Cuenta financiera ${accountId} no encontrada, no se creará movimiento`)
+      } else {
+        // Si accountId === resultAccountId, significa que la cuenta financiera es la misma que la del plan contable
+        // En este caso, el movimiento ya se creó arriba, pero aún así creamos uno específico para la cuenta
+        // para asegurar que el balance se actualice correctamente
+        if (accountId === resultAccountId) {
+          console.log(`⚠️ accountId (${accountId}) es igual a resultAccountId, el movimiento ya se creó arriba`)
+        }
+
+        await createLedgerMovement(
+          {
+            operation_id: paymentData.operation_id || null,
+            lead_id: null,
+            type: paymentData.direction === "INCOME" ? "INCOME" : "EXPENSE",
+            concept: paymentData.direction === "INCOME"
+              ? `Ingreso en ${paymentData.currency} - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`
+              : `Egreso en ${paymentData.currency} - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`,
+            currency: paymentData.currency as "ARS" | "USD",
+            amount_original: parseFloat(paymentData.amount),
+            exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
+            amount_ars_equivalent: amountARS,
+            method: ledgerMethod,
+            account_id: accountId, // La cuenta financiera seleccionada por el usuario
+            seller_id: sellerId,
+            operator_id: operatorId,
+            receipt_number: reference || null,
+            notes: `Movimiento en cuenta financiera: ${reference || ""}`,
+            created_by: userId,
+          },
+          supabase
+        )
+        console.log(`✅ Movimiento creado en cuenta financiera ${accountId} (${financialAccount.name}) para pago ${paymentId} - Monto: ${paymentData.amount} ${paymentData.currency}`)
+      }
+    } catch (error: any) {
+      console.error(`❌ Error creando movimiento en cuenta financiera ${accountId}:`, error)
       // No fallamos completamente, el movimiento en RESULTADO ya se creó
+      // Pero esto es crítico, así que lanzamos el error para que se vea en los logs
+      throw new Error(`Error crítico: No se pudo crear movimiento en cuenta financiera ${accountId}: ${error.message}`)
     }
+  } else {
+    console.error(`❌ No se pudo crear movimiento en cuenta financiera: accountId es null o undefined para pago ${paymentId}`)
+    throw new Error("El pago no tiene cuenta financiera asociada (account_id es requerido)")
   }
 
   // Actualizar payment con referencia al ledger_movement

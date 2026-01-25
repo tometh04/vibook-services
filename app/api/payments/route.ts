@@ -144,6 +144,8 @@ export async function POST(request: Request) {
         // Usar la función compartida para marcar el pago como pagado
         // Esto asegura que se sigan los mismos pasos que cuando se marca un pago como pagado
         const { markPaymentAsPaid } = await import("@/lib/accounting/mark-payment-paid")
+        console.log(`🔄 Marcando pago ${payment.id} como pagado con cuenta financiera ${account_id}`)
+        
         const markPaidData = await markPaymentAsPaid({
           paymentId: payment.id,
           datePaid: date_paid || new Date().toISOString().split("T")[0],
@@ -155,14 +157,16 @@ export async function POST(request: Request) {
         console.log(`✅ Pago ${payment.id} creado y marcado como pagado con ledger ${markPaidData.ledger_movement_id}`)
 
       } catch (accountingError: any) {
-        console.error("Error creating accounting movements:", accountingError)
+        console.error("❌ Error creating accounting movements:", accountingError)
         // El pago se creó, pero los movimientos contables fallaron
         // Retornamos el pago pero con una advertencia
         return NextResponse.json({ 
           payment,
           warning: "Pago creado pero hubo error en movimientos contables: " + (accountingError.message || "Error desconocido")
-        })
+        }, { status: 201 }) // 201 porque el pago se creó, pero hay un warning
       }
+    } else {
+      console.log(`ℹ️ Pago ${payment.id} creado con status ${status || "PENDING"}, no se crearán movimientos contables hasta que se marque como PAID`)
     }
 
     return NextResponse.json({ payment })
