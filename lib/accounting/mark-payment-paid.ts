@@ -32,7 +32,7 @@ export async function markPaymentAsPaid({
 }: MarkPaymentPaidParams): Promise<{ ledger_movement_id: string }> {
   // Get payment to get operation_id, payer_type, etc.
   const paymentsSelect = supabase.from("payments") as any
-  const { data: payment } = await paymentsSelect
+  const { data: payment, error: paymentFetchError } = await paymentsSelect
     .select(`
       operation_id, 
       amount, 
@@ -56,8 +56,9 @@ export async function markPaymentAsPaid({
     .eq("id", paymentId)
     .single()
 
-  if (!payment) {
-    throw new Error("Pago no encontrado")
+  if (paymentFetchError || !payment) {
+    console.error(`❌ Error buscando pago ${paymentId}:`, paymentFetchError)
+    throw new Error(`Pago no encontrado (ID: ${paymentId}): ${paymentFetchError?.message || "Error desconocido"}`)
   }
 
   const paymentData = payment as any

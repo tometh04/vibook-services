@@ -171,6 +171,10 @@ export async function POST(request: Request) {
     // Los movimientos en RESULTADO son para contabilidad (plan contable)
     if (status === "PAID") {
       try {
+        // Esperar un momento para asegurar que el pago esté completamente commitado en la BD
+        // Esto evita problemas de timing cuando se busca el pago inmediatamente después de crearlo
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
         // Usar la función compartida para marcar el pago como pagado
         // Esto asegura que se sigan los mismos pasos que cuando se marca un pago como pagado
         const { markPaymentAsPaid } = await import("@/lib/accounting/mark-payment-paid")
