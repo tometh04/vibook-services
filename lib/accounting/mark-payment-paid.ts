@@ -147,11 +147,29 @@ export async function markPaymentAsPaid({
     })
     .eq("id", paymentId)
 
-  // Si el pago ya tiene ledger_movement_id, no crear movimientos duplicados
+  // Si el pago ya tiene ledger_movement_id, verificar que también tenga movimiento en cuenta financiera
+  // Si no lo tiene, crearlo (esto corrige pagos antiguos que solo tienen movimiento en RESULTADO)
   if (alreadyHasLedgerMovement) {
-    console.log(`⚠️ Pago ${paymentId} ya tiene ledger_movement_id ${paymentData.ledger_movement_id}, omitiendo creación de movimientos contables`)
-    return { 
-      ledger_movement_id: paymentData.ledger_movement_id
+    // Verificar si existe movimiento en la cuenta financiera
+    const { data: financialAccountMovement, error: movementError } = await (supabase.from("ledger_movements") as any)
+      .select("id")
+      .eq("account_id", accountId)
+      .eq("operation_id", paymentData.operation_id || null)
+      .eq("amount_original", parseFloat(paymentData.amount))
+      .eq("currency", paymentData.currency)
+      .limit(1)
+
+    if (!movementError && financialAccountMovement && financialAccountMovement.length > 0) {
+      // Ya existe movimiento en la cuenta financiera
+      console.log(`⚠️ Pago ${paymentId} ya tiene ledger_movement_id ${paymentData.ledger_movement_id} y movimiento en cuenta financiera, omitiendo creación`)
+      return { 
+        ledger_movement_id: paymentData.ledger_movement_id
+      }
+    } else {
+      // Tiene ledger_movement_id pero NO tiene movimiento en cuenta financiera
+      // Esto es un caso de corrección: crear el movimiento faltante
+      console.log(`⚠️ Pago ${paymentId} tiene ledger_movement_id pero NO tiene movimiento en cuenta financiera ${accountId}, creando movimiento faltante...`)
+      // Continuar con el flujo para crear el movimiento en cuenta financiera
     }
   }
 
