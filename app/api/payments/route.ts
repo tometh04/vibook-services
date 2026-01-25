@@ -158,8 +158,19 @@ export async function POST(request: Request) {
 
       } catch (accountingError: any) {
         console.error("❌ Error creating accounting movements:", accountingError)
-        // El pago se creó, pero los movimientos contables fallaron
-        // Retornamos el pago pero con una advertencia
+        // Si el error es crítico (no se pudo crear movimiento en cuenta financiera), fallar completamente
+        if (accountingError.message && accountingError.message.includes("Error crítico")) {
+          // Eliminar el pago que se creó porque no tiene movimientos contables
+          await (supabase.from("payments") as any)
+            .delete()
+            .eq("id", payment.id)
+          
+          return NextResponse.json({ 
+            error: "Error crítico al crear movimientos contables: " + accountingError.message
+          }, { status: 500 })
+        }
+        
+        // Para otros errores, retornar warning pero mantener el pago
         return NextResponse.json({ 
           payment,
           warning: "Pago creado pero hubo error en movimientos contables: " + (accountingError.message || "Error desconocido")
