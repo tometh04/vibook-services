@@ -32,7 +32,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Trash2, AlertTriangle, Building2 } from "lucide-react"
+import { Plus, Trash2, AlertTriangle, Building2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
@@ -84,6 +84,10 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
   const [agencies, setAgencies] = useState<any[]>(initialAgencies)
   const [openDialog, setOpenDialog] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false)
+  const [accountToDelete, setAccountToDelete] = useState<any>(null)
+  const [transferToAccountId, setTransferToAccountId] = useState<string>("")
+  const [deleting, setDeleting] = useState(false)
   const [formData, setFormData] = useState<any>({
     name: "",
     type: "",
@@ -254,6 +258,50 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
       return `${account.card_holder} •••• ${account.card_number}`
     }
     return account.name
+  }
+
+  const handleDeleteAccount = (account: any) => {
+    setAccountToDelete(account)
+    setTransferToAccountId("")
+    setDeleteAccountDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!accountToDelete) return
+
+    // Si la cuenta tiene saldo y no se seleccionó una cuenta de destino, no permitir eliminar
+    const balance = accountToDelete.current_balance || 0
+    if (Math.abs(balance) > 0.01 && !transferToAccountId) {
+      toast.error("Debes seleccionar una cuenta de destino para transferir el saldo")
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const url = transferToAccountId
+        ? `/api/accounting/financial-accounts/${accountToDelete.id}?transferTo=${transferToAccountId}`
+        : `/api/accounting/financial-accounts/${accountToDelete.id}`
+
+      const res = await fetch(url, {
+        method: "DELETE",
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Error al eliminar cuenta")
+      }
+
+      toast.success(data.message || "Cuenta eliminada exitosamente")
+      setDeleteAccountDialogOpen(false)
+      setAccountToDelete(null)
+      setTransferToAccountId("")
+      fetchData()
+    } catch (error: any) {
+      toast.error(error.message || "Error al eliminar cuenta")
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -600,6 +648,7 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
                 <TableHead>Moneda</TableHead>
                       <TableHead className="text-right">Saldo Inicial</TableHead>
                       <TableHead className="text-right">Balance Actual</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -626,6 +675,16 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
                       {formatCurrency(account.current_balance || 0, account.currency)}
                     </span>
                   </TableCell>
+                        <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteAccount(account)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -635,6 +694,111 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
           ))}
         </div>
       )}
+
+      {/* Diálogo de confirmación de eliminación con transferencia */}
+      <Dialog open={deleteAccountDialogOpen} onOpenChange={setDeleteAccountDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Eliminar Cuenta Financiera
+            </DialogTitle>
+            <DialogDescription>
+              {accountToDelete && (
+                <>
+                  Estás a punto de eliminar la cuenta <strong>{getDisplayName(accountToDelete)}</strong>.
+                  {Math.abs(accountToDelete.current_balance || 0) > 0.01 && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                      <p className="text-sm font-medium text-amber-800 mb-2">
+                        ⚠️ Esta cuenta tiene un saldo de{" "}
+                        <strong>
+                          {formatCurrency(
+                            Math.abs(accountToDelete.current_balance || 0),
+                            accountToDelete.currency
+                          )}
+                        </strong>
+                      </p>
+                      <p className="text-sm text-amber-700 mb-3">
+                        ¿Deseas transferir este saldo a otra cuenta antes de eliminar?
+                      </p>
+                      <Select
+                        value={transferToAccountId}
+                        onValueChange={setTransferToAccountId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una cuenta de destino" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accounts
+                            .filter(
+                              (acc: any) =>
+                                acc.id !== accountToDelete.id &&
+                                acc.is_active &&
+                                acc.currency === accountToDelete.currency
+                            )
+                            .map((acc: any) => (
+                              <SelectItem key={acc.id} value={acc.id}>
+                                {getDisplayName(acc)} ({acc.currency}) - Balance:{" "}
+                                {formatCurrency(acc.current_balance || 0, acc.currency)}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      {accounts.filter(
+                        (acc: any) =>
+                          acc.id !== accountToDelete.id &&
+                          acc.is_active &&
+                          acc.currency === accountToDelete.currency
+                      ).length === 0 && (
+                        <p className="text-xs text-red-600 mt-2">
+                          No hay otras cuentas en {accountToDelete.currency} disponibles para transferir
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {Math.abs(accountToDelete.current_balance || 0) <= 0.01 && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Esta cuenta no tiene saldo, se eliminará directamente.
+                    </p>
+                  )}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteAccountDialogOpen(false)
+                setAccountToDelete(null)
+                setTransferToAccountId("")
+              }}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={
+                deleting ||
+                (accountToDelete &&
+                  Math.abs(accountToDelete.current_balance || 0) > 0.01 &&
+                  !transferToAccountId)
+              }
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar Cuenta"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
