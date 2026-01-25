@@ -143,7 +143,7 @@ export async function POST(request: Request) {
       const { createFinancialAccountMovement } = await import("@/lib/accounting/create-financial-account-movement")
       await createFinancialAccountMovement({
         paymentId: payment.id,
-        accountId,
+        accountId: account_id,
         amount: parseFloat(amount),
         currency: currency as "ARS" | "USD",
         direction: direction as "INCOME" | "EXPENSE",
@@ -154,7 +154,7 @@ export async function POST(request: Request) {
         userId: user.id,
         supabase,
       })
-      console.log(`✅ Movimiento creado en cuenta financiera ${accountId} para pago ${payment.id}`)
+      console.log(`✅ Movimiento creado en cuenta financiera ${account_id} para pago ${payment.id}`)
     } catch (financialAccountError: any) {
       console.error("❌ Error creando movimiento en cuenta financiera:", financialAccountError)
       // Eliminar el pago si no se pudo crear el movimiento en la cuenta financiera
