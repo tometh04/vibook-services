@@ -46,6 +46,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 const paymentSchema = z.object({
   payer_type: z.enum(["CUSTOMER", "OPERATOR"]),
@@ -499,6 +500,15 @@ export function OperationPaymentsSection({
       if (!response.ok) {
         const error = await response.json()
         throw new Error(error.error || "Error al registrar pago")
+      }
+
+      const result = await response.json()
+      
+      // Si hay un warning, mostrarlo pero no fallar
+      if (result.warning) {
+        toast.warning(result.warning)
+      } else {
+        toast.success("Pago registrado exitosamente")
       }
 
       setDialogOpen(false)
