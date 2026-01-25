@@ -21,6 +21,7 @@ interface MarkPaymentPaidParams {
   reference?: string | null
   userId: string
   supabase: SupabaseClient<Database>
+  paymentData?: any // Opcional: datos del pago si ya los tenemos (evita buscar de nuevo)
 }
 
 export async function markPaymentAsPaid({
@@ -29,40 +30,51 @@ export async function markPaymentAsPaid({
   reference,
   userId,
   supabase,
+  paymentData: providedPaymentData,
 }: MarkPaymentPaidParams): Promise<{ ledger_movement_id: string }> {
-  // Get payment to get operation_id, payer_type, etc.
-  const paymentsSelect = supabase.from("payments") as any
-  const { data: payment, error: paymentFetchError } = await paymentsSelect
-    .select(`
-      operation_id, 
-      amount, 
-      currency, 
-      direction, 
-      payer_type, 
-      method,
-      status,
-      ledger_movement_id,
-      account_id,
-      operations:operation_id(
-        id,
-        agency_id,
-        seller_id,
-        seller_secondary_id,
-        operator_id,
-        sale_currency,
-        operator_cost_currency
-      )
-    `)
-    .eq("id", paymentId)
-    .single()
+  // Si ya tenemos los datos del pago, usarlos. Si no, buscarlos
+  let paymentData: any
+  let operation: any = null
 
-  if (paymentFetchError || !payment) {
-    console.error(`❌ Error buscando pago ${paymentId}:`, paymentFetchError)
-    throw new Error(`Pago no encontrado (ID: ${paymentId}): ${paymentFetchError?.message || "Error desconocido"}`)
+  if (providedPaymentData) {
+    // Usar los datos proporcionados (evita buscar de nuevo)
+    paymentData = providedPaymentData
+    operation = paymentData.operations || null
+  } else {
+    // Buscar el pago en la base de datos
+    const paymentsSelect = supabase.from("payments") as any
+    const { data: payment, error: paymentFetchError } = await paymentsSelect
+      .select(`
+        operation_id, 
+        amount, 
+        currency, 
+        direction, 
+        payer_type, 
+        method,
+        status,
+        ledger_movement_id,
+        account_id,
+        operations:operation_id(
+          id,
+          agency_id,
+          seller_id,
+          seller_secondary_id,
+          operator_id,
+          sale_currency,
+          operator_cost_currency
+        )
+      `)
+      .eq("id", paymentId)
+      .single()
+
+    if (paymentFetchError || !payment) {
+      console.error(`❌ Error buscando pago ${paymentId}:`, paymentFetchError)
+      throw new Error(`Pago no encontrado (ID: ${paymentId}): ${paymentFetchError?.message || "Error desconocido"}`)
+    }
+
+    paymentData = payment as any
+    operation = paymentData.operations || null
   }
-
-  const paymentData = payment as any
-  const operation = paymentData.operations || null
 
   // Declarar paymentsTable aquí para poder usarlo más abajo
   const paymentsTable = supabase.from("payments") as any

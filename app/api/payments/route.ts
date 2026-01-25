@@ -171,12 +171,24 @@ export async function POST(request: Request) {
     // Los movimientos en RESULTADO son para contabilidad (plan contable)
     if (status === "PAID") {
       try {
-        // Esperar un momento para asegurar que el pago esté completamente commitado en la BD
-        // Esto evita problemas de timing cuando se busca el pago inmediatamente después de crearlo
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
+        // Obtener datos de la operación si existe para pasarlos directamente
+        let operationData: any = null
+        if (operation_id) {
+          const { data: op } = await (supabase.from("operations") as any)
+            .select("id, agency_id, seller_id, seller_secondary_id, operator_id, sale_currency, operator_cost_currency")
+            .eq("id", operation_id)
+            .maybeSingle()
+          operationData = op
+        }
+
+        // Preparar datos del pago para pasarlos directamente (evita buscar de nuevo)
+        const paymentDataForMarkPaid = {
+          ...payment,
+          operations: operationData,
+        }
+
         // Usar la función compartida para marcar el pago como pagado
-        // Esto asegura que se sigan los mismos pasos que cuando se marca un pago como pagado
+        // Pasamos los datos del pago directamente para evitar problemas de timing
         const { markPaymentAsPaid } = await import("@/lib/accounting/mark-payment-paid")
         console.log(`🔄 Marcando pago ${payment.id} como pagado con cuenta financiera ${account_id}`)
         
@@ -186,6 +198,7 @@ export async function POST(request: Request) {
           reference: notes || null,
           userId: user.id,
           supabase,
+          paymentData: paymentDataForMarkPaid, // Pasar datos directamente
         })
 
         console.log(`✅ Pago ${payment.id} creado y marcado como pagado con ledger ${markPaidData.ledger_movement_id}`)
