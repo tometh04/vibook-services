@@ -7,7 +7,7 @@ import { canPerformAction } from "@/lib/permissions-api"
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { user } = await getCurrentUser()
@@ -18,7 +18,7 @@ export async function DELETE(
       return NextResponse.json({ error: "No tiene permiso para eliminar cuentas" }, { status: 403 })
     }
 
-    const accountId = params.id
+    const { id: accountId } = await params
     const { searchParams } = new URL(request.url)
     const transferToAccountId = searchParams.get("transferTo")
 
