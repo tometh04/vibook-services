@@ -149,6 +149,7 @@ export async function markPaymentAsPaid({
 
   // Si el pago ya tiene ledger_movement_id, verificar que también tenga movimiento en cuenta financiera
   // Si no lo tiene, crearlo (esto corrige pagos antiguos que solo tienen movimiento en RESULTADO)
+  let needsOnlyFinancialAccountMovement = false
   if (alreadyHasLedgerMovement) {
     // Verificar si existe movimiento en la cuenta financiera
     const { data: financialAccountMovement, error: movementError } = await (supabase.from("ledger_movements") as any)
@@ -167,9 +168,10 @@ export async function markPaymentAsPaid({
       }
     } else {
       // Tiene ledger_movement_id pero NO tiene movimiento en cuenta financiera
-      // Esto es un caso de corrección: crear el movimiento faltante
+      // Esto es un caso de corrección: crear SOLO el movimiento en cuenta financiera (no el de RESULTADO)
       console.log(`⚠️ Pago ${paymentId} tiene ledger_movement_id pero NO tiene movimiento en cuenta financiera ${accountId}, creando movimiento faltante...`)
-      // Continuar con el flujo para crear el movimiento en cuenta financiera
+      needsOnlyFinancialAccountMovement = true
+      // Saltar la creación del movimiento en RESULTADO, solo crear el de cuenta financiera
     }
   }
 
@@ -541,29 +543,34 @@ export async function markPaymentAsPaid({
       : "EXPENSE"
 
   // Crear ledger movement en RESULTADO (para contabilidad)
-  const { id: ledgerMovementId } = await createLedgerMovement(
-    {
-      operation_id: paymentData.operation_id || null,
-      lead_id: null,
-      type: ledgerType,
-      concept:
-        paymentData.direction === "INCOME"
-          ? "Pago de cliente"
-          : "Pago a operador",
-      currency: paymentData.currency as "ARS" | "USD",
-      amount_original: parseFloat(paymentData.amount),
-      exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
-      amount_ars_equivalent: amountARS,
-      method: ledgerMethod,
-      account_id: resultAccountId,
-      seller_id: sellerId,
-      operator_id: operatorId,
-      receipt_number: reference || null,
-      notes: reference || null,
-      created_by: userId,
-    },
-    supabase
-  )
+  // SOLO si no es un caso de corrección (needsOnlyFinancialAccountMovement)
+  let ledgerMovementId = paymentData.ledger_movement_id || null
+  if (!needsOnlyFinancialAccountMovement) {
+    const { id: newLedgerMovementId } = await createLedgerMovement(
+      {
+        operation_id: paymentData.operation_id || null,
+        lead_id: null,
+        type: ledgerType,
+        concept:
+          paymentData.direction === "INCOME"
+            ? "Pago de cliente"
+            : "Pago a operador",
+        currency: paymentData.currency as "ARS" | "USD",
+        amount_original: parseFloat(paymentData.amount),
+        exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
+        amount_ars_equivalent: amountARS,
+        method: ledgerMethod,
+        account_id: resultAccountId,
+        seller_id: sellerId,
+        operator_id: operatorId,
+        receipt_number: reference || null,
+        notes: reference || null,
+        created_by: userId,
+      },
+      supabase
+    )
+    ledgerMovementId = newLedgerMovementId
+  }
 
   // IMPORTANTE: También crear un movimiento en la cuenta financiera seleccionada
   // Esto es necesario para que el balance de la cuenta se actualice correctamente
@@ -622,10 +629,12 @@ export async function markPaymentAsPaid({
     throw new Error("El pago no tiene cuenta financiera asociada (account_id es requerido)")
   }
 
-  // Actualizar payment con referencia al ledger_movement
-  await paymentsTable
-    .update({ ledger_movement_id: ledgerMovementId })
-    .eq("id", paymentId)
+  // Actualizar payment con referencia al ledger_movement (solo si no tenía uno antes)
+  if (!paymentData.ledger_movement_id && ledgerMovementId) {
+    await paymentsTable
+      .update({ ledger_movement_id: ledgerMovementId })
+      .eq("id", paymentId)
+  }
 
   // Si es un pago a operador, marcar operator_payment como PAID
   if (paymentData.payer_type === "OPERATOR" && paymentData.operation_id) {
