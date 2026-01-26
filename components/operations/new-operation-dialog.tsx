@@ -286,8 +286,6 @@ export function NewOperationDialog({
       sale_amount_total: 0,
       operator_cost: 0,
       currency: "ARS",
-      sale_currency: "ARS",
-      operator_cost_currency: "ARS",
       operators: [],
       notes: null,
       // Códigos de reserva
