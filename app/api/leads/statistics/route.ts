@@ -76,12 +76,15 @@ export async function GET(request: Request) {
 
     const sellerNamesMap = new Map<string, string>()
     if (sellerIds.size > 0) {
-      const { data: sellers } = await supabase
+      const { data: sellers, error: sellersError } = await supabase
         .from("users")
         .select("id, name")
         .in("id", Array.from(sellerIds))
       
-      if (sellers) {
+      if (sellersError) {
+        console.error("Error fetching sellers:", sellersError)
+        // Continuar sin nombres de vendedores en lugar de fallar completamente
+      } else if (sellers) {
         for (const seller of sellers) {
           sellerNamesMap.set(seller.id, seller.name || "Sin nombre")
         }
@@ -158,7 +161,7 @@ export async function GET(request: Request) {
       if (pipeline[lead.status]) {
         pipeline[lead.status].count++
         if (lead.quoted_price) {
-          const quoted = parseFloat(lead.quoted_price) || 0
+          const quoted = parseFloat(String(lead.quoted_price)) || 0
           pipeline[lead.status].value += quoted
           totalQuoted += quoted
         }
@@ -176,10 +179,10 @@ export async function GET(request: Request) {
       bySource[source].count++
       if (lead.status === "WON") bySource[source].won++
       if (lead.quoted_price) {
-        bySource[source].totalQuoted += parseFloat(lead.quoted_price) || 0
+        bySource[source].totalQuoted += parseFloat(String(lead.quoted_price)) || 0
       }
       if (lead.has_deposit && lead.deposit_amount) {
-        const deposit = parseFloat(lead.deposit_amount) || 0
+        const deposit = parseFloat(String(lead.deposit_amount)) || 0
         bySource[source].totalDeposits += deposit
         totalDeposits += deposit
       }
@@ -192,7 +195,7 @@ export async function GET(request: Request) {
       byRegion[region].count++
       if (lead.status === "WON") byRegion[region].won++
       if (lead.quoted_price) {
-        byRegion[region].totalQuoted += parseFloat(lead.quoted_price) || 0
+        byRegion[region].totalQuoted += parseFloat(String(lead.quoted_price)) || 0
       }
 
       // Por destino
@@ -219,7 +222,7 @@ export async function GET(request: Request) {
         bySeller[lead.assigned_seller_id].leads++
         if (lead.status === "WON") bySeller[lead.assigned_seller_id].won++
         if (lead.quoted_price) {
-          bySeller[lead.assigned_seller_id].totalQuoted += parseFloat(lead.quoted_price) || 0
+          bySeller[lead.assigned_seller_id].totalQuoted += parseFloat(String(lead.quoted_price)) || 0
         }
       }
 
@@ -233,19 +236,19 @@ export async function GET(request: Request) {
           if (lead.status === "QUOTED") {
             monthlyStats[monthKey].quotedLeads++
             if (lead.quoted_price) {
-              monthlyStats[monthKey].totalQuoted += parseFloat(lead.quoted_price) || 0
+              monthlyStats[monthKey].totalQuoted += parseFloat(String(lead.quoted_price)) || 0
             }
           }
           if (lead.has_deposit && lead.deposit_amount) {
-            monthlyStats[monthKey].totalDeposits += parseFloat(lead.deposit_amount) || 0
+            monthlyStats[monthKey].totalDeposits += parseFloat(String(lead.deposit_amount)) || 0
           }
         }
       }
 
       // Estadísticas de presupuesto
       if (lead.budget_min || lead.budget_max) {
-        const budgetMin = parseFloat(lead.budget_min) || 0
-        const budgetMax = parseFloat(lead.budget_max) || 0
+        const budgetMin = lead.budget_min ? parseFloat(String(lead.budget_min)) : 0
+        const budgetMax = lead.budget_max ? parseFloat(String(lead.budget_max)) : 0
         const budgetAvg = budgetMax > 0 ? (budgetMin + budgetMax) / 2 : budgetMin
         if (budgetAvg > 0) {
           totalBudget += budgetAvg
@@ -254,9 +257,9 @@ export async function GET(request: Request) {
       }
 
       // Estadísticas de pasajeros
-      totalAdults += parseInt(lead.adults) || 0
-      totalChildren += parseInt(lead.children) || 0
-      totalInfants += parseInt(lead.infants) || 0
+      totalAdults += lead.adults ? parseInt(String(lead.adults)) : 0
+      totalChildren += lead.children ? parseInt(String(lead.children)) : 0
+      totalInfants += lead.infants ? parseInt(String(lead.infants)) : 0
     }
 
     // Calcular tasas de conversión
@@ -326,8 +329,8 @@ export async function GET(request: Request) {
 
     for (const lead of leads || []) {
       if (lead.budget_min || lead.budget_max) {
-        const budgetMin = parseFloat(lead.budget_min) || 0
-        const budgetMax = parseFloat(lead.budget_max) || 0
+        const budgetMin = lead.budget_min ? parseFloat(String(lead.budget_min)) : 0
+        const budgetMax = lead.budget_max ? parseFloat(String(lead.budget_max)) : 0
         const budgetAvg = budgetMax > 0 ? (budgetMin + budgetMax) / 2 : budgetMin
         if (budgetAvg > 0) {
           const range = budgetRanges.find(r => budgetAvg >= r.min && budgetAvg < r.max)
