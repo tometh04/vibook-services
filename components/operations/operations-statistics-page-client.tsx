@@ -246,7 +246,7 @@ export function OperationsStatisticsPageClient() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.overview.totalMargin)}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.overview.avgMarginPercentage}% margen promedio
+              {Math.round(stats.overview.avgMarginPercentage * 10) / 10}% margen promedio
             </p>
           </CardContent>
         </Card>
@@ -257,7 +257,9 @@ export function OperationsStatisticsPageClient() {
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.overview.conversionRate}%</div>
+            <div className={`text-2xl font-bold ${stats.overview.conversionRate >= 20 ? 'text-green-600' : stats.overview.conversionRate >= 10 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {Math.round(stats.overview.conversionRate * 10) / 10}%
+            </div>
             <p className="text-xs text-muted-foreground">
               {stats.overview.pendingOperations} pendientes
             </p>
@@ -267,19 +269,19 @@ export function OperationsStatisticsPageClient() {
 
       {/* Gráficos */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Tendencia mensual */}
+        {/* Tendencia mensual - ESTÁNDAR: LineChart con múltiples líneas */}
         <Card className="col-span-2">
           <CardHeader>
             <CardTitle>Tendencia Mensual</CardTitle>
-            <CardDescription>Evolución de ventas y margen por mes</CardDescription>
+            <CardDescription>Evolución de ventas, margen y cantidad de operaciones por mes</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.trends.monthly}>
+                <LineChart data={stats.trends.monthly}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="monthName" />
-                  <YAxis yAxisId="left" tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`} />
+                  <YAxis yAxisId="left" tickFormatter={(value) => formatCurrency(value)} />
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip 
                     formatter={(value: number, name: string) => [
@@ -288,23 +290,23 @@ export function OperationsStatisticsPageClient() {
                     ]}
                   />
                   <Legend />
-                  <Area 
+                  <Line 
                     yAxisId="left"
                     type="monotone" 
                     dataKey="sales" 
                     name="Ventas"
                     stroke="#3b82f6" 
-                    fill="#3b82f6"
-                    fillOpacity={0.3}
+                    strokeWidth={2}
+                    dot={{ fill: '#3b82f6' }}
                   />
-                  <Area 
+                  <Line 
                     yAxisId="left"
                     type="monotone" 
                     dataKey="margin" 
                     name="Margen"
                     stroke="#10b981" 
-                    fill="#10b981"
-                    fillOpacity={0.3}
+                    strokeWidth={2}
+                    dot={{ fill: '#10b981' }}
                   />
                   <Line 
                     yAxisId="right"
@@ -315,7 +317,7 @@ export function OperationsStatisticsPageClient() {
                     strokeWidth={2}
                     dot={{ fill: '#8b5cf6' }}
                   />
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
@@ -352,19 +354,19 @@ export function OperationsStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        {/* Top destinos */}
+        {/* Top destinos - ESTÁNDAR: BarChart con tooltip formateado */}
         <Card>
           <CardHeader>
             <CardTitle>Top Destinos</CardTitle>
-            <CardDescription>Destinos con mayor facturación</CardDescription>
+            <CardDescription>Destinos con mayor facturación (Top 8)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.rankings.topDestinations.slice(0, 6)} layout="vertical">
+                <BarChart data={stats.rankings.topDestinations.slice(0, 8)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`} />
-                  <YAxis dataKey="destination" type="category" width={100} />
+                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                  <YAxis dataKey="destination" type="category" width={120} />
                   <Tooltip formatter={(value: number) => formatCurrency(value)} />
                   <Bar dataKey="totalSales" name="Ventas" fill="#3b82f6" />
                 </BarChart>
@@ -404,7 +406,7 @@ export function OperationsStatisticsPageClient() {
                     <TableCell className="text-right">{formatCurrency(dest.totalSales)}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={dest.avgMargin >= 15 ? "default" : dest.avgMargin >= 10 ? "secondary" : "outline"}>
-                        {dest.avgMargin.toFixed(1)}%
+                        {Math.round(dest.avgMargin * 10) / 10}%
                       </Badge>
                     </TableCell>
                   </TableRow>

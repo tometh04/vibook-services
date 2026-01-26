@@ -216,7 +216,7 @@ export function CustomersStatisticsPageClient() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${stats.overview.growthPercentage >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {stats.overview.growthPercentage >= 0 ? '+' : ''}{stats.overview.growthPercentage}%
+              {stats.overview.growthPercentage >= 0 ? '+' : ''}{Math.round(stats.overview.growthPercentage * 10) / 10}%
             </div>
             <p className="text-xs text-muted-foreground">
               vs. mes anterior
@@ -243,7 +243,7 @@ export function CustomersStatisticsPageClient() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.overview.avgOperationsPerCustomer}</div>
+            <div className="text-2xl font-bold">{Math.round(stats.overview.avgOperationsPerCustomer * 10) / 10}</div>
             <p className="text-xs text-muted-foreground">
               viajes por cliente
             </p>

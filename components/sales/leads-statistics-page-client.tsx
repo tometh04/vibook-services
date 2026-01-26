@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Users, TrendingUp, Target, UserCheck, DollarSign, Download, Percent, Instagram, MessageCircle, Megaphone } from "lucide-react"
+import { Loader2, Users, TrendingUp, Target, UserCheck, DollarSign, Download, Percent, Instagram, MessageCircle, Megaphone, Globe, MapPin, Calendar, UsersRound } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -44,20 +44,23 @@ import {
   LineChart,
   Line,
   Legend,
-  FunnelChart,
-  Funnel,
-  LabelList,
 } from "recharts"
 
-interface SalesStatistics {
+interface LeadsStatistics {
   overview: {
     totalLeads: number
     activeLeads: number
     wonLeads: number
     lostLeads: number
     conversionRate: number
+    totalQuoted: number
     totalDeposits: number
     newThisMonth: number
+    avgBudget: number
+    avgAdults: number
+    avgChildren: number
+    avgInfants: number
+    totalPassengers: number
   }
   pipeline: Array<{
     status: string
@@ -71,11 +74,21 @@ interface SalesStatistics {
       count: number
       won: number
       conversionRate: number
+      totalQuoted: number
+      totalDeposits: number
     }>
     byRegion: Array<{
       region: string
       count: number
       won: number
+      conversionRate: number
+      totalQuoted: number
+    }>
+    byDestination: Array<{
+      destination: string
+      count: number
+      won: number
+      conversionRate: number
     }>
     bySeller: Array<{
       id: string
@@ -83,6 +96,11 @@ interface SalesStatistics {
       leads: number
       won: number
       conversionRate: number
+      totalQuoted: number
+    }>
+    byBudget: Array<{
+      range: string
+      count: number
     }>
   }
   trends: {
@@ -92,6 +110,9 @@ interface SalesStatistics {
       newLeads: number
       wonLeads: number
       lostLeads: number
+      quotedLeads: number
+      totalQuoted: number
+      totalDeposits: number
     }>
   }
   rankings: {
@@ -101,10 +122,20 @@ interface SalesStatistics {
       leads: number
       won: number
       conversionRate: number
+      totalQuoted: number
     }>
     topSources: Array<{
       source: string
       count: number
+      won: number
+      conversionRate: number
+      totalQuoted: number
+      totalDeposits: number
+    }>
+    topDestinations: Array<{
+      destination: string
+      count: number
+      won: number
       conversionRate: number
     }>
   }
@@ -115,10 +146,13 @@ const SOURCE_COLORS: Record<string, string> = {
   Instagram: '#E1306C',
   WhatsApp: '#25D366',
   'Meta Ads': '#1877F2',
-  Otro: '#6b7280',
+  Website: '#000000',
+  Referral: '#8b5cf6',
+  CRM: '#3b82f6',
+  Other: '#6b7280',
 }
 
-const REGION_COLORS = ['#3b82f6', '#06b6d4', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b']
+const REGION_COLORS = ['#3b82f6', '#06b6d4', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#ec4899']
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-AR', {
@@ -136,15 +170,17 @@ const getSourceIcon = (source: string) => {
       return <MessageCircle className="h-4 w-4" />
     case 'Meta Ads':
       return <Megaphone className="h-4 w-4" />
+    case 'Website':
+      return <Globe className="h-4 w-4" />
     default:
       return null
   }
 }
 
-export function SalesStatisticsPageClient() {
+export function LeadsStatisticsPageClient() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<SalesStatistics | null>(null)
+  const [stats, setStats] = useState<LeadsStatistics | null>(null)
   const [months, setMonths] = useState("12")
 
   useEffect(() => {
@@ -155,7 +191,7 @@ export function SalesStatisticsPageClient() {
   const loadStatistics = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/sales/statistics?months=${months}`)
+      const response = await fetch(`/api/leads/statistics?months=${months}`)
       
       if (!response.ok) {
         throw new Error('Error al cargar estadísticas')
@@ -197,7 +233,7 @@ export function SalesStatisticsPageClient() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/sales/leads">Ventas</Link>
+              <Link href="/sales/leads">Leads</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -207,9 +243,9 @@ export function SalesStatisticsPageClient() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Estadísticas de Ventas</h1>
+          <h1 className="text-3xl font-bold">Estadísticas de Leads</h1>
           <p className="text-muted-foreground">
-            Pipeline de ventas, conversión y performance del equipo
+            Análisis completo del pipeline de leads y performance
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -231,7 +267,7 @@ export function SalesStatisticsPageClient() {
         </div>
       </div>
 
-      {/* Cards de resumen */}
+      {/* Cards de resumen - ESTÁNDAR: 4 cards, mismo tamaño */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -276,23 +312,23 @@ export function SalesStatisticsPageClient() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Depósitos</CardTitle>
+            <CardTitle className="text-sm font-medium">Cotizaciones</CardTitle>
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.overview.totalDeposits)}</div>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.overview.totalQuoted)}</div>
             <p className="text-xs text-muted-foreground">
-              total en depósitos
+              {formatCurrency(stats.overview.totalDeposits)} en depósitos
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pipeline de ventas */}
+      {/* Pipeline de ventas - ESTÁNDAR: Card con grid */}
       <Card>
         <CardHeader>
           <CardTitle>Pipeline de Ventas</CardTitle>
-          <CardDescription>Distribución de leads por etapa</CardDescription>
+          <CardDescription>Distribución de leads por etapa con valores cotizados</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-5">
@@ -316,13 +352,13 @@ export function SalesStatisticsPageClient() {
         </CardContent>
       </Card>
 
-      {/* Gráficos */}
+      {/* Gráficos - ESTÁNDAR: h-[300px] para todos */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Tendencia mensual */}
+        {/* Tendencia mensual - ESTÁNDAR: col-span-2, h-[300px] */}
         <Card className="col-span-2">
           <CardHeader>
             <CardTitle>Tendencia de Leads</CardTitle>
-            <CardDescription>Evolución mensual de nuevos leads y conversiones</CardDescription>
+            <CardDescription>Evolución mensual de nuevos leads, conversiones y cotizaciones</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -330,10 +366,24 @@ export function SalesStatisticsPageClient() {
                 <LineChart data={stats.trends.monthly}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="monthName" />
-                  <YAxis />
-                  <Tooltip />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => formatCurrency(v)} />
+                  <Tooltip 
+                    formatter={(value: number, name: string) => [
+                      name === 'newLeads' || name === 'wonLeads' || name === 'lostLeads' || name === 'quotedLeads' 
+                        ? value 
+                        : formatCurrency(value),
+                      name === 'newLeads' ? 'Nuevos' 
+                        : name === 'wonLeads' ? 'Ganados' 
+                        : name === 'lostLeads' ? 'Perdidos'
+                        : name === 'quotedLeads' ? 'Cotizados'
+                        : name === 'totalQuoted' ? 'Total Cotizado'
+                        : 'Depósitos'
+                    ]}
+                  />
                   <Legend />
                   <Line 
+                    yAxisId="left"
                     type="monotone" 
                     dataKey="newLeads" 
                     name="Nuevos"
@@ -342,6 +392,7 @@ export function SalesStatisticsPageClient() {
                     dot={{ fill: '#f97316' }}
                   />
                   <Line 
+                    yAxisId="left"
                     type="monotone" 
                     dataKey="wonLeads" 
                     name="Ganados"
@@ -350,6 +401,7 @@ export function SalesStatisticsPageClient() {
                     dot={{ fill: '#22c55e' }}
                   />
                   <Line 
+                    yAxisId="left"
                     type="monotone" 
                     dataKey="lostLeads" 
                     name="Perdidos"
@@ -357,13 +409,23 @@ export function SalesStatisticsPageClient() {
                     strokeWidth={2}
                     dot={{ fill: '#ef4444' }}
                   />
+                  <Line 
+                    yAxisId="right"
+                    type="monotone" 
+                    dataKey="totalQuoted" 
+                    name="Total Cotizado"
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ fill: '#3b82f6' }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Por origen */}
+        {/* Por origen - ESTÁNDAR: h-[300px] */}
         <Card>
           <CardHeader>
             <CardTitle>Por Origen</CardTitle>
@@ -388,7 +450,7 @@ export function SalesStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        {/* Por región */}
+        {/* Por región - ESTÁNDAR: h-[300px] */}
         <Card>
           <CardHeader>
             <CardTitle>Por Región</CardTitle>
@@ -418,9 +480,51 @@ export function SalesStatisticsPageClient() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Por presupuesto - ESTÁNDAR: h-[300px] */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Por Presupuesto</CardTitle>
+            <CardDescription>Distribución de leads por rango de presupuesto</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.distributions.byBudget} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="range" type="category" width={100} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Leads" fill="#8b5cf6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top destinos - ESTÁNDAR: h-[300px] */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Destinos</CardTitle>
+            <CardDescription>Destinos más solicitados</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.rankings.topDestinations.slice(0, 8)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="destination" type="category" width={120} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Leads" fill="#06b6d4" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Rankings */}
+      {/* Rankings - ESTÁNDAR: grid gap-4 md:grid-cols-2 */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Top vendedores */}
         <Card>
@@ -493,7 +597,7 @@ export function SalesStatisticsPageClient() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{source.count}</TableCell>
-                    <TableCell className="text-right">{(source as any).won || 0}</TableCell>
+                    <TableCell className="text-right">{source.won}</TableCell>
                     <TableCell className="text-right">
                       <Badge 
                         style={{ 
@@ -508,6 +612,61 @@ export function SalesStatisticsPageClient() {
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Métricas adicionales - ESTÁNDAR: Cards adicionales */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Presupuesto Promedio</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.overview.avgBudget)}</div>
+            <p className="text-xs text-muted-foreground">
+              por lead
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pasajeros Totales</CardTitle>
+            <UsersRound className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.overview.totalPassengers}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.overview.avgAdults} adultos / {stats.overview.avgChildren} niños / {stats.overview.avgInfants} bebés
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Cotizado</CardTitle>
+            <DollarSign className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.overview.totalQuoted)}</div>
+            <p className="text-xs text-muted-foreground">
+              en cotizaciones
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Depósitos</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.overview.totalDeposits)}</div>
+            <p className="text-xs text-muted-foreground">
+              recibidos
+            </p>
           </CardContent>
         </Card>
       </div>
