@@ -133,6 +133,33 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
     }
   }
 
+  const handleExtendTrial = async (subscriptionId: string) => {
+    setUpdating(subscriptionId)
+    try {
+      const additionalDays = 7 // Por defecto 7 días, puede hacerse configurable
+      const response = await fetch(`/api/admin/subscriptions/${subscriptionId}/extend-trial`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ additionalDays }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al extender trial')
+      }
+
+      toast.success(`Trial extendido ${additionalDays} días correctamente`)
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error.message || 'Error al extender trial')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", label: string }> = {
       ACTIVE: { variant: "default", label: "Activa" },
