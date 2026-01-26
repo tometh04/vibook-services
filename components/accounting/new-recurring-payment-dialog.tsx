@@ -41,6 +41,7 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Check, ChevronsUpDown, Plus, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { DatePicker } from "@/components/ui/date-picker"
 
 const recurringPaymentSchema = z.object({
   provider_name: z.string().min(3, "El proveedor debe tener al menos 3 caracteres"),
@@ -443,7 +444,11 @@ export function NewRecurringPaymentDialog({
                   <FormItem>
                     <FormLabel>Fecha de Inicio *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        value={field.value || ""}
+                        onChange={(value) => field.onChange(value)}
+                        placeholder="Seleccionar fecha"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -471,7 +476,11 @@ export function NewRecurringPaymentDialog({
                     </FormLabel>
                     {hasEndDate && (
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          value={field.value || ""}
+                          onChange={(value) => field.onChange(value)}
+                          placeholder="Seleccionar fecha"
+                        />
                       </FormControl>
                     )}
                     {!hasEndDate && (

@@ -33,6 +33,7 @@ import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { useCustomerSettings } from "@/hooks/use-customer-settings"
 import { CustomFieldsForm } from "./custom-fields-form"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface Customer {
   id: string
@@ -357,7 +358,11 @@ export function EditCustomerDialog({
                   <FormItem>
                     <FormLabel>Fecha de Nacimiento</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        value={field.value || ""}
+                        onChange={(value) => field.onChange(value)}
+                        placeholder="Seleccionar fecha"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

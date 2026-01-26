@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CustomField } from "@/hooks/use-customer-settings"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface CustomFieldsFormProps {
   control: Control<any>
@@ -93,10 +94,10 @@ export function CustomFieldsForm({ control, customFields }: CustomFieldsFormProp
                       {field.label} {field.required && '*'}
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="date"
-                        {...formField}
+                      <DatePicker
                         value={formField.value || field.default_value || ''}
+                        onChange={(value) => formField.onChange(value)}
+                        placeholder="Seleccionar fecha"
                       />
                     </FormControl>
                     <FormMessage />

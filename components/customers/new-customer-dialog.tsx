@@ -44,6 +44,7 @@ import { Loader2, Upload, CheckCircle2 } from "lucide-react"
 import { useCustomerSettings } from "@/hooks/use-customer-settings"
 import { CustomFieldsForm } from "./custom-fields-form"
 import { Badge } from "@/components/ui/badge"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface NewCustomerDialogProps {
   open: boolean
@@ -540,7 +541,11 @@ export function NewCustomerDialog({
                     <FormItem>
                       <FormLabel>Fecha de Nacimiento</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          value={field.value || ""}
+                          onChange={(value) => field.onChange(value)}
+                          placeholder="Seleccionar fecha"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

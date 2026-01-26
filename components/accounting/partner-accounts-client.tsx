@@ -35,6 +35,7 @@ import { Users, Plus, Wallet, ArrowDownCircle, Trash2, Loader2, Calendar } from 
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface Partner {
   id: string
@@ -379,10 +380,10 @@ export function PartnerAccountsClient({ userRole, agencies }: PartnerAccountsCli
                 </div>
                 <div>
                   <Label>Fecha del Retiro</Label>
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={withdrawalDate}
-                    onChange={(e) => setWithdrawalDate(e.target.value)}
+                    onChange={(value) => setWithdrawalDate(value)}
+                    placeholder="Seleccionar fecha"
                   />
                 </div>
                 <div>

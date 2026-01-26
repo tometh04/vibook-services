@@ -26,6 +26,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { DatePicker } from "@/components/ui/date-picker"
 
 const recurringPaymentSchema = z.object({
   amount: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
@@ -326,7 +327,11 @@ export function EditRecurringPaymentDialog({
                     <FormItem>
                       <FormLabel>Fecha de Inicio *</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          value={field.value || ""}
+                          onChange={(value) => field.onChange(value)}
+                          placeholder="Seleccionar fecha"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -340,7 +345,11 @@ export function EditRecurringPaymentDialog({
                     <FormItem>
                       <FormLabel>Próxima Fecha de Vencimiento</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          value={field.value || ""}
+                          onChange={(value) => field.onChange(value)}
+                          placeholder="Seleccionar fecha"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -369,7 +378,11 @@ export function EditRecurringPaymentDialog({
                     </FormLabel>
                     {hasEndDate && (
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          value={field.value || ""}
+                          onChange={(value) => field.onChange(value)}
+                          placeholder="Seleccionar fecha"
+                        />
                       </FormControl>
                     )}
                     {!hasEndDate && (
