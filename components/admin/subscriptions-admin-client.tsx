@@ -183,6 +183,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                   <TableHead>MP Status</TableHead>
                   <TableHead>Período Actual</TableHead>
                   <TableHead>Trial</TableHead>
+                  <TableHead>Extender Trial</TableHead>
                   <TableHead>MP Preapproval ID</TableHead>
                   <TableHead>Creada</TableHead>
                 </TableRow>
@@ -190,7 +191,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
               <TableBody>
                 {subscriptions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center text-muted-foreground">
                       No hay suscripciones
                     </TableCell>
                   </TableRow>
@@ -300,6 +301,22 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {sub.status === 'TRIAL' && sub.trial_end && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleExtendTrial(sub.id)}
+                              disabled={updating === sub.id}
+                            >
+                              {updating === sub.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                '+7 días'
+                              )}
+                            </Button>
                           )}
                         </TableCell>
                         <TableCell>

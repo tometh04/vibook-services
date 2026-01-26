@@ -12,8 +12,10 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Lock, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { getPlanForFeature, getFeatureDisplayName } from "@/lib/billing/plan-features"
 
 interface PaywallGateProps {
   children: ReactNode
@@ -41,7 +43,16 @@ export function PaywallGate({
     return <>{children}</>
   }
 
-  const defaultMessage = message || `Esta funcionalidad requiere el plan ${requiredPlan || "Pro"}.`
+  // Si es TESTER, mostrar qué plan incluye esta feature
+  const isTester = subscription?.plan?.name === "TESTER"
+  const planInfo = getPlanForFeature(feature)
+  const featureName = getFeatureDisplayName(feature)
+
+  const defaultMessage = message || (
+    isTester && planInfo
+      ? `${featureName} está incluido en el plan ${planInfo.displayName}.`
+      : `Esta funcionalidad requiere el plan ${requiredPlan || planInfo?.displayName || "Pro"}.`
+  )
 
   // SIEMPRE mostrar el contenido, pero bloqueado (para Starter que puede ver pero no usar)
   return (
@@ -57,9 +68,14 @@ export function PaywallGate({
             <Lock className="h-12 w-12 mx-auto text-muted-foreground" />
             <div>
               <h3 className="text-lg font-semibold mb-2">Funcionalidad Premium</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground mb-2">
                 {defaultMessage}
               </p>
+              {isTester && planInfo && (
+                <Badge variant="outline" className="mb-4">
+                  Incluido en: {planInfo.displayName}
+                </Badge>
+              )}
               <Button asChild onClick={() => setShowUpgrade(true)}>
                 <Link href="/pricing">
                   Ver Planes

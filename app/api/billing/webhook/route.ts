@@ -242,11 +242,30 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       status = 'SUSPENDED'
     } else if (mpStatus === 'authorized') {
       status = 'ACTIVE'
+      // Resetear intentos de pago cuando hay pago exitoso
+      if (subscription) {
+        const subData = subscription as any
+        await getSupabaseAdmin().rpc('reset_payment_attempts', {
+          subscription_id_param: subData.id
+        }).catch((err: any) => {
+          console.error('Error reseteando payment attempts:', err)
+        })
+      }
     } else if (mpStatus === 'pending') {
       status = 'TRIAL'
     } else if (mpStatus === 'rejected' || mpStatus === 'failed') {
-      // Si el pago fue rechazado o falló, marcar como PAST_DUE
-      status = 'PAST_DUE'
+      // Si el pago fue rechazado o falló, incrementar intentos
+      // La función increment_payment_attempt manejará el cambio a PAST_DUE después de 3 intentos
+      if (subscription) {
+        const subData = subscription as any
+        await getSupabaseAdmin().rpc('increment_payment_attempt', {
+          subscription_id_param: subData.id
+        }).catch((err: any) => {
+          console.error('Error incrementando payment attempts:', err)
+        })
+      }
+      // El status se determinará después según los intentos
+      status = 'PAST_DUE' // Temporal, puede cambiar según intentos
     }
     // Si no coincide con ninguno, mantener 'ACTIVE' (ya inicializado)
 
