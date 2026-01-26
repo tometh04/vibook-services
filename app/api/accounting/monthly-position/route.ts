@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
-import { getAccountBalance } from "@/lib/accounting/ledger"
+import { getAccountBalance, getAccountBalancesBatch } from "@/lib/accounting/ledger"
 
 /**
  * GET /api/accounting/monthly-position
@@ -121,32 +121,61 @@ export async function GET(request: Request) {
     const balances: Record<string, number> = {}
     const balancesByCurrency: Record<string, { ars: number; usd: number }> = {}
 
-    // Calcular balances de cuentas financieras
+    // OPTIMIZACIÓN: Calcular balances de cuentas financieras en batch
     const financialAccountsArrayForBalance = (financialAccounts || []) as any[]
     console.log(`[MonthlyPosition] Procesando ${financialAccountsArrayForBalance.length} cuentas financieras con chart_account_id`)
     
+    // Obtener balances en batch (2 queries en lugar de N*2)
+    const accountIds = financialAccountsArrayForBalance.map((acc: any) => acc.id)
+    let balancesMap = new Map<string, number>()
+    
+    if (accountIds.length > 0) {
+      try {
+        balancesMap = await getAccountBalancesBatch(accountIds, supabase)
+      } catch (error) {
+        console.error("Error calculating balances in batch:", error)
+        // Fallback: calcular balances individualmente si falla el batch
+        for (const accountId of accountIds) {
+          try {
+            const balance = await getAccountBalance(accountId, supabase)
+            balancesMap.set(accountId, balance)
+          } catch (err) {
+            console.error(`Error calculating balance for account ${accountId}:`, err)
+            balancesMap.set(accountId, 0)
+          }
+        }
+      }
+    }
+
+    // OPTIMIZACIÓN: Usar movimientos ya obtenidos arriba (línea 113) en lugar de hacer queries duplicadas
+    // Agrupar movimientos por account_id para acceso rápido
+    const movementsByAccountId = new Map<string, any[]>()
+    for (const movement of movements || []) {
+      const accountId = movement.account_id
+      if (!movementsByAccountId.has(accountId)) {
+        movementsByAccountId.set(accountId, [])
+      }
+      movementsByAccountId.get(accountId)!.push(movement)
+    }
+
+    // Procesar cada cuenta usando movimientos ya obtenidos
     for (const account of financialAccountsArrayForBalance) {
       try {
-        const balance = await getAccountBalance(account.id, supabase)
+        const balance = balancesMap.get(account.id) ?? 0
         const chartAccount = account.chart_of_accounts
         if (chartAccount) {
           const key = `${chartAccount.category}_${chartAccount.subcategory || "NONE"}`
           balances[key] = (balances[key] || 0) + balance
           
-          // Separar por moneda - obtener movimientos y calcular balance por moneda
+          // Separar por moneda - usar movimientos ya obtenidos arriba
           if (!balancesByCurrency[key]) {
             balancesByCurrency[key] = { ars: 0, usd: 0 }
           }
           
-          // Obtener movimientos para separar por moneda
-          const { data: movements } = await supabase
-            .from("ledger_movements")
-            .select("amount_original, currency, type, amount_ars_equivalent")
-            .eq("account_id", account.id)
-            .lte("created_at", `${dateTo}T23:59:59`) // IMPORTANTE: Filtrar hasta la fecha de corte
+          // Obtener movimientos de esta cuenta desde el Map (ya filtrados por fecha)
+          const accountMovements = movementsByAccountId.get(account.id) || []
           
-          if (movements && movements.length > 0) {
-            const movementsArray = movements as any[]
+          if (accountMovements.length > 0) {
             let balanceARS = 0
             let balanceUSD = 0
             
@@ -163,7 +192,7 @@ export async function GET(request: Request) {
               balanceARS = initialBalance // Fallback
             }
             
-            for (const m of movementsArray) {
+            for (const m of accountMovements) {
               const amountOriginal = parseFloat(m.amount_original || "0")
               
               // Para PASIVOS: EXPENSE aumenta, INCOME disminuye

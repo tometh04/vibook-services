@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
-import { getAccountBalance, isAccountingOnlyAccount } from "@/lib/accounting/ledger"
+import { getAccountBalance, isAccountingOnlyAccount, getAccountBalancesBatch, filterAccountingOnlyAccountsBatch } from "@/lib/accounting/ledger"
 import { canPerformAction } from "@/lib/permissions-api"
 
 export async function GET(request: Request) {
@@ -26,40 +26,45 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener cuentas financieras" }, { status: 500 })
     }
 
-    // Filtrar cuentas contables si se solicita
+    // OPTIMIZACIÓN: Filtrar cuentas contables en batch si se solicita
     let filteredAccounts = accounts || []
-    if (excludeAccountingOnly) {
-      const filtered = []
-      for (const account of filteredAccounts) {
-        const isAccountingOnly = await isAccountingOnlyAccount(account.id, supabase)
-        if (!isAccountingOnly) {
-          filtered.push(account)
-        }
-      }
-      filteredAccounts = filtered
+    if (excludeAccountingOnly && filteredAccounts.length > 0) {
+      const accountIds = filteredAccounts.map((acc: any) => acc.id)
+      const accountingOnlyAccountIds = await filterAccountingOnlyAccountsBatch(accountIds, supabase)
+      filteredAccounts = filteredAccounts.filter((acc: any) => !accountingOnlyAccountIds.has(acc.id))
     }
 
-    // Calculate balance for each account
-    const accountsWithBalance = await Promise.all(
-      filteredAccounts.map(async (account: any) => {
-        try {
-          const balance = await getAccountBalance(account.id, supabase)
-          // Asegurar que agency_id se mantenga en el objeto retornado
-          return {
-            ...account,
-            agency_id: account.agency_id, // Asegurar que agency_id esté presente
-            current_balance: balance,
-          }
-        } catch (error) {
-          console.error(`Error calculating balance for account ${account.id}:`, error)
-          return {
-            ...account,
-            agency_id: account.agency_id, // Asegurar que agency_id esté presente
-            current_balance: account.initial_balance || 0,
+    // OPTIMIZACIÓN: Calcular balances en batch (2 queries en lugar de N*2)
+    const accountIds = filteredAccounts.map((acc: any) => acc.id)
+    let balancesMap = new Map<string, number>()
+    
+    if (accountIds.length > 0) {
+      try {
+        balancesMap = await getAccountBalancesBatch(accountIds, supabase)
+      } catch (error) {
+        console.error("Error calculating balances in batch:", error)
+        // Fallback: calcular balances individualmente si falla el batch
+        for (const accountId of accountIds) {
+          try {
+            const balance = await getAccountBalance(accountId, supabase)
+            balancesMap.set(accountId, balance)
+          } catch (err) {
+            console.error(`Error calculating balance for account ${accountId}:`, err)
+            balancesMap.set(accountId, 0)
           }
         }
-      })
-    )
+      }
+    }
+
+    // Mapear cuentas con sus balances
+    const accountsWithBalance = filteredAccounts.map((account: any) => {
+      const balance = balancesMap.get(account.id) ?? account.initial_balance ?? 0
+      return {
+        ...account,
+        agency_id: account.agency_id, // Asegurar que agency_id esté presente
+        current_balance: balance,
+      }
+    })
 
     return NextResponse.json({ accounts: accountsWithBalance })
   } catch (error) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
-import { getAccountBalance } from "@/lib/accounting/ledger"
+import { getAccountBalance, getAccountBalancesBatch } from "@/lib/accounting/ledger"
 
 export async function GET(request: Request) {
   try {
@@ -195,23 +195,36 @@ export async function GET(request: Request) {
       .order("agency_id", { ascending: true })
       .order("type", { ascending: true })
 
-    const accountsWithBalance = await Promise.all(
-      (accounts || []).map(async (account: any) => {
-        try {
-          const balance = await getAccountBalance(account.id, supabase)
-          return {
-            ...account,
-            current_balance: balance,
-          }
-        } catch (error) {
-          console.error(`Error calculating balance for account ${account.id}:`, error)
-          return {
-            ...account,
-            current_balance: account.initial_balance || 0,
+    // OPTIMIZACIÓN: Calcular balances en batch (2 queries en lugar de N*2)
+    const accountIds = (accounts || []).map((acc: any) => acc.id)
+    let balancesMap = new Map<string, number>()
+    
+    if (accountIds.length > 0) {
+      try {
+        balancesMap = await getAccountBalancesBatch(accountIds, supabase)
+      } catch (error) {
+        console.error("Error calculating balances in batch:", error)
+        // Fallback: calcular balances individualmente si falla el batch
+        for (const accountId of accountIds) {
+          try {
+            const balance = await getAccountBalance(accountId, supabase)
+            balancesMap.set(accountId, balance)
+          } catch (err) {
+            console.error(`Error calculating balance for account ${accountId}:`, err)
+            balancesMap.set(accountId, 0)
           }
         }
-      })
-    )
+      }
+    }
+
+    // Mapear cuentas con sus balances
+    const accountsWithBalance = (accounts || []).map((account: any) => {
+      const balance = balancesMap.get(account.id) ?? account.initial_balance ?? 0
+      return {
+        ...account,
+        current_balance: balance,
+      }
+    })
 
     // Calcular totales por moneda y agencia
     const balanceSummary: any = {

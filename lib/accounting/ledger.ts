@@ -505,3 +505,171 @@ export async function isAccountingOnlyAccount(
   return accountingOnlyCodes.includes(accountCode)
 }
 
+/**
+ * OPTIMIZACIÓN: Filtrar múltiples cuentas contables en batch (1 query en lugar de N)
+ * Retorna un Set con los IDs de las cuentas que SON contables (para excluir)
+ */
+export async function filterAccountingOnlyAccountsBatch(
+  accountIds: string[],
+  supabase: SupabaseClient<Database>
+): Promise<Set<string>> {
+  if (accountIds.length === 0) {
+    return new Set()
+  }
+
+  // Obtener todas las cuentas con sus chart_account_id en una sola query
+  const { data: accounts, error } = await (supabase.from("financial_accounts") as any)
+    .select(`
+      id,
+      chart_account_id,
+      chart_of_accounts:chart_account_id(
+        account_code
+      )
+    `)
+    .in("id", accountIds)
+
+  if (error || !accounts) {
+    console.warn("Error filtering accounting only accounts in batch:", error)
+    return new Set()
+  }
+
+  // Cuentas contables que NO deben aparecer en selecciones:
+  // - 1.1.03: Cuentas por Cobrar
+  // - 2.1.01: Cuentas por Pagar
+  const accountingOnlyCodes = ["1.1.03", "2.1.01"]
+  const accountingOnlyAccountIds = new Set<string>()
+
+  for (const account of accounts) {
+    const accountCode = account.chart_of_accounts?.account_code
+    if (accountCode && accountingOnlyCodes.includes(accountCode)) {
+      accountingOnlyAccountIds.add(account.id)
+    }
+  }
+
+  return accountingOnlyAccountIds
+}
+
+/**
+ * OPTIMIZACIÓN: Calcular balances de múltiples cuentas en batch (2 queries en lugar de N*2)
+ * Retorna un Map<accountId, balance>
+ */
+export async function getAccountBalancesBatch(
+  accountIds: string[],
+  supabase: SupabaseClient<Database>
+): Promise<Map<string, number>> {
+  if (accountIds.length === 0) {
+    return new Map()
+  }
+
+  // Query 1: Obtener todas las cuentas con chart_account_id en una sola query
+  const { data: accounts, error: accountsError } = await (supabase
+    .from("financial_accounts") as any)
+    .select(`
+      id,
+      initial_balance,
+      currency,
+      chart_account_id,
+      chart_of_accounts:chart_account_id(
+        category
+      )
+    `)
+    .in("id", accountIds)
+
+  if (accountsError || !accounts) {
+    throw new Error(`Error obteniendo cuentas financieras: ${accountsError?.message || "Unknown error"}`)
+  }
+
+  // Query 2: Obtener TODOS los movimientos de todas las cuentas en una sola query
+  const { data: movements, error: movementsError } = await (supabase
+    .from("ledger_movements") as any)
+    .select("account_id, type, amount_original, currency, exchange_rate")
+    .in("account_id", accountIds)
+
+  if (movementsError) {
+    throw new Error(`Error obteniendo movimientos: ${movementsError.message}`)
+  }
+
+  // Crear un mapa de cuenta -> información de cuenta
+  const accountsMap = new Map<string, any>()
+  for (const account of accounts) {
+    accountsMap.set(account.id, {
+      initialBalance: parseFloat(account.initial_balance || "0"),
+      currency: account.currency as "ARS" | "USD",
+      category: account.chart_of_accounts?.category,
+    })
+  }
+
+  // Agrupar movimientos por account_id
+  const movementsByAccount = new Map<string, any[]>()
+  for (const movement of movements || []) {
+    const accountId = movement.account_id
+    if (!movementsByAccount.has(accountId)) {
+      movementsByAccount.set(accountId, [])
+    }
+    movementsByAccount.get(accountId)!.push(movement)
+  }
+
+  // Calcular balance para cada cuenta
+  const balancesMap = new Map<string, number>()
+
+  for (const accountId of accountIds) {
+    const accountInfo = accountsMap.get(accountId)
+    if (!accountInfo) {
+      // Si no encontramos la cuenta, usar balance 0
+      balancesMap.set(accountId, 0)
+      continue
+    }
+
+    const { initialBalance, currency: accountCurrency, category } = accountInfo
+    const accountMovements = movementsByAccount.get(accountId) || []
+
+    const movementsSum = accountMovements.reduce((sum: number, m: any) => {
+      // Convertir el monto a la moneda de la cuenta
+      let amount = parseFloat(m.amount_original || "0")
+
+      // Si la moneda del movimiento es diferente a la moneda de la cuenta, convertir
+      if (m.currency !== accountCurrency) {
+        if (!m.exchange_rate) {
+          // Si no hay tipo de cambio, no podemos convertir. Esto no debería pasar.
+          console.warn(`Movimiento sin exchange_rate para convertir de ${m.currency} a ${accountCurrency}`)
+          return sum // Ignorar este movimiento
+        }
+
+        if (accountCurrency === "USD" && m.currency === "ARS") {
+          // Convertir ARS a USD: dividir por el tipo de cambio
+          amount = amount / m.exchange_rate
+        } else if (accountCurrency === "ARS" && m.currency === "USD") {
+          // Convertir USD a ARS: multiplicar por el tipo de cambio
+          amount = amount * m.exchange_rate
+        }
+      }
+
+      // Para PASIVOS, la lógica es inversa según principios contables:
+      // - EXPENSE aumenta el pasivo (debes más)
+      // - INCOME disminuye el pasivo (pagas, reduces la deuda)
+      if (category === "PASIVO") {
+        if (m.type === "EXPENSE" || m.type === "OPERATOR_PAYMENT" || m.type === "FX_LOSS") {
+          return sum + amount // Aumenta el pasivo
+        } else if (m.type === "INCOME" || m.type === "FX_GAIN") {
+          return sum - amount // Disminuye el pasivo (pagaste)
+        }
+        return sum
+      }
+
+      // Para ACTIVOS y RESULTADO (y otros), lógica normal:
+      // - INCOME aumenta
+      // - EXPENSE disminuye
+      if (m.type === "INCOME" || m.type === "FX_GAIN") {
+        return sum + amount
+      } else if (m.type === "EXPENSE" || m.type === "FX_LOSS" || m.type === "COMMISSION" || m.type === "OPERATOR_PAYMENT") {
+        return sum - amount
+      }
+      return sum
+    }, 0)
+
+    balancesMap.set(accountId, initialBalance + movementsSum)
+  }
+
+  return balancesMap
+}
+
