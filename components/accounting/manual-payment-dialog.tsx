@@ -111,6 +111,17 @@ export function ManualPaymentDialog({
     if (open) {
       loadAccounts()
     }
+    
+    // Escuchar evento para refrescar cuentas después de crear pagos
+    const handleRefresh = () => {
+      if (open) {
+        loadAccounts()
+      }
+    }
+    window.addEventListener("refresh-financial-accounts", handleRefresh)
+    return () => {
+      window.removeEventListener("refresh-financial-accounts", handleRefresh)
+    }
   }, [open])
 
   useEffect(() => {

@@ -444,6 +444,17 @@ export function OperationPaymentsSection({
     if (dialogOpen) {
       loadAccounts()
     }
+    
+    // Escuchar evento para refrescar cuentas después de crear pagos
+    const handleRefresh = () => {
+      if (dialogOpen) {
+        loadAccounts()
+      }
+    }
+    window.addEventListener("refresh-financial-accounts", handleRefresh)
+    return () => {
+      window.removeEventListener("refresh-financial-accounts", handleRefresh)
+    }
   }, [dialogOpen])
 
   const watchPayerType = form.watch("payer_type")
