@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
-import { getAccountBalance } from "@/lib/accounting/ledger"
+import { getAccountBalance, isAccountingOnlyAccount } from "@/lib/accounting/ledger"
 import { canPerformAction } from "@/lib/permissions-api"
 
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+    const { searchParams } = new URL(request.url)
+    const excludeAccountingOnly = searchParams.get("excludeAccountingOnly") === "true"
 
     // Get all financial accounts with agency info
     const { data: accounts, error: accountsError } = await (supabase.from("financial_accounts") as any)
@@ -24,9 +26,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener cuentas financieras" }, { status: 500 })
     }
 
+    // Filtrar cuentas contables si se solicita
+    let filteredAccounts = accounts || []
+    if (excludeAccountingOnly) {
+      const filtered = []
+      for (const account of filteredAccounts) {
+        const isAccountingOnly = await isAccountingOnlyAccount(account.id, supabase)
+        if (!isAccountingOnly) {
+          filtered.push(account)
+        }
+      }
+      filteredAccounts = filtered
+    }
+
     // Calculate balance for each account
     const accountsWithBalance = await Promise.all(
-      (accounts || []).map(async (account: any) => {
+      filteredAccounts.map(async (account: any) => {
         try {
           const balance = await getAccountBalance(account.id, supabase)
           // Asegurar que agency_id se mantenga en el objeto retornado
@@ -88,20 +103,57 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
-    // Validar que chart_account_id esté presente (obligatorio según especificaciones)
-    if (!chart_account_id) {
-      return NextResponse.json(
-        { 
-          error: "chart_account_id es obligatorio. Las cuentas financieras deben estar 100% ligadas al plan de cuentas." 
-        },
-        { status: 400 }
-      )
+    // Si no se proporciona chart_account_id, asignarlo automáticamente según tipo
+    let finalChartAccountId = chart_account_id
+    
+    if (!finalChartAccountId) {
+      // Mapeo automático de tipo de cuenta a código del plan de cuentas
+      const typeToAccountCodeMap: Record<string, string> = {
+        "CASH_ARS": "1.1.01",      // Caja ARS
+        "CASH_USD": "1.1.01",      // Caja USD
+        "CHECKING_ARS": "1.1.02",  // Bancos ARS
+        "CHECKING_USD": "1.1.02",  // Bancos USD
+        "SAVINGS_ARS": "1.1.02",   // Bancos ARS (caja de ahorro)
+        "SAVINGS_USD": "1.1.02",   // Bancos USD (caja de ahorro)
+        "CREDIT_CARD": "1.1.04",    // Mercado Pago
+        "ASSETS": "1.1.05",        // Activos
+      }
+
+      const accountCode = typeToAccountCodeMap[type]
+      
+      if (accountCode) {
+        // Buscar el chart_account_id por código
+        const { data: chartAccount, error: chartError } = await (supabase.from("chart_of_accounts") as any)
+          .select("id, account_code, account_name, is_active")
+          .eq("account_code", accountCode)
+          .eq("is_active", true)
+          .maybeSingle()
+
+        if (!chartError && chartAccount) {
+          finalChartAccountId = chartAccount.id
+          console.log(`✅ Asignado automáticamente chart_account_id ${accountCode} (${chartAccount.account_name}) para tipo ${type}`)
+        } else {
+          return NextResponse.json(
+            { 
+              error: `No se encontró una cuenta del plan de cuentas con código ${accountCode} para el tipo ${type}. Por favor, especifique chart_account_id manualmente.` 
+            },
+            { status: 400 }
+          )
+        }
+      } else {
+        return NextResponse.json(
+          { 
+            error: `No se puede asignar automáticamente chart_account_id para el tipo ${type}. Por favor, especifique chart_account_id manualmente.` 
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Verificar que el chart_account_id existe y está activo
     const { data: chartAccount, error: chartError } = await (supabase.from("chart_of_accounts") as any)
       .select("id, account_code, account_name, category, is_active")
-      .eq("id", chart_account_id)
+      .eq("id", finalChartAccountId)
       .single()
 
     if (chartError || !chartAccount) {
@@ -140,7 +192,7 @@ export async function POST(request: Request) {
       currency,
       agency_id,
       initial_balance: Number(initial_balance) || 0,
-      chart_account_id, // Obligatorio: cuenta debe estar ligada al plan de cuentas
+      chart_account_id: finalChartAccountId, // Asignado automáticamente o proporcionado
       notes: notes || null,
       is_active: is_active !== undefined ? is_active : true,
       created_by: user.id,

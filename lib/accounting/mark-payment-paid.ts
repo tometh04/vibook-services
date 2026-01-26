@@ -9,6 +9,7 @@ import {
   createLedgerMovement,
   calculateARSEquivalent,
   getOrCreateDefaultAccount,
+  validateAccountBalanceForExpense,
 } from "@/lib/accounting/ledger"
 import { autoCalculateFXForPayment } from "@/lib/accounting/fx"
 import { markOperatorPaymentAsPaid } from "@/lib/accounting/operator-payments"
@@ -619,6 +620,21 @@ export async function markPaymentAsPaid({
         // para asegurar que el balance se actualice correctamente
         if (accountId === resultAccountId) {
           console.log(`⚠️ accountId (${accountId}) es igual a resultAccountId, el movimiento ya se creó arriba`)
+        }
+
+        // Validar saldo suficiente antes de permitir egreso
+        if (paymentData.direction === "EXPENSE") {
+          try {
+            await validateAccountBalanceForExpense(
+              accountId,
+              parseFloat(paymentData.amount),
+              paymentData.currency as "ARS" | "USD",
+              supabase,
+              paymentData.currency === "USD" ? exchangeRate : null
+            )
+          } catch (error: any) {
+            throw new Error(error.message || "Error validando saldo de cuenta")
+          }
         }
 
         await createLedgerMovement(

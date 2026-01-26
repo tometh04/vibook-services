@@ -11,6 +11,7 @@ import {
   createLedgerMovement,
   getOrCreateDefaultAccount,
   calculateARSEquivalent,
+  validateAccountBalanceForExpense,
 } from "@/lib/accounting/ledger"
 import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
@@ -20,11 +21,11 @@ export async function POST(request: Request) {
     const supabase = await createServerClient()
     const body = await request.json()
 
-    const { commissionId, amount, currency, datePaid, method, notes } = body
+    const { commissionId, amount, currency, datePaid, method, notes, financial_account_id } = body
 
-    if (!commissionId || !amount || !datePaid) {
+    if (!commissionId || !amount || !datePaid || !financial_account_id) {
       return NextResponse.json(
-        { error: "Faltan campos requeridos: commissionId, amount, datePaid" },
+        { error: "Faltan campos requeridos: commissionId, amount, datePaid, financial_account_id" },
         { status: 400 }
       )
     }
@@ -62,16 +63,31 @@ export async function POST(request: Request) {
 
     const operation = commission.operations
 
-    // Obtener cuenta financiera por defecto
-    const accountType = currency === "USD" ? "USD" : "CASH"
-    const accountId = await getOrCreateDefaultAccount(
-      accountType,
-      currency as "ARS" | "USD",
-      user.id,
-      supabase
-    )
+    // Validar que la cuenta financiera existe y está activa
+    const { data: account, error: accountError } = await (supabase.from("financial_accounts") as any)
+      .select("id, is_active, currency")
+      .eq("id", financial_account_id)
+      .single()
 
-    // Calcular ARS equivalent
+    if (accountError || !account) {
+      return NextResponse.json({ error: "Cuenta financiera no encontrada" }, { status: 400 })
+    }
+
+    if (!account.is_active) {
+      return NextResponse.json({ error: "La cuenta financiera seleccionada no está activa" }, { status: 400 })
+    }
+
+    // Validar que la moneda coincida
+    if (currency !== account.currency) {
+      return NextResponse.json(
+        { error: `La moneda de la comisión (${currency}) no coincide con la moneda de la cuenta (${account.currency})` },
+        { status: 400 }
+      )
+    }
+
+    const accountId = financial_account_id
+
+    // Calcular ARS equivalent y tipo de cambio
     let exchangeRate: number | null = null
     if (currency === "USD") {
       const rateDate = datePaid ? new Date(datePaid) : new Date()
@@ -87,6 +103,28 @@ export async function POST(request: Request) {
         console.warn(`No exchange rate found for ${rateDate.toISOString()}, using fallback 1000`)
         exchangeRate = 1000
       }
+    } else if (currency === "ARS") {
+      // Para ARS también necesitamos tipo de cambio si la cuenta es USD
+      if (account.currency === "USD") {
+        const rateDate = datePaid ? new Date(datePaid) : new Date()
+        exchangeRate = await getExchangeRate(supabase, rateDate)
+        if (!exchangeRate) {
+          exchangeRate = await getLatestExchangeRate(supabase)
+        }
+        if (!exchangeRate) {
+          return NextResponse.json(
+            { error: "Se requiere un tipo de cambio para pagar comisión en ARS desde una cuenta USD" },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
+    // Validar saldo suficiente antes de permitir el pago
+    try {
+      await validateAccountBalanceForExpense(accountId, parseFloat(amount), currency as "ARS" | "USD", supabase, exchangeRate)
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
     
     const amountARS = calculateARSEquivalent(

@@ -88,11 +88,11 @@ export function NewPaymentDialog({
     },
   })
 
-  // Cargar cuentas financieras
+  // Cargar cuentas financieras (excluyendo cuentas contables)
   useEffect(() => {
     async function loadAccounts() {
       try {
-        const response = await fetch("/api/accounting/financial-accounts")
+        const response = await fetch("/api/accounting/financial-accounts?excludeAccountingOnly=true")
         if (response.ok) {
           const data = await response.json()
           setFinancialAccounts((data.accounts || []).filter((acc: any) => acc.is_active))

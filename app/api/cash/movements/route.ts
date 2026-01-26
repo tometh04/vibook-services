@@ -5,6 +5,7 @@ import {
   createLedgerMovement,
   calculateARSEquivalent,
   getOrCreateDefaultAccount,
+  validateAccountBalanceForExpense,
 } from "@/lib/accounting/ledger"
 import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
@@ -129,6 +130,15 @@ export async function POST(request: Request) {
 
     // Mapear type de cash_movement a ledger type
     const ledgerType = type === "INCOME" ? "INCOME" : "EXPENSE"
+
+    // Validar saldo suficiente antes de permitir egreso
+    if (type === "EXPENSE") {
+      try {
+        await validateAccountBalanceForExpense(accountId, Number(amount), currency as "ARS" | "USD", supabase, exchangeRate)
+      } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
+    }
 
     // Mapear method según category (simplificado por ahora)
     const methodMap: Record<string, "CASH" | "BANK" | "MP" | "USD" | "OTHER"> = {

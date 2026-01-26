@@ -428,11 +428,11 @@ export function OperationPaymentsSection({
     },
   })
 
-  // Cargar cuentas financieras cuando se abre el diálogo
+  // Cargar cuentas financieras cuando se abre el diálogo (excluyendo cuentas contables)
   useEffect(() => {
     async function loadAccounts() {
       try {
-        const response = await fetch("/api/accounting/financial-accounts")
+        const response = await fetch("/api/accounting/financial-accounts?excludeAccountingOnly=true")
         if (response.ok) {
           const data = await response.json()
           setFinancialAccounts((data.accounts || []).filter((acc: any) => acc.is_active))

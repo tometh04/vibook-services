@@ -82,6 +82,7 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
   const [loading, setLoading] = useState(true)
   const [accounts, setAccounts] = useState<any[]>([])
   const [agencies, setAgencies] = useState<any[]>(initialAgencies)
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string>("ALL")
   const [openDialog, setOpenDialog] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false)
@@ -322,8 +323,16 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
     )
   }
 
+  // Filtrar cuentas por agencia seleccionada
+  const filteredAccounts = selectedAgencyId === "ALL" 
+    ? accounts 
+    : accounts.filter((account) => {
+        const agencyId = account.agency_id || (account.agencies as any)?.id
+        return agencyId === selectedAgencyId
+      })
+
   // Agrupar por agencia
-  const accountsByAgency = accounts.reduce((acc, account) => {
+  const accountsByAgency = filteredAccounts.reduce((acc, account) => {
     // Asegurar que agency_id esté disponible (puede venir directamente o desde agencies)
     const agencyId = account.agency_id || (account.agencies as any)?.id || "sin-agencia"
     if (!acc[agencyId]) {
@@ -345,6 +354,20 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
           <p className="text-muted-foreground">Gestiona todas las cuentas y cajas de las agencias</p>
         </div>
         <div className="flex gap-2">
+          {/* Filtro de agencia */}
+          <Select value={selectedAgencyId} onValueChange={setSelectedAgencyId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Todas las agencias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las agencias</SelectItem>
+              {agencies.map((agency) => (
+                <SelectItem key={agency.id} value={agency.id}>
+                  {agency.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {accounts.length > 0 && (
             <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
               <DialogTrigger asChild>

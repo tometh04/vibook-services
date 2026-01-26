@@ -472,3 +472,36 @@ export async function getOrCreateDefaultAccount(
   return newAccount.id
 }
 
+/**
+ * Identificar si una cuenta financiera es solo contable (Cuentas por Cobrar o Cuentas por Pagar)
+ * Estas cuentas NO deben aparecer en selecciones de pagos/ingresos/transferencias
+ * porque son cuentas contables que no reciben transferencias desde caja/banco
+ */
+export async function isAccountingOnlyAccount(
+  accountId: string,
+  supabase: SupabaseClient<Database>
+): Promise<boolean> {
+  const { data: account, error } = await (supabase.from("financial_accounts") as any)
+    .select(`
+      chart_account_id,
+      chart_of_accounts:chart_account_id(
+        account_code
+      )
+    `)
+    .eq("id", accountId)
+    .single()
+
+  if (error || !account || !account.chart_of_accounts) {
+    return false
+  }
+
+  const accountCode = account.chart_of_accounts.account_code
+
+  // Cuentas contables que NO deben aparecer en selecciones:
+  // - 1.1.03: Cuentas por Cobrar
+  // - 2.1.01: Cuentas por Pagar
+  const accountingOnlyCodes = ["1.1.03", "2.1.01"]
+
+  return accountingOnlyCodes.includes(accountCode)
+}
+

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { validateAccountBalanceForExpense } from "@/lib/accounting/ledger"
+import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 // GET - Obtener retiros (opcionalmente filtrados por socio)
 export async function GET(request: Request) {
@@ -91,6 +93,50 @@ export async function POST(request: Request) {
 
     if (partnerError || !partner) {
       return NextResponse.json({ error: "Socio no encontrado" }, { status: 404 })
+    }
+
+    // Validar cuenta financiera y saldo suficiente
+    if (account_id) {
+      const { data: account, error: accountError } = await (supabase.from("financial_accounts") as any)
+        .select("id, is_active, currency")
+        .eq("id", account_id)
+        .single()
+
+      if (accountError || !account) {
+        return NextResponse.json({ error: "Cuenta financiera no encontrada" }, { status: 400 })
+      }
+
+      if (!account.is_active) {
+        return NextResponse.json({ error: "La cuenta financiera seleccionada no está activa" }, { status: 400 })
+      }
+
+      // Validar que la moneda coincida
+      if (currency !== account.currency) {
+        return NextResponse.json(
+          { error: `La moneda del retiro (${currency}) no coincide con la moneda de la cuenta (${account.currency})` },
+          { status: 400 }
+        )
+      }
+
+      // Calcular tipo de cambio si es necesario
+      let exchangeRate: number | null = null
+      if (currency === "USD") {
+        const rateDate = withdrawal_date ? new Date(withdrawal_date) : new Date()
+        exchangeRate = await getExchangeRate(supabase, rateDate)
+        if (!exchangeRate) {
+          exchangeRate = await getLatestExchangeRate(supabase)
+        }
+        if (!exchangeRate) {
+          exchangeRate = 1000 // Fallback
+        }
+      }
+
+      // Validar saldo suficiente
+      try {
+        await validateAccountBalanceForExpense(account_id, amount, currency as "ARS" | "USD", supabase, exchangeRate)
+      } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
     }
 
     // Crear movimiento de caja (egreso)
