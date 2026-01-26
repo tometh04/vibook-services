@@ -135,6 +135,8 @@ export function NewPaymentDialog({
 
       toast.success("Pago creado exitosamente")
       form.reset()
+      // Refrescar cuentas financieras para actualizar saldos
+      window.dispatchEvent(new CustomEvent("refresh-financial-accounts"))
       onOpenChange(false)
       onSuccess()
     } catch (error: any) {

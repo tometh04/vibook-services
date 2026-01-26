@@ -268,7 +268,14 @@ export async function markPaymentAsPaid({
         // Calcular exchange rate si es USD
         let exchangeRate: number | null = null
         if (paymentData.currency === "USD") {
-          exchangeRate = await getExchangeRate(supabase, new Date(datePaid))
+          // Proteger contra datePaid undefined/null
+          const dateForRate = datePaid ? new Date(datePaid) : new Date()
+          if (isNaN(dateForRate.getTime())) {
+            console.warn(`Invalid datePaid for payment ${paymentId}, using today's date`)
+            exchangeRate = await getExchangeRate(supabase, new Date())
+          } else {
+            exchangeRate = await getExchangeRate(supabase, dateForRate)
+          }
           if (!exchangeRate) {
             const { getLatestExchangeRate } = await import("@/lib/accounting/exchange-rates")
             exchangeRate = await getLatestExchangeRate(supabase)
@@ -329,7 +336,14 @@ export async function markPaymentAsPaid({
         // Calcular exchange rate si es USD
         let exchangeRate: number | null = null
         if (paymentData.currency === "USD") {
-          exchangeRate = await getExchangeRate(supabase, new Date(datePaid))
+          // Proteger contra datePaid undefined/null
+          const dateForRate = datePaid ? new Date(datePaid) : new Date()
+          if (isNaN(dateForRate.getTime())) {
+            console.warn(`Invalid datePaid for payment ${paymentId}, using today's date`)
+            exchangeRate = await getExchangeRate(supabase, new Date())
+          } else {
+            exchangeRate = await getExchangeRate(supabase, dateForRate)
+          }
           if (!exchangeRate) {
             const { getLatestExchangeRate } = await import("@/lib/accounting/exchange-rates")
             exchangeRate = await getLatestExchangeRate(supabase)

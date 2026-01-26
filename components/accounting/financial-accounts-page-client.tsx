@@ -88,7 +88,6 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
   const [accountToDelete, setAccountToDelete] = useState<any>(null)
   const [transferToAccountId, setTransferToAccountId] = useState<string>("")
   const [deleting, setDeleting] = useState(false)
-  const [fixingPayments, setFixingPayments] = useState(false)
   const [formData, setFormData] = useState<any>({
     name: "",
     type: "",
@@ -110,6 +109,15 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
 
   useEffect(() => {
     fetchData()
+    
+    // Escuchar evento para refrescar cuentas después de crear pagos
+    const handleRefresh = () => {
+      fetchData()
+    }
+    window.addEventListener("refresh-financial-accounts", handleRefresh)
+    return () => {
+      window.removeEventListener("refresh-financial-accounts", handleRefresh)
+    }
   }, [])
 
   async function fetchData() {
@@ -305,30 +313,6 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
     }
   }
 
-  const handleFixMissingMovements = async () => {
-    setFixingPayments(true)
-    try {
-      const res = await fetch("/api/payments/fix-missing-movements", {
-        method: "POST",
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || "Error al corregir pagos")
-      }
-
-      toast.success(data.message || `Corregidos ${data.fixed} pagos`)
-      if (data.errors > 0) {
-        toast.warning(`${data.errors} pagos tuvieron errores. Revisa los logs.`)
-      }
-      fetchData() // Recargar para ver balances actualizados
-    } catch (error: any) {
-      toast.error(error.message || "Error al corregir pagos")
-    } finally {
-      setFixingPayments(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -361,23 +345,6 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
           <p className="text-muted-foreground">Gestiona todas las cuentas y cajas de las agencias</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleFixMissingMovements}
-            disabled={fixingPayments}
-          >
-            {fixingPayments ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Corrigiendo...
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                Corregir Pagos Sin Movimientos
-              </>
-            )}
-          </Button>
           {accounts.length > 0 && (
             <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
               <DialogTrigger asChild>

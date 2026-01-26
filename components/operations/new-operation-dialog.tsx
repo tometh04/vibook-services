@@ -90,8 +90,6 @@ const operationSchema = z.object({
   sale_amount_total: z.coerce.number().min(0, "El monto debe ser mayor a 0"),
   operator_cost: z.coerce.number().min(0, "El costo debe ser mayor a 0").optional(),
   currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
-  sale_currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
-  operator_cost_currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
   notes: z.string().optional().nullable(),
   // Códigos de reserva (opcionales)
   reservation_code_air: z.string().optional().nullable(),
@@ -1071,7 +1069,18 @@ export function NewOperationDialog({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        <Calendar 
+                          mode="single" 
+                          selected={field.value} 
+                          onSelect={field.onChange} 
+                          initialFocus
+                          disabled={(date) => {
+                            const tomorrow = new Date()
+                            tomorrow.setDate(tomorrow.getDate() + 1)
+                            tomorrow.setHours(0, 0, 0, 0)
+                            return date < tomorrow
+                          }}
+                        />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
@@ -1229,54 +1238,6 @@ export function NewOperationDialog({
               />
             </div>
 
-            <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold mb-4">Monedas Separadas</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="sale_currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Moneda de Venta</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="ARS">ARS</SelectItem>
-                          <SelectItem value="USD">USD</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="operator_cost_currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Moneda de Costo de Operador</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="ARS">ARS</SelectItem>
-                          <SelectItem value="USD">USD</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <FormField

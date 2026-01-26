@@ -513,6 +513,8 @@ export function OperationPaymentsSection({
 
       setDialogOpen(false)
       form.reset()
+      // Refrescar cuentas financieras para actualizar saldos
+      window.dispatchEvent(new CustomEvent("refresh-financial-accounts"))
       router.refresh()
     } catch (error) {
       console.error("Error registering payment:", error)
@@ -633,7 +635,10 @@ export function OperationPaymentsSection({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{payment.method || "-"}</TableCell>
+                    <TableCell>
+                      {payment.method || "Transferencia"}
+                      {payment.financial_accounts?.name && ` - ${payment.financial_accounts.name}`}
+                    </TableCell>
                     <TableCell>
                       <div>
                         {payment.currency} {Number(payment.amount).toLocaleString("es-AR", { minimumFractionDigits: 2 })}

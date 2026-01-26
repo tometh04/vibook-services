@@ -72,7 +72,10 @@ export async function GET(
       .order("uploaded_at", { ascending: false }),
     supabase
       .from("payments")
-      .select("*")
+      .select(`
+        *,
+        financial_accounts:account_id(id, name)
+      `)
       .eq("operation_id", operationId)
       .order("date_due", { ascending: true }),
     supabase
