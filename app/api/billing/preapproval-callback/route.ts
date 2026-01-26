@@ -174,9 +174,58 @@ export async function GET(request: Request) {
       subscriptionData.current_period_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     }
 
-    // Trial de 7 días
-    subscriptionData.trial_start = new Date().toISOString()
-    subscriptionData.trial_end = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    // Verificar si es upgrade durante trial o si ya usó trial
+    let isUpgrade = false
+    let hasUsedTrial = false
+    
+    if (preapproval.external_reference) {
+      try {
+        const externalRef = JSON.parse(preapproval.external_reference)
+        isUpgrade = externalRef.is_upgrade || false
+        hasUsedTrial = externalRef.has_used_trial || false
+      } catch (e) {
+        console.error('Error parseando external_reference:', e)
+      }
+    }
+
+    // Obtener información de la agencia
+    const { data: agencyData } = await supabase
+      .from("agencies")
+      .select("has_used_trial")
+      .eq("id", agencyId)
+      .single()
+
+    hasUsedTrial = hasUsedTrial || agencyData?.has_used_trial || false
+
+    // Si es upgrade durante trial o ya usó trial, NO crear trial - pago inmediato
+    if (isUpgrade || hasUsedTrial) {
+      subscriptionData.status = 'ACTIVE'
+      subscriptionData.trial_start = null
+      subscriptionData.trial_end = null
+      // Calcular período desde ahora (30 días)
+      subscriptionData.current_period_start = new Date().toISOString()
+      subscriptionData.current_period_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    } else {
+      // Obtener configuración de días de trial
+      const { data: trialConfig } = await supabase
+        .from("system_config")
+        .select("value")
+        .eq("key", "trial_days")
+        .single()
+
+      const trialDays = trialConfig ? parseInt(trialConfig.value) : 7 // Default 7 días
+
+      // Trial usando configuración
+      subscriptionData.status = 'TRIAL'
+      subscriptionData.trial_start = new Date().toISOString()
+      subscriptionData.trial_end = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
+      
+      // IMPORTANTE: Marcar que la agencia ya usó el trial
+      await supabase
+        .from("agencies")
+        .update({ has_used_trial: true })
+        .eq("id", agencyId)
+    }
 
     let subscriptionResult: any
     if (existingSubscription) {

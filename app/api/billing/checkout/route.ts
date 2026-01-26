@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const body = await request.json()
-    const { planId } = body
+    const { planId, isUpgradeDuringTrial } = body
 
     if (!planId) {
       return NextResponse.json(
@@ -61,23 +61,77 @@ export async function POST(request: Request) {
 
     const agencyId = (userAgencies as any).agency_id
 
+    // Obtener información de la agencia para verificar si ya usó trial
+    const { data: agencyData } = await supabase
+      .from("agencies")
+      .select("has_used_trial")
+      .eq("id", agencyId)
+      .single()
+
+    // Obtener configuración de días de trial
+    const { data: trialConfig } = await supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "trial_days")
+      .single()
+
+    const trialDays = trialConfig ? parseInt(trialConfig.value) : 7 // Default 7 días
+
     // Verificar si ya tiene una suscripción activa
     const { data: existingSubscription } = await supabase
       .from("subscriptions")
-      .select("id, status")
+      .select("id, status, trial_end, plan_id")
       .eq("agency_id", agencyId)
       .maybeSingle()
+
+    // URGENTE: Si ya usó trial, NO permitir otro trial - solo pago inmediato
+    const hasUsedTrial = agencyData?.has_used_trial || false
+    
+    // Si está haciendo upgrade durante trial, debe perder días y pagar inmediatamente
+    const isUpgrade = isUpgradeDuringTrial && existingSubscription?.status === 'TRIAL'
+    
+    if (hasUsedTrial && !isUpgrade) {
+      // Si ya usó trial y NO es upgrade, debe pagar inmediatamente (sin trial)
+      return NextResponse.json(
+        { 
+          error: "Ya utilizaste tu período de prueba gratuito. Por favor, elegí un plan para continuar.",
+          requiresImmediatePayment: true
+        },
+        { status: 400 }
+      )
+    }
+
+    // Si es upgrade durante trial, mostrar advertencia
+    if (isUpgrade) {
+      const trialEndDate = existingSubscription?.trial_end ? new Date(existingSubscription.trial_end) : null
+      const daysRemaining = trialEndDate ? Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
+      
+      return NextResponse.json({
+        warning: `⚠️ Al actualizar perderás los ${daysRemaining} días restantes de tu prueba gratuita y se te cobrará inmediatamente.`,
+        requiresConfirmation: true,
+        proceedUrl: `/api/billing/checkout-immediate?planId=${planId}`
+      })
+    }
 
     // Crear Preapproval dinámicamente usando la API de Mercado Pago
     // Esto evita problemas de autorización de dominio
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vibook.ai'
     const { createPreApproval } = await import('@/lib/mercadopago/client')
     
-    // Calcular fecha de inicio (7 días desde ahora para el trial)
-    const trialStartDate = new Date()
-    trialStartDate.setDate(trialStartDate.getDate() + 7)
+    // Si ya usó trial o es upgrade durante trial, cobrar inmediatamente (sin trial)
+    // Si no, crear trial usando configuración
+    let startDate: Date
+    if (hasUsedTrial || isUpgrade) {
+      // Pago inmediato - comenzar hoy
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() + 1) // Mañana para dar tiempo al procesamiento
+    } else {
+      // Trial - comenzar después de trialDays días
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() + trialDays)
+    }
     
-    // Crear Preapproval con trial de 7 días
+    // Crear Preapproval
     const preapproval = await createPreApproval({
       reason: `Suscripción ${plan.display_name} - Vibook Gestión`,
       auto_recurring: {
@@ -85,13 +139,15 @@ export async function POST(request: Request) {
         frequency_type: 'days',
         transaction_amount: plan.price_monthly,
         currency_id: 'ARS',
-        start_date: trialStartDate.toISOString() // Comienza después del trial
+        start_date: startDate.toISOString()
       },
       payer_email: user.email,
       external_reference: JSON.stringify({
         agency_id: agencyId,
         plan_id: planId,
-        user_id: user.id
+        user_id: user.id,
+        is_upgrade: isUpgrade || false,
+        has_used_trial: hasUsedTrial
       }),
       back_url: `${appUrl}/api/billing/preapproval-callback`
     })
@@ -115,11 +171,11 @@ export async function POST(request: Request) {
           plan_id: planId,
           mp_preapproval_id: preapproval.id,
           mp_status: preapproval.status,
-          status: 'TRIAL',
+          status: hasUsedTrial || isUpgrade ? 'ACTIVE' : 'TRIAL',
           current_period_start: new Date().toISOString(),
-          current_period_end: trialStartDate.toISOString(),
-          trial_start: new Date().toISOString(),
-          trial_end: trialStartDate.toISOString(),
+          current_period_end: startDate.toISOString(),
+          trial_start: hasUsedTrial || isUpgrade ? null : new Date().toISOString(),
+          trial_end: hasUsedTrial || isUpgrade ? null : startDate.toISOString(),
           billing_cycle: 'MONTHLY'
         })
     }

@@ -51,10 +51,12 @@ export async function POST(request: Request) {
       if (limitCheck.limitReached) {
         return NextResponse.json(
           {
-            error: limitCheck.message || "Has alcanzado el límite de usuarios de tu plan",
+            error: limitCheck.message || `Has alcanzado el límite de ${limitCheck.limit} usuarios de tu plan. Podés seguir viendo tus usuarios, pero no podés crear nuevos. Eliminá usuarios existentes o actualizá tu plan para continuar.`,
             limitReached: true,
             limit: limitCheck.limit,
-            current: limitCheck.current
+            current: limitCheck.current,
+            canView: true,
+            canCreate: false
           },
           { status: 403 }
         )

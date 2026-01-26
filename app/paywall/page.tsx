@@ -14,16 +14,35 @@ export default function PaywallPage() {
   const router = useRouter()
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasUsedTrial, setHasUsedTrial] = useState(false)
+  const [trialDays, setTrialDays] = useState(7)
   const { subscription, loading: subscriptionLoading } = useSubscription()
 
   useEffect(() => {
     async function fetchPlans() {
       try {
-        const response = await fetch('/api/billing/plans')
-        const data = await response.json()
+        const [plansResponse, agencyResponse, configResponse] = await Promise.all([
+          fetch('/api/billing/plans'),
+          fetch('/api/agencies/current'),
+          fetch('/api/system-config?key=trial_days')
+        ])
+        
+        const plansData = await plansResponse.json()
         // Filtrar plan FREE, solo mostrar planes de pago
-        const paidPlans = (data.plans || []).filter((plan: SubscriptionPlan) => plan.name !== 'FREE')
+        const paidPlans = (plansData.plans || []).filter((plan: SubscriptionPlan) => plan.name !== 'FREE')
         setPlans(paidPlans)
+
+        // Verificar si ya usó trial
+        if (agencyResponse.ok) {
+          const agencyData = await agencyResponse.json()
+          setHasUsedTrial(agencyData.has_used_trial || false)
+        }
+
+        // Obtener días de trial configurados
+        if (configResponse.ok) {
+          const configData = await configResponse.json()
+          setTrialDays(configData.value ? parseInt(configData.value) : 7)
+        }
       } catch (error) {
         console.error('Error fetching plans:', error)
       } finally {
@@ -33,20 +52,34 @@ export default function PaywallPage() {
     fetchPlans()
   }, [])
 
-  const handleUpgrade = async (planId: string) => {
+  const handleUpgrade = async (planId: string, isUpgradeDuringTrial: boolean = false) => {
     try {
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId, isUpgradeDuringTrial }),
       })
       
       if (!response.ok) {
         const errorData = await response.json()
+        
+        // Si ya usó trial, mostrar mensaje específico
+        if (errorData.requiresImmediatePayment) {
+          alert('Ya utilizaste tu período de prueba gratuito. Por favor, elegí un plan para continuar.')
+          return
+        }
+        
         throw new Error(errorData.error || 'Error al crear la sesión de pago')
       }
       
       const data = await response.json()
+      
+      // Si es upgrade durante trial, mostrar advertencia
+      if (isUpgradeDuringTrial && data.warning) {
+        const confirmed = confirm(data.warning + '\n\n¿Deseas continuar?')
+        if (!confirmed) return
+      }
+      
       const checkoutUrl = data.checkoutUrl || data.initPoint || data.sandboxInitPoint
       
       if (checkoutUrl) {
@@ -105,16 +138,24 @@ export default function PaywallPage() {
             <Sparkles className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
-            Comenzá tu prueba gratuita
+            {hasUsedTrial ? 'Elegí tu plan' : `Comenzá tu prueba gratuita (${trialDays} días)`}
           </h1>
           <p className="text-xl md:text-2xl text-slate-300 leading-relaxed">
             Elegí el plan que mejor se adapte a tu agencia
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Badge className="bg-green-500/20 text-green-400 border-green-500/50 px-4 py-1.5 text-sm font-medium">
-              <Zap className="h-3.5 w-3.5 mr-1.5" />
-              7 días gratis
-            </Badge>
+            {!hasUsedTrial && (
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/50 px-4 py-1.5 text-sm font-medium">
+                <Zap className="h-3.5 w-3.5 mr-1.5" />
+                {trialDays} días gratis
+              </Badge>
+            )}
+            {hasUsedTrial && (
+              <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/50 px-4 py-1.5 text-sm font-medium">
+                <Shield className="h-3.5 w-3.5 mr-1.5" />
+                Ya usaste tu prueba gratuita
+              </Badge>
+            )}
             <Badge variant="outline" className="border-slate-600 text-slate-300 px-4 py-1.5 text-sm font-medium">
               <CreditCard className="h-3.5 w-3.5 mr-1.5" />
               Sin tarjeta requerida
@@ -259,11 +300,17 @@ export default function PaywallPage() {
           <div className="flex items-center justify-center gap-2 text-slate-400">
             <Shield className="h-4 w-4" />
             <p className="text-sm">
-              Tu información está protegida. No se realizará ningún cobro durante los 7 días de prueba.
+              {hasUsedTrial 
+              ? 'El pago se realizará inmediatamente al suscribirte.'
+              : `Tu información está protegida. No se realizará ningún cobro durante los ${trialDays} días de prueba.`
+            }
             </p>
           </div>
           <p className="text-sm text-slate-500">
-            Después de la prueba, se cobrará automáticamente según el plan elegido. Podés cancelar en cualquier momento.
+            {hasUsedTrial
+              ? 'Podés cancelar en cualquier momento desde la configuración de tu cuenta.'
+              : `Después de la prueba, se cobrará automáticamente según el plan elegido. Podés cancelar en cualquier momento.`
+            }
           </p>
         </div>
       </div>

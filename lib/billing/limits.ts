@@ -131,7 +131,7 @@ export async function checkSubscriptionLimit(
     }
 
     const message = limitReached
-      ? `Has alcanzado el límite de ${limit} ${limitMessages[limitType]} de tu plan ${planNames[plan.name] || plan.name}. Por favor, actualizá tu plan para continuar.`
+      ? `Has alcanzado el límite de ${limit} ${limitMessages[limitType]} de tu plan ${planNames[plan.name] || plan.name}. Podés seguir viendo tus datos, pero no podés crear nuevos. ${limitType === 'users' ? 'Eliminá usuarios existentes o actualizá tu plan para continuar.' : 'Actualizá tu plan para continuar.'}`
       : undefined
 
     return {
