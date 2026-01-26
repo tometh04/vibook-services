@@ -57,9 +57,8 @@ export async function GET(request: Request) {
       })
     }
 
-    // Query de leads con TODOS los campos relevantes
-    let leadsQuery = supabase
-      .from("leads")
+    // Query de leads - campos básicos primero, luego agregamos opcionales
+    let leadsQuery = (supabase.from("leads") as any)
       .select(`
         id,
         status,
@@ -77,6 +76,9 @@ export async function GET(request: Request) {
         deposit_currency,
         deposit_method,
         deposit_date,
+        created_at,
+        updated_at,
+        agency_id,
         budget_min,
         budget_max,
         budget_currency,
@@ -84,10 +86,7 @@ export async function GET(request: Request) {
         return_date,
         adults,
         children,
-        infants,
-        created_at,
-        updated_at,
-        agency_id
+        infants
       `)
 
     // Filtrar por agencia
@@ -362,10 +361,10 @@ export async function GET(request: Request) {
         }
       }
 
-      // Estadísticas de presupuesto
-      if (lead.budget_min || lead.budget_max) {
-        const budgetMin = lead.budget_min ? parseFloat(String(lead.budget_min)) : 0
-        const budgetMax = lead.budget_max ? parseFloat(String(lead.budget_max)) : 0
+      // Estadísticas de presupuesto (campos opcionales que pueden no existir)
+      const budgetMin = (lead as any).budget_min ? parseFloat(String((lead as any).budget_min)) : 0
+      const budgetMax = (lead as any).budget_max ? parseFloat(String((lead as any).budget_max)) : 0
+      if (budgetMin > 0 || budgetMax > 0) {
         const budgetAvg = budgetMax > 0 ? (budgetMin + budgetMax) / 2 : budgetMin
         if (budgetAvg > 0) {
           totalBudget += budgetAvg
@@ -373,10 +372,10 @@ export async function GET(request: Request) {
         }
       }
 
-      // Estadísticas de pasajeros
-      totalAdults += lead.adults ? parseInt(String(lead.adults)) : 0
-      totalChildren += lead.children ? parseInt(String(lead.children)) : 0
-      totalInfants += lead.infants ? parseInt(String(lead.infants)) : 0
+      // Estadísticas de pasajeros (campos opcionales que pueden no existir)
+      totalAdults += (lead as any).adults ? parseInt(String((lead as any).adults)) : 0
+      totalChildren += (lead as any).children ? parseInt(String((lead as any).children)) : 0
+      totalInfants += (lead as any).infants ? parseInt(String((lead as any).infants)) : 0
     }
 
     // Calcular tasas de conversión
@@ -445,9 +444,9 @@ export async function GET(request: Request) {
     ]
 
     for (const lead of leads || []) {
-      if (lead.budget_min || lead.budget_max) {
-        const budgetMin = lead.budget_min ? parseFloat(String(lead.budget_min)) : 0
-        const budgetMax = lead.budget_max ? parseFloat(String(lead.budget_max)) : 0
+      const budgetMin = (lead as any).budget_min ? parseFloat(String((lead as any).budget_min)) : 0
+      const budgetMax = (lead as any).budget_max ? parseFloat(String((lead as any).budget_max)) : 0
+      if (budgetMin > 0 || budgetMax > 0) {
         const budgetAvg = budgetMax > 0 ? (budgetMin + budgetMax) / 2 : budgetMin
         if (budgetAvg > 0) {
           const range = budgetRanges.find(r => budgetAvg >= r.min && budgetAvg < r.max)
