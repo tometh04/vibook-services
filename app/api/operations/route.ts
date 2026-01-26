@@ -1097,6 +1097,14 @@ export async function GET(request: Request) {
       .select("operation_id, amount, currency, status, direction, payer_type")
       .in("operation_id", operationIds)
     
+    // OPTIMIZACIÓN: Crear mapa de operaciones primero para acceso O(1) en lugar de O(n)
+    const operationsMap = new Map<string, any>()
+    if (operations) {
+      for (const op of operations) {
+        operationsMap.set(op.id, op)
+      }
+    }
+    
     // Agrupar pagos por operación y calcular montos (cobros y pagos a operadores)
     const paymentsByOperation: Record<string, { 
       paid: number; // Cobros pagados (INCOME PAID)
@@ -1112,7 +1120,8 @@ export async function GET(request: Request) {
       for (const payment of paymentsArray) {
         const opId = payment.operation_id
         if (!paymentsByOperation[opId]) {
-          const op = (operations || []).find((o: any) => o.id === opId)
+          // OPTIMIZACIÓN: Usar Map en lugar de find() - O(1) en lugar de O(n)
+          const op = operationsMap.get(opId)
           paymentsByOperation[opId] = { 
             paid: 0, 
             pending: 0, 
