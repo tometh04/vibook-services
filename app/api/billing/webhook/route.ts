@@ -245,11 +245,16 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       // Resetear intentos de pago cuando hay pago exitoso
       if (subscription) {
         const subData = subscription as any
-        await getSupabaseAdmin().rpc('reset_payment_attempts', {
-          subscription_id_param: subData.id
-        }).catch((err: any) => {
+        try {
+          const { error: resetError } = await getSupabaseAdmin().rpc('reset_payment_attempts', {
+            subscription_id_param: subData.id
+          })
+          if (resetError) {
+            console.error('Error reseteando payment attempts:', resetError)
+          }
+        } catch (err: any) {
           console.error('Error reseteando payment attempts:', err)
-        })
+        }
       }
     } else if (mpStatus === 'pending') {
       status = 'TRIAL'
@@ -258,11 +263,16 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       // La función increment_payment_attempt manejará el cambio a PAST_DUE después de 3 intentos
       if (subscription) {
         const subData = subscription as any
-        await getSupabaseAdmin().rpc('increment_payment_attempt', {
-          subscription_id_param: subData.id
-        }).catch((err: any) => {
+        try {
+          const { error: incrementError } = await getSupabaseAdmin().rpc('increment_payment_attempt', {
+            subscription_id_param: subData.id
+          })
+          if (incrementError) {
+            console.error('Error incrementando payment attempts:', incrementError)
+          }
+        } catch (err: any) {
           console.error('Error incrementando payment attempts:', err)
-        })
+        }
       }
       // El status se determinará después según los intentos
       status = 'PAST_DUE' // Temporal, puede cambiar según intentos
