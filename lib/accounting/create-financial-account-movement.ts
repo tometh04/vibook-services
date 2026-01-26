@@ -84,7 +84,7 @@ export async function createFinancialAccountMovement({
     }
   } else if (currency === "ARS" && accountCurrency === "USD") {
     // Movimiento en ARS en cuenta USD: usar el tipo de cambio proporcionado (obligatorio)
-    exchangeRate = providedExchangeRate
+    exchangeRate = providedExchangeRate ?? null
     if (!exchangeRate || exchangeRate <= 0) {
       throw new Error("Se requiere un tipo de cambio explícito para realizar un movimiento en ARS en una cuenta USD")
     }
