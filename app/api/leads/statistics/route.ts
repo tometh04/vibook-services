@@ -427,12 +427,20 @@ export async function GET(request: Request) {
     const newThisMonth = monthlyStats[thisMonth]?.newLeads || 0
 
     // Promedio de presupuesto
-    const avgBudget = totalBudgetCount > 0 ? Math.round(totalBudget / totalBudgetCount) : 0
+    const avgBudget = totalBudgetCount > 0 && isFinite(totalBudget / totalBudgetCount) 
+      ? Math.round(totalBudget / totalBudgetCount) 
+      : 0
 
     // Promedio de pasajeros por lead
-    const avgAdults = totalLeads > 0 ? Math.round((totalAdults / totalLeads) * 10) / 10 : 0
-    const avgChildren = totalLeads > 0 ? Math.round((totalChildren / totalLeads) * 10) / 10 : 0
-    const avgInfants = totalLeads > 0 ? Math.round((totalInfants / totalLeads) * 10) / 10 : 0
+    const avgAdults = totalLeads > 0 && isFinite(totalAdults / totalLeads)
+      ? Math.round((totalAdults / totalLeads) * 10) / 10 
+      : 0
+    const avgChildren = totalLeads > 0 && isFinite(totalChildren / totalLeads)
+      ? Math.round((totalChildren / totalLeads) * 10) / 10 
+      : 0
+    const avgInfants = totalLeads > 0 && isFinite(totalInfants / totalLeads)
+      ? Math.round((totalInfants / totalLeads) * 10) / 10 
+      : 0
 
     // Distribución por presupuesto
     const budgetRanges = [
@@ -455,21 +463,26 @@ export async function GET(request: Request) {
       }
     }
 
+    // Asegurar que todos los valores sean números válidos
+    const safeTotalQuoted = isFinite(totalQuoted) ? totalQuoted : 0
+    const safeTotalDeposits = isFinite(totalDeposits) ? totalDeposits : 0
+    const safeTotalPassengers = totalAdults + totalChildren + totalInfants
+
     return NextResponse.json({
       overview: {
         totalLeads,
         activeLeads,
         wonLeads: totalWon,
         lostLeads: totalLost,
-        conversionRate: overallConversionRate,
-        totalQuoted,
-        totalDeposits,
+        conversionRate: isFinite(overallConversionRate) ? overallConversionRate : 0,
+        totalQuoted: safeTotalQuoted,
+        totalDeposits: safeTotalDeposits,
         newThisMonth,
-        avgBudget,
-        avgAdults,
-        avgChildren,
-        avgInfants,
-        totalPassengers: totalAdults + totalChildren + totalInfants,
+        avgBudget: isFinite(avgBudget) ? avgBudget : 0,
+        avgAdults: isFinite(avgAdults) ? avgAdults : 0,
+        avgChildren: isFinite(avgChildren) ? avgChildren : 0,
+        avgInfants: isFinite(avgInfants) ? avgInfants : 0,
+        totalPassengers: isFinite(safeTotalPassengers) ? safeTotalPassengers : 0,
       },
       pipeline: Object.values(pipeline),
       distributions: {
