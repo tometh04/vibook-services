@@ -150,6 +150,13 @@ export function BulkPaymentDialog({
     }
   }, [selectedOperatorId, selectedCurrency])
 
+  // Cargar deudas cuando se avanza al paso 3 o cambian los filtros
+  useEffect(() => {
+    if (step === 3 && selectedOperatorId && selectedCurrency && open) {
+      loadPendingDebts()
+    }
+  }, [step, selectedOperatorId, selectedCurrency, open, loadPendingDebts])
+
   // Reset al cerrar
   useEffect(() => {
     if (!open) {
