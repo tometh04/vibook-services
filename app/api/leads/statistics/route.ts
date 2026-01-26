@@ -20,8 +20,46 @@ export async function GET(request: Request) {
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
+    // Si no es SUPER_ADMIN y no tiene agencias, retornar datos vacíos
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({
+        overview: {
+          totalLeads: 0,
+          activeLeads: 0,
+          wonLeads: 0,
+          lostLeads: 0,
+          conversionRate: 0,
+          totalQuoted: 0,
+          totalDeposits: 0,
+          newThisMonth: 0,
+          avgBudget: 0,
+          avgAdults: 0,
+          avgChildren: 0,
+          avgInfants: 0,
+          totalPassengers: 0,
+        },
+        pipeline: [],
+        distributions: {
+          bySource: [],
+          byRegion: [],
+          byDestination: [],
+          bySeller: [],
+          byBudget: [],
+        },
+        trends: {
+          monthly: [],
+        },
+        rankings: {
+          topSellers: [],
+          topSources: [],
+          topDestinations: [],
+        },
+      })
+    }
+
     // Query de leads con TODOS los campos relevantes
-    let leadsQuery = (supabase.from("leads") as any)
+    let leadsQuery = supabase
+      .from("leads")
       .select(`
         id,
         status,
@@ -63,7 +101,79 @@ export async function GET(request: Request) {
 
     if (leadsError) {
       console.error("Error fetching leads:", leadsError)
-      return NextResponse.json({ error: "Error al obtener leads" }, { status: 500 })
+      return NextResponse.json({ 
+        error: "Error al obtener leads",
+        details: leadsError.message 
+      }, { status: 500 })
+    }
+
+    // Si no hay leads, retornar estructura vacía
+    if (!leads || leads.length === 0) {
+      const now = new Date()
+      const monthlyStats: Array<{
+        month: string
+        monthName: string
+        newLeads: number
+        wonLeads: number
+        lostLeads: number
+        quotedLeads: number
+        totalQuoted: number
+        totalDeposits: number
+      }> = []
+
+      for (let i = 0; i < months; i++) {
+        const date = subMonths(now, months - 1 - i)
+        monthlyStats.push({
+          month: format(date, "yyyy-MM"),
+          monthName: format(date, "MMM yy", { locale: es }),
+          newLeads: 0,
+          wonLeads: 0,
+          lostLeads: 0,
+          quotedLeads: 0,
+          totalQuoted: 0,
+          totalDeposits: 0,
+        })
+      }
+
+      return NextResponse.json({
+        overview: {
+          totalLeads: 0,
+          activeLeads: 0,
+          wonLeads: 0,
+          lostLeads: 0,
+          conversionRate: 0,
+          totalQuoted: 0,
+          totalDeposits: 0,
+          newThisMonth: 0,
+          avgBudget: 0,
+          avgAdults: 0,
+          avgChildren: 0,
+          avgInfants: 0,
+          totalPassengers: 0,
+        },
+        pipeline: [
+          { status: "NEW", label: "Nuevo", count: 0, value: 0 },
+          { status: "IN_PROGRESS", label: "En Progreso", count: 0, value: 0 },
+          { status: "QUOTED", label: "Cotizado", count: 0, value: 0 },
+          { status: "WON", label: "Ganado", count: 0, value: 0 },
+          { status: "LOST", label: "Perdido", count: 0, value: 0 },
+        ],
+        distributions: {
+          bySource: [],
+          byRegion: [],
+          byDestination: [],
+          bySeller: [],
+          byBudget: [],
+        },
+        trends: {
+          monthly: monthlyStats,
+        },
+        rankings: {
+          topSellers: [],
+          topSources: [],
+          topDestinations: [],
+        },
+      })
     }
 
     // Obtener nombres de vendedores en batch
@@ -374,8 +484,12 @@ export async function GET(request: Request) {
     })
   } catch (error: any) {
     console.error("Error in GET /api/leads/statistics:", error)
+    console.error("Error stack:", error.stack)
     return NextResponse.json(
-      { error: error.message || "Error al obtener estadísticas" },
+      { 
+        error: error.message || "Error al obtener estadísticas",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
