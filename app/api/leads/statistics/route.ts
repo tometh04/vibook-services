@@ -10,7 +10,15 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+    
     const supabase = await createServerClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Error de conexión" }, { status: 500 })
+    }
+    
     const { searchParams } = new URL(request.url)
 
     // Parámetros de filtro
