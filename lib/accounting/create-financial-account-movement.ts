@@ -68,7 +68,7 @@ export async function createFinancialAccountMovement({
   
   if (currency === "USD") {
     // Para movimientos en USD, siempre necesitamos tipo de cambio para calcular ARS equivalent
-    exchangeRate = providedExchangeRate
+    exchangeRate = providedExchangeRate ?? null
     if (!exchangeRate) {
       const rateDate = datePaid ? new Date(datePaid) : new Date()
       exchangeRate = await getExchangeRate(supabase, rateDate)
