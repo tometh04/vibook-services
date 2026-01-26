@@ -338,20 +338,27 @@ export async function GET(request: Request) {
 
       // Por mes
       if (lead.created_at) {
-        const monthKey = format(new Date(lead.created_at), "yyyy-MM")
-        if (monthlyStats[monthKey]) {
-          monthlyStats[monthKey].newLeads++
-          if (lead.status === "WON") monthlyStats[monthKey].wonLeads++
-          if (lead.status === "LOST") monthlyStats[monthKey].lostLeads++
-          if (lead.status === "QUOTED") {
-            monthlyStats[monthKey].quotedLeads++
-            if (lead.quoted_price) {
-              monthlyStats[monthKey].totalQuoted += parseFloat(String(lead.quoted_price)) || 0
+        try {
+          const createdDate = new Date(lead.created_at)
+          if (!isNaN(createdDate.getTime())) {
+            const monthKey = format(createdDate, "yyyy-MM")
+            if (monthlyStats[monthKey]) {
+              monthlyStats[monthKey].newLeads++
+              if (lead.status === "WON") monthlyStats[monthKey].wonLeads++
+              if (lead.status === "LOST") monthlyStats[monthKey].lostLeads++
+              if (lead.status === "QUOTED") {
+                monthlyStats[monthKey].quotedLeads++
+                if (lead.quoted_price) {
+                  monthlyStats[monthKey].totalQuoted += parseFloat(String(lead.quoted_price)) || 0
+                }
+              }
+              if (lead.has_deposit && lead.deposit_amount) {
+                monthlyStats[monthKey].totalDeposits += parseFloat(String(lead.deposit_amount)) || 0
+              }
             }
           }
-          if (lead.has_deposit && lead.deposit_amount) {
-            monthlyStats[monthKey].totalDeposits += parseFloat(String(lead.deposit_amount)) || 0
-          }
+        } catch (dateError) {
+          console.warn("Error parsing date for lead:", lead.id, lead.created_at, dateError)
         }
       }
 
