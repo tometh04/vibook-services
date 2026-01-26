@@ -21,6 +21,7 @@ export async function DELETE(
     const { id: accountId } = await params
     const { searchParams } = new URL(request.url)
     const transferToAccountId = searchParams.get("transferTo")
+    const confirmDeleteAll = searchParams.get("confirmDeleteAll") === "true" // Confirmación para eliminar todo
 
     // Obtener la cuenta a eliminar
     const { data: account, error: accountError } = await (supabase.from("financial_accounts") as any)
@@ -41,8 +42,19 @@ export async function DELETE(
       currentBalance = parseFloat(account.initial_balance || "0")
     }
 
+    // Verificar cuántas cuentas financieras activas quedan
+    const { data: allActiveAccounts, error: accountsCountError } = await (supabase.from("financial_accounts") as any)
+      .select("id")
+      .eq("is_active", true)
+    
+    const activeAccountsCount = (allActiveAccounts || []).length
+
+    // CASO ESPECIAL: Si solo queda una cuenta financiera, se puede eliminar todo
+    const isLastAccount = activeAccountsCount === 1
+
     // Si hay saldo y no se especificó una cuenta de destino, no permitir eliminar
-    if (Math.abs(currentBalance) > 0.01 && !transferToAccountId) {
+    // EXCEPTO si es la última cuenta (caso especial)
+    if (Math.abs(currentBalance) > 0.01 && !transferToAccountId && !isLastAccount) {
       return NextResponse.json(
         { 
           error: "La cuenta tiene saldo y debe transferirse antes de eliminar",
@@ -51,6 +63,54 @@ export async function DELETE(
         },
         { status: 400 }
       )
+    }
+
+    // CASO ESPECIAL: Si es la última cuenta, requiere confirmación explícita
+    if (isLastAccount) {
+      if (!confirmDeleteAll) {
+        return NextResponse.json(
+          { 
+            error: "Esta es la última cuenta financiera activa. Eliminarla borrará todos los movimientos contables del sistema.",
+            requiresConfirmation: true,
+            message: "Para confirmar la eliminación completa, incluya el parámetro 'confirmDeleteAll=true' en la URL."
+          },
+          { status: 400 }
+        )
+      }
+      
+      console.log(`⚠️ Eliminando última cuenta financiera con confirmación. Se eliminarán todos los movimientos contables.`)
+      
+      // Contar movimientos que se eliminarán
+      const { count: movementsCount } = await (supabase.from("ledger_movements") as any)
+        .select("*", { count: "exact", head: true })
+        .eq("account_id", accountId)
+      
+      // Eliminar todos los movimientos de ledger asociados a esta cuenta
+      const { error: deleteMovementsError } = await (supabase.from("ledger_movements") as any)
+        .delete()
+        .eq("account_id", accountId)
+      
+      if (deleteMovementsError) {
+        console.error("Error eliminando movimientos de ledger:", deleteMovementsError)
+        return NextResponse.json({ error: "Error al eliminar movimientos contables" }, { status: 500 })
+      }
+      
+      // Eliminar la cuenta permanentemente
+      const { error: deleteError } = await (supabase.from("financial_accounts") as any)
+        .delete()
+        .eq("id", accountId)
+      
+      if (deleteError) {
+        console.error("Error eliminando cuenta:", deleteError)
+        return NextResponse.json({ error: "Error al eliminar cuenta" }, { status: 500 })
+      }
+      
+      return NextResponse.json({ 
+        success: true,
+        message: `Última cuenta financiera eliminada. Se eliminaron ${movementsCount || 0} movimientos contables.`,
+        isLastAccount: true,
+        movementsDeleted: movementsCount || 0
+      })
     }
 
     // Si se especificó una cuenta de destino, transferir el saldo
@@ -144,50 +204,22 @@ export async function DELETE(
       console.log(`✅ Saldo de ${currentBalance} ${account.currency} transferido de ${account.name} a ${destinationAccount.name}`)
     }
 
-    // Verificar si hay movimientos de ledger asociados a esta cuenta
-    const { data: ledgerMovements, error: ledgerError } = await (supabase.from("ledger_movements") as any)
-      .select("id")
-      .eq("account_id", accountId)
-      .limit(1)
+    // Eliminar la cuenta permanentemente (no soft-delete)
+    // Según las especificaciones, la eliminación es permanente
+    const { error: deleteError } = await (supabase.from("financial_accounts") as any)
+      .delete()
+      .eq("id", accountId)
 
-    if (ledgerError) {
-      console.error("Error verificando movimientos de ledger:", ledgerError)
+    if (deleteError) {
+      console.error("Error eliminando cuenta:", deleteError)
+      return NextResponse.json({ error: "Error al eliminar cuenta" }, { status: 500 })
     }
 
-    // Si hay movimientos, no eliminar físicamente, solo marcar como inactiva
-    // Esto preserva el historial contable
-    if (ledgerMovements && ledgerMovements.length > 0) {
-      const { error: updateError } = await (supabase.from("financial_accounts") as any)
-        .update({ is_active: false })
-        .eq("id", accountId)
-
-      if (updateError) {
-        console.error("Error desactivando cuenta:", updateError)
-        return NextResponse.json({ error: "Error al desactivar cuenta" }, { status: 500 })
-      }
-
-      return NextResponse.json({ 
-        success: true,
-        message: "Cuenta desactivada (tiene movimientos históricos)",
-        transferred: transferToAccountId ? true : false
-      })
-    } else {
-      // Si no hay movimientos, eliminar físicamente
-      const { error: deleteError } = await (supabase.from("financial_accounts") as any)
-        .delete()
-        .eq("id", accountId)
-
-      if (deleteError) {
-        console.error("Error eliminando cuenta:", deleteError)
-        return NextResponse.json({ error: "Error al eliminar cuenta" }, { status: 500 })
-      }
-
-      return NextResponse.json({ 
-        success: true,
-        message: "Cuenta eliminada exitosamente",
-        transferred: transferToAccountId ? true : false
-      })
-    }
+    return NextResponse.json({ 
+      success: true,
+      message: "Cuenta eliminada permanentemente",
+      transferred: transferToAccountId ? true : false
+    })
   } catch (error: any) {
     console.error("Error in DELETE /api/accounting/financial-accounts/[id]:", error)
     return NextResponse.json({ error: "Error al eliminar cuenta" }, { status: 500 })

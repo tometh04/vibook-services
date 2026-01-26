@@ -97,12 +97,15 @@ export async function createLedgerMovement(
 
 /**
  * Calcular el balance de una cuenta financiera
- * Balance = initial_balance + SUM(ledger_movements.amount_ars_equivalent)
+ * Balance = initial_balance + SUM(ingresos) - SUM(egresos) en la moneda de la cuenta
  * 
- * IMPORTANTE: El cálculo depende del tipo de cuenta:
- * - ACTIVOS: INCOME aumenta, EXPENSE disminuye
- * - PASIVOS: EXPENSE aumenta, INCOME disminuye (cuando pagas, reduces el pasivo)
- * - RESULTADO: INCOME aumenta, EXPENSE disminuye
+ * IMPORTANTE: 
+ * - El balance se calcula en la MONEDA DE LA CUENTA (USD para cuentas USD, ARS para cuentas ARS)
+ * - Si un movimiento tiene moneda diferente a la cuenta, se convierte usando el exchange_rate
+ * - El cálculo depende del tipo de cuenta según el plan de cuentas:
+ *   - ACTIVOS: INCOME aumenta, EXPENSE disminuye
+ *   - PASIVOS: EXPENSE aumenta, INCOME disminuye (cuando pagas, reduces el pasivo)
+ *   - RESULTADO: INCOME aumenta, EXPENSE disminuye
  */
 export async function getAccountBalance(
   accountId: string,
@@ -113,6 +116,7 @@ export async function getAccountBalance(
     .from("financial_accounts") as any)
     .select(`
       initial_balance,
+      currency,
       chart_account_id,
       chart_of_accounts:chart_account_id(
         category
@@ -126,12 +130,14 @@ export async function getAccountBalance(
   }
 
   const initialBalance = parseFloat(account.initial_balance || "0")
+  const accountCurrency = account.currency as "ARS" | "USD"
   const category = account.chart_of_accounts?.category
 
-  // Sumar todos los movimientos del ledger para esta cuenta
+  // Obtener todos los movimientos del ledger para esta cuenta
+  // Necesitamos amount_original, currency y exchange_rate para convertir si es necesario
   const { data: movements, error: movementsError } = await (supabase
     .from("ledger_movements") as any)
-    .select("type, amount_ars_equivalent")
+    .select("type, amount_original, currency, exchange_rate")
     .eq("account_id", accountId)
 
   if (movementsError) {
@@ -140,9 +146,27 @@ export async function getAccountBalance(
 
   const movementsSum =
     movements?.reduce((sum: number, m: any) => {
-      const amount = parseFloat(m.amount_ars_equivalent || "0")
+      // Convertir el monto a la moneda de la cuenta
+      let amount = parseFloat(m.amount_original || "0")
       
-      // Para PASIVOS, la lógica es inversa:
+      // Si la moneda del movimiento es diferente a la moneda de la cuenta, convertir
+      if (m.currency !== accountCurrency) {
+        if (!m.exchange_rate) {
+          // Si no hay tipo de cambio, no podemos convertir. Esto no debería pasar.
+          console.warn(`Movimiento sin exchange_rate para convertir de ${m.currency} a ${accountCurrency}`)
+          return sum // Ignorar este movimiento
+        }
+        
+        if (accountCurrency === "USD" && m.currency === "ARS") {
+          // Convertir ARS a USD: dividir por el tipo de cambio
+          amount = amount / m.exchange_rate
+        } else if (accountCurrency === "ARS" && m.currency === "USD") {
+          // Convertir USD a ARS: multiplicar por el tipo de cambio
+          amount = amount * m.exchange_rate
+        }
+      }
+      
+      // Para PASIVOS, la lógica es inversa según principios contables:
       // - EXPENSE aumenta el pasivo (debes más)
       // - INCOME disminuye el pasivo (pagas, reduces la deuda)
       if (category === "PASIVO") {
@@ -194,6 +218,66 @@ export async function transferLeadToOperation(
   }
 
   return { transferred: data?.length || 0 }
+}
+
+/**
+ * Validar que una cuenta financiera tenga saldo suficiente para un egreso
+ * @param exchangeRate Tipo de cambio (obligatorio si las monedas son diferentes)
+ * @throws Error si el saldo es insuficiente
+ */
+export async function validateAccountBalanceForExpense(
+  accountId: string,
+  expenseAmount: number,
+  expenseCurrency: "ARS" | "USD",
+  supabase: SupabaseClient<Database>,
+  exchangeRate?: number | null
+): Promise<void> {
+  // Obtener la cuenta para conocer su moneda
+  const { data: account, error: accountError } = await (supabase
+    .from("financial_accounts") as any)
+    .select("id, currency, name")
+    .eq("id", accountId)
+    .single()
+
+  if (accountError || !account) {
+    throw new Error(`Cuenta financiera no encontrada: ${accountId}`)
+  }
+
+  const accountCurrency = account.currency as "ARS" | "USD"
+  
+  // Convertir el monto del egreso a la moneda de la cuenta si es necesario
+  let expenseAmountInAccountCurrency = expenseAmount
+  
+  // Si las monedas son diferentes, necesitamos el tipo de cambio obligatorio
+  if (expenseCurrency !== accountCurrency) {
+    if (!exchangeRate) {
+      throw new Error(
+        `La moneda del egreso (${expenseCurrency}) no coincide con la moneda de la cuenta (${accountCurrency}). ` +
+        `Se requiere un tipo de cambio obligatorio para realizar la conversión.`
+      )
+    }
+    
+    // Convertir a la moneda de la cuenta
+    if (accountCurrency === "USD" && expenseCurrency === "ARS") {
+      // Convertir ARS a USD: dividir por el tipo de cambio
+      expenseAmountInAccountCurrency = expenseAmount / exchangeRate
+    } else if (accountCurrency === "ARS" && expenseCurrency === "USD") {
+      // Convertir USD a ARS: multiplicar por el tipo de cambio
+      expenseAmountInAccountCurrency = expenseAmount * exchangeRate
+    }
+  }
+
+  // Calcular el balance actual de la cuenta
+  const currentBalance = await getAccountBalance(accountId, supabase)
+
+  // Validar que el saldo sea suficiente
+  if (currentBalance < expenseAmountInAccountCurrency) {
+    throw new Error(
+      `Saldo insuficiente en cuenta para realizar el pago. ` +
+      `Saldo disponible: ${currentBalance.toFixed(2)} ${accountCurrency}, ` +
+      `Monto requerido: ${expenseAmountInAccountCurrency.toFixed(2)} ${accountCurrency}`
+    )
+  }
 }
 
 /**

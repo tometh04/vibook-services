@@ -61,7 +61,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "La cuenta financiera seleccionada no está activa" }, { status: 400 })
     }
 
-    // Validar que para pagos en ARS se incluya el tipo de cambio
+    // Validar que la moneda del pago coincida con la moneda de la cuenta
+    // O que se proporcione un tipo de cambio si son diferentes
+    if (currency !== account.currency) {
+      if (!exchange_rate || exchange_rate <= 0) {
+        return NextResponse.json(
+          { 
+            error: `La moneda del pago (${currency}) no coincide con la moneda de la cuenta (${account.currency}). Se requiere un tipo de cambio explícito.` 
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validar que para pagos en USD se incluya el tipo de cambio (para calcular ARS equivalent)
+    if (currency === "USD" && (!exchange_rate || exchange_rate <= 0)) {
+      return NextResponse.json({ error: "El tipo de cambio es obligatorio para pagos en USD" }, { status: 400 })
+    }
+
+    // Validar que para pagos en ARS se incluya el tipo de cambio (siempre necesario para contabilidad)
     if (currency === "ARS" && (!exchange_rate || exchange_rate <= 0)) {
       return NextResponse.json({ error: "El tipo de cambio es obligatorio para pagos en ARS" }, { status: 400 })
     }
@@ -153,6 +171,7 @@ export async function POST(request: Request) {
         method: method || "Transferencia",
         userId: user.id,
         supabase,
+        exchangeRate: exchange_rate ? parseFloat(exchange_rate) : null, // Pasar tipo de cambio explícito
       })
       console.log(`✅ Movimiento creado en cuenta financiera ${account_id} para pago ${payment.id}`)
     } catch (financialAccountError: any) {

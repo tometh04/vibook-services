@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabase/types"
-import { createLedgerMovement, calculateARSEquivalent } from "@/lib/accounting/ledger"
+import { createLedgerMovement, calculateARSEquivalent, validateAccountBalanceForExpense } from "@/lib/accounting/ledger"
 import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 interface CreateFinancialAccountMovementParams {
@@ -20,6 +20,7 @@ interface CreateFinancialAccountMovementParams {
   method?: string
   userId: string
   supabase: SupabaseClient<Database>
+  exchangeRate?: number | null // Tipo de cambio explícito (obligatorio si monedas no coinciden)
 }
 
 export async function createFinancialAccountMovement({
@@ -34,10 +35,11 @@ export async function createFinancialAccountMovement({
   method,
   userId,
   supabase,
+  exchangeRate: providedExchangeRate,
 }: CreateFinancialAccountMovementParams): Promise<void> {
   // Verificar que la cuenta financiera existe
   const { data: financialAccount, error: accountError } = await (supabase.from("financial_accounts") as any)
-    .select("id, name, is_active")
+    .select("id, name, is_active, currency")
     .eq("id", accountId)
     .single()
 
@@ -49,21 +51,51 @@ export async function createFinancialAccountMovement({
     throw new Error(`La cuenta financiera ${financialAccount.name} no está activa`)
   }
 
-  // Calcular exchange rate si es USD
+  const accountCurrency = financialAccount.currency as "ARS" | "USD"
+
+  // Validar moneda: si no coincide, requerir tipo de cambio explícito
+  if (currency !== accountCurrency) {
+    if (!providedExchangeRate || providedExchangeRate <= 0) {
+      throw new Error(
+        `La moneda del movimiento (${currency}) no coincide con la moneda de la cuenta (${accountCurrency}). ` +
+        `Se requiere un tipo de cambio explícito para realizar la conversión.`
+      )
+    }
+  }
+
+  // Calcular exchange rate si es necesario
   let exchangeRate: number | null = null
+  
   if (currency === "USD") {
-    const rateDate = datePaid ? new Date(datePaid) : new Date()
-    exchangeRate = await getExchangeRate(supabase, rateDate)
-    
+    // Para movimientos en USD, siempre necesitamos tipo de cambio para calcular ARS equivalent
+    exchangeRate = providedExchangeRate
     if (!exchangeRate) {
-      const { getLatestExchangeRate } = await import("@/lib/accounting/exchange-rates")
-      exchangeRate = await getLatestExchangeRate(supabase)
+      const rateDate = datePaid ? new Date(datePaid) : new Date()
+      exchangeRate = await getExchangeRate(supabase, rateDate)
+      
+      if (!exchangeRate) {
+        const { getLatestExchangeRate } = await import("@/lib/accounting/exchange-rates")
+        exchangeRate = await getLatestExchangeRate(supabase)
+      }
+      
+      if (!exchangeRate) {
+        throw new Error("Se requiere un tipo de cambio para movimientos en USD")
+      }
     }
-    
-    if (!exchangeRate) {
-      console.warn(`No exchange rate found, using fallback 1000`)
-      exchangeRate = 1000
+  } else if (currency === "ARS" && accountCurrency === "USD") {
+    // Movimiento en ARS en cuenta USD: usar el tipo de cambio proporcionado (obligatorio)
+    exchangeRate = providedExchangeRate
+    if (!exchangeRate || exchangeRate <= 0) {
+      throw new Error("Se requiere un tipo de cambio explícito para realizar un movimiento en ARS en una cuenta USD")
     }
+  } else if (currency === "ARS" && accountCurrency === "ARS") {
+    // Movimiento en ARS en cuenta ARS: no necesita tipo de cambio para el balance
+    exchangeRate = null
+  }
+
+  // Validar saldo suficiente antes de permitir un egreso
+  if (direction === "EXPENSE") {
+    await validateAccountBalanceForExpense(accountId, amount, currency, supabase, exchangeRate)
   }
 
   const amountARS = calculateARSEquivalent(amount, currency, exchangeRate)

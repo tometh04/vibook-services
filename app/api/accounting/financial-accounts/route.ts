@@ -80,11 +80,42 @@ export async function POST(request: Request) {
       asset_quantity,
       notes,
       is_active,
+      chart_account_id, // OBLIGATORIO según especificaciones
     } = body
 
     // Validar campos requeridos
     if (!name || !type || !currency || !agency_id) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    }
+
+    // Validar que chart_account_id esté presente (obligatorio según especificaciones)
+    if (!chart_account_id) {
+      return NextResponse.json(
+        { 
+          error: "chart_account_id es obligatorio. Las cuentas financieras deben estar 100% ligadas al plan de cuentas." 
+        },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que el chart_account_id existe y está activo
+    const { data: chartAccount, error: chartError } = await (supabase.from("chart_of_accounts") as any)
+      .select("id, account_code, account_name, category, is_active")
+      .eq("id", chart_account_id)
+      .single()
+
+    if (chartError || !chartAccount) {
+      return NextResponse.json(
+        { error: "El plan de cuentas especificado no existe" },
+        { status: 400 }
+      )
+    }
+
+    if (!chartAccount.is_active) {
+      return NextResponse.json(
+        { error: "El plan de cuentas especificado está inactivo" },
+        { status: 400 }
+      )
     }
 
     // Validar tipo
@@ -109,6 +140,7 @@ export async function POST(request: Request) {
       currency,
       agency_id,
       initial_balance: Number(initial_balance) || 0,
+      chart_account_id, // Obligatorio: cuenta debe estar ligada al plan de cuentas
       notes: notes || null,
       is_active: is_active !== undefined ? is_active : true,
       created_by: user.id,
