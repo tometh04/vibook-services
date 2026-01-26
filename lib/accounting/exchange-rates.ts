@@ -179,7 +179,7 @@ export async function getExchangeRatesBatch(
 
   // Convertir todas las fechas a strings y obtener la más antigua y más reciente
   const dateStrings = dates.map(d => typeof d === "string" ? d : d.toISOString().split("T")[0])
-  const sortedDates = [...new Set(dateStrings)].sort()
+  const sortedDates = Array.from(new Set(dateStrings)).sort()
   const minDate = sortedDates[0]
   const maxDate = sortedDates[sortedDates.length - 1]
 
