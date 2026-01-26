@@ -213,14 +213,22 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
     }
   }, [dateFrom, dateTo, accountMovements])
 
-  // Cargar movimientos cuando se cambia de tab
+  // OPTIMIZACIÓN: Cargar movimientos en paralelo cuando se cambia de tab
   useEffect(() => {
-    if (activeTab === "usd") {
-      usdAccounts.forEach(acc => fetchAccountMovements(acc.id))
-    } else if (activeTab === "ars") {
-      arsAccounts.forEach(acc => fetchAccountMovements(acc.id))
+    const accountsToLoad = activeTab === "usd" ? usdAccounts : activeTab === "ars" ? arsAccounts : []
+    
+    // Filtrar cuentas que aún no tienen movimientos cargados
+    const accountsToFetch = accountsToLoad.filter(acc => !accountMovements[acc.id])
+    
+    if (accountsToFetch.length > 0) {
+      // Paralelizar todos los fetches
+      Promise.all(
+        accountsToFetch.map(acc => fetchAccountMovements(acc.id))
+      ).catch(error => {
+        console.error("Error fetching account movements in parallel:", error)
+      })
     }
-  }, [activeTab, usdAccounts, arsAccounts, fetchAccountMovements])
+  }, [activeTab, usdAccounts, arsAccounts, accountMovements, fetchAccountMovements])
 
   // Calcular ingresos y egresos por cuenta
   const calculateAccountStats = useCallback((accountId: string) => {

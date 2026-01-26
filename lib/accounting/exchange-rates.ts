@@ -162,3 +162,60 @@ export async function getExchangeRatesInRange(
   return (data || []) as ExchangeRate[]
 }
 
+/**
+ * OPTIMIZACIÓN: Obtener tasas de cambio para múltiples fechas en batch
+ * Retorna un Map<dateString, rate> para acceso rápido
+ * Si no hay tasa exacta para una fecha, usa la más cercana anterior
+ */
+export async function getExchangeRatesBatch(
+  supabase: SupabaseClient<Database>,
+  dates: (Date | string)[],
+  fromCurrency: "USD" = "USD",
+  toCurrency: "ARS" = "ARS"
+): Promise<Map<string, number>> {
+  if (dates.length === 0) {
+    return new Map()
+  }
+
+  // Convertir todas las fechas a strings y obtener la más antigua y más reciente
+  const dateStrings = dates.map(d => typeof d === "string" ? d : d.toISOString().split("T")[0])
+  const sortedDates = [...new Set(dateStrings)].sort()
+  const minDate = sortedDates[0]
+  const maxDate = sortedDates[sortedDates.length - 1]
+
+  // Obtener todas las tasas en el rango de una vez
+  const { data: rates, error } = await (supabase.from("exchange_rates") as any)
+    .select("rate_date, rate")
+    .eq("from_currency", fromCurrency)
+    .eq("to_currency", toCurrency)
+    .lte("rate_date", maxDate)
+    .order("rate_date", { ascending: false })
+
+  if (error) {
+    console.warn("Error fetching exchange rates in batch:", error)
+    return new Map()
+  }
+
+  // Crear un mapa de fecha -> tasa
+  const ratesMap = new Map<string, number>()
+  const ratesArray = (rates || []) as Array<{ rate_date: string; rate: string | number }>
+
+  // Para cada fecha solicitada, encontrar la tasa más cercana (anterior o igual)
+  for (const dateStr of dateStrings) {
+    if (ratesMap.has(dateStr)) {
+      continue // Ya calculada
+    }
+
+    // Buscar la tasa más cercana (anterior o igual a la fecha)
+    const rateForDate = ratesArray.find(r => r.rate_date <= dateStr)
+    if (rateForDate) {
+      ratesMap.set(dateStr, parseFloat(String(rateForDate.rate)))
+    } else {
+      // Si no hay tasa, usar null (el código que llama debe manejar el fallback)
+      ratesMap.set(dateStr, 0)
+    }
+  }
+
+  return ratesMap
+}
+

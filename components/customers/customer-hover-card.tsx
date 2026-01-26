@@ -36,16 +36,18 @@ export function CustomerHoverCard({ customerId, children }: CustomerHoverCardPro
   const fetchCustomerData = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/customers/${customerId}`)
-      const data = await response.json()
+      // OPTIMIZACIÓN: Paralelizar ambos fetches
+      const [customerResponse, operationsResponse] = await Promise.all([
+        fetch(`/api/customers/${customerId}`),
+        fetch(`/api/customers/${customerId}/operations`)
+      ])
       
-      // Obtener conteo de operaciones
-      const opsResponse = await fetch(`/api/customers/${customerId}/operations`)
-      const opsData = await opsResponse.json()
+      const customerData = await customerResponse.json()
+      const operationsData = await operationsResponse.json()
       
       setCustomer({
-        ...data.customer,
-        operationsCount: opsData.operations?.length || 0,
+        ...customerData.customer,
+        operationsCount: operationsData.operations?.length || 0,
       })
     } catch (error) {
       console.error("Error fetching customer:", error)

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
-import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
+import { getExchangeRate, getLatestExchangeRate, getExchangeRatesBatch } from "@/lib/accounting/exchange-rates"
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic'
@@ -86,8 +86,17 @@ export async function GET(request: Request) {
             })
           }
 
-          // Obtener tasa de cambio más reciente como fallback
+          // OPTIMIZACIÓN: Obtener todas las tasas de cambio en batch
           const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+          
+          // Recopilar todas las fechas únicas de operaciones en ARS
+          const arsOperations = filteredOperations.filter((op: any) => {
+            const saleCurrency = op.sale_currency || op.currency || "USD"
+            return saleCurrency === "ARS"
+          })
+          
+          const operationDates = arsOperations.map((op: any) => op.departure_date || op.created_at || new Date())
+          const exchangeRatesMap = await getExchangeRatesBatch(supabase, operationDates)
 
           // Calcular deuda para cada operación
           for (const operation of filteredOperations) {
@@ -99,8 +108,9 @@ export async function GET(request: Request) {
             let saleAmountUsd = saleAmount
             if (saleCurrency === "ARS") {
               const operationDate = op.departure_date || op.created_at
-              let exchangeRate = await getExchangeRate(supabase, operationDate ? new Date(operationDate) : new Date())
-              if (!exchangeRate) {
+              const dateStr = operationDate ? (typeof operationDate === "string" ? operationDate.split("T")[0] : operationDate.toISOString().split("T")[0]) : new Date().toISOString().split("T")[0]
+              let exchangeRate = exchangeRatesMap.get(dateStr) || 0
+              if (!exchangeRate || exchangeRate === 0) {
                 exchangeRate = latestExchangeRate
               }
               saleAmountUsd = saleAmount / exchangeRate

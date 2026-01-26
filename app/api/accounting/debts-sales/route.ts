@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { canAccessModule } from "@/lib/permissions"
 import { getUserAgencyIds } from "@/lib/permissions-api"
-import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
+import { getExchangeRate, getLatestExchangeRate, getExchangeRatesBatch } from "@/lib/accounting/exchange-rates"
 
 export const dynamic = 'force-dynamic'
 
@@ -149,8 +149,34 @@ export async function GET(request: Request) {
       }>
     }> = []
 
-    // Obtener tasa de cambio más reciente
+    // OPTIMIZACIÓN: Obtener todas las tasas de cambio en batch antes del loop
     const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    
+    // Recopilar todas las fechas únicas de operaciones en ARS
+    const allArsOperations: Array<{ departure_date: string | null; created_at: string }> = []
+    for (const customer of filteredCustomers) {
+      const operations = (customer.operation_customers || []) as any[]
+      for (const oc of operations) {
+        const operation = oc.operations
+        if (!operation) continue
+        
+        // Aplicar filtro de vendedor si existe
+        if (sellerIdFilter && sellerIdFilter !== "ALL" && operation.seller_id !== sellerIdFilter) {
+          continue
+        }
+        
+        const saleCurrency = operation.sale_currency || operation.currency || "USD"
+        if (saleCurrency === "ARS") {
+          allArsOperations.push({
+            departure_date: operation.departure_date,
+            created_at: operation.created_at,
+          })
+        }
+      }
+    }
+    
+    const operationDates = allArsOperations.map(op => op.departure_date || op.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, operationDates)
 
     for (const customer of filteredCustomers) {
       const operations = (customer.operation_customers || []) as any[]
@@ -186,8 +212,9 @@ export async function GET(request: Request) {
         let saleAmountUsd = saleAmount
         if (saleCurrency === "ARS") {
           const operationDate = operation.departure_date || operation.created_at
-          let exchangeRate = await getExchangeRate(supabase, operationDate ? new Date(operationDate) : new Date())
-          if (!exchangeRate) {
+          const dateStr = operationDate ? (typeof operationDate === "string" ? operationDate.split("T")[0] : operationDate.toISOString().split("T")[0]) : new Date().toISOString().split("T")[0]
+          let exchangeRate = exchangeRatesMap.get(dateStr) || 0
+          if (!exchangeRate || exchangeRate === 0) {
             exchangeRate = latestExchangeRate
           }
           saleAmountUsd = saleAmount / exchangeRate
