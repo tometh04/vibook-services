@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -107,20 +107,7 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
     notes: "",
   })
 
-  useEffect(() => {
-    fetchData()
-    
-    // Escuchar evento para refrescar cuentas después de crear pagos
-    const handleRefresh = () => {
-      fetchData()
-    }
-    window.addEventListener("refresh-financial-accounts", handleRefresh)
-    return () => {
-      window.removeEventListener("refresh-financial-accounts", handleRefresh)
-    }
-  }, [])
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
       setLoading(true)
       try {
       const accountsRes = await fetch("/api/accounting/financial-accounts")
@@ -137,7 +124,20 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
       } finally {
         setLoading(false)
       }
+  }, [initialAgencies])
+
+  useEffect(() => {
+    fetchData()
+    
+    // Escuchar evento para refrescar cuentas después de crear pagos
+    const handleRefresh = () => {
+      fetchData()
     }
+    window.addEventListener("refresh-financial-accounts", handleRefresh)
+    return () => {
+      window.removeEventListener("refresh-financial-accounts", handleRefresh)
+    }
+  }, [fetchData])
 
   const handleClearAll = async () => {
     try {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -102,12 +102,7 @@ export function TeamsPageClient() {
     member_ids: [] as string[],
   })
 
-  useEffect(() => {
-    loadTeams()
-    loadUsers()
-  }, [])
-
-  const loadTeams = async () => {
+  const loadTeams = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/teams')
@@ -128,9 +123,9 @@ export function TeamsPageClient() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const response = await fetch('/api/users')
       if (response.ok) {
@@ -140,7 +135,12 @@ export function TeamsPageClient() {
     } catch (error) {
       console.error('Error loading users:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadTeams()
+    loadUsers()
+  }, [loadTeams, loadUsers])
 
   const createTeam = async () => {
     try {

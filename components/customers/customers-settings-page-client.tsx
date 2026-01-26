@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -82,11 +82,7 @@ export function CustomersSettingsPageClient() {
     duplicate_check_fields: ['email', 'phone'],
   })
 
-  useEffect(() => {
-    loadSettings()
-  }, [])
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/customers/settings')
@@ -117,7 +113,11 @@ export function CustomersSettingsPageClient() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [settings])
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
   const saveSettings = async () => {
     try {

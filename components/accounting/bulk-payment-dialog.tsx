@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -121,14 +121,9 @@ export function BulkPaymentDialog({
     }
   }, [open])
 
-  // Cargar deudas cuando cambia el operador o la moneda
-  useEffect(() => {
-    if (selectedOperatorId && selectedCurrency && step >= 3) {
-      loadPendingDebts()
-    }
-  }, [selectedOperatorId, selectedCurrency, step])
-
-  const loadPendingDebts = async () => {
+  const loadPendingDebts = useCallback(async () => {
+    if (!selectedOperatorId || !selectedCurrency) return
+    
     setLoadingDebts(true)
     try {
       const response = await fetch(
@@ -153,7 +148,7 @@ export function BulkPaymentDialog({
     } finally {
       setLoadingDebts(false)
     }
-  }
+  }, [selectedOperatorId, selectedCurrency])
 
   // Reset al cerrar
   useEffect(() => {
