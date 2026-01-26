@@ -55,8 +55,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Una o ambas cuentas no fueron encontradas" }, { status: 404 })
     }
 
-    const fromAccount = accounts.find((a: any) => a.id === from_account_id)
-    const toAccount = accounts.find((a: any) => a.id === to_account_id)
+    // OPTIMIZACIÓN: Usar Map para acceso O(1) en lugar de find() O(n)
+    const accountsMap = new Map<string, any>()
+    for (const account of accounts) {
+      accountsMap.set(account.id, account)
+    }
+
+    const fromAccount = accountsMap.get(from_account_id)
+    const toAccount = accountsMap.get(to_account_id)
 
     if (!fromAccount || !toAccount) {
       return NextResponse.json({ error: "Cuentas no encontradas" }, { status: 404 })

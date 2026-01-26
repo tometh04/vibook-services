@@ -49,8 +49,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Una o ambas cajas no fueron encontradas" }, { status: 404 })
     }
 
-    const fromBox = boxes.find((b: any) => b.id === from_box_id) as any
-    const toBox = boxes.find((b: any) => b.id === to_box_id) as any
+    // OPTIMIZACIÓN: Usar Map para acceso O(1) en lugar de find() O(n)
+    const boxesMap = new Map<string, any>()
+    for (const box of boxes) {
+      boxesMap.set(box.id, box)
+    }
+
+    const fromBox = boxesMap.get(from_box_id) as any
+    const toBox = boxesMap.get(to_box_id) as any
 
     if (!fromBox || !toBox) {
       return NextResponse.json({ error: "Cajas no encontradas" }, { status: 404 })
@@ -119,11 +125,19 @@ export async function POST(request: Request) {
       .select("*")
       .in("id", [from_box_id, to_box_id])
 
+    // OPTIMIZACIÓN: Usar Map para acceso O(1)
+    const updatedBoxesMap = new Map<string, any>()
+    if (updatedBoxes) {
+      for (const box of updatedBoxes) {
+        updatedBoxesMap.set(box.id, box)
+      }
+    }
+
     return NextResponse.json(
       {
         transfer,
-        fromBox: updatedBoxes?.find((b: any) => b.id === from_box_id),
-        toBox: updatedBoxes?.find((b: any) => b.id === to_box_id),
+        fromBox: updatedBoxesMap.get(from_box_id),
+        toBox: updatedBoxesMap.get(to_box_id),
       },
       { status: 201 }
     )
