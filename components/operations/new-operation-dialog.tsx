@@ -489,8 +489,6 @@ export function NewOperationDialog({
         product_type: values.product_type || null,
         return_date: values.return_date ? values.return_date.toISOString().split("T")[0] : null,
         departure_date: values.departure_date ? values.departure_date.toISOString().split("T")[0] : null,
-        sale_currency: values.sale_currency || values.currency || "ARS",
-        operator_cost_currency: values.operator_cost_currency || values.currency || "ARS",
         // Si hay múltiples operadores, el costo total ya está calculado en operator_cost
         operator_cost: useMultipleOperators ? totalOperatorCost : (values.operator_cost || 0),
         notes: values.notes || null,
@@ -933,7 +931,7 @@ export function NewOperationDialog({
                     <div className="flex justify-between items-center text-sm mt-1">
                       <span className="font-medium">Margen Calculado:</span>
                       <span className={`font-bold ${calculatedMargin >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {form.watch("sale_currency") || form.watch("currency") || "ARS"} {calculatedMargin.toLocaleString("es-AR", { minimumFractionDigits: 2 })} ({calculatedMarginPercent.toFixed(1)}%)
+                        {form.watch("currency") || "ARS"} {calculatedMargin.toLocaleString("es-AR", { minimumFractionDigits: 2 })} ({calculatedMarginPercent.toFixed(1)}%)
                       </span>
                     </div>
                   </div>
