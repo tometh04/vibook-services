@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic'
 export default async function SalesStatisticsPage() {
   const { user } = await getCurrentUser()
   
-  if (!canAccessModule(user.role as any, "sales")) {
+  // Usar "leads" ya que es el módulo que contiene las estadísticas de ventas/leads
+  if (!canAccessModule(user.role as any, "leads")) {
     return (
       <div className="space-y-6">
         <div>
