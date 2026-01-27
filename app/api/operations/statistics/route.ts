@@ -1,24 +1,50 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { getCurrentUser } from "@/lib/auth"
-import { getUserAgencyIds } from "@/lib/permissions-api"
-import { subMonths, startOfMonth, endOfMonth, format } from "date-fns"
+import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  try {
-    const { user } = await getCurrentUser()
-    const supabase = await createServerClient()
-    const { searchParams } = new URL(request.url)
+  const supabase = await createServerClient()
+  
+  // Autenticación
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  
+  if (!authUser) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  }
 
-    // Parámetros de filtro
-    const agencyId = searchParams.get("agencyId")
-    const months = parseInt(searchParams.get("months") || "12")
+  // Usuario de DB
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, role')
+    .eq('auth_id', authUser.id)
+    .single()
 
-    // Obtener agencias del usuario
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+  if (!user) {
+    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
+  }
+
+  const { searchParams } = new URL(request.url)
+
+  // Parámetros de filtro
+  const agencyId = searchParams.get("agencyId")
+  const months = parseInt(searchParams.get("months") || "12")
+
+  // Obtener agencias del usuario directamente
+  let agencyIds: string[] = []
+  
+  if (user.role === "SUPER_ADMIN") {
+    const { data: agencies } = await supabase.from("agencies").select("id")
+    agencyIds = (agencies || []).map((a: any) => a.id)
+  } else {
+    const { data: userAgencies } = await supabase
+      .from("user_agencies")
+      .select("agency_id")
+      .eq("user_id", user.id)
+    agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
+  }
 
     // Query base de operaciones - simplificada
     let operationsQuery = (supabase.from("operations") as any)
@@ -48,8 +74,10 @@ export async function GET(request: Request) {
 
     if (operationsError) {
       console.error("Error fetching operations:", operationsError)
-      return NextResponse.json({ error: "Error al obtener operaciones" }, { status: 500 })
+      return NextResponse.json({ error: "Error al obtener operaciones: " + operationsError.message }, { status: 500 })
     }
+
+    console.log(`[Operations Statistics] Fetched ${(operations || []).length} operations for user ${user.id} (${user.role})`)
 
     const now = new Date()
 
@@ -214,7 +242,29 @@ export async function GET(request: Request) {
       }
     }
 
+    // Obtener nombres de vendedores
+    const sellerIds = Object.keys(sellerStats)
+    const sellerNamesMap: Record<string, string> = {}
+    
+    if (sellerIds.length > 0) {
+      const { data: sellers } = await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", sellerIds)
+      
+      if (sellers) {
+        sellers.forEach((seller: any) => {
+          sellerNamesMap[seller.id] = seller.name || "Sin nombre"
+        })
+      }
+    }
+
+    // Actualizar nombres y obtener top 5
     const topSellers = Object.values(sellerStats)
+      .map(seller => ({
+        ...seller,
+        name: sellerNamesMap[seller.id] || seller.name
+      }))
       .sort((a, b) => b.sales - a.sales)
       .slice(0, 5)
 
@@ -242,11 +292,4 @@ export async function GET(request: Request) {
         topSellers,
       },
     })
-  } catch (error: any) {
-    console.error("Error in GET /api/operations/statistics:", error)
-    return NextResponse.json(
-      { error: error.message || "Error al obtener estadísticas" },
-      { status: 500 }
-    )
-  }
 }
