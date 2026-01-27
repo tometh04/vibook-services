@@ -21,12 +21,29 @@ export async function PATCH(
     const supabase = createAdminSupabaseClient()
 
     // Campos permitidos para actualizar
-    const allowedFields = ["status", "plan_id", "current_period_start", "current_period_end", "trial_start", "trial_end"]
+    // NOTA: current_period_end debe modificarse usando admin_extend_period() RPC
+    const allowedFields = ["status", "plan_id", "current_period_start", "trial_start", "trial_end"]
     const updateData: Record<string, any> = {}
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         updateData[field] = body[field]
+      }
+    }
+
+    // Si se intenta modificar current_period_end, usar función RPC especial
+    if (body.current_period_end !== undefined) {
+      const { data: extendResult, error: extendError } = await supabase.rpc('admin_extend_period', {
+        subscription_id_param: subscriptionId,
+        new_period_end: body.current_period_end,
+        reason_param: body.reason || 'Extensión de período por admin'
+      })
+
+      if (extendError) {
+        return NextResponse.json(
+          { error: extendError.message || "Error al extender período" },
+          { status: 400 }
+        )
       }
     }
 
