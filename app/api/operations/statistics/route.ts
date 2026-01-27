@@ -5,123 +5,132 @@ import { es } from "date-fns/locale"
 
 export const dynamic = 'force-dynamic'
 
+// Helper para parsear números de forma segura
+const safeParseFloat = (value: any): number => {
+  if (value === null || value === undefined || value === '') return 0
+  const parsed = parseFloat(value)
+  return isNaN(parsed) ? 0 : parsed
+}
+
+// Helper para obtener fecha segura
+const safeDate = (dateStr: any): Date | null => {
+  if (!dateStr) return null
+  try {
+    const date = new Date(dateStr)
+    return isNaN(date.getTime()) ? null : date
+  } catch {
+    return null
+  }
+}
+
 export async function GET(request: Request) {
-  const supabase = await createServerClient()
-  
-  // Autenticación
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  
-  if (!authUser) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-  }
+  try {
+    const supabase = await createServerClient()
+    
+    // Autenticación
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      console.error("[Operations Statistics] Auth error:", authError)
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+    }
 
-  // Usuario de DB
-  const { data: user } = await supabase
-    .from('users')
-    .select('id, role')
-    .eq('auth_id', authUser.id)
-    .single()
+    // Usuario de DB
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('auth_id', authUser.id)
+      .single()
 
-  if (!user) {
-    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
-  }
+    if (userError || !user) {
+      console.error("[Operations Statistics] User error:", userError)
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
+    }
 
-  const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(request.url)
+    const agencyId = searchParams.get("agencyId")
+    const months = Math.max(1, Math.min(24, parseInt(searchParams.get("months") || "12")))
 
-  // Parámetros de filtro
-  const agencyId = searchParams.get("agencyId")
-  const months = parseInt(searchParams.get("months") || "12")
+    // Obtener agencias del usuario
+    let agencyIds: string[] = []
+    
+    if (user.role === "SUPER_ADMIN") {
+      const { data: agencies, error: agenciesError } = await supabase.from("agencies").select("id")
+      if (agenciesError) {
+        console.error("[Operations Statistics] Error fetching agencies:", agenciesError)
+      } else {
+        agencyIds = (agencies || []).map((a: any) => a.id).filter(Boolean)
+      }
+    } else {
+      const { data: userAgencies, error: uaError } = await supabase
+        .from("user_agencies")
+        .select("agency_id")
+        .eq("user_id", user.id)
+      
+      if (uaError) {
+        console.error("[Operations Statistics] Error fetching user_agencies:", uaError)
+      } else {
+        agencyIds = (userAgencies || []).map((ua: any) => ua?.agency_id).filter(Boolean)
+      }
+    }
 
-  // Obtener agencias del usuario directamente
-  let agencyIds: string[] = []
-  
-  if (user.role === "SUPER_ADMIN") {
-    const { data: agencies } = await supabase.from("agencies").select("id")
-    agencyIds = (agencies || []).map((a: any) => a.id)
-    console.log(`[Operations Statistics] SUPER_ADMIN - Found ${agencyIds.length} agencies`)
-  } else {
-    const { data: userAgencies } = await supabase
-      .from("user_agencies")
-      .select("agency_id")
-      .eq("user_id", user.id)
-    agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
-    console.log(`[Operations Statistics] User ${user.id} (${user.role}) - Found ${agencyIds.length} agencies:`, agencyIds)
-  }
+    console.log(`[Operations Statistics] User ${user.id} (${user.role}) - Agencies: ${agencyIds.length}`)
 
-  // Si no tiene agencias y no es SUPER_ADMIN, retornar datos vacíos
-  if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
-    console.log(`[Operations Statistics] User ${user.id} has no agencies - returning empty stats`)
-    return NextResponse.json({
-      overview: {
-        totalOperations: 0,
-        confirmedOperations: 0,
-        pendingOperations: 0,
-        cancelledOperations: 0,
-        totalSales: 0,
-        totalMargin: 0,
-        avgMarginPercentage: 0,
-        avgTicket: 0,
-        conversionRate: 0,
-      },
-      distributions: {
-        byStatus: [],
-        byDestination: [],
-      },
-      trends: {
-        monthly: [],
-      },
-      rankings: {
-        topDestinations: [],
-        topSellers: [],
-      },
-    })
-  }
+    // Si no tiene agencias y no es SUPER_ADMIN, retornar datos vacíos válidos
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({
+        overview: {
+          totalOperations: 0,
+          confirmedOperations: 0,
+          pendingOperations: 0,
+          cancelledOperations: 0,
+          totalSales: 0,
+          totalMargin: 0,
+          avgMarginPercentage: 0,
+          avgTicket: 0,
+          conversionRate: 0,
+        },
+        distributions: {
+          byStatus: [],
+          byDestination: [],
+        },
+        trends: {
+          monthly: [],
+        },
+        rankings: {
+          topDestinations: [],
+          topSellers: [],
+        },
+      })
+    }
 
-  // Query base de operaciones - simplificada
-  let operationsQuery = supabase
-    .from("operations")
-    .select(`
-      id,
-      destination,
-      status,
-      sale_amount_total,
-      operator_cost,
-      margin_amount,
-      margin_percentage,
-      currency,
-      departure_date,
-      created_at,
-      agency_id,
-      seller_id
-    `)
+    // Query de operaciones
+    let operationsQuery = supabase
+      .from("operations")
+      .select("id, destination, status, sale_amount_total, operator_cost, margin_amount, margin_percentage, currency, departure_date, created_at, agency_id, seller_id")
 
-  // Filtrar por agencia
-  if (agencyId && agencyId !== "ALL") {
-    console.log(`[Operations Statistics] Filtering by specific agency: ${agencyId}`)
-    operationsQuery = operationsQuery.eq("agency_id", agencyId)
-  } else if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
-    console.log(`[Operations Statistics] Filtering by user agencies:`, agencyIds)
-    operationsQuery = operationsQuery.in("agency_id", agencyIds)
-  } else {
-    console.log(`[Operations Statistics] No agency filter - SUPER_ADMIN or no agencies`)
-  }
+    // Filtrar por agencia
+    if (agencyId && agencyId !== "ALL") {
+      operationsQuery = operationsQuery.eq("agency_id", agencyId)
+    } else if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+      operationsQuery = operationsQuery.in("agency_id", agencyIds)
+    }
 
-  const { data: operations, error: operationsError } = await operationsQuery
+    const { data: operations, error: operationsError } = await operationsQuery
 
-  if (operationsError) {
-    console.error("[Operations Statistics] Error fetching operations:", operationsError)
-    return NextResponse.json({ error: "Error al obtener operaciones: " + operationsError.message }, { status: 500 })
-  }
+    if (operationsError) {
+      console.error("[Operations Statistics] Query error:", operationsError)
+      return NextResponse.json({ 
+        error: "Error al obtener operaciones: " + operationsError.message 
+      }, { status: 500 })
+    }
 
-  console.log(`[Operations Statistics] Fetched ${(operations || []).length} operations for user ${user.id} (${user.role})`)
-  
-  if ((operations || []).length === 0) {
-    console.log(`[Operations Statistics] WARNING: No operations found! This might be a data issue or RLS problem.`)
-  }
+    const opsList = operations || []
+    console.log(`[Operations Statistics] Found ${opsList.length} operations`)
 
     const now = new Date()
 
-    // Estadísticas por estado
+    // Inicializar estructuras
     const statusCounts: Record<string, number> = {
       PRE_RESERVATION: 0,
       RESERVED: 0,
@@ -140,7 +149,6 @@ export async function GET(request: Request) {
       CLOSED: "Cerrado",
     }
 
-    // Estadísticas por destino
     const destinationStats: Record<string, {
       destination: string
       count: number
@@ -149,7 +157,6 @@ export async function GET(request: Request) {
       avgMargin: number
     }> = {}
 
-    // Estadísticas por mes
     const monthlyStats: Record<string, {
       month: string
       monthName: string
@@ -177,25 +184,28 @@ export async function GET(request: Request) {
     let totalOperations = 0
     let confirmedOperations = 0
 
-    for (const op of operations || []) {
+    for (const op of opsList) {
+      if (!op || !op.id) continue
+
       // Contar por estado
-      if (statusCounts[op.status] !== undefined) {
-        statusCounts[op.status]++
+      const status = op.status || 'UNKNOWN'
+      if (statusCounts[status] !== undefined) {
+        statusCounts[status]++
       }
 
       totalOperations++
 
       // Solo estadísticas financieras para operaciones confirmadas/viajadas/cerradas
-      if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)) {
+      if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(status)) {
         confirmedOperations++
-        const saleAmount = parseFloat(op.sale_amount_total) || 0
-        const marginAmount = parseFloat(op.margin_amount) || 0
+        const saleAmount = safeParseFloat(op.sale_amount_total)
+        const marginAmount = safeParseFloat(op.margin_amount)
 
         totalSales += saleAmount
         totalMargin += marginAmount
 
         // Por destino
-        const dest = op.destination || "Sin destino"
+        const dest = (op.destination || "Sin destino").trim()
         if (!destinationStats[dest]) {
           destinationStats[dest] = {
             destination: dest,
@@ -209,13 +219,17 @@ export async function GET(request: Request) {
         destinationStats[dest].totalSales += saleAmount
         destinationStats[dest].totalMargin += marginAmount
 
-        // Por mes (usando departure_date)
-        if (op.departure_date) {
-          const monthKey = format(new Date(op.departure_date), "yyyy-MM")
-          if (monthlyStats[monthKey]) {
-            monthlyStats[monthKey].count++
-            monthlyStats[monthKey].sales += saleAmount
-            monthlyStats[monthKey].margin += marginAmount
+        // Por mes (usando departure_date o created_at como fallback)
+        const dateToUse = op.departure_date || op.created_at
+        if (dateToUse) {
+          const date = safeDate(dateToUse)
+          if (date) {
+            const monthKey = format(date, "yyyy-MM")
+            if (monthlyStats[monthKey]) {
+              monthlyStats[monthKey].count++
+              monthlyStats[monthKey].sales += saleAmount
+              monthlyStats[monthKey].margin += marginAmount
+            }
           }
         }
       }
@@ -223,20 +237,23 @@ export async function GET(request: Request) {
 
     // Calcular promedios de destinos
     Object.values(destinationStats).forEach(d => {
-      d.avgMargin = d.count > 0 ? (d.totalMargin / d.totalSales) * 100 : 0
+      d.avgMargin = d.totalSales > 0 ? (d.totalMargin / d.totalSales) * 100 : 0
     })
 
     // Top 10 destinos por ventas
     const topDestinations = Object.values(destinationStats)
+      .filter(d => d.totalSales > 0)
       .sort((a, b) => b.totalSales - a.totalSales)
       .slice(0, 10)
 
-    // Conversión de estados a array
-    const statusDistribution = Object.entries(statusCounts).map(([status, count]) => ({
-      status,
-      label: statusLabels[status] || status,
-      count,
-    }))
+    // Conversión de estados a array (solo los que tienen count > 0)
+    const statusDistribution = Object.entries(statusCounts)
+      .filter(([_, count]) => count > 0)
+      .map(([status, count]) => ({
+        status,
+        label: statusLabels[status] || status,
+        count,
+      }))
 
     // Conversión de meses a array
     const monthlyTrend = Object.values(monthlyStats)
@@ -245,13 +262,15 @@ export async function GET(request: Request) {
     const avgMarginPercentage = totalSales > 0 ? (totalMargin / totalSales) * 100 : 0
     const avgTicket = confirmedOperations > 0 ? totalSales / confirmedOperations : 0
 
-    // Operaciones pendientes (próximos viajes)
-    const pendingOperations = (operations || []).filter((op: any) => 
-      ["CONFIRMED", "RESERVED"].includes(op.status) && 
-      new Date(op.departure_date) > now
-    ).length
+    // Operaciones pendientes
+    const pendingOperations = opsList.filter((op: any) => {
+      if (!op) return false
+      const status = op.status || ''
+      const departureDate = safeDate(op.departure_date)
+      return ["CONFIRMED", "RESERVED"].includes(status) && departureDate && departureDate > now
+    }).length
 
-    // Conversión rate (confirmadas / total)
+    // Conversión rate
     const conversionRate = totalOperations > 0 
       ? ((confirmedOperations / totalOperations) * 100) 
       : 0
@@ -265,20 +284,23 @@ export async function GET(request: Request) {
       margin: number
     }> = {}
 
-    for (const op of operations || []) {
-      if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status) && op.seller_id) {
-        if (!sellerStats[op.seller_id]) {
-          sellerStats[op.seller_id] = {
-            id: op.seller_id,
+    for (const op of opsList) {
+      if (!op) continue
+      const status = op.status || ''
+      if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(status) && op.seller_id) {
+        const sellerId = op.seller_id
+        if (!sellerStats[sellerId]) {
+          sellerStats[sellerId] = {
+            id: sellerId,
             name: 'Vendedor',
             count: 0,
             sales: 0,
             margin: 0,
           }
         }
-        sellerStats[op.seller_id].count++
-        sellerStats[op.seller_id].sales += parseFloat(op.sale_amount_total) || 0
-        sellerStats[op.seller_id].margin += parseFloat(op.margin_amount) || 0
+        sellerStats[sellerId].count++
+        sellerStats[sellerId].sales += safeParseFloat(op.sale_amount_total)
+        sellerStats[sellerId].margin += safeParseFloat(op.margin_amount)
       }
     }
 
@@ -287,20 +309,25 @@ export async function GET(request: Request) {
     const sellerNamesMap: Record<string, string> = {}
     
     if (sellerIds.length > 0) {
-      const { data: sellers } = await supabase
+      const { data: sellers, error: sellersError } = await supabase
         .from("users")
         .select("id, name")
         .in("id", sellerIds)
       
-      if (sellers) {
+      if (sellersError) {
+        console.error("[Operations Statistics] Error fetching sellers:", sellersError)
+      } else if (sellers) {
         sellers.forEach((seller: any) => {
-          sellerNamesMap[seller.id] = seller.name || "Sin nombre"
+          if (seller && seller.id) {
+            sellerNamesMap[seller.id] = seller.name || "Sin nombre"
+          }
         })
       }
     }
 
-    // Actualizar nombres y obtener top 5
+    // Top 5 vendedores
     const topSellers = Object.values(sellerStats)
+      .filter(s => s.sales > 0)
       .map(seller => ({
         ...seller,
         name: sellerNamesMap[seller.id] || seller.name
@@ -308,14 +335,13 @@ export async function GET(request: Request) {
       .sort((a, b) => b.sales - a.sales)
       .slice(0, 5)
 
-    console.log(`[Operations Statistics] Final stats:`, {
-      totalOperations,
-      confirmedOperations,
-      totalSales,
-      totalMargin,
-      topDestinationsCount: topDestinations.length,
-      topSellersCount: topSellers.length,
-      monthlyTrendCount: monthlyTrend.length,
+    console.log(`[Operations Statistics] Final:`, {
+      totalOps: totalOperations,
+      confirmed: confirmedOperations,
+      sales: totalSales,
+      margin: totalMargin,
+      destinations: topDestinations.length,
+      sellers: topSellers.length,
     })
 
     return NextResponse.json({
@@ -323,9 +349,9 @@ export async function GET(request: Request) {
         totalOperations,
         confirmedOperations,
         pendingOperations,
-        cancelledOperations: statusCounts.CANCELLED,
-        totalSales,
-        totalMargin,
+        cancelledOperations: statusCounts.CANCELLED || 0,
+        totalSales: Math.round(totalSales),
+        totalMargin: Math.round(totalMargin),
         avgMarginPercentage: Math.round(avgMarginPercentage * 10) / 10,
         avgTicket: Math.round(avgTicket),
         conversionRate: Math.round(conversionRate * 10) / 10,
@@ -342,4 +368,32 @@ export async function GET(request: Request) {
         topSellers,
       },
     })
+  } catch (error: any) {
+    console.error("[Operations Statistics] Unexpected error:", error)
+    return NextResponse.json({
+      error: "Error inesperado: " + (error?.message || "Unknown error"),
+      overview: {
+        totalOperations: 0,
+        confirmedOperations: 0,
+        pendingOperations: 0,
+        cancelledOperations: 0,
+        totalSales: 0,
+        totalMargin: 0,
+        avgMarginPercentage: 0,
+        avgTicket: 0,
+        conversionRate: 0,
+      },
+      distributions: {
+        byStatus: [],
+        byDestination: [],
+      },
+      trends: {
+        monthly: [],
+      },
+      rankings: {
+        topDestinations: [],
+        topSellers: [],
+      },
+    }, { status: 500 })
+  }
 }
