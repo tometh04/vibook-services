@@ -116,6 +116,37 @@ export async function PATCH(
       console.error("Error registrando evento:", e)
     }
 
+    // CRÍTICO: Registrar en auditoría admin
+    try {
+      // Obtener valores anteriores para auditoría
+      const { data: oldSubscription } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("id", subscriptionId)
+        .single()
+
+      // Obtener IP y user agent del request (si está disponible)
+      const requestHeaders = request.headers
+      const ipAddress = requestHeaders.get('x-forwarded-for') || requestHeaders.get('x-real-ip') || 'unknown'
+      const userAgent = requestHeaders.get('user-agent') || 'unknown'
+
+      await supabase.rpc('log_admin_action', {
+        admin_user_id_param: null, // TODO: Obtener del JWT del admin
+        admin_email_param: 'admin@vibook.ai', // TODO: Obtener del JWT del admin
+        action_type_param: 'SUBSCRIPTION_UPDATED',
+        entity_type_param: 'subscription',
+        entity_id_param: subscriptionId,
+        old_values_param: oldSubscription ? (oldSubscription as any) : null,
+        new_values_param: updateData as any,
+        reason_param: body.reason || 'Cambio realizado desde admin panel',
+        ip_address_param: ipAddress,
+        user_agent_param: userAgent
+      })
+    } catch (e) {
+      console.error("Error registrando auditoría admin:", e)
+      // No fallar si falla la auditoría, pero loggear
+    }
+
     return NextResponse.json({ success: true, subscription: updatedSubscription })
   } catch (error: any) {
     console.error("Error in update subscription:", error)

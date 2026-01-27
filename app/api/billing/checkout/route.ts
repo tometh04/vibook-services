@@ -68,6 +68,13 @@ export async function POST(request: Request) {
       .eq("id", agencyId)
       .single()
 
+    // CRÍTICO: Verificar a nivel de usuario (no solo agencia) para prevenir múltiples trials
+    const { data: userData } = await supabase
+      .from("users")
+      .select("has_used_trial")
+      .eq("id", user.id)
+      .single()
+
     // Obtener configuración de días de trial
     const { data: trialConfig } = await supabase
       .from("system_config")
@@ -84,8 +91,8 @@ export async function POST(request: Request) {
       .eq("agency_id", agencyId)
       .maybeSingle()
 
-    // URGENTE: Si ya usó trial, NO permitir otro trial - solo pago inmediato
-    const hasUsedTrial = agencyData?.has_used_trial || false
+    // URGENTE: Si ya usó trial (a nivel de usuario o agencia), NO permitir otro trial - solo pago inmediato
+    const hasUsedTrial = (userData?.has_used_trial || false) || (agencyData?.has_used_trial || false)
     
     // Si está haciendo upgrade durante trial, debe perder días y pagar inmediatamente
     const isUpgrade = isUpgradeDuringTrial && existingSubscription?.status === 'TRIAL'

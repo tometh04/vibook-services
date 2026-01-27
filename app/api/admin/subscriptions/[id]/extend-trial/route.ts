@@ -92,6 +92,28 @@ export async function POST(
         }
       })
 
+    // CRÍTICO: Registrar en auditoría admin
+    try {
+      const requestHeaders = request.headers
+      const ipAddress = requestHeaders.get('x-forwarded-for') || requestHeaders.get('x-real-ip') || 'unknown'
+      const userAgent = requestHeaders.get('user-agent') || 'unknown'
+
+      await supabase.rpc('log_admin_action', {
+        admin_user_id_param: null, // TODO: Obtener del JWT del admin
+        admin_email_param: 'admin@vibook.ai', // TODO: Obtener del JWT del admin
+        action_type_param: 'TRIAL_EXTENDED',
+        entity_type_param: 'subscription',
+        entity_id_param: subscriptionId,
+        old_values_param: { trial_end: (subscription as any).trial_end } as any,
+        new_values_param: { trial_end: newTrialEnd.toISOString(), additional_days: additionalDays } as any,
+        reason_param: body.reason || `Extensión de trial por ${additionalDays} días`,
+        ip_address_param: ipAddress,
+        user_agent_param: userAgent
+      })
+    } catch (e) {
+      console.error("Error registrando auditoría admin:", e)
+    }
+
     return NextResponse.json({
       success: true,
       subscription: updatedSubscription,
