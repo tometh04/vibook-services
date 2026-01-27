@@ -35,6 +35,20 @@ export async function POST(
       return NextResponse.json({ error: "Suscripción no encontrada" }, { status: 404 })
     }
 
+    // Validar límites de extensión
+    const { data: extensionCheck, error: extensionError } = await supabase.rpc('check_trial_extension_limits', {
+      subscription_id_param: subscriptionId,
+      additional_days: additionalDays
+    })
+
+    if (extensionError) {
+      console.error("Error checking trial extension limits:", extensionError)
+      return NextResponse.json(
+        { error: extensionError.message || "No se puede extender el trial más allá de los límites permitidos" },
+        { status: 400 }
+      )
+    }
+
     // Calcular nueva fecha de fin de trial
     const currentTrialEnd = (subscription as any).trial_end 
       ? new Date((subscription as any).trial_end)

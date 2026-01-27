@@ -10,6 +10,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
     }
 
+    // CRÍTICO: Verificar suscripción activa antes de permitir crear usuarios
+    const { verifySubscriptionAccess } = await import("@/lib/billing/subscription-middleware")
+    const subscriptionCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subscriptionCheck.hasAccess) {
+      return NextResponse.json(
+        { error: subscriptionCheck.message || "No tiene una suscripción activa" },
+        { status: 403 }
+      )
+    }
+
     const supabase = await createServerClient()
     const body = await request.json()
     const { name, email, role, agencies, default_commission_percentage } = body

@@ -30,6 +30,26 @@ export async function PATCH(
       }
     }
 
+    // CRÍTICO: Validar que si se cambia status a ACTIVE, hay mp_preapproval_id
+    if (updateData.status === 'ACTIVE') {
+      const { data: currentSub } = await supabase
+        .from("subscriptions")
+        .select("mp_preapproval_id, plan_id, plan:subscription_plans(name)")
+        .eq("id", subscriptionId)
+        .single()
+
+      if (currentSub) {
+        const planName = (currentSub as any).plan?.name
+        // TESTER no requiere preapproval, pero otros planes sí
+        if (planName !== 'TESTER' && (!(currentSub as any).mp_preapproval_id || (currentSub as any).mp_preapproval_id === '')) {
+          return NextResponse.json(
+            { error: "No se puede cambiar status a ACTIVE sin mp_preapproval_id válido (excepto plan TESTER)" },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     // Si se está cambiando el plan, verificar que existe
     if (updateData.plan_id) {
       const { data: plan, error: planError } = await supabase
