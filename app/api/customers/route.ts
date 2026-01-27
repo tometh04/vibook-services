@@ -41,32 +41,27 @@ export async function GET(request: Request) {
       console.log(`[Customers API] SUPER_ADMIN - no filters applied`)
     }
 
-    // SOLUCIÓN: El orden correcto en Supabase es .select() ANTES de .in()
-    // El método .in() es un filtro que se aplica DESPUÉS del select
+    // OPTIMIZACIÓN: Aplicar filtros en Supabase (no en memoria)
     console.log(`[Customers API] Executing query for user ${user.id}...`)
-    
-    let customersRaw: any[] | null = null
-    let customersError: any = null
-    
+
+    let query = supabase.from("customers").select("*")
+
+    // Aplicar filtro de agencia
     if (user.role !== "SUPER_ADMIN") {
       if (agencyIds.length === 0) {
         return NextResponse.json({ customers: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0, hasMore: false } })
       }
-      // ORDEN CORRECTO: .select() ANTES de .in()
-      const result = await supabase
-        .from("customers")
-        .select("*")
-        .in("agency_id", agencyIds)
-      customersRaw = result.data
-      customersError = result.error
-    } else {
-      // SUPER_ADMIN sin filtros
-      const result = await supabase
-        .from("customers")
-        .select("*")
-      customersRaw = result.data
-      customersError = result.error
+      query = query.in("agency_id", agencyIds)
     }
+
+    // OPTIMIZACIÓN: Aplicar búsqueda en DB con ILIKE (case-insensitive like)
+    if (search) {
+      // Usar or() para buscar en múltiples campos - mucho más eficiente que filtrar en memoria
+      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+    }
+
+    // Ejecutar query optimizada
+    const { data: customersRaw, error: customersError } = await query
 
     if (customersError) {
       console.error("[Customers API] Error fetching customers:", customersError)
@@ -76,17 +71,7 @@ export async function GET(request: Request) {
 
     console.log(`[Customers API] Query executed successfully, got ${(customersRaw || []).length} customers`)
 
-    // Filtrar por búsqueda en memoria si es necesario (más simple y confiable)
     let customers = customersRaw || []
-    if (search) {
-      const searchLower = search.toLowerCase()
-      customers = customers.filter((c: any) => 
-        (c.first_name?.toLowerCase().includes(searchLower)) ||
-        (c.last_name?.toLowerCase().includes(searchLower)) ||
-        (c.email?.toLowerCase().includes(searchLower)) ||
-        (c.phone?.includes(search))
-      )
-    }
 
     // Ordenar y paginar en memoria
     customers.sort((a: any, b: any) => {

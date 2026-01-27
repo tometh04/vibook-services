@@ -28,23 +28,20 @@ export default async function DashboardLayout({
   // Buscar la agencia con suscripción activa, o usar la primera disponible
   let activeAgencyId = undefined
   if (agencies.length > 0) {
-    // Buscar agencia con suscripción ACTIVE o TRIAL
-    for (const agency of agencies) {
-      const { data: subscription } = await (supabaseAdmin
-        .from("subscriptions") as any)
-        .select("status, plan:subscription_plans(name)")
-        .eq("agency_id", agency.id)
-        .in("status", ["ACTIVE", "TRIAL"])
-        .maybeSingle()
-      
-      if (subscription) {
-        activeAgencyId = agency.id
-        break
-      }
-    }
-    
-    // Si no encontró ninguna con ACTIVE/TRIAL, usar la primera
-    if (!activeAgencyId) {
+    // Buscar agencia con suscripción ACTIVE o TRIAL - UNA SOLA QUERY para todas las agencias
+    const agencyIds = agencies.map((a: any) => a.id)
+    const { data: activeSubscriptions } = await (supabaseAdmin
+      .from("subscriptions") as any)
+      .select("agency_id, status, plan:subscription_plans(name)")
+      .in("agency_id", agencyIds)
+      .in("status", ["ACTIVE", "TRIAL"])
+      .limit(1)
+      .maybeSingle()
+
+    if (activeSubscriptions) {
+      activeAgencyId = activeSubscriptions.agency_id
+    } else {
+      // Si no encontró ninguna con ACTIVE/TRIAL, usar la primera
       activeAgencyId = agencies[0].id
     }
   }

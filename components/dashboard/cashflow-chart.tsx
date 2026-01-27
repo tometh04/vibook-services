@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
 import {
@@ -49,7 +50,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function CashflowChart({ data }: CashflowChartProps) {
+export const CashflowChart = memo(function CashflowChart({ data }: CashflowChartProps) {
   const colors = useChartColors()
   const chartData = data.map((item) => ({
     date: format(new Date(item.date), "dd/MM", { locale: es }),
@@ -129,4 +130,4 @@ export function CashflowChart({ data }: CashflowChartProps) {
       </CardContent>
     </Card>
   )
-}
+})

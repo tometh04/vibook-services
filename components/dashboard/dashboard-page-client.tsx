@@ -1,13 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardFilters, DashboardFiltersState } from "./dashboard-filters"
-import { SalesBySellerChart } from "./sales-by-seller-chart"
-import { DestinationsChart } from "./destinations-chart"
-import { DestinationsPieChart } from "./destinations-pie-chart"
-import { RegionsRadarChart } from "./regions-radar-chart"
-import { CashflowChart } from "./cashflow-chart"
 import { PendingAlertsCard } from "./pending-alerts-card"
 import { UpcomingTripsCard } from "./upcoming-trips-card"
 import { TopSellersCard } from "./top-sellers-card"
@@ -16,6 +12,28 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowUpIcon, ArrowDownIcon } from "@radix-ui/react-icons"
 import { DollarSign, TrendingUp, Package, Percent, Users, Building2 } from "lucide-react"
+
+// Dynamic imports para charts pesados (reduce bundle inicial ~200KB)
+const SalesBySellerChart = dynamic(() => import("./sales-by-seller-chart").then(mod => ({ default: mod.SalesBySellerChart })), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[350px] w-full" />
+})
+const DestinationsChart = dynamic(() => import("./destinations-chart").then(mod => ({ default: mod.DestinationsChart })), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[350px] w-full" />
+})
+const DestinationsPieChart = dynamic(() => import("./destinations-pie-chart").then(mod => ({ default: mod.DestinationsPieChart })), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[350px] w-full" />
+})
+const RegionsRadarChart = dynamic(() => import("./regions-radar-chart").then(mod => ({ default: mod.RegionsRadarChart })), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[350px] w-full" />
+})
+const CashflowChart = dynamic(() => import("./cashflow-chart").then(mod => ({ default: mod.CashflowChart })), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[350px] w-full" />
+})
 
 interface DashboardPageClientProps {
   agencies: Array<{ id: string; name: string }>
@@ -120,14 +138,14 @@ export function DashboardPageClient({
       }
 
       // Fetch all data in parallel with cache headers
-      const fetchOptions = { 
+      const fetchOptions = {
         next: { revalidate: 30 } // Cache por 30 segundos
       }
-      
-      const [salesRes, sellersRes, destinationsRes, destinationsAllRes, cashflowRes, pendingBalancesRes, prevSalesRes] = await Promise.all([
+
+      // Optimización: Una sola llamada a destinations con limit=10, luego usamos slice para limit=5
+      const [salesRes, sellersRes, destinationsAllRes, cashflowRes, pendingBalancesRes, prevSalesRes] = await Promise.all([
         fetch(`/api/analytics/sales?${params.toString()}`, fetchOptions),
         fetch(`/api/analytics/sellers?${params.toString()}`, fetchOptions),
-        fetch(`/api/analytics/destinations?${params.toString()}&limit=5`, fetchOptions),
         fetch(`/api/analytics/destinations?${params.toString()}&limit=10`, fetchOptions),
         fetch(`/api/analytics/cashflow?${params.toString()}`, fetchOptions),
         fetch(`/api/analytics/pending-balances`, fetchOptions),
@@ -136,7 +154,6 @@ export function DashboardPageClient({
 
       const salesData = await salesRes.json()
       const sellersData = await sellersRes.json()
-      const destinationsData = await destinationsRes.json()
       const destinationsAllData = await destinationsAllRes.json()
       const cashflowData = await cashflowRes.json()
       const pendingBalancesData = await pendingBalancesRes.json()
@@ -158,9 +175,10 @@ export function DashboardPageClient({
         pendingOperatorPayments: pendingBalancesData.accountsPayable || 0,
       })
 
+      const allDestinations = destinationsAllData.destinations || []
       setSellersData(sellersData.sellers || [])
-      setDestinationsData(destinationsData.destinations || [])
-      setDestinationsAllData(destinationsAllData.destinations || [])
+      setDestinationsData(allDestinations.slice(0, 5)) // Top 5 para pie chart
+      setDestinationsAllData(allDestinations) // Top 10 para bar chart
       setCashflowData(cashflowData.cashflow || [])
     } catch (error) {
       console.error("Error fetching dashboard data:", error)

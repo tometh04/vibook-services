@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Pie, PieChart, Cell } from "recharts"
 import {
@@ -70,7 +71,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function DestinationsPieChart({ data }: DestinationsPieChartProps) {
+export const DestinationsPieChart = memo(function DestinationsPieChart({ data }: DestinationsPieChartProps) {
   const colors = useChartColors()
   const colorArray = [colors["1"], colors["2"], colors["3"], colors["4"], colors["5"]]
   
@@ -130,5 +131,5 @@ export function DestinationsPieChart({ data }: DestinationsPieChartProps) {
       </CardContent>
     </Card>
   )
-}
+})
 

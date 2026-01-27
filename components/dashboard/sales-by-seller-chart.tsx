@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
 import {
@@ -40,7 +41,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function SalesBySellerChart({ data }: SalesBySellerChartProps) {
+export const SalesBySellerChart = memo(function SalesBySellerChart({ data }: SalesBySellerChartProps) {
   const colors = useChartColors()
   const chartData = data.map((seller) => ({
     name: seller.sellerName,
@@ -87,4 +88,4 @@ export function SalesBySellerChart({ data }: SalesBySellerChartProps) {
       </CardContent>
     </Card>
   )
-}
+})

@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart } from "recharts"
 import {
@@ -57,7 +58,7 @@ function detectRegion(destination: string): string {
   return "Otros"
 }
 
-export function RegionsRadarChart({ data }: RegionsRadarChartProps) {
+export const RegionsRadarChart = memo(function RegionsRadarChart({ data }: RegionsRadarChartProps) {
   const colors = useChartColors()
   // Agrupar por región detectada
   const regionData = data.reduce((acc, dest) => {
@@ -120,5 +121,5 @@ export function RegionsRadarChart({ data }: RegionsRadarChartProps) {
       </CardContent>
     </Card>
   )
-}
+})
 

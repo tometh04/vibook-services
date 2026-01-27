@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
@@ -39,7 +40,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function DestinationsChart({ data }: DestinationsChartProps) {
+export const DestinationsChart = memo(function DestinationsChart({ data }: DestinationsChartProps) {
   const colors = useChartColors()
   const chartData = data.map((dest) => ({
     name: dest.destination,
@@ -94,4 +95,4 @@ export function DestinationsChart({ data }: DestinationsChartProps) {
       </CardContent>
     </Card>
   )
-}
+})

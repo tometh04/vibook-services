@@ -28,19 +28,7 @@ export async function GET(request: Request) {
     const lastDay = new Date(year, month, 0).getDate()
     const dateTo = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
 
-    // Obtener todas las cuentas del plan de cuentas activas
-    const { data: chartAccounts, error: chartError } = await (supabase.from("chart_of_accounts") as any)
-      .select("*")
-      .eq("is_active", true)
-      .order("category", { ascending: true })
-      .order("display_order", { ascending: true })
-
-    if (chartError) {
-      console.error("Error fetching chart of accounts:", chartError)
-      return NextResponse.json({ error: "Error al obtener plan de cuentas" }, { status: 500 })
-    }
-
-    // Obtener todas las cuentas financieras relacionadas con el plan de cuentas
+    // OPTIMIZACIÓN: Ejecutar queries en paralelo - ambas son independientes
     let financialAccountsQuery = supabase
       .from("financial_accounts")
       .select(`
@@ -61,9 +49,23 @@ export async function GET(request: Request) {
       // Filtrar por agencia, pero también incluir cuentas sin agency_id (cuentas globales como "Cuentas por Pagar")
       financialAccountsQuery = financialAccountsQuery.or(`agency_id.eq.${agencyId},agency_id.is.null`)
     }
-    // Si es "ALL", incluir todas las cuentas (con y sin agency_id)
 
-    const { data: financialAccounts, error: faError } = await financialAccountsQuery
+    const [
+      { data: chartAccounts, error: chartError },
+      { data: financialAccounts, error: faError }
+    ] = await Promise.all([
+      (supabase.from("chart_of_accounts") as any)
+        .select("*")
+        .eq("is_active", true)
+        .order("category", { ascending: true })
+        .order("display_order", { ascending: true }),
+      financialAccountsQuery
+    ])
+
+    if (chartError) {
+      console.error("Error fetching chart of accounts:", chartError)
+      return NextResponse.json({ error: "Error al obtener plan de cuentas" }, { status: 500 })
+    }
 
     if (faError) {
       console.error("Error fetching financial accounts:", faError)

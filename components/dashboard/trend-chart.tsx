@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, memo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
@@ -17,7 +17,7 @@ interface TrendChartProps {
   className?: string
 }
 
-export function TrendChart({ className }: TrendChartProps) {
+export const TrendChart = memo(function TrendChart({ className }: TrendChartProps) {
   const [data, setData] = useState<MonthData[]>([])
   const [loading, setLoading] = useState(true)
   const [trend, setTrend] = useState<{ percentage: number; direction: string }>({ percentage: 0, direction: "up" })
@@ -124,5 +124,5 @@ export function TrendChart({ className }: TrendChartProps) {
       </CardContent>
     </Card>
   )
-}
+})
 
