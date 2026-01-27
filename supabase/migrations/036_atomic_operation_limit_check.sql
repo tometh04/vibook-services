@@ -259,6 +259,6 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 4. Comentarios
-COMMENT ON FUNCTION check_and_increment_operation_limit() IS 'Verifica e incrementa límite de forma atómica para prevenir race conditions';
-COMMENT ON FUNCTION increment_user_count() IS 'Incrementa contador de usuarios después de crear usuario';
-COMMENT ON FUNCTION decrement_usage_count() IS 'Decrementa contador para rollback si falla la creación del recurso';
+COMMENT ON FUNCTION check_and_increment_operation_limit(UUID, TEXT) IS 'Verifica e incrementa límite de forma atómica para prevenir race conditions';
+COMMENT ON FUNCTION increment_user_count(UUID) IS 'Incrementa contador de usuarios después de crear usuario';
+COMMENT ON FUNCTION decrement_usage_count(UUID, TEXT, DATE) IS 'Decrementa contador para rollback si falla la creación del recurso';
