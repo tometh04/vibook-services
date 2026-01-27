@@ -38,46 +38,86 @@ export async function GET(request: Request) {
   if (user.role === "SUPER_ADMIN") {
     const { data: agencies } = await supabase.from("agencies").select("id")
     agencyIds = (agencies || []).map((a: any) => a.id)
+    console.log(`[Operations Statistics] SUPER_ADMIN - Found ${agencyIds.length} agencies`)
   } else {
     const { data: userAgencies } = await supabase
       .from("user_agencies")
       .select("agency_id")
       .eq("user_id", user.id)
     agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
+    console.log(`[Operations Statistics] User ${user.id} (${user.role}) - Found ${agencyIds.length} agencies:`, agencyIds)
   }
 
-    // Query base de operaciones - simplificada
-    let operationsQuery = (supabase.from("operations") as any)
-      .select(`
-        id,
-        destination,
-        status,
-        sale_amount_total,
-        operator_cost,
-        margin_amount,
-        margin_percentage,
-        currency,
-        departure_date,
-        created_at,
-        agency_id,
-        seller_id
-      `)
+  // Si no tiene agencias y no es SUPER_ADMIN, retornar datos vacíos
+  if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+    console.log(`[Operations Statistics] User ${user.id} has no agencies - returning empty stats`)
+    return NextResponse.json({
+      overview: {
+        totalOperations: 0,
+        confirmedOperations: 0,
+        pendingOperations: 0,
+        cancelledOperations: 0,
+        totalSales: 0,
+        totalMargin: 0,
+        avgMarginPercentage: 0,
+        avgTicket: 0,
+        conversionRate: 0,
+      },
+      distributions: {
+        byStatus: [],
+        byDestination: [],
+      },
+      trends: {
+        monthly: [],
+      },
+      rankings: {
+        topDestinations: [],
+        topSellers: [],
+      },
+    })
+  }
 
-    // Filtrar por agencia
-    if (agencyId && agencyId !== "ALL") {
-      operationsQuery = operationsQuery.eq("agency_id", agencyId)
-    } else if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
-      operationsQuery = operationsQuery.in("agency_id", agencyIds)
-    }
+  // Query base de operaciones - simplificada
+  let operationsQuery = supabase
+    .from("operations")
+    .select(`
+      id,
+      destination,
+      status,
+      sale_amount_total,
+      operator_cost,
+      margin_amount,
+      margin_percentage,
+      currency,
+      departure_date,
+      created_at,
+      agency_id,
+      seller_id
+    `)
 
-    const { data: operations, error: operationsError } = await operationsQuery
+  // Filtrar por agencia
+  if (agencyId && agencyId !== "ALL") {
+    console.log(`[Operations Statistics] Filtering by specific agency: ${agencyId}`)
+    operationsQuery = operationsQuery.eq("agency_id", agencyId)
+  } else if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+    console.log(`[Operations Statistics] Filtering by user agencies:`, agencyIds)
+    operationsQuery = operationsQuery.in("agency_id", agencyIds)
+  } else {
+    console.log(`[Operations Statistics] No agency filter - SUPER_ADMIN or no agencies`)
+  }
 
-    if (operationsError) {
-      console.error("Error fetching operations:", operationsError)
-      return NextResponse.json({ error: "Error al obtener operaciones: " + operationsError.message }, { status: 500 })
-    }
+  const { data: operations, error: operationsError } = await operationsQuery
 
-    console.log(`[Operations Statistics] Fetched ${(operations || []).length} operations for user ${user.id} (${user.role})`)
+  if (operationsError) {
+    console.error("[Operations Statistics] Error fetching operations:", operationsError)
+    return NextResponse.json({ error: "Error al obtener operaciones: " + operationsError.message }, { status: 500 })
+  }
+
+  console.log(`[Operations Statistics] Fetched ${(operations || []).length} operations for user ${user.id} (${user.role})`)
+  
+  if ((operations || []).length === 0) {
+    console.log(`[Operations Statistics] WARNING: No operations found! This might be a data issue or RLS problem.`)
+  }
 
     const now = new Date()
 
@@ -267,6 +307,16 @@ export async function GET(request: Request) {
       }))
       .sort((a, b) => b.sales - a.sales)
       .slice(0, 5)
+
+    console.log(`[Operations Statistics] Final stats:`, {
+      totalOperations,
+      confirmedOperations,
+      totalSales,
+      totalMargin,
+      topDestinationsCount: topDestinations.length,
+      topSellersCount: topSellers.length,
+      monthlyTrendCount: monthlyTrend.length,
+    })
 
     return NextResponse.json({
       overview: {
