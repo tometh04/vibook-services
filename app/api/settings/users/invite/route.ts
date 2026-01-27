@@ -56,9 +56,23 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (userAgencies) {
-      const { checkSubscriptionLimit } = await import("@/lib/billing/limits")
-      const limitCheck = await checkSubscriptionLimit((userAgencies as any).agency_id, "users")
-      if (limitCheck.limitReached) {
+      // CRÍTICO: Verificar límite de usuarios de forma atómica
+      const supabaseAdmin = await import("@/lib/supabase/admin").then(m => m.createAdminSupabaseClient())
+      const { data: limitResult, error: limitError } = await supabaseAdmin.rpc('check_and_increment_operation_limit', {
+        agency_id_param: (userAgencies as any).agency_id,
+        limit_type_param: 'users'
+      })
+
+      if (limitError) {
+        console.error("Error checking user limit:", limitError)
+        return NextResponse.json(
+          { error: "Error al verificar límite de usuarios. Por favor, intentá nuevamente." },
+          { status: 500 }
+        )
+      }
+
+      const limitCheck = limitResult as any
+      if (!limitCheck.allowed || limitCheck.limit_reached) {
         return NextResponse.json(
           {
             error: limitCheck.message || `Has alcanzado el límite de ${limitCheck.limit} usuarios de tu plan. Podés seguir viendo tus usuarios, pero no podés crear nuevos. Eliminá usuarios existentes o actualizá tu plan para continuar.`,
@@ -134,6 +148,27 @@ export async function POST(request: Request) {
 
     if (userError || !userData) {
       console.error("❌ Error creating user record:", userError)
+      
+      // CRÍTICO: Si falla la creación, revertir el incremento del contador
+      if (userAgencies) {
+        try {
+          const supabaseAdmin = await import("@/lib/supabase/admin").then(m => m.createAdminSupabaseClient())
+          const currentMonthStart = new Date()
+          currentMonthStart.setDate(1)
+          currentMonthStart.setHours(0, 0, 0, 0)
+          
+          // Decrementar contador manualmente usando función RPC
+          await supabaseAdmin.rpc('decrement_usage_count', {
+            agency_id_param: (userAgencies as any).agency_id,
+            limit_type_param: 'users',
+            period_start_param: currentMonthStart.toISOString().split("T")[0]
+          })
+        } catch (rollbackError) {
+          console.error("Error reverting user count:", rollbackError)
+          // No fallar si el rollback falla, solo loggear
+        }
+      }
+      
       // Si falla crear el registro, eliminar el usuario de auth
       await adminClient.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json({ error: "Error al crear registro de usuario" }, { status: 400 })

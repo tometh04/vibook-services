@@ -105,10 +105,24 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verificar límite de operaciones del plan
-    const { checkSubscriptionLimit } = await import("@/lib/billing/limits")
-    const limitCheck = await checkSubscriptionLimit(agency_id, "operations")
-    if (limitCheck.limitReached) {
+    // CRÍTICO: Verificar e incrementar límite de operaciones de forma atómica
+    // Esto previene race conditions donde múltiples requests pueden exceder el límite
+    const supabaseAdmin = await import("@/lib/supabase/admin").then(m => m.createAdminSupabaseClient())
+    const { data: limitResult, error: limitError } = await supabaseAdmin.rpc('check_and_increment_operation_limit', {
+      agency_id_param: agency_id,
+      limit_type_param: 'operations'
+    })
+
+    if (limitError) {
+      console.error("Error checking operation limit:", limitError)
+      return NextResponse.json(
+        { error: "Error al verificar límite de operaciones. Por favor, intentá nuevamente." },
+        { status: 500 }
+      )
+    }
+
+    const limitCheck = limitResult as any
+    if (!limitCheck.allowed || limitCheck.limit_reached) {
       return NextResponse.json(
         { 
           error: limitCheck.message || "Has alcanzado el límite de operaciones de tu plan",
@@ -287,6 +301,25 @@ export async function POST(request: Request) {
       .single()
 
     if (operationError) {
+      // CRÍTICO: Si falla la creación, revertir el incremento del contador
+      // (aunque esto es raro, es importante para mantener consistencia)
+      try {
+        const supabaseAdmin = await import("@/lib/supabase/admin").then(m => m.createAdminSupabaseClient())
+        const currentMonthStart = new Date()
+        currentMonthStart.setDate(1)
+        currentMonthStart.setHours(0, 0, 0, 0)
+        
+        // Decrementar contador manualmente usando SQL directo
+        await supabaseAdmin.rpc('decrement_usage_count', {
+          agency_id_param: agency_id,
+          limit_type_param: 'operations',
+          period_start_param: currentMonthStart.toISOString().split("T")[0]
+        })
+      } catch (rollbackError) {
+        console.error("Error reverting operation count:", rollbackError)
+        // No fallar si el rollback falla, solo loggear
+      }
+
       const errMsg = operationError?.message || String(operationError)
       console.error("[api/operations POST 500] Error creating operation:", errMsg, operationError)
       return NextResponse.json(
