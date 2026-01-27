@@ -37,8 +37,27 @@ export default function PricingPage() {
         body: JSON.stringify({ planId }),
       })
       const data = await response.json()
+      
+      // Si requiere confirmación (upgrade durante trial), mostrar advertencia
+      if (data.requiresConfirmation && data.warning) {
+        const confirmed = confirm(data.warning + '\n\n¿Deseas continuar?')
+        if (!confirmed) return
+        
+        // Si confirma, hacer el checkout inmediato
+        if (data.proceedUrl) {
+          window.location.href = data.proceedUrl
+          return
+        }
+      }
+      
+      // Si hay error, mostrar mensaje
+      if (data.error) {
+        alert(data.error)
+        return
+      }
+      
       // Mercado Pago devuelve initPoint (producción) o sandboxInitPoint (testing)
-      const checkoutUrl = data.initPoint || data.sandboxInitPoint
+      const checkoutUrl = data.initPoint || data.sandboxInitPoint || data.checkoutUrl
       if (checkoutUrl) {
         window.location.href = checkoutUrl
       } else {

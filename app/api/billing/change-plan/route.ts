@@ -71,6 +71,22 @@ export async function POST(request: Request) {
     const currentPlan = (currentSubscription as any).plan
     const isUpgrade = (newPlan as any).price_monthly > currentPlan.price_monthly
     const isDowngrade = (newPlan as any).price_monthly < currentPlan.price_monthly
+    const isTrial = (currentSubscription as any).status === 'TRIAL'
+
+    // Si está en trial y cambia de plan, mostrar advertencia
+    if (isTrial && !body.confirmedTrialChange) {
+      const trialEndDate = (currentSubscription as any).trial_end ? new Date((currentSubscription as any).trial_end) : null
+      const daysRemaining = trialEndDate ? Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
+      
+      return NextResponse.json({
+        requiresConfirmation: true,
+        warning: `⚠️ Estás en período de prueba. Al cambiar de plan perderás los ${daysRemaining} días restantes de tu prueba gratuita y se te cobrará inmediatamente.`,
+        isTrialChange: true,
+        daysRemaining,
+        currentPlan: currentPlan.display_name,
+        newPlan: (newPlan as any).display_name
+      })
+    }
 
     // Si es downgrade, verificar confirmación
     if (isDowngrade && !confirmedDowngrade) {
@@ -137,8 +153,8 @@ export async function POST(request: Request) {
       updated_at: now.toISOString()
     }
 
-    // Si está en trial, cancelar trial al cambiar de plan
-    if ((currentSubscription as any).status === 'TRIAL') {
+    // Si está en trial, cancelar trial al cambiar de plan (solo si ya confirmó)
+    if (isTrial && body.confirmedTrialChange) {
       updateData.trial_start = null
       updateData.trial_end = null
       updateData.status = 'ACTIVE'
