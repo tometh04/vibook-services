@@ -28,35 +28,37 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.ADMIN_JWT_SECRET || "vibook-admin-secret-key-change-in-production"
 )
 
-async function verifyAdminSession(cookieHeader: string | null): Promise<boolean> {
+async function verifyAdminSession(
+  cookieHeader: string | null
+): Promise<{ valid: boolean; payload?: any }> {
   if (!cookieHeader) {
     console.log('[Admin Middleware] No cookie header found')
-    return false
+    return { valid: false }
   }
 
   try {
     // Parsear cookies correctamente (pueden tener espacios o estar en diferentes formatos)
     const cookies = cookieHeader.split(';').map(c => c.trim())
     const adminSessionCookie = cookies.find(c => c.startsWith('admin_session='))
-    
+
     if (!adminSessionCookie) {
       console.log('[Admin Middleware] No admin_session cookie found in:', cookieHeader.substring(0, 100))
-      return false
+      return { valid: false }
     }
 
     // Extraer el token (puede haber = en el valor del JWT, así que tomamos todo después del primer =)
     const token = adminSessionCookie.substring('admin_session='.length)
     if (!token || token.length === 0) {
       console.log('[Admin Middleware] Empty token in admin_session cookie')
-      return false
+      return { valid: false }
     }
 
-    await jwtVerify(token, JWT_SECRET)
+    const { payload } = await jwtVerify(token, JWT_SECRET)
     console.log('[Admin Middleware] Valid admin session found')
-    return true
+    return { valid: true, payload }
   } catch (error) {
     console.error('[Admin Middleware] Error verifying admin session:', error)
-    return false
+    return { valid: false }
   }
 }
 
@@ -90,7 +92,8 @@ export async function middleware(req: NextRequest) {
 
     // Verificar sesión para todas las demás rutas
     const cookieHeader = req.headers.get('cookie')
-    const hasValidSession = await verifyAdminSession(cookieHeader)
+    const sessionResult = await verifyAdminSession(cookieHeader)
+    const hasValidSession = sessionResult.valid
 
     // Si está en la raíz, SIEMPRE redirigir a /admin-login si no tiene sesión
     // o a /admin si tiene sesión
@@ -112,7 +115,17 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // Si tiene sesión válida, permitir acceso
+    // Si tiene sesión válida, agregar info del admin en headers y permitir acceso
+    if (hasValidSession && sessionResult.payload) {
+      const requestHeaders = new Headers(req.headers)
+      requestHeaders.set('x-admin-id', sessionResult.payload.admin_id || '')
+      requestHeaders.set('x-admin-email', sessionResult.payload.email || '')
+
+      return NextResponse.next({
+        request: { headers: requestHeaders },
+      })
+    }
+
     // NO aplicar verificación de Supabase para rutas admin
     return NextResponse.next()
   } else {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { getUserAgencyIds } from "@/lib/permissions-api"
+import { createPreference } from "@/lib/mercadopago/client"
 
 export const dynamic = 'force-dynamic'
 
@@ -113,15 +114,43 @@ export async function POST(request: Request) {
     // Si es downgrade confirmado, borrar datos
     if (isDowngrade && confirmedDowngrade) {
       const lostFeatures = body.lostFeatures || []
-      
+
       // Borrar datos según features perdidas
       if (lostFeatures.includes('cerebro')) {
-        // TODO: Borrar datos de Cerebro
-        console.log('[Change Plan] Borrando datos de Cerebro')
+        // Cerebro no tiene tablas propias - solo usa queries sobre datos existentes
+        // Al perder acceso, simplemente no podrá usar el asistente IA
+        console.log('[Change Plan] Cerebro deshabilitado - no hay datos para borrar')
       }
+
       if (lostFeatures.includes('emilia')) {
-        // TODO: Borrar datos de Emilia
-        console.log('[Change Plan] Borrando datos de Emilia')
+        // Borrar todas las conversaciones de Emilia (los mensajes se borran por CASCADE)
+        try {
+          // Obtener todos los usuarios de la agencia para borrar sus conversaciones
+          const { data: agencyUsers } = await supabase
+            .from("users")
+            .select("id")
+            .eq("agency_id", agencyId)
+
+          if (agencyUsers && agencyUsers.length > 0) {
+            const userIds = (agencyUsers as any[]).map((u: any) => u.id)
+
+            // Borrar conversaciones de todos los usuarios de la agencia
+            const { error: deleteError } = await supabase
+              .from("conversations")
+              .delete()
+              .in("user_id", userIds)
+
+            if (deleteError) {
+              console.error('[Change Plan] Error borrando conversaciones de Emilia:', deleteError)
+              // No fallar el cambio de plan por esto, solo loggear
+            } else {
+              console.log('[Change Plan] Conversaciones de Emilia borradas exitosamente')
+            }
+          }
+        } catch (err: any) {
+          console.error('[Change Plan] Error procesando borrado de Emilia:', err)
+          // No fallar el cambio de plan, solo loggear
+        }
       }
       // Agregar más según sea necesario
     }
@@ -179,9 +208,53 @@ export async function POST(request: Request) {
     }
 
     // Si es upgrade y hay diferencia a cobrar, crear pago inmediato
+    let paymentUrl = null
     if (isUpgrade && proratedAmount > 0) {
-      // TODO: Crear pago inmediato en Mercado Pago por el prorrateo
-      console.log('[Change Plan] Upgrade - cobrar prorrateo:', proratedAmount)
+      try {
+        // Crear preferencia de pago para el prorrateo
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const preference = await createPreference({
+          items: [{
+            title: `Prorrateo de cambio de plan a ${(newPlan as any).display_name}`,
+            quantity: 1,
+            unit_price: Math.round(proratedAmount * 100) / 100 // Redondear a 2 decimales
+          }],
+          payer: {
+            email: user.email!,
+            name: user.name || user.email!
+          },
+          back_urls: {
+            success: `${baseUrl}/settings/billing?payment=success`,
+            failure: `${baseUrl}/settings/billing?payment=failure`,
+            pending: `${baseUrl}/settings/billing?payment=pending`
+          },
+          auto_return: 'approved',
+          external_reference: `proration_${(currentSubscription as any).id}_${Date.now()}`,
+          notification_url: `${baseUrl}/api/billing/webhook`
+        })
+
+        paymentUrl = (preference as any).init_point || (preference as any).sandbox_init_point
+
+        // Registrar evento de pago pendiente
+        await supabase
+          .from("billing_events")
+          .insert({
+            agency_id: agencyId,
+            subscription_id: (currentSubscription as any).id,
+            event_type: 'PRORATION_PAYMENT_PENDING',
+            metadata: {
+              prorated_amount: proratedAmount,
+              payment_url: paymentUrl,
+              from_plan: currentPlan.name,
+              to_plan: (newPlan as any).name
+            }
+          })
+
+        console.log('[Change Plan] Pago de prorrateo creado:', paymentUrl)
+      } catch (err: any) {
+        console.error('[Change Plan] Error creando pago de prorrateo:', err)
+        // No fallar el cambio de plan, pero advertir al usuario
+      }
     }
 
     // Registrar evento
@@ -205,8 +278,11 @@ export async function POST(request: Request) {
       success: true,
       subscription: updatedSubscription,
       proratedAmount,
-      message: isUpgrade 
-        ? `Plan actualizado. Se te cobrará ${proratedAmount.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })} por el prorrateo.`
+      paymentUrl, // URL de Mercado Pago para completar el pago (si aplica)
+      message: isUpgrade
+        ? paymentUrl
+          ? `Plan actualizado. Redirigiendo al pago de ${proratedAmount.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })} por el prorrateo.`
+          : `Plan actualizado. Se te cobrará ${proratedAmount.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })} por el prorrateo.`
         : `Plan actualizado a ${(newPlan as any).display_name}.`
     })
   } catch (error: any) {

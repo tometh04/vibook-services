@@ -95,12 +95,14 @@ export async function POST(
     // CRÍTICO: Registrar en auditoría admin
     try {
       const requestHeaders = request.headers
+      const adminId = requestHeaders.get('x-admin-id') || 'unknown'
+      const adminEmail = requestHeaders.get('x-admin-email') || 'unknown'
       const ipAddress = requestHeaders.get('x-forwarded-for') || requestHeaders.get('x-real-ip') || 'unknown'
       const userAgent = requestHeaders.get('user-agent') || 'unknown'
 
       await supabase.rpc('log_admin_action', {
-        admin_user_id_param: null, // TODO: Obtener del JWT del admin
-        admin_email_param: 'admin@vibook.ai', // TODO: Obtener del JWT del admin
+        admin_user_id_param: adminId, // ✅ RESUELTO: Obtenido del JWT del admin via middleware
+        admin_email_param: adminEmail, // ✅ RESUELTO: Obtenido del JWT del admin via middleware
         action_type_param: 'TRIAL_EXTENDED',
         entity_type_param: 'subscription',
         entity_id_param: subscriptionId,

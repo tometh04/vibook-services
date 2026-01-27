@@ -29,7 +29,21 @@ export async function checkSubscriptionLimit(
   // (DISABLE_SUBSCRIPTION_LIMITS removido - paywall completo implementado)
 
   if (!supabaseAdmin) {
-    // Si no hay admin client, permitir todo (para desarrollo)
+    // SEGURIDAD: Sin admin client, denegar en producción (deny-by-default)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+
+    if (isProduction) {
+      console.error('🚨 CRÍTICO: Supabase admin client no disponible en producción')
+      return {
+        limitReached: true,
+        limit: null,
+        current: 0,
+        message: "Error de configuración del sistema. Contacta soporte.",
+      }
+    }
+
+    // En desarrollo, permitir pero advertir
+    console.warn('⚠️ Supabase admin client no disponible - permitiendo en desarrollo')
     return { limitReached: false, limit: null, current: 0 }
   }
 
@@ -142,7 +156,21 @@ export async function checkSubscriptionLimit(
     }
   } catch (error: any) {
     console.error("Error checking subscription limit:", error)
-    // En caso de error, permitir la acción (fallback seguro)
+    // SEGURIDAD: En caso de error, DENEGAR (deny-by-default)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+
+    if (isProduction) {
+      console.error('🚨 Error verificando límites - DENEGANDO acceso en producción')
+      return {
+        limitReached: true,
+        limit: null,
+        current: 0,
+        message: "Error al verificar tu suscripción. Por favor, intenta nuevamente.",
+      }
+    }
+
+    // En desarrollo, permitir pero advertir
+    console.warn('⚠️ Error verificando límites - permitiendo en desarrollo')
     return { limitReached: false, limit: null, current: 0 }
   }
 }
@@ -158,6 +186,19 @@ export async function checkFeatureAccess(
   // (DISABLE_SUBSCRIPTION_LIMITS removido - paywall completo implementado)
 
   if (!supabaseAdmin) {
+    // SEGURIDAD: Sin admin client, denegar en producción (deny-by-default)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+
+    if (isProduction) {
+      console.error('🚨 CRÍTICO: Supabase admin client no disponible en producción')
+      return {
+        hasAccess: false,
+        message: "Error de configuración del sistema. Contacta soporte.",
+      }
+    }
+
+    // En desarrollo, permitir pero advertir
+    console.warn('⚠️ Supabase admin client no disponible - permitiendo en desarrollo')
     return { hasAccess: true }
   }
 

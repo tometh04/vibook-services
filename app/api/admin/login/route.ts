@@ -32,8 +32,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // Crear JWT token
-    const token = await new SignJWT({ email, role: "ADMIN" })
+    // Crear JWT token con admin_id fijo (sistema single-admin)
+    const token = await new SignJWT({
+      email,
+      role: "ADMIN",
+      admin_id: "admin-vibook", // ID fijo para el único admin del sistema
+    })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
       .setExpirationTime("24h")

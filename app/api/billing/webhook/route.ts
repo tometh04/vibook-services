@@ -28,11 +28,21 @@ export const runtime = 'nodejs'
 /**
  * Verificar firma del webhook de Mercado Pago
  * Mercado Pago envía un header x-signature con la firma HMAC
+ *
+ * SEGURIDAD: En producción, SIEMPRE debe haber un secret configurado
  */
 function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
   if (!secret) {
-    // Si no hay secret configurado, aceptar (no recomendado para producción)
-    console.warn('⚠️ Webhook secret no configurado - validación deshabilitada')
+    // CRÍTICO: En producción esto debería fallar
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+
+    if (isProduction) {
+      console.error('🚨 CRÍTICO: Webhook secret NO configurado en producción')
+      return false // RECHAZAR en producción sin secret
+    }
+
+    // En desarrollo, permitir pero con warning
+    console.warn('⚠️ Webhook secret no configurado - solo válido en desarrollo')
     return true
   }
 
@@ -41,7 +51,7 @@ function verifyWebhookSignature(body: string, signature: string, secret: string)
       .createHmac('sha256', secret)
       .update(body)
       .digest('hex')
-    
+
     // Mercado Pago puede enviar la firma en diferentes formatos
     return hash === signature || signature === `sha256=${hash}`
   } catch (error) {
@@ -64,29 +74,32 @@ export async function POST(request: Request) {
     })
     console.log('📥 Webhook headers recibidos:', Object.keys(headers))
     
-    // Validar firma solo si está configurada Y viene el header
-    // IMPORTANTE: Para pruebas de simulación, Mercado Pago puede enviar firmas que no coinciden
-    // Por eso, solo loggeamos pero no rechazamos para permitir pruebas
+    // SEGURIDAD: Validación obligatoria de firma en producción
     const signature = request.headers.get('x-signature') || request.headers.get('X-Signature')
-    
-    if (WEBHOOK_SECRET && signature) {
-      console.log('🔐 Validando firma del webhook...')
-      const isValid = verifyWebhookSignature(bodyText, signature, WEBHOOK_SECRET)
-      if (!isValid) {
-        console.warn('⚠️ Webhook signature inválida (pero continuando para permitir pruebas)')
-        console.warn('Signature recibida:', signature.substring(0, 20) + '...')
-        console.warn('Body length:', bodyText.length)
-        // NO rechazar - solo loggear para permitir pruebas de simulación
-        // En producción real con notificaciones reales, la firma debería ser válida
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+
+    // Validar firma
+    console.log('🔐 Validando firma del webhook...')
+    const isValid = verifyWebhookSignature(bodyText, signature || '', WEBHOOK_SECRET)
+
+    if (!isValid) {
+      if (isProduction) {
+        // En producción: RECHAZAR webhooks sin firma válida
+        console.error('🚨 RECHAZADO: Webhook con firma inválida o sin firma en producción')
+        console.error('Signature recibida:', signature ? signature.substring(0, 20) + '...' : 'NINGUNA')
+        console.error('Body length:', bodyText.length)
+        return NextResponse.json(
+          { error: "Invalid webhook signature" },
+          { status: 401 }
+        )
       } else {
-        console.log('✅ Webhook signature válida')
+        // En desarrollo: Permitir pero advertir
+        console.warn('⚠️ Webhook signature inválida (permitiendo en desarrollo)')
+        console.warn('Signature recibida:', signature ? signature.substring(0, 20) + '...' : 'NINGUNA')
+        console.warn('Body length:', bodyText.length)
       }
-    } else if (WEBHOOK_SECRET && !signature) {
-      // Si hay secret pero no viene signature, puede ser una prueba
-      console.warn('⚠️ Webhook secret configurado pero no se recibió x-signature header (puede ser prueba)')
     } else {
-      // No hay secret configurado
-      console.log('ℹ️ Webhook secret no configurado - validación deshabilitada')
+      console.log('✅ Webhook signature válida')
     }
 
     // Parsear body como JSON
