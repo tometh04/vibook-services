@@ -94,16 +94,13 @@ const allNavigation: NavItem[] = [
       { title: "Configuración", url: "/operations/settings" },
     ],
   },
-  // Ventas - Colapsable
+  // CRM - NO colapsable (link directo)
   {
-    title: "Ventas",
+    title: "CRM",
     url: "/sales/leads",
     icon: ShoppingCart,
     module: "leads",
-    items: [
-      { title: "CRM", url: "/sales/leads" },
-      { title: "Estadísticas", url: "/sales/statistics" },
-    ],
+    collapsible: false,
   },
   // Finanzas - Colapsable (con submenús anidados)
   {
