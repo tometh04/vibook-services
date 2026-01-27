@@ -144,7 +144,7 @@ export function LedgerTable({ filters }: LedgerTableProps) {
               <TableCell className="max-w-xs truncate">{movement.concept}</TableCell>
               <TableCell>
                 {formatCurrency(movement.amount_original, movement.currency)}
-                {movement.exchange_rate && movement.currency === "USD" && (
+                {movement.exchange_rate && movement.currency === "ARS" && (
                   <span className="text-xs text-muted-foreground ml-1">
                     (TC: {movement.exchange_rate})
                   </span>

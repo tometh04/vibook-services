@@ -148,33 +148,47 @@ export async function POST(request: Request) {
       }
     } else {
       // Misma moneda: no necesita conversión
-      // Para USD, necesitamos el exchange_rate para calcular amount_ars_equivalent
-      if (fromAccount.currency === "USD") {
-        const rateDate = transfer_date ? new Date(transfer_date) : new Date()
-        finalExchangeRate = exchange_rate || await getExchangeRate(supabase, rateDate)
-        
-        if (!finalExchangeRate) {
-          finalExchangeRate = await getLatestExchangeRate(supabase)
-        }
-        
-        if (!finalExchangeRate) {
-          finalExchangeRate = 1000 // Fallback
+      // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
+      // ARS: SÍ necesita tipo de cambio (para convertir a USD)
+      if (fromAccount.currency === "ARS") {
+        // Para ARS, el tipo de cambio es obligatorio (debería venir del frontend)
+        finalExchangeRate = exchange_rate || null
+        if (!finalExchangeRate || finalExchangeRate <= 0) {
+          const rateDate = transfer_date ? new Date(transfer_date) : new Date()
+          finalExchangeRate = await getExchangeRate(supabase, rateDate)
+          if (!finalExchangeRate) {
+            finalExchangeRate = await getLatestExchangeRate(supabase)
+          }
+          if (!finalExchangeRate || finalExchangeRate <= 0) {
+            return NextResponse.json(
+              { error: "El tipo de cambio es obligatorio para transferencias en ARS" },
+              { status: 400 }
+            )
+          }
         }
       }
+      // Para USD, finalExchangeRate = null (no se necesita tipo de cambio)
     }
 
     // Calcular amount_ars_equivalent para ambos movimientos
-    const amountARSFrom = calculateARSEquivalent(
-      amountInFromCurrency,
-      fromAccount.currency as "ARS" | "USD",
-      fromAccount.currency === "USD" ? finalExchangeRate : null
-    )
-
-    const amountARSTo = calculateARSEquivalent(
-      amountInToCurrency,
-      toAccount.currency as "ARS" | "USD",
-      toAccount.currency === "USD" ? finalExchangeRate : null
-    )
+    // Para USD: amount_ars_equivalent = amount_original (sin conversión, el sistema trabaja en USD)
+    // Para ARS: amount_ars_equivalent = amount_original (ARS ya es el equivalente)
+    let amountARSFrom: number
+    let amountARSTo: number
+    
+    if (fromAccount.currency === "ARS") {
+      amountARSFrom = calculateARSEquivalent(amountInFromCurrency, "ARS", finalExchangeRate)
+    } else {
+      // Para USD, amount_ars_equivalent = amount_original (sin conversión)
+      amountARSFrom = amountInFromCurrency
+    }
+    
+    if (toAccount.currency === "ARS") {
+      amountARSTo = calculateARSEquivalent(amountInToCurrency, "ARS", finalExchangeRate)
+    } else {
+      // Para USD, amount_ars_equivalent = amount_original (sin conversión)
+      amountARSTo = amountInToCurrency
+    }
 
     // Crear movimiento de salida en cuenta origen (EXPENSE)
     await createLedgerMovement(
@@ -185,7 +199,7 @@ export async function POST(request: Request) {
         concept: `Transferencia a ${toAccount.name}`,
         currency: fromAccount.currency as "ARS" | "USD",
         amount_original: amountInFromCurrency,
-        exchange_rate: fromAccount.currency === "USD" ? finalExchangeRate : null,
+        exchange_rate: fromAccount.currency === "ARS" ? finalExchangeRate : null, // Solo guardar exchange_rate para ARS
         amount_ars_equivalent: amountARSFrom,
         method: "BANK",
         account_id: from_account_id,
@@ -207,7 +221,7 @@ export async function POST(request: Request) {
         concept: `Transferencia desde ${fromAccount.name}`,
         currency: toAccount.currency as "ARS" | "USD",
         amount_original: amountInToCurrency,
-        exchange_rate: toAccount.currency === "USD" ? finalExchangeRate : null,
+        exchange_rate: toAccount.currency === "ARS" ? finalExchangeRate : null, // Solo guardar exchange_rate para ARS
         amount_ars_equivalent: amountARSTo,
         method: "BANK",
         account_id: to_account_id,
@@ -245,7 +259,7 @@ export async function POST(request: Request) {
             concept: `Diferencia de cambio en transferencia a ${toAccount.name}`,
             currency: fromAccount.currency as "ARS" | "USD",
             amount_original: fxAmount / (fromAccount.currency === "USD" ? finalExchangeRate : 1),
-            exchange_rate: fromAccount.currency === "USD" ? finalExchangeRate : null,
+            exchange_rate: fromAccount.currency === "ARS" ? finalExchangeRate : null, // Solo guardar exchange_rate para ARS
             amount_ars_equivalent: fxAmount,
             method: "BANK",
             account_id: from_account_id,

@@ -189,7 +189,7 @@ export async function POST(request: Request) {
           const amountARS = calculateARSEquivalent(
             amount,
             debt_currency as "ARS" | "USD",
-            debt_currency === "USD" ? exchange_rate : null
+            debt_currency === "ARS" ? exchange_rate : null // Solo ARS necesita tipo de cambio
           )
 
           // Usar la cuenta financiera proporcionada
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
               concept: `Pago masivo a ${(operator as any).name} - Op ${operation_id.slice(0, 8)}`,
               currency: debt_currency as "ARS" | "USD",
               amount_original: amount,
-              exchange_rate: debt_currency === "USD" ? exchange_rate : null,
+              exchange_rate: debt_currency === "ARS" ? exchange_rate : null, // Solo guardar exchange_rate para ARS
               amount_ars_equivalent: amountARS,
               method: "BANK",
               account_id: account_id,

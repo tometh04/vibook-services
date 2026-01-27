@@ -323,28 +323,26 @@ export async function POST(request: Request) {
         )
         
         // Calcular ARS equivalent usando la tabla de exchange rates
+        // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
+        // ARS: SÍ necesita tipo de cambio (para convertir a USD)
         let exchangeRate: number | null = null
-        if (deposit_currency === "USD") {
+        let amountArsEquivalent: number
+        
+        if (deposit_currency === "ARS") {
+          // Para ARS, el tipo de cambio es obligatorio (debería venir del frontend)
           const rateDate = deposit_date ? new Date(deposit_date) : new Date()
           exchangeRate = await getExchangeRate(supabase, rateDate)
-          
-          // Si no hay tasa para esa fecha, usar la más reciente disponible
           if (!exchangeRate) {
             exchangeRate = await getLatestExchangeRate(supabase)
           }
-          
-          // Fallback: si aún no hay tasa, usar 1000 como último recurso
-          if (!exchangeRate) {
-            console.warn(`No exchange rate found for ${rateDate.toISOString()}, using fallback 1000`)
-            exchangeRate = 1000
+          if (!exchangeRate || exchangeRate <= 0) {
+            throw new Error("El tipo de cambio es obligatorio para depósitos en ARS")
           }
+          amountArsEquivalent = calculateARSEquivalent(deposit_amount, "ARS", exchangeRate)
+        } else {
+          // Para USD, amount_ars_equivalent = amount_original (sin conversión, el sistema trabaja en USD)
+          amountArsEquivalent = deposit_amount
         }
-        
-        const amountArsEquivalent = calculateARSEquivalent(
-          deposit_amount,
-          deposit_currency as "ARS" | "USD",
-          exchangeRate
-        )
 
         await createLedgerMovement(
           {
@@ -353,7 +351,7 @@ export async function POST(request: Request) {
             concept: `Depósito recibido de lead: ${contact_name}`,
             currency: deposit_currency,
             amount_original: deposit_amount,
-            exchange_rate: exchangeRate,
+            exchange_rate: deposit_currency === "ARS" ? exchangeRate : null, // Solo guardar exchange_rate para ARS
             amount_ars_equivalent: amountArsEquivalent,
             method: mapDepositMethodToLedgerMethod(deposit_method),
             account_id: defaultAccountId,

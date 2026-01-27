@@ -509,16 +509,26 @@ export async function POST(request: Request) {
         }
 
         // Calcular ARS equivalent para la venta
+        // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
+        // ARS: SÍ necesita tipo de cambio (para convertir a USD)
         let saleExchangeRate: number | null = null
-        if (finalSaleCurrency === "USD") {
+        let saleAmountARS: number
+        
+        if (finalSaleCurrency === "ARS") {
+          // Para ARS, el tipo de cambio es obligatorio (debería venir del frontend)
           const dateForExchange = departure_date || operation_date || new Date().toISOString().split("T")[0]
           saleExchangeRate = await getExchangeRate(supabase, new Date(dateForExchange))
           if (!saleExchangeRate) {
             saleExchangeRate = await getLatestExchangeRate(supabase)
           }
-          if (!saleExchangeRate) saleExchangeRate = 1000
+          if (!saleExchangeRate || saleExchangeRate <= 0) {
+            throw new Error("El tipo de cambio es obligatorio para operaciones en ARS")
+          }
+          saleAmountARS = calculateARSEquivalent(sale_amount_total, "ARS", saleExchangeRate)
+        } else {
+          // Para USD, amount_ars_equivalent = amount_original (sin conversión, el sistema trabaja en USD)
+          saleAmountARS = sale_amount_total
         }
-        const saleAmountARS = calculateARSEquivalent(sale_amount_total, finalSaleCurrency as "ARS" | "USD", saleExchangeRate)
 
         // Crear movimiento de ledger para "Cuentas por Cobrar" (ACTIVO - aumenta)
         await createLedgerMovement(
@@ -529,7 +539,7 @@ export async function POST(request: Request) {
             concept: `Venta - Operación ${op.file_code || op.id.slice(0, 8)}`,
             currency: finalSaleCurrency as "ARS" | "USD",
             amount_original: sale_amount_total,
-            exchange_rate: saleExchangeRate,
+            exchange_rate: finalSaleCurrency === "ARS" ? saleExchangeRate : null, // Solo guardar exchange_rate para ARS
             amount_ars_equivalent: saleAmountARS,
             method: "OTHER", // Cuenta por cobrar, no es efectivo aún
             account_id: accountsReceivableFinancialAccount.id,
@@ -577,20 +587,26 @@ export async function POST(request: Request) {
           }
 
           // Calcular ARS equivalent para el costo total
+          // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
+          // ARS: SÍ necesita tipo de cambio (para convertir a USD)
           let costExchangeRate: number | null = null
-          if (finalOperatorCostCurrency === "USD") {
+          let costAmountARS: number
+          
+          if (finalOperatorCostCurrency === "ARS") {
+            // Para ARS, el tipo de cambio es obligatorio (debería venir del frontend)
             const dateForExchange = departure_date || operation_date || new Date().toISOString().split("T")[0]
             costExchangeRate = await getExchangeRate(supabase, new Date(dateForExchange))
             if (!costExchangeRate) {
               costExchangeRate = await getLatestExchangeRate(supabase)
             }
-            if (!costExchangeRate) {
-              // No usar fallback silencioso - lanzar error para que el usuario sepa
-              console.error(`❌ ERROR: No se encontró tasa de cambio para USD en fecha ${dateForExchange}. Se requiere tasa de cambio para operaciones en USD.`)
-              throw new Error("No se encontró tasa de cambio para USD. Por favor, configure una tasa de cambio antes de crear la operación.")
+            if (!costExchangeRate || costExchangeRate <= 0) {
+              throw new Error("El tipo de cambio es obligatorio para operaciones en ARS")
             }
+            costAmountARS = calculateARSEquivalent(totalOperatorCost, "ARS", costExchangeRate)
+          } else {
+            // Para USD, amount_ars_equivalent = amount_original (sin conversión, el sistema trabaja en USD)
+            costAmountARS = totalOperatorCost
           }
-          const costAmountARS = calculateARSEquivalent(totalOperatorCost, finalOperatorCostCurrency as "ARS" | "USD", costExchangeRate)
 
           // Crear movimiento de ledger para "Cuentas por Pagar" (PASIVO - aumenta)
           await createLedgerMovement(
@@ -601,7 +617,7 @@ export async function POST(request: Request) {
               concept: `Costo de Operadores - Operación ${op.file_code || op.id.slice(0, 8)}`,
               currency: finalOperatorCostCurrency as "ARS" | "USD",
               amount_original: totalOperatorCost,
-              exchange_rate: costExchangeRate,
+              exchange_rate: finalOperatorCostCurrency === "ARS" ? costExchangeRate : null, // Solo guardar exchange_rate para ARS
               amount_ars_equivalent: costAmountARS,
               method: "OTHER", // Cuenta por pagar, no es efectivo aún
               account_id: accountsPayableFinancialAccount.id,

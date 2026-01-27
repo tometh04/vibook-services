@@ -266,32 +266,37 @@ export async function markPaymentAsPaid({
         .maybeSingle()
       
       if (accountsReceivableAccount) {
-        // Calcular exchange rate si es USD
+        // Calcular exchange rate solo para ARS
+        // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
+        // ARS: SÍ necesita tipo de cambio (para convertir a USD)
         let exchangeRate: number | null = null
-        if (paymentData.currency === "USD") {
-          // Proteger contra datePaid undefined/null
-          const dateForRate = datePaid ? new Date(datePaid) : new Date()
-          if (isNaN(dateForRate.getTime())) {
-            console.warn(`Invalid datePaid for payment ${paymentId}, using today's date`)
-            exchangeRate = await getExchangeRate(supabase, new Date())
-          } else {
-            exchangeRate = await getExchangeRate(supabase, dateForRate)
-          }
-          if (!exchangeRate) {
-            const { getLatestExchangeRate } = await import("@/lib/accounting/exchange-rates")
-            exchangeRate = await getLatestExchangeRate(supabase)
-          }
-          if (!exchangeRate) {
-            console.warn(`No exchange rate found for USD payment ${paymentId}`)
-            exchangeRate = 1000 // Fallback temporal
-          }
-        }
+        let amountARS: number
         
-        const amountARS = calculateARSEquivalent(
-          parseFloat(paymentData.amount),
-          paymentData.currency as "ARS" | "USD",
-          exchangeRate
-        )
+        if (paymentData.currency === "ARS") {
+          // Para ARS, el tipo de cambio es obligatorio (debería venir del payment)
+          exchangeRate = paymentData.exchange_rate ? parseFloat(paymentData.exchange_rate) : null
+          if (!exchangeRate || exchangeRate <= 0) {
+            // Si no viene en el payment, intentar buscarlo (pero debería venir)
+            const dateForRate = datePaid ? new Date(datePaid) : new Date()
+            exchangeRate = await getExchangeRate(supabase, dateForRate)
+            if (!exchangeRate) {
+              const { getLatestExchangeRate } = await import("@/lib/accounting/exchange-rates")
+              exchangeRate = await getLatestExchangeRate(supabase)
+            }
+            if (!exchangeRate || exchangeRate <= 0) {
+              throw new Error("El tipo de cambio es obligatorio para pagos en ARS")
+            }
+          }
+          amountARS = calculateARSEquivalent(
+            parseFloat(paymentData.amount),
+            "ARS",
+            exchangeRate
+          )
+        } else {
+          // Para USD, no se necesita tipo de cambio
+          // amount_ars_equivalent = amount_original (sin conversión, el sistema trabaja en USD)
+          amountARS = parseFloat(paymentData.amount)
+        }
         
         // Crear movimiento INCOME en "Cuentas por Cobrar" para REDUCIR el activo
         await createLedgerMovement(
@@ -302,7 +307,7 @@ export async function markPaymentAsPaid({
             concept: `Cobro de cliente - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`,
             currency: paymentData.currency as "ARS" | "USD",
             amount_original: parseFloat(paymentData.amount),
-            exchange_rate: exchangeRate,
+            exchange_rate: paymentData.currency === "ARS" ? exchangeRate : null, // Solo guardar exchange_rate para ARS
             amount_ars_equivalent: amountARS,
             method: paymentData.method === "Efectivo" ? "CASH" : paymentData.method === "Transferencia" ? "BANK" : "OTHER",
             account_id: accountsReceivableAccount.id,
@@ -370,7 +375,7 @@ export async function markPaymentAsPaid({
             concept: `Pago a operador - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`,
             currency: paymentData.currency as "ARS" | "USD",
             amount_original: parseFloat(paymentData.amount),
-            exchange_rate: exchangeRate,
+            exchange_rate: paymentData.currency === "ARS" ? exchangeRate : null, // Solo guardar exchange_rate para ARS
             amount_ars_equivalent: amountARS,
             method: paymentData.method === "Efectivo" ? "CASH" : paymentData.method === "Transferencia" ? "BANK" : "OTHER",
             account_id: accountsPayableAccount.id,
@@ -585,7 +590,7 @@ export async function markPaymentAsPaid({
             : "Pago a operador",
         currency: paymentData.currency as "ARS" | "USD",
         amount_original: parseFloat(paymentData.amount),
-        exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
+        exchange_rate: paymentData.currency === "ARS" ? exchangeRate : null, // Solo guardar exchange_rate para ARS
         amount_ars_equivalent: amountARS,
         method: ledgerMethod,
         account_id: resultAccountId,
@@ -647,7 +652,7 @@ export async function markPaymentAsPaid({
               : `Egreso en ${paymentData.currency} - Operación ${paymentData.operation_id?.slice(0, 8) || ""}`,
             currency: paymentData.currency as "ARS" | "USD",
             amount_original: parseFloat(paymentData.amount),
-            exchange_rate: paymentData.currency === "USD" ? exchangeRate : null,
+            exchange_rate: paymentData.currency === "ARS" ? exchangeRate : null, // Solo guardar exchange_rate para ARS
             amount_ars_equivalent: amountARS,
             method: ledgerMethod,
             account_id: accountId, // La cuenta financiera seleccionada por el usuario

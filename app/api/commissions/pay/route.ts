@@ -88,37 +88,26 @@ export async function POST(request: Request) {
     const accountId = financial_account_id
 
     // Calcular ARS equivalent y tipo de cambio
+    // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
+    // ARS: SÍ necesita tipo de cambio (para convertir a USD)
     let exchangeRate: number | null = null
-    if (currency === "USD") {
+    if (currency === "ARS") {
+      // Para ARS, el tipo de cambio es obligatorio
+      // Si la cuenta es USD, el tipo de cambio es obligatorio para convertir ARS a USD
+      // Si la cuenta es ARS, también necesitamos tipo de cambio para calcular amount_usd
       const rateDate = datePaid ? new Date(datePaid) : new Date()
       exchangeRate = await getExchangeRate(supabase, rateDate)
-      
-      // Si no hay tasa para esa fecha, usar la más reciente disponible
       if (!exchangeRate) {
         exchangeRate = await getLatestExchangeRate(supabase)
       }
-      
-      // Fallback: si aún no hay tasa, usar 1000 como último recurso
       if (!exchangeRate) {
-        console.warn(`No exchange rate found for ${rateDate.toISOString()}, using fallback 1000`)
-        exchangeRate = 1000
-      }
-    } else if (currency === "ARS") {
-      // Para ARS también necesitamos tipo de cambio si la cuenta es USD
-      if (account.currency === "USD") {
-        const rateDate = datePaid ? new Date(datePaid) : new Date()
-        exchangeRate = await getExchangeRate(supabase, rateDate)
-        if (!exchangeRate) {
-          exchangeRate = await getLatestExchangeRate(supabase)
-        }
-        if (!exchangeRate) {
-          return NextResponse.json(
-            { error: "Se requiere un tipo de cambio para pagar comisión en ARS desde una cuenta USD" },
-            { status: 400 }
-          )
-        }
+        return NextResponse.json(
+          { error: "El tipo de cambio es obligatorio para pagos en ARS" },
+          { status: 400 }
+        )
       }
     }
+    // Para USD, exchangeRate = null (no se necesita tipo de cambio)
 
     // Validar saldo suficiente antes de permitir el pago
     try {
@@ -143,7 +132,7 @@ export async function POST(request: Request) {
         concept: `Pago de comisión - ${commission.operations?.id ? `Operación ${commission.operations.id.slice(0, 8)}` : "Comisión"}`,
         currency: currency as "ARS" | "USD",
         amount_original: parseFloat(amount),
-        exchange_rate: exchangeRate,
+        exchange_rate: currency === "ARS" ? exchangeRate : null, // Solo guardar exchange_rate para ARS
         amount_ars_equivalent: amountARS,
         method: (method || "CASH") as "CASH" | "BANK" | "MP" | "USD" | "OTHER",
         account_id: accountId,
