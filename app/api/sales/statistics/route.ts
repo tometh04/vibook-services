@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { getUserAgencyIds } from "@/lib/permissions-api"
 import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -34,8 +33,21 @@ export async function GET(request: Request) {
     const agencyId = searchParams.get("agencyId")
     const months = parseInt(searchParams.get("months") || "12")
 
-    // Obtener agencias del usuario
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    // Obtener agencias del usuario directamente (sin cache para evitar problemas)
+    let agencyIds: string[] = []
+    
+    if (user.role === "SUPER_ADMIN") {
+      // SUPER_ADMIN ve todas las agencias
+      const { data: allAgencies } = await supabase.from("agencies").select("id")
+      agencyIds = (allAgencies || []).map((a: any) => a.id)
+    } else {
+      // Otros roles ven solo sus agencias asignadas
+      const { data: userAgencies } = await supabase
+        .from("user_agencies")
+        .select("agency_id")
+        .eq("user_id", user.id)
+      agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
+    }
 
     // Query de leads - simplificada
     let leadsQuery = (supabase.from("leads") as any)
