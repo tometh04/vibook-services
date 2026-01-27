@@ -14,8 +14,6 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
-import { Shield } from "lucide-react"
-
 const adminNavItems = [
   {
     title: "Dashboard",
