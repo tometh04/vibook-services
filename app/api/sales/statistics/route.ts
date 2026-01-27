@@ -49,6 +49,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener leads" }, { status: 500 })
     }
 
+    // Obtener nombres de vendedores
+    const sellerIds = Array.from(new Set((leads || []).map((l: any) => l.assigned_seller_id).filter(Boolean)))
+    const sellerNamesMap: Record<string, string> = {}
+    
+    if (sellerIds.length > 0) {
+      const { data: sellers } = await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", sellerIds)
+      
+      if (sellers) {
+        sellers.forEach((seller: any) => {
+          sellerNamesMap[seller.id] = seller.name || "Sin nombre"
+        })
+      }
+    }
+
     const now = new Date()
 
     // Pipeline de ventas (por estado)
@@ -138,7 +155,7 @@ export async function GET(request: Request) {
         if (!bySeller[lead.assigned_seller_id]) {
           bySeller[lead.assigned_seller_id] = {
             id: lead.assigned_seller_id,
-            name: 'Vendedor',
+            name: sellerNamesMap[lead.assigned_seller_id] || 'Vendedor',
             leads: 0,
             won: 0,
             conversionRate: 0,
