@@ -26,6 +26,7 @@ export default function BillingPage() {
   const { subscription, usage, loading } = useSubscription()
   const [canceling, setCanceling] = useState(false)
   const [pausing, setPausing] = useState(false)
+  const [verifying, setVerifying] = useState(false)
 
   const handleCancel = async () => {
     if (!confirm('¿Estás seguro que querés cancelar tu suscripción? Perderás acceso a las features premium cuando termine el período actual.')) {
@@ -78,6 +79,28 @@ export default function BillingPage() {
       alert('Error al pausar la suscripción. Por favor intenta nuevamente.')
     } finally {
       setPausing(false)
+    }
+  }
+
+  const handleVerifyPayment = async () => {
+    setVerifying(true)
+    try {
+      const response = await fetch('/api/billing/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message || 'Pago verificado correctamente')
+        window.location.reload()
+      } else {
+        alert(data.error || data.message || 'Error al verificar el pago')
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error)
+      alert('Error al verificar el pago. Por favor intenta nuevamente.')
+    } finally {
+      setVerifying(false)
     }
   }
 
@@ -223,6 +246,25 @@ export default function BillingPage() {
                 Cambiar Plan
               </a>
             </Button>
+            {(subscription.status === 'TRIAL' || subscription.status === 'PAST_DUE') && subscription.mp_preapproval_id && (
+              <Button 
+                variant="outline" 
+                onClick={handleVerifyPayment}
+                disabled={verifying}
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Verificar Pago
+                  </>
+                )}
+              </Button>
+            )}
             {subscription.status === 'ACTIVE' && (
               <>
                 <Button 

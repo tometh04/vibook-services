@@ -75,8 +75,33 @@ export async function PATCH(
         return NextResponse.json({ error: "Plan no encontrado" }, { status: 404 })
       }
 
+      const planName = (plan as any).name
+
+      // CRÍTICO: Bloquear downgrade a FREE desde planes pagos
+      if (planName === 'FREE') {
+        // Obtener plan actual
+        const { data: currentSub } = await supabase
+          .from("subscriptions")
+          .select("plan_id, plan:subscription_plans(name, price_monthly)")
+          .eq("id", subscriptionId)
+          .single()
+
+        if (currentSub) {
+          const currentPlanName = (currentSub as any).plan?.name
+          const currentPlanPrice = (currentSub as any).plan?.price_monthly || 0
+
+          // Si el plan actual es pagado (no FREE, no TESTER), bloquear downgrade a FREE
+          if (currentPlanName !== 'FREE' && currentPlanName !== 'TESTER' && currentPlanPrice > 0) {
+            return NextResponse.json(
+              { error: "No se puede cambiar a plan FREE desde un plan pagado. Para cancelar, usa el proceso de cancelación." },
+              { status: 400 }
+            )
+          }
+        }
+      }
+
       // Si el plan es TESTER, asegurar que el status sea ACTIVE
-      if ((plan as any).name === 'TESTER') {
+      if (planName === 'TESTER') {
         updateData.status = 'ACTIVE'
       }
     }
