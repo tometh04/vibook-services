@@ -80,7 +80,9 @@ export function checkRateLimit(
  */
 export function cleanupExpiredRecords() {
   const now = Date.now()
-  for (const [key, record] of requestCounts.entries()) {
+  // Usar Array.from para compatibilidad con TypeScript
+  const entries = Array.from(requestCounts.entries())
+  for (const [key, record] of entries) {
     if (now > record.resetAt) {
       requestCounts.delete(key)
     }
