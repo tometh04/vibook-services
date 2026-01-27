@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -8,21 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    // Usar getCurrentUser pero capturar errores de redirect
-    let user: any
-    try {
-      const result = await getCurrentUser()
-      user = result.user
-    } catch (error: any) {
-      // Si es un error de redirect de Next.js, re-lanzarlo para que Next.js lo maneje
-      if (error?.digest?.startsWith('NEXT_REDIRECT')) {
-        throw error
-      }
-      // Cualquier otro error, devolver 401
-      console.error("[sales/statistics] Auth error:", error)
-      return NextResponse.json({ error: "Error de autenticación" }, { status: 401 })
-    }
-
+    const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
 
@@ -30,21 +17,8 @@ export async function GET(request: Request) {
     const agencyId = searchParams.get("agencyId")
     const months = parseInt(searchParams.get("months") || "12")
 
-    // Obtener agencias del usuario directamente (sin cache para evitar problemas)
-    let agencyIds: string[] = []
-    
-    if (user.role === "SUPER_ADMIN") {
-      // SUPER_ADMIN ve todas las agencias
-      const { data: allAgencies } = await supabase.from("agencies").select("id")
-      agencyIds = (allAgencies || []).map((a: any) => a.id)
-    } else {
-      // Otros roles ven solo sus agencias asignadas
-      const { data: userAgencies } = await supabase
-        .from("user_agencies")
-        .select("agency_id")
-        .eq("user_id", user.id)
-      agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
-    }
+    // Obtener agencias del usuario (mismo patrón que /api/leads)
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
     // Query de leads - simplificada
     let leadsQuery = (supabase.from("leads") as any)
@@ -261,15 +235,8 @@ export async function GET(request: Request) {
         topSources,
       },
     })
-  } catch (error: any) {
-    // Si es un error de redirect de Next.js, re-lanzarlo para que Next.js lo maneje
-    if (error?.digest?.startsWith('NEXT_REDIRECT')) {
-      throw error
-    }
+  } catch (error) {
     console.error("Error in GET /api/sales/statistics:", error)
-    return NextResponse.json(
-      { error: error.message || "Error al obtener estadísticas" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Error al obtener estadísticas" }, { status: 500 })
   }
 }
