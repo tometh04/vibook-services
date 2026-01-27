@@ -228,10 +228,23 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    console.log(`[Operations Settings PUT] User ${user.id} - Updating settings for agency ${agencyIds[0]}`)
+    console.log(`[Operations Settings PUT] User ${user.id} (${user.role}) - Updating settings for agency ${agencyIds[0]}`)
+    console.log(`[Operations Settings PUT] Request body:`, JSON.stringify(body, null, 2))
     
     // Validar datos
-    const validatedData = operationSettingsSchema.parse(body)
+    let validatedData
+    try {
+      validatedData = operationSettingsSchema.parse(body)
+    } catch (validationError: any) {
+      console.error("[Operations Settings PUT] Validation error:", validationError)
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: "Datos inválidos", details: validationError.errors },
+          { status: 400 }
+        )
+      }
+      throw validationError
+    }
 
     // Verificar si existe configuración
     const { data: existing, error: existingError } = await supabase
@@ -259,6 +272,7 @@ export async function PUT(request: Request) {
     if (existing) {
       // Actualizar existente
       const existingData = existing as any
+      console.log(`[Operations Settings PUT] Updating existing settings with id: ${existingData.id}`)
       const { data, error } = await (supabase.from("operation_settings") as any)
         .update(updateData)
         .eq("id", existingData.id)
@@ -266,34 +280,42 @@ export async function PUT(request: Request) {
         .single()
 
       if (error) {
-        console.error("Error updating operation settings:", error)
+        console.error("[Operations Settings PUT] Error updating:", error)
+        console.error("[Operations Settings PUT] Error details:", JSON.stringify(error, null, 2))
         return NextResponse.json(
-          { error: "Error al actualizar configuración" },
+          { error: "Error al actualizar configuración: " + (error.message || JSON.stringify(error)) },
           { status: 500 }
         )
       }
 
       result = data
+      console.log(`[Operations Settings PUT] Successfully updated settings`)
     } else {
       // Crear nueva
+      console.log(`[Operations Settings PUT] Creating new settings for agency ${agencyIds[0]}`)
+      const insertData = {
+        agency_id: agencyIds[0],
+        ...updateData,
+        created_by: user.id,
+      }
+      console.log(`[Operations Settings PUT] Insert data:`, JSON.stringify(insertData, null, 2))
+      
       const { data, error } = await (supabase.from("operation_settings") as any)
-        .insert({
-          agency_id: agencyIds[0],
-          ...updateData,
-          created_by: user.id,
-        })
+        .insert(insertData)
         .select()
         .single()
 
       if (error) {
-        console.error("Error creating operation settings:", error)
+        console.error("[Operations Settings PUT] Error creating:", error)
+        console.error("[Operations Settings PUT] Error details:", JSON.stringify(error, null, 2))
         return NextResponse.json(
-          { error: "Error al crear configuración" },
+          { error: "Error al crear configuración: " + (error.message || JSON.stringify(error)) },
           { status: 500 }
         )
       }
 
       result = data
+      console.log(`[Operations Settings PUT] Successfully created settings`)
     }
 
     return NextResponse.json(result)
