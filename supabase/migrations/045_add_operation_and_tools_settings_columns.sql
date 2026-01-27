@@ -65,18 +65,79 @@ ALTER TABLE tools_settings
   ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES users(id) ON DELETE SET NULL;
 
--- Agregar constraints para valores válidos
-ALTER TABLE tools_settings
-  ADD CONSTRAINT IF NOT EXISTS check_emilia_temperature CHECK (emilia_temperature >= 0 AND emilia_temperature <= 2),
-  ADD CONSTRAINT IF NOT EXISTS check_emilia_max_tokens CHECK (emilia_max_tokens >= 100 AND emilia_max_tokens <= 8000),
-  ADD CONSTRAINT IF NOT EXISTS check_whatsapp_provider CHECK (whatsapp_provider IN ('manual', 'api', 'manychat')),
-  ADD CONSTRAINT IF NOT EXISTS check_notifications_digest_frequency CHECK (notifications_digest_frequency IN ('daily', 'weekly', 'never')),
-  ADD CONSTRAINT IF NOT EXISTS check_export_default_format CHECK (export_default_format IN ('xlsx', 'csv', 'pdf')),
-  ADD CONSTRAINT IF NOT EXISTS check_export_currency_format CHECK (export_currency_format IN ('symbol', 'code', 'both')),
-  ADD CONSTRAINT IF NOT EXISTS check_ui_theme CHECK (ui_theme IN ('light', 'dark', 'system')),
-  ADD CONSTRAINT IF NOT EXISTS check_ui_time_format CHECK (ui_time_format IN ('12h', '24h')),
-  ADD CONSTRAINT IF NOT EXISTS check_backups_frequency CHECK (backups_frequency IN ('daily', 'weekly', 'monthly')),
-  ADD CONSTRAINT IF NOT EXISTS check_backups_retention_days CHECK (backups_retention_days >= 1 AND backups_retention_days <= 365);
+-- Agregar constraints para valores válidos (solo si no existen)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_emilia_temperature'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_emilia_temperature CHECK (emilia_temperature >= 0 AND emilia_temperature <= 2);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_emilia_max_tokens'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_emilia_max_tokens CHECK (emilia_max_tokens >= 100 AND emilia_max_tokens <= 8000);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_whatsapp_provider'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_whatsapp_provider CHECK (whatsapp_provider IN ('manual', 'api', 'manychat'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_notifications_digest_frequency'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_notifications_digest_frequency CHECK (notifications_digest_frequency IN ('daily', 'weekly', 'never'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_export_default_format'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_export_default_format CHECK (export_default_format IN ('xlsx', 'csv', 'pdf'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_export_currency_format'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_export_currency_format CHECK (export_currency_format IN ('symbol', 'code', 'both'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_ui_theme'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_ui_theme CHECK (ui_theme IN ('light', 'dark', 'system'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_ui_time_format'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_ui_time_format CHECK (ui_time_format IN ('12h', '24h'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_backups_frequency'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_backups_frequency CHECK (backups_frequency IN ('daily', 'weekly', 'monthly'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_backups_retention_days'
+  ) THEN
+    ALTER TABLE tools_settings
+      ADD CONSTRAINT check_backups_retention_days CHECK (backups_retention_days >= 1 AND backups_retention_days <= 365);
+  END IF;
+END $$;
 
 COMMENT ON TABLE operation_settings IS 'Configuración de operaciones por agencia';
 COMMENT ON TABLE tools_settings IS 'Configuración de herramientas por agencia';
