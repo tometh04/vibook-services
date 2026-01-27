@@ -51,22 +51,20 @@ CREATE TRIGGER validate_trial_dates_trigger
 -- 3. Trigger para validar que ACTIVE requiere mp_preapproval_id
 CREATE OR REPLACE FUNCTION validate_active_subscription()
 RETURNS TRIGGER AS $$
+DECLARE
+  plan_name TEXT;
 BEGIN
   -- Si status es ACTIVE, debe tener mp_preapproval_id (excepto TESTER)
   IF NEW.status = 'ACTIVE' THEN
     -- Verificar si el plan es TESTER
-    DECLARE
-      plan_name TEXT;
-    BEGIN
-      SELECT name INTO plan_name
-      FROM subscription_plans
-      WHERE id = NEW.plan_id;
-      
-      -- TESTER no requiere preapproval
-      IF plan_name != 'TESTER' AND (NEW.mp_preapproval_id IS NULL OR NEW.mp_preapproval_id = '') THEN
-        RAISE EXCEPTION 'Status ACTIVE requiere mp_preapproval_id válido (excepto plan TESTER)';
-      END IF;
-    END;
+    SELECT name INTO plan_name
+    FROM subscription_plans
+    WHERE id = NEW.plan_id;
+    
+    -- TESTER no requiere preapproval
+    IF plan_name != 'TESTER' AND (NEW.mp_preapproval_id IS NULL OR NEW.mp_preapproval_id = '') THEN
+      RAISE EXCEPTION 'Status ACTIVE requiere mp_preapproval_id válido (excepto plan TESTER)';
+    END IF;
   END IF;
   
   RETURN NEW;
