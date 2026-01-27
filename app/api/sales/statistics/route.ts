@@ -12,7 +12,14 @@ export async function GET(request: Request) {
     // Autenticación directa sin redirect (mejor para API routes)
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
+    console.log("[sales/statistics] Auth check:", { 
+      hasAuthUser: !!authUser, 
+      authError: authError?.message,
+      authUserId: authUser?.id 
+    })
+    
     if (authError || !authUser) {
+      console.error("[sales/statistics] Auth failed:", authError)
       return NextResponse.json({ error: "No autenticado" }, { status: 401 })
     }
 
@@ -23,7 +30,15 @@ export async function GET(request: Request) {
       .eq('auth_id', authUser.id)
       .maybeSingle()
 
+    console.log("[sales/statistics] User lookup:", { 
+      hasUser: !!user, 
+      userError: userError?.message,
+      userId: (user as any)?.id,
+      userRole: (user as any)?.role
+    })
+
     if (userError || !user) {
+      console.error("[sales/statistics] User not found:", userError)
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
     }
 
