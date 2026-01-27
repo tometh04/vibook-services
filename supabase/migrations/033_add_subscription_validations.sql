@@ -153,4 +153,4 @@ COMMENT ON FUNCTION prevent_trial_reset() IS 'Previene resetear has_used_trial d
 COMMENT ON FUNCTION validate_trial_dates() IS 'Valida que trial_end sea posterior a trial_start y no exceda 30 días';
 COMMENT ON FUNCTION validate_active_subscription() IS 'Valida que status ACTIVE requiera mp_preapproval_id (excepto TESTER)';
 COMMENT ON FUNCTION validate_period_dates() IS 'Valida fechas de período de facturación';
-COMMENT ON FUNCTION check_trial_extension_limits() IS 'Valida límites de extensiones de trial (máx 2 extensiones, máx 21 días total)';
+COMMENT ON FUNCTION check_trial_extension_limits(UUID, INTEGER) IS 'Valida límites de extensiones de trial (máx 2 extensiones, máx 21 días total)';
