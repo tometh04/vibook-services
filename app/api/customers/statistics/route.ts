@@ -201,18 +201,18 @@ export async function GET(request: Request) {
       }
     })
 
-    console.log(`[Statistics] Customer stats: ${customerStats.length} customers, ${customerStats.filter(c => c.totalSpent > 0).length} with spending, ${customerStats.filter(c => c.totalOperations > 0).length} with operations`)
+    console.log(`[Statistics] Customer stats: ${customerStats.length} customers, ${customerStats.filter((c: any) => c.totalSpent > 0).length} with spending, ${customerStats.filter((c: any) => c.totalOperations > 0).length} with operations`)
 
     // Top 10 clientes por gasto (solo los que tienen gasto > 0)
     const topBySpending = [...customerStats]
-      .filter(c => c.totalSpent > 0)
-      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .filter((c: any) => c.totalSpent > 0)
+      .sort((a: any, b: any) => b.totalSpent - a.totalSpent)
       .slice(0, 10)
 
     // Top 10 clientes por frecuencia (solo los que tienen operaciones > 0)
     const topByFrequency = [...customerStats]
-      .filter(c => c.totalOperations > 0)
-      .sort((a, b) => b.totalOperations - a.totalOperations)
+      .filter((c: any) => c.totalOperations > 0)
+      .sort((a: any, b: any) => b.totalOperations - a.totalOperations)
       .slice(0, 10)
 
     console.log(`[Statistics] Rankings: ${topBySpending.length} top by spending, ${topByFrequency.length} top by frequency`)
