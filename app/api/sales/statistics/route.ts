@@ -1,16 +1,33 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
-import { subMonths, startOfMonth, endOfMonth, format } from "date-fns"
+import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+    
+    // Autenticación directa sin redirect (mejor para API routes)
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+    }
+
+    // Obtener usuario de la base de datos
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_id', authUser.id)
+      .maybeSingle()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
 
     // Parámetros de filtro
