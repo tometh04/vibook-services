@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { getCurrentUser } from "@/lib/auth"
 import { canAccessModule } from "@/lib/permissions"
-import { getUserAgencyIds } from "@/lib/permissions-api"
 import { z } from "zod"
 
 export const dynamic = 'force-dynamic'
@@ -42,8 +40,25 @@ const operationSettingsSchema = z.object({
 // GET - Obtener configuración de operaciones
 export async function GET(request: Request) {
   try {
-    const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+    
+    // Autenticación directa
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+    }
+
+    // Usuario de DB
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('auth_id', authUser.id)
+      .single()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
+    }
 
     // Verificar permiso de acceso
     if (!canAccessModule(user.role as any, "operations")) {
@@ -53,8 +68,19 @@ export async function GET(request: Request) {
       )
     }
 
-    // Obtener agencias del usuario
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    // Obtener agencias del usuario directamente
+    let agencyIds: string[] = []
+    
+    if (user.role === "SUPER_ADMIN") {
+      const { data: agencies } = await supabase.from("agencies").select("id")
+      agencyIds = (agencies || []).map((a: any) => a.id)
+    } else {
+      const { data: userAgencies } = await supabase
+        .from("user_agencies")
+        .select("agency_id")
+        .eq("user_id", user.id)
+      agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
+    }
     
     if (agencyIds.length === 0) {
       return NextResponse.json(
@@ -151,8 +177,25 @@ export async function GET(request: Request) {
 // PUT - Actualizar configuración de operaciones
 export async function PUT(request: Request) {
   try {
-    const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+    
+    // Autenticación directa
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+    }
+
+    // Usuario de DB
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('auth_id', authUser.id)
+      .single()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
+    }
 
     // Verificar permiso de acceso (solo ADMIN y SUPER_ADMIN)
     if (!canAccessModule(user.role as any, "operations") || 
@@ -163,8 +206,19 @@ export async function PUT(request: Request) {
       )
     }
 
-    // Obtener agencias del usuario
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    // Obtener agencias del usuario directamente
+    let agencyIds: string[] = []
+    
+    if (user.role === "SUPER_ADMIN") {
+      const { data: agencies } = await supabase.from("agencies").select("id")
+      agencyIds = (agencies || []).map((a: any) => a.id)
+    } else {
+      const { data: userAgencies } = await supabase
+        .from("user_agencies")
+        .select("agency_id")
+        .eq("user_id", user.id)
+      agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
+    }
     
     if (agencyIds.length === 0) {
       return NextResponse.json(
@@ -174,16 +228,25 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
+    console.log(`[Operations Settings PUT] User ${user.id} - Updating settings for agency ${agencyIds[0]}`)
     
     // Validar datos
     const validatedData = operationSettingsSchema.parse(body)
 
     // Verificar si existe configuración
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("operation_settings")
       .select("id")
       .eq("agency_id", agencyIds[0])
-      .single()
+      .maybeSingle()
+    
+    if (existingError && existingError.code !== 'PGRST116') {
+      console.error("[Operations Settings PUT] Error checking existing:", existingError)
+      return NextResponse.json(
+        { error: "Error al verificar configuración existente" },
+        { status: 500 }
+      )
+    }
 
     const updateData = {
       ...validatedData,
