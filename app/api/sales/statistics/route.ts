@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/auth"
 import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -7,41 +8,22 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
+    // Usar getCurrentUser pero capturar errores de redirect
+    let user: any
+    try {
+      const result = await getCurrentUser()
+      user = result.user
+    } catch (error: any) {
+      // Si es un error de redirect de Next.js, re-lanzarlo para que Next.js lo maneje
+      if (error?.digest?.startsWith('NEXT_REDIRECT')) {
+        throw error
+      }
+      // Cualquier otro error, devolver 401
+      console.error("[sales/statistics] Auth error:", error)
+      return NextResponse.json({ error: "Error de autenticación" }, { status: 401 })
+    }
+
     const supabase = await createServerClient()
-    
-    // Autenticación directa sin redirect (mejor para API routes)
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-    
-    console.log("[sales/statistics] Auth check:", { 
-      hasAuthUser: !!authUser, 
-      authError: authError?.message,
-      authUserId: authUser?.id 
-    })
-    
-    if (authError || !authUser) {
-      console.error("[sales/statistics] Auth failed:", authError)
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-    }
-
-    // Obtener usuario de la base de datos
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_id', authUser.id)
-      .maybeSingle()
-
-    console.log("[sales/statistics] User lookup:", { 
-      hasUser: !!user, 
-      userError: userError?.message,
-      userId: (user as any)?.id,
-      userRole: (user as any)?.role
-    })
-
-    if (userError || !user) {
-      console.error("[sales/statistics] User not found:", userError)
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
 
     // Parámetros de filtro
