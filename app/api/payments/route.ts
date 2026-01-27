@@ -74,12 +74,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Validar que para pagos en USD se incluya el tipo de cambio (para calcular ARS equivalent)
-    if (currency === "USD" && (!exchange_rate || exchange_rate <= 0)) {
-      return NextResponse.json({ error: "El tipo de cambio es obligatorio para pagos en USD" }, { status: 400 })
-    }
-
-    // Validar que para pagos en ARS se incluya el tipo de cambio (siempre necesario para contabilidad)
+    // Validar que para pagos en ARS se incluya el tipo de cambio (necesario para convertir a USD para contabilidad)
+    // Para pagos en USD NO se requiere tipo de cambio (el sistema trabaja en USD)
     if (currency === "ARS" && (!exchange_rate || exchange_rate <= 0)) {
       return NextResponse.json({ error: "El tipo de cambio es obligatorio para pagos en ARS" }, { status: 400 })
     }
@@ -136,7 +132,7 @@ export async function POST(request: Request) {
       method: method || "Otro",
       amount,
         currency,
-      exchange_rate: currency === "ARS" ? exchange_rate : null,
+      exchange_rate: currency === "ARS" ? exchange_rate : null, // Solo guardar exchange_rate para ARS
       amount_usd: finalAmountUsd || null,
       date_paid: date_paid || null,
       date_due: date_due || date_paid,
