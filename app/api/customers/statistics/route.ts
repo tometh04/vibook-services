@@ -33,90 +33,86 @@ export async function GET(request: Request) {
       }
     }
     
-    // Ejecutar query con el orden correcto
-    let customers: any[] | null = null
-    let customersError: any = null
+    // ESTRATEGIA: Obtener clientes y operaciones por separado (más confiable)
+    let customersQuery = supabase
+      .from("customers")
+      .select("id, agency_id, first_name, last_name, email, phone, created_at")
     
     if (user.role !== "SUPER_ADMIN") {
       if (agencyId && agencyId !== "ALL") {
-        // Filtrar por agencia específica (y verificar que el usuario tenga acceso)
         if (!agencyIds.includes(agencyId)) {
           return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
         }
-        const result = await supabase
-          .from("customers")
-          .select(`
-            id, agency_id, first_name, last_name, email, phone, created_at,
-            operation_customers (
-              operation_id,
-              operations (id, status, sale_amount_total, departure_date, agency_id)
-            )
-          `)
-          .eq("agency_id", agencyId)
-        customers = result.data
-        customersError = result.error
+        customersQuery = customersQuery.eq("agency_id", agencyId)
       } else {
-        // Filtrar por todas las agencias del usuario
-        const result = await supabase
-          .from("customers")
-          .select(`
-            id, agency_id, first_name, last_name, email, phone, created_at,
-            operation_customers (
-              operation_id,
-              operations (id, status, sale_amount_total, departure_date, agency_id)
-            )
-          `)
-          .in("agency_id", agencyIds)
-        customers = result.data
-        customersError = result.error
+        customersQuery = customersQuery.in("agency_id", agencyIds)
       }
     } else {
-      // SUPER_ADMIN ve todo (o filtra por agencia específica)
       if (agencyId && agencyId !== "ALL") {
-        const result = await supabase
-          .from("customers")
-          .select(`
-            id, agency_id, first_name, last_name, email, phone, created_at,
-            operation_customers (
-              operation_id,
-              operations (id, status, sale_amount_total, departure_date, agency_id)
-            )
-          `)
-          .eq("agency_id", agencyId)
-        customers = result.data
-        customersError = result.error
-      } else {
-        const result = await supabase
-          .from("customers")
-          .select(`
-            id, agency_id, first_name, last_name, email, phone, created_at,
-            operation_customers (
-              operation_id,
-              operations (id, status, sale_amount_total, departure_date, agency_id)
-            )
-          `)
-        customers = result.data
-        customersError = result.error
+        customersQuery = customersQuery.eq("agency_id", agencyId)
       }
     }
 
+    const { data: customers, error: customersError } = await customersQuery
+
     if (customersError) {
-      console.error("Error fetching customers statistics:", customersError)
-      return NextResponse.json({ error: "Error al obtener estadísticas de clientes" }, { status: 500 })
+      console.error("Error fetching customers:", customersError)
+      return NextResponse.json({ error: "Error al obtener clientes" }, { status: 500 })
     }
 
-    // Los datos ya están filtrados por la query
     const filteredCustomers = customers || []
-    console.log(`[Statistics] Fetched ${filteredCustomers.length} customers for user ${user.id}`)
+    console.log(`[Statistics] Fetched ${filteredCustomers.length} customers`)
+
+    // Obtener TODAS las operaciones de estos clientes en queries separadas
+    const customerIds = filteredCustomers.map((c: any) => c.id)
     
-    // Debug: verificar estructura de datos
-    if (filteredCustomers.length > 0) {
-      const sampleCustomer = filteredCustomers[0]
-      console.log(`[Statistics] Sample customer structure:`, {
-        hasOperationCustomers: !!sampleCustomer.operation_customers,
-        operationCustomersLength: sampleCustomer.operation_customers?.length || 0,
-        firstOperationCustomer: sampleCustomer.operation_customers?.[0],
-      })
+    let operations: any[] = []
+    if (customerIds.length > 0) {
+      // 1. Obtener operation_customers
+      const { data: operationCustomers, error: ocError } = await supabase
+        .from("operation_customers")
+        .select("customer_id, operation_id")
+        .in("customer_id", customerIds)
+
+      if (ocError) {
+        console.error("Error fetching operation_customers:", ocError)
+      } else {
+        const ocList = operationCustomers || []
+        console.log(`[Statistics] Found ${ocList.length} operation_customer relationships`)
+        
+        if (ocList.length > 0) {
+          // 2. Obtener las operations
+          const operationIds = ocList.map((oc: any) => oc.operation_id).filter(Boolean)
+          
+          if (operationIds.length > 0) {
+            const { data: opsData, error: opsError } = await supabase
+              .from("operations")
+              .select("id, status, sale_amount_total, departure_date, agency_id")
+              .in("id", operationIds)
+
+            if (opsError) {
+              console.error("Error fetching operations:", opsError)
+            } else {
+              // 3. Combinar operation_customers con operations
+              const opsMap = new Map((opsData || []).map((op: any) => [op.id, op]))
+              
+              operations = ocList
+                .map((oc: any) => {
+                  const op = opsMap.get(oc.operation_id)
+                  if (!op) return null
+                  return {
+                    customer_id: oc.customer_id,
+                    operation_id: oc.operation_id,
+                    ...op,
+                  }
+                })
+                .filter((op: any) => op !== null)
+              
+              console.log(`[Statistics] Fetched ${operations.length} operations for ${customerIds.length} customers`)
+            }
+          }
+        }
+      }
     }
 
     // Estadísticas generales
@@ -155,28 +151,34 @@ export async function GET(request: Request) {
     let activeCustomers = 0
     let inactiveCustomers = 0
 
+    // Agrupar operaciones por customer_id
+    const operationsByCustomer = new Map<string, any[]>()
+    operations.forEach((op: any) => {
+      if (!operationsByCustomer.has(op.customer_id)) {
+        operationsByCustomer.set(op.customer_id, [])
+      }
+      operationsByCustomer.get(op.customer_id)!.push(op)
+    })
+
     // Estadísticas por cliente
     const customerStats = filteredCustomers.map((customer: any) => {
-      // Incluir TODAS las operaciones, no solo las confirmadas
-      const allOperations = (customer.operation_customers || [])
-        .map((oc: any) => oc.operations)
-        .filter((op: any) => op !== null && op !== undefined)
+      const customerOperations = operationsByCustomer.get(customer.id) || []
 
       // Operaciones confirmadas/cerradas para cálculo de gasto
-      const confirmedOperations = allOperations.filter((op: any) => 
-        ["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)
+      const confirmedOperations = customerOperations.filter((op: any) => 
+        op && ["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)
       )
 
       const totalSpent = confirmedOperations.reduce((sum: number, op: any) => 
         sum + (parseFloat(op.sale_amount_total) || 0), 0
       )
 
-      // Total de operaciones (todas, no solo confirmadas)
-      const totalOperations = allOperations.length
+      // Total de operaciones (todas)
+      const totalOperations = customerOperations.length
       const avgTicket = totalOperations > 0 ? totalSpent / totalOperations : 0
 
-      const lastOperationDate = allOperations.length > 0
-        ? allOperations
+      const lastOperationDate = customerOperations.length > 0
+        ? customerOperations
             .map((op: any) => op.departure_date ? new Date(op.departure_date) : null)
             .filter((d: Date | null) => d !== null)
             .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0]
