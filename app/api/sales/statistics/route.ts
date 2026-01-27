@@ -1,242 +1,165 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { getCurrentUser } from "@/lib/auth"
-import { getUserAgencyIds } from "@/lib/permissions-api"
 import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  try {
-    const { user } = await getCurrentUser()
-    const supabase = await createServerClient()
-    const { searchParams } = new URL(request.url)
+  const supabase = await createServerClient()
+  
+  // Autenticación
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  
+  if (!authUser) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  }
 
-    // Parámetros de filtro
-    const agencyId = searchParams.get("agencyId")
-    const months = parseInt(searchParams.get("months") || "12")
+  // Usuario de DB
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, role')
+    .eq('auth_id', authUser.id)
+    .single()
 
-    // Obtener agencias del usuario (mismo patrón que /api/leads)
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+  if (!user) {
+    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 401 })
+  }
 
-    // Query de leads - simplificada
-    let leadsQuery = (supabase.from("leads") as any)
-      .select(`
-        id,
-        status,
-        source,
-        region,
-        destination,
-        created_at,
-        assigned_seller_id,
-        has_deposit,
-        deposit_amount,
-        agency_id
-      `)
+  const { searchParams } = new URL(request.url)
+  const months = parseInt(searchParams.get("months") || "12")
 
-    // Filtrar por agencia
-    if (agencyId && agencyId !== "ALL") {
-      leadsQuery = leadsQuery.eq("agency_id", agencyId)
-    } else if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
-      leadsQuery = leadsQuery.in("agency_id", agencyIds)
+  // Obtener agencias
+  let agencyIds: string[] = []
+  
+  if (user.role === "SUPER_ADMIN") {
+    const { data: agencies } = await supabase.from("agencies").select("id")
+    agencyIds = (agencies || []).map((a: any) => a.id)
+  } else {
+    const { data: userAgencies } = await supabase
+      .from("user_agencies")
+      .select("agency_id")
+      .eq("user_id", user.id)
+    agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
+  }
+
+  // Query de leads
+  let leadsQuery = supabase.from("leads").select("id, status, source, region, created_at, assigned_seller_id, deposit_amount")
+
+  if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+    leadsQuery = leadsQuery.in("agency_id", agencyIds)
+  }
+
+  const { data: leads, error: leadsError } = await leadsQuery
+
+  if (leadsError) {
+    return NextResponse.json({ error: "Error al obtener leads: " + leadsError.message }, { status: 500 })
+  }
+
+  const now = new Date()
+
+  // Inicializar estructuras
+  const pipeline: Record<string, { status: string, label: string, count: number, value: number }> = {
+    NEW: { status: "NEW", label: "Nuevo", count: 0, value: 0 },
+    IN_PROGRESS: { status: "IN_PROGRESS", label: "En Progreso", count: 0, value: 0 },
+    QUOTED: { status: "QUOTED", label: "Cotizado", count: 0, value: 0 },
+    WON: { status: "WON", label: "Ganado", count: 0, value: 0 },
+    LOST: { status: "LOST", label: "Perdido", count: 0, value: 0 },
+  }
+
+  const bySource: Record<string, { source: string, count: number, won: number, conversionRate: number }> = {}
+  const byRegion: Record<string, { region: string, count: number, won: number }> = {}
+
+  const monthlyStats: Record<string, { month: string, monthName: string, newLeads: number, wonLeads: number, lostLeads: number }> = {}
+
+  // Inicializar meses
+  for (let i = 0; i < months; i++) {
+    const date = subMonths(now, months - 1 - i)
+    const key = format(date, "yyyy-MM")
+    monthlyStats[key] = {
+      month: key,
+      monthName: format(date, "MMM yy", { locale: es }),
+      newLeads: 0,
+      wonLeads: 0,
+      lostLeads: 0,
     }
+  }
 
-    const { data: leads, error: leadsError } = await leadsQuery
+  // Procesar leads
+  let totalLeads = 0, totalWon = 0, totalLost = 0, totalDeposits = 0
 
-    if (leadsError) {
-      console.error("Error fetching leads:", leadsError)
-      return NextResponse.json({ error: "Error al obtener leads" }, { status: 500 })
-    }
+  for (const lead of leads || []) {
+    totalLeads++
 
-    // Obtener nombres de vendedores
-    const sellerIds = Array.from(new Set((leads || []).map((l: any) => l.assigned_seller_id).filter(Boolean)))
-    const sellerNamesMap: Record<string, string> = {}
-    
-    if (sellerIds.length > 0) {
-      const { data: sellers } = await supabase
-        .from("users")
-        .select("id, name")
-        .in("id", sellerIds)
-      
-      if (sellers) {
-        sellers.forEach((seller: any) => {
-          sellerNamesMap[seller.id] = seller.name || "Sin nombre"
-        })
+    if (pipeline[lead.status]) {
+      pipeline[lead.status].count++
+      if (lead.deposit_amount) {
+        const amount = parseFloat(lead.deposit_amount) || 0
+        pipeline[lead.status].value += amount
+        totalDeposits += amount
       }
     }
 
-    const now = new Date()
+    if (lead.status === "WON") totalWon++
+    if (lead.status === "LOST") totalLost++
 
-    // Pipeline de ventas (por estado)
-    const pipeline: Record<string, { status: string, label: string, count: number, value: number }> = {
-      NEW: { status: "NEW", label: "Nuevo", count: 0, value: 0 },
-      IN_PROGRESS: { status: "IN_PROGRESS", label: "En Progreso", count: 0, value: 0 },
-      QUOTED: { status: "QUOTED", label: "Cotizado", count: 0, value: 0 },
-      WON: { status: "WON", label: "Ganado", count: 0, value: 0 },
-      LOST: { status: "LOST", label: "Perdido", count: 0, value: 0 },
+    // Por origen
+    const source = lead.source || "Otro"
+    if (!bySource[source]) {
+      bySource[source] = { source, count: 0, won: 0, conversionRate: 0 }
     }
-
-    // Por origen (source)
-    const bySource: Record<string, { source: string, count: number, won: number, conversionRate: number }> = {
-      Instagram: { source: "Instagram", count: 0, won: 0, conversionRate: 0 },
-      WhatsApp: { source: "WhatsApp", count: 0, won: 0, conversionRate: 0 },
-      "Meta Ads": { source: "Meta Ads", count: 0, won: 0, conversionRate: 0 },
-      Other: { source: "Otro", count: 0, won: 0, conversionRate: 0 },
-    }
+    bySource[source].count++
+    if (lead.status === "WON") bySource[source].won++
 
     // Por región
-    const byRegion: Record<string, { region: string, count: number, won: number }> = {}
-
-    // Por vendedor
-    const bySeller: Record<string, { id: string, name: string, leads: number, won: number, conversionRate: number }> = {}
+    const region = lead.region || "OTROS"
+    if (!byRegion[region]) {
+      byRegion[region] = { region, count: 0, won: 0 }
+    }
+    byRegion[region].count++
+    if (lead.status === "WON") byRegion[region].won++
 
     // Por mes
-    const monthlyStats: Record<string, {
-      month: string
-      monthName: string
-      newLeads: number
-      wonLeads: number
-      lostLeads: number
-    }> = {}
-
-    // Inicializar meses
-    for (let i = 0; i < months; i++) {
-      const date = subMonths(now, months - 1 - i)
-      const key = format(date, "yyyy-MM")
-      monthlyStats[key] = {
-        month: key,
-        monthName: format(date, "MMM yy", { locale: es }),
-        newLeads: 0,
-        wonLeads: 0,
-        lostLeads: 0,
+    if (lead.created_at) {
+      const monthKey = format(new Date(lead.created_at), "yyyy-MM")
+      if (monthlyStats[monthKey]) {
+        monthlyStats[monthKey].newLeads++
+        if (lead.status === "WON") monthlyStats[monthKey].wonLeads++
+        if (lead.status === "LOST") monthlyStats[monthKey].lostLeads++
       }
     }
-
-    // Procesar leads
-    let totalLeads = 0
-    let totalWon = 0
-    let totalLost = 0
-    let totalDeposits = 0
-
-    for (const lead of leads || []) {
-      totalLeads++
-
-      // Pipeline
-      if (pipeline[lead.status]) {
-        pipeline[lead.status].count++
-        if (lead.has_deposit && lead.deposit_amount) {
-          pipeline[lead.status].value += parseFloat(lead.deposit_amount) || 0
-          totalDeposits += parseFloat(lead.deposit_amount) || 0
-        }
-      }
-
-      // Por estado
-      if (lead.status === "WON") totalWon++
-      if (lead.status === "LOST") totalLost++
-
-      // Por origen
-      const source = lead.source || "Other"
-      if (bySource[source]) {
-        bySource[source].count++
-        if (lead.status === "WON") bySource[source].won++
-      }
-
-      // Por región
-      const region = lead.region || "OTROS"
-      if (!byRegion[region]) {
-        byRegion[region] = { region, count: 0, won: 0 }
-      }
-      byRegion[region].count++
-      if (lead.status === "WON") byRegion[region].won++
-
-      // Por vendedor
-      if (lead.assigned_seller_id) {
-        if (!bySeller[lead.assigned_seller_id]) {
-          bySeller[lead.assigned_seller_id] = {
-            id: lead.assigned_seller_id,
-            name: sellerNamesMap[lead.assigned_seller_id] || 'Vendedor',
-            leads: 0,
-            won: 0,
-            conversionRate: 0,
-          }
-        }
-        bySeller[lead.assigned_seller_id].leads++
-        if (lead.status === "WON") bySeller[lead.assigned_seller_id].won++
-      }
-
-      // Por mes
-      if (lead.created_at) {
-        const monthKey = format(new Date(lead.created_at), "yyyy-MM")
-        if (monthlyStats[monthKey]) {
-          monthlyStats[monthKey].newLeads++
-          if (lead.status === "WON") monthlyStats[monthKey].wonLeads++
-          if (lead.status === "LOST") monthlyStats[monthKey].lostLeads++
-        }
-      }
-    }
-
-    // Calcular tasas de conversión
-    Object.values(bySource).forEach(s => {
-      s.conversionRate = s.count > 0 ? (s.won / s.count) * 100 : 0
-    })
-
-    Object.values(bySeller).forEach(s => {
-      s.conversionRate = s.leads > 0 ? (s.won / s.leads) * 100 : 0
-    })
-
-    // Conversion rate general
-    const overallConversionRate = totalLeads > 0 ? (totalWon / totalLeads) * 100 : 0
-
-    // Top vendedores por conversión
-    const topSellers = Object.values(bySeller)
-      .filter(s => s.leads >= 5) // Mínimo 5 leads para ser considerado
-      .sort((a, b) => b.conversionRate - a.conversionRate)
-      .slice(0, 5)
-
-    // Top orígenes
-    const topSources = Object.values(bySource)
-      .filter(s => s.count > 0)
-      .sort((a, b) => b.conversionRate - a.conversionRate)
-
-    // Top regiones
-    const topRegions = Object.values(byRegion)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6)
-
-    // Leads activos (no ganados ni perdidos)
-    const activeLeads = totalLeads - totalWon - totalLost
-
-    // Leads este mes
-    const thisMonth = format(now, "yyyy-MM")
-    const newThisMonth = monthlyStats[thisMonth]?.newLeads || 0
-
-    return NextResponse.json({
-      overview: {
-        totalLeads,
-        activeLeads,
-        wonLeads: totalWon,
-        lostLeads: totalLost,
-        conversionRate: Math.round(overallConversionRate * 10) / 10,
-        totalDeposits,
-        newThisMonth,
-      },
-      pipeline: Object.values(pipeline),
-      distributions: {
-        bySource: topSources,
-        byRegion: topRegions,
-        bySeller: topSellers,
-      },
-      trends: {
-        monthly: Object.values(monthlyStats),
-      },
-      rankings: {
-        topSellers,
-        topSources,
-      },
-    })
-  } catch (error) {
-    console.error("Error in GET /api/sales/statistics:", error)
-    return NextResponse.json({ error: "Error al obtener estadísticas" }, { status: 500 })
   }
+
+  // Calcular conversiones
+  Object.values(bySource).forEach(s => {
+    s.conversionRate = s.count > 0 ? (s.won / s.count) * 100 : 0
+  })
+
+  const conversionRate = totalLeads > 0 ? (totalWon / totalLeads) * 100 : 0
+  const thisMonth = format(now, "yyyy-MM")
+
+  return NextResponse.json({
+    overview: {
+      totalLeads,
+      activeLeads: totalLeads - totalWon - totalLost,
+      wonLeads: totalWon,
+      lostLeads: totalLost,
+      conversionRate: Math.round(conversionRate * 10) / 10,
+      totalDeposits,
+      newThisMonth: monthlyStats[thisMonth]?.newLeads || 0,
+    },
+    pipeline: Object.values(pipeline),
+    distributions: {
+      bySource: Object.values(bySource).filter(s => s.count > 0).sort((a, b) => b.count - a.count),
+      byRegion: Object.values(byRegion).sort((a, b) => b.count - a.count).slice(0, 6),
+      bySeller: [],
+    },
+    trends: {
+      monthly: Object.values(monthlyStats),
+    },
+    rankings: {
+      topSellers: [],
+      topSources: Object.values(bySource).filter(s => s.count > 0).sort((a, b) => b.conversionRate - a.conversionRate),
+    },
+  })
 }
