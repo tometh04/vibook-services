@@ -220,7 +220,7 @@ CREATE TRIGGER alert_on_trial_reset_trigger
 
 -- 8. Comentarios
 COMMENT ON TABLE security_alerts IS 'Sistema de alertas para cambios críticos de seguridad';
-COMMENT ON FUNCTION create_security_alert() IS 'Crea una alerta de seguridad';
+COMMENT ON FUNCTION create_security_alert(TEXT, TEXT, TEXT, TEXT, TEXT, UUID, JSONB) IS 'Crea una alerta de seguridad';
 COMMENT ON FUNCTION alert_on_tester_assignment() IS 'Alerta cuando se asigna plan TESTER';
 COMMENT ON FUNCTION alert_on_trial_extension() IS 'Alerta cuando se extiende trial';
 COMMENT ON FUNCTION alert_on_active_without_preapproval() IS 'Alerta cuando status ACTIVE sin preapproval';
