@@ -108,6 +108,16 @@ export async function GET(request: Request) {
     // Los datos ya están filtrados por la query
     const filteredCustomers = customers || []
     console.log(`[Statistics] Fetched ${filteredCustomers.length} customers for user ${user.id}`)
+    
+    // Debug: verificar estructura de datos
+    if (filteredCustomers.length > 0) {
+      const sampleCustomer = filteredCustomers[0]
+      console.log(`[Statistics] Sample customer structure:`, {
+        hasOperationCustomers: !!sampleCustomer.operation_customers,
+        operationCustomersLength: sampleCustomer.operation_customers?.length || 0,
+        firstOperationCustomer: sampleCustomer.operation_customers?.[0],
+      })
+    }
 
     // Estadísticas generales
     const totalCustomers = filteredCustomers.length
@@ -147,20 +157,28 @@ export async function GET(request: Request) {
 
     // Estadísticas por cliente
     const customerStats = filteredCustomers.map((customer: any) => {
-      const operations = (customer.operation_customers || [])
+      // Incluir TODAS las operaciones, no solo las confirmadas
+      const allOperations = (customer.operation_customers || [])
         .map((oc: any) => oc.operations)
-        .filter((op: any) => op && ["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status))
+        .filter((op: any) => op !== null && op !== undefined)
 
-      const totalSpent = operations.reduce((sum: number, op: any) => 
+      // Operaciones confirmadas/cerradas para cálculo de gasto
+      const confirmedOperations = allOperations.filter((op: any) => 
+        ["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)
+      )
+
+      const totalSpent = confirmedOperations.reduce((sum: number, op: any) => 
         sum + (parseFloat(op.sale_amount_total) || 0), 0
       )
 
-      const totalOperations = operations.length
+      // Total de operaciones (todas, no solo confirmadas)
+      const totalOperations = allOperations.length
       const avgTicket = totalOperations > 0 ? totalSpent / totalOperations : 0
 
-      const lastOperationDate = operations.length > 0
-        ? operations
-            .map((op: any) => new Date(op.departure_date))
+      const lastOperationDate = allOperations.length > 0
+        ? allOperations
+            .map((op: any) => op.departure_date ? new Date(op.departure_date) : null)
+            .filter((d: Date | null) => d !== null)
             .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0]
         : null
 
@@ -170,7 +188,7 @@ export async function GET(request: Request) {
 
       return {
         id: customer.id,
-        name: `${customer.first_name} ${customer.last_name}`,
+        name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Sin nombre',
         email: customer.email,
         phone: customer.phone,
         totalOperations,
@@ -181,17 +199,21 @@ export async function GET(request: Request) {
       }
     })
 
-    // Top 10 clientes por gasto
+    console.log(`[Statistics] Customer stats: ${customerStats.length} customers, ${customerStats.filter(c => c.totalSpent > 0).length} with spending, ${customerStats.filter(c => c.totalOperations > 0).length} with operations`)
+
+    // Top 10 clientes por gasto (solo los que tienen gasto > 0)
     const topBySpending = [...customerStats]
       .filter(c => c.totalSpent > 0)
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 10)
 
-    // Top 10 clientes por frecuencia
+    // Top 10 clientes por frecuencia (solo los que tienen operaciones > 0)
     const topByFrequency = [...customerStats]
       .filter(c => c.totalOperations > 0)
       .sort((a, b) => b.totalOperations - a.totalOperations)
       .slice(0, 10)
+
+    console.log(`[Statistics] Rankings: ${topBySpending.length} top by spending, ${topByFrequency.length} top by frequency`)
 
     // Clientes por rango de gasto
     const spendingRanges = [
