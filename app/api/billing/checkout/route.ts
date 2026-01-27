@@ -8,6 +8,28 @@ export const runtime = 'nodejs'
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
+    
+    // CRÍTICO: Rate limiting
+    const { checkRateLimit } = await import("@/lib/rate-limit")
+    const rateLimitCheck = checkRateLimit('/api/billing/checkout', user.id)
+    if (!rateLimitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: "Demasiadas solicitudes. Por favor, intentá nuevamente más tarde.",
+          retryAfter: Math.ceil((rateLimitCheck.resetAt - Date.now()) / 1000)
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitCheck.resetAt - Date.now()) / 1000)),
+            'X-RateLimit-Limit': '5',
+            'X-RateLimit-Remaining': String(rateLimitCheck.remaining),
+            'X-RateLimit-Reset': String(rateLimitCheck.resetAt)
+          }
+        }
+      )
+    }
+    
     const supabase = await createServerClient()
     const body = await request.json()
     const { planId, isUpgradeDuringTrial } = body

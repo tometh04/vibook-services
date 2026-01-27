@@ -30,7 +30,7 @@ export async function PATCH(
       }
     }
 
-    // CRÍTICO: Validar que si se cambia status a ACTIVE, hay mp_preapproval_id
+    // CRÍTICO: Validar que si se cambia status a ACTIVE, hay mp_preapproval_id válido
     if (updateData.status === 'ACTIVE') {
       const { data: currentSub } = await supabase
         .from("subscriptions")
@@ -41,11 +41,24 @@ export async function PATCH(
       if (currentSub) {
         const planName = (currentSub as any).plan?.name
         // TESTER no requiere preapproval, pero otros planes sí
-        if (planName !== 'TESTER' && (!(currentSub as any).mp_preapproval_id || (currentSub as any).mp_preapproval_id === '')) {
-          return NextResponse.json(
-            { error: "No se puede cambiar status a ACTIVE sin mp_preapproval_id válido (excepto plan TESTER)" },
-            { status: 400 }
-          )
+        if (planName !== 'TESTER') {
+          if (!(currentSub as any).mp_preapproval_id || (currentSub as any).mp_preapproval_id === '') {
+            return NextResponse.json(
+              { error: "No se puede cambiar status a ACTIVE sin mp_preapproval_id válido (excepto plan TESTER)" },
+              { status: 400 }
+            )
+          }
+
+          // Verificar que el preapproval existe y es válido en Mercado Pago
+          const { verifyPreApproval } = await import("@/lib/billing/verify-mercadopago")
+          const verification = await verifyPreApproval((currentSub as any).mp_preapproval_id)
+          
+          if (!verification.isValid) {
+            return NextResponse.json(
+              { error: `mp_preapproval_id no es válido en Mercado Pago: ${verification.error}` },
+              { status: 400 }
+            )
+          }
         }
       }
     }

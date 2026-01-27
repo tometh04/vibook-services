@@ -1,8 +1,6 @@
 /**
- * Rate Limiting Utility
- * 
- * Implementa rate limiting simple usando un Map en memoria.
- * Para producción, considerar usar Redis o un servicio dedicado.
+ * Rate Limiting para endpoints críticos
+ * Previene ataques de fuerza bruta y abuso del sistema
  */
 
 interface RateLimitConfig {
@@ -10,123 +8,86 @@ interface RateLimitConfig {
   windowMs: number
 }
 
-interface RequestRecord {
-  count: number
-  resetTime: number
+// Configuraciones por endpoint
+const RATE_LIMITS: Record<string, RateLimitConfig> = {
+  '/api/billing/checkout': { maxRequests: 5, windowMs: 60 * 1000 }, // 5 requests por minuto
+  '/api/billing/change-plan': { maxRequests: 3, windowMs: 60 * 1000 }, // 3 requests por minuto
+  '/api/admin/subscriptions': { maxRequests: 20, windowMs: 60 * 1000 }, // 20 requests por minuto
+  '/api/operations': { maxRequests: 30, windowMs: 60 * 1000 }, // 30 requests por minuto (POST)
+  '/api/settings/users/invite': { maxRequests: 10, windowMs: 60 * 1000 }, // 10 requests por minuto
+  '/api/leads': { maxRequests: 30, windowMs: 60 * 1000 }, // 30 requests por minuto (POST)
+  '/api/customers': { maxRequests: 30, windowMs: 60 * 1000 }, // 30 requests por minuto (POST)
 }
 
-// Store para rate limiting (en memoria)
-// En producción, usar Redis o similar
-const rateLimitStore = new Map<string, RequestRecord>()
-
-// Limpiar registros expirados cada 5 minutos
-setInterval(() => {
-  const now = Date.now()
-  const keysToDelete: string[] = []
-  rateLimitStore.forEach((record, key) => {
-    if (now > record.resetTime) {
-      keysToDelete.push(key)
-    }
-  })
-  keysToDelete.forEach(key => rateLimitStore.delete(key))
-}, 5 * 60 * 1000)
+// In-memory store (en producción usar Redis)
+const requestCounts = new Map<string, { count: number; resetAt: number }>()
 
 /**
- * Obtener identificador único para rate limiting
- */
-function getRateLimitKey(identifier: string, endpoint: string): string {
-  return `${endpoint}:${identifier}`
-}
-
-/**
- * Verificar si una solicitud excede el límite de rate
+ * Verifica rate limit para un endpoint
+ * @param endpoint - Ruta del endpoint
+ * @param identifier - Identificador único (user ID, IP, etc.)
+ * @returns true si está dentro del límite, false si excedió
  */
 export function checkRateLimit(
-  identifier: string,
   endpoint: string,
-  config: RateLimitConfig
-): { allowed: boolean; remaining: number; resetTime: number } {
-  const key = getRateLimitKey(identifier, endpoint)
-  const now = Date.now()
-  const record = rateLimitStore.get(key)
+  identifier: string
+): { allowed: boolean; remaining: number; resetAt: number } {
+  const config = RATE_LIMITS[endpoint]
+  
+  if (!config) {
+    // Si no hay configuración, permitir
+    return { allowed: true, remaining: Infinity, resetAt: Date.now() }
+  }
 
-  // Si no hay registro o el tiempo de reset expiró, crear uno nuevo
-  if (!record || now > record.resetTime) {
-    const newRecord: RequestRecord = {
+  const key = `${endpoint}:${identifier}`
+  const now = Date.now()
+  const record = requestCounts.get(key)
+
+  // Si no existe o expiró, crear nuevo registro
+  if (!record || now > record.resetAt) {
+    requestCounts.set(key, {
       count: 1,
-      resetTime: now + config.windowMs,
-    }
-    rateLimitStore.set(key, newRecord)
+      resetAt: now + config.windowMs
+    })
     return {
       allowed: true,
       remaining: config.maxRequests - 1,
-      resetTime: newRecord.resetTime,
+      resetAt: now + config.windowMs
     }
   }
 
-  // Si el límite fue excedido
+  // Si está dentro de la ventana, incrementar contador
   if (record.count >= config.maxRequests) {
     return {
       allowed: false,
       remaining: 0,
-      resetTime: record.resetTime,
+      resetAt: record.resetAt
     }
   }
 
-  // Incrementar contador
   record.count++
-  rateLimitStore.set(key, record)
+  requestCounts.set(key, record)
 
   return {
     allowed: true,
     remaining: config.maxRequests - record.count,
-    resetTime: record.resetTime,
+    resetAt: record.resetAt
   }
 }
 
 /**
- * Configuraciones predefinidas para diferentes endpoints
+ * Limpia registros expirados (ejecutar periódicamente)
  */
-export const RATE_LIMIT_CONFIGS = {
-  // AI Copilot: 10 requests por minuto por usuario
-  AI_COPILOT: {
-    maxRequests: 10,
-    windowMs: 60 * 1000, // 1 minuto
-  },
-  // Trello Webhook: 100 requests por minuto por IP
-  TRELLO_WEBHOOK: {
-    maxRequests: 100,
-    windowMs: 60 * 1000, // 1 minuto
-  },
-  // APIs generales: 100 requests por minuto por usuario
-  GENERAL: {
-    maxRequests: 100,
-    windowMs: 60 * 1000, // 1 minuto
-  },
-  // APIs de escritura: 30 requests por minuto por usuario
-  WRITE: {
-    maxRequests: 30,
-    windowMs: 60 * 1000, // 1 minuto
-  },
-} as const
-
-/**
- * Helper para usar en API routes
- */
-export function withRateLimit(
-  identifier: string,
-  endpoint: string,
-  config: RateLimitConfig
-) {
-  const result = checkRateLimit(identifier, endpoint, config)
-
-  if (!result.allowed) {
-    const error = new Error("Too many requests")
-    ;(error as any).statusCode = 429
-    ;(error as any).resetTime = result.resetTime
-    throw error
+export function cleanupExpiredRecords() {
+  const now = Date.now()
+  for (const [key, record] of requestCounts.entries()) {
+    if (now > record.resetAt) {
+      requestCounts.delete(key)
+    }
   }
-
-  return result
 }
 
+// Limpiar cada 5 minutos
+if (typeof setInterval !== 'undefined') {
+  setInterval(cleanupExpiredRecords, 5 * 60 * 1000)
+}
