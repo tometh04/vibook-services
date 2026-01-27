@@ -8,10 +8,13 @@ import {
   CreditCard, 
   Settings,
   Home,
-  LogOut
+  LogOut,
+  Shield
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+
+import { Shield } from "lucide-react"
 
 const adminNavItems = [
   {
@@ -33,6 +36,11 @@ const adminNavItems = [
     title: "Estadísticas",
     url: "/admin/stats",
     icon: BarChart3,
+  },
+  {
+    title: "Seguridad",
+    url: "/admin/security",
+    icon: Shield,
   },
   {
     title: "Configuración",
