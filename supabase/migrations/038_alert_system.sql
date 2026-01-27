@@ -74,21 +74,25 @@ BEGIN
   WHERE id = NEW.plan_id;
   
   -- Si se asigna plan TESTER, crear alerta
-  IF plan_name = 'TESTER' AND (OLD.plan_id IS NULL OR OLD.plan_id != NEW.plan_id) THEN
-    PERFORM create_security_alert(
-      'TESTER_ASSIGNED',
-      'HIGH',
-      'Plan TESTER asignado a agencia',
-      format('Se asignó el plan TESTER a la agencia %s. Este plan otorga acceso completo sin pago.', NEW.agency_id),
-      'subscription',
-      NEW.id,
-      jsonb_build_object(
-        'agency_id', NEW.agency_id,
-        'plan_id', NEW.plan_id,
-        'previous_plan_id', OLD.plan_id,
-        'assigned_at', NOW()
-      )
-    );
+  -- En INSERT: siempre alertar si es TESTER
+  -- En UPDATE: solo alertar si cambió de otro plan a TESTER
+  IF plan_name = 'TESTER' THEN
+    IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (OLD.plan_id IS NULL OR OLD.plan_id != NEW.plan_id)) THEN
+      PERFORM create_security_alert(
+        'TESTER_ASSIGNED',
+        'HIGH',
+        'Plan TESTER asignado a agencia',
+        format('Se asignó el plan TESTER a la agencia %s. Este plan otorga acceso completo sin pago.', NEW.agency_id),
+        'subscription',
+        NEW.id,
+        jsonb_build_object(
+          'agency_id', NEW.agency_id,
+          'plan_id', NEW.plan_id,
+          'previous_plan_id', CASE WHEN TG_OP = 'UPDATE' THEN OLD.plan_id ELSE NULL END,
+          'assigned_at', NOW()
+        )
+      );
+    END IF;
   END IF;
   
   RETURN NEW;
@@ -98,7 +102,6 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER alert_on_tester_assignment_trigger
   AFTER INSERT OR UPDATE ON subscriptions
   FOR EACH ROW
-  WHEN (NEW.plan_id IS DISTINCT FROM OLD.plan_id)
   EXECUTE FUNCTION alert_on_tester_assignment();
 
 -- 5. Trigger para alertar extensiones de trial
