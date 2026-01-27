@@ -262,6 +262,10 @@ export async function GET(request: Request) {
       },
     })
   } catch (error: any) {
+    // Si es un error de redirect de Next.js, re-lanzarlo para que Next.js lo maneje
+    if (error?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw error
+    }
     console.error("Error in GET /api/sales/statistics:", error)
     return NextResponse.json(
       { error: error.message || "Error al obtener estadísticas" },
