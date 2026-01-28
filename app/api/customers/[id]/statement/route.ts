@@ -47,14 +47,24 @@ export async function GET(
       payments = paymentsData || []
     }
 
-    // Calcular totales
+    // Calcular totales - usar amount_usd para manejar correctamente ARS/USD
     const totalOwed = payments
       .filter(p => p.status === "PENDING" && p.direction === "CUSTOMER_TO_AGENCY")
-      .reduce((sum, p) => sum + (p.amount || 0), 0)
+      .reduce((sum, p) => {
+        if (p.amount_usd != null) return sum + Number(p.amount_usd)
+        if (p.currency === "USD") return sum + Number(p.amount || 0)
+        if (p.currency === "ARS" && p.exchange_rate) return sum + (Number(p.amount || 0) / Number(p.exchange_rate))
+        return sum + Number(p.amount || 0)
+      }, 0)
 
     const totalPaid = payments
       .filter(p => p.status === "PAID" && p.direction === "CUSTOMER_TO_AGENCY")
-      .reduce((sum, p) => sum + (p.amount || 0), 0)
+      .reduce((sum, p) => {
+        if (p.amount_usd != null) return sum + Number(p.amount_usd)
+        if (p.currency === "USD") return sum + Number(p.amount || 0)
+        if (p.currency === "ARS" && p.exchange_rate) return sum + (Number(p.amount || 0) / Number(p.exchange_rate))
+        return sum + Number(p.amount || 0)
+      }, 0)
 
     const currency = payments[0]?.currency || "ARS"
     const today = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: es })
