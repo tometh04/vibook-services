@@ -472,10 +472,34 @@ export function OperationPaymentsSection({
   // Calcular totales
   const customerPayments = payments.filter(p => p.payer_type === "CUSTOMER" && p.status === "PAID")
   const operatorPayments = payments.filter(p => p.payer_type === "OPERATOR" && p.status === "PAID")
-  
-  const totalPaidByCustomer = customerPayments.reduce((sum, p) => sum + Number(p.amount), 0)
-  const totalPaidToOperator = operatorPayments.reduce((sum, p) => sum + Number(p.amount), 0)
-  
+
+  // IMPORTANTE: Usar amount_usd si está disponible para manejar correctamente pagos en ARS
+  const totalPaidByCustomer = customerPayments.reduce((sum, p) => {
+    if (p.amount_usd != null) {
+      return sum + Number(p.amount_usd)
+    }
+    if (p.currency === "USD") {
+      return sum + Number(p.amount)
+    }
+    if (p.currency === "ARS" && p.exchange_rate) {
+      return sum + (Number(p.amount) / Number(p.exchange_rate))
+    }
+    return sum + Number(p.amount) // Fallback
+  }, 0)
+
+  const totalPaidToOperator = operatorPayments.reduce((sum, p) => {
+    if (p.amount_usd != null) {
+      return sum + Number(p.amount_usd)
+    }
+    if (p.currency === "USD") {
+      return sum + Number(p.amount)
+    }
+    if (p.currency === "ARS" && p.exchange_rate) {
+      return sum + (Number(p.amount) / Number(p.exchange_rate))
+    }
+    return sum + Number(p.amount) // Fallback
+  }, 0)
+
   const customerDebt = saleAmount - totalPaidByCustomer
   const operatorDebt = operatorCost - totalPaidToOperator
 
