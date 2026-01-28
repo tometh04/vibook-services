@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get("dateTo")
     const agencyId = searchParams.get("agencyId")
     const sellerId = searchParams.get("sellerId")
+    const limit = searchParams.get("limit")
 
     // Build query
     let query = supabase
@@ -40,6 +41,14 @@ export async function GET(request: Request) {
       `,
       )
       .order("date_due", { ascending: true })
+
+    // Apply limit if specified
+    if (limit) {
+      const limitNum = parseInt(limit, 10)
+      if (!isNaN(limitNum) && limitNum > 0) {
+        query = query.limit(limitNum)
+      }
+    }
 
     // Filter by role
     if (user.role === "SELLER") {
@@ -126,13 +135,22 @@ export async function GET(request: Request) {
     const { data: alerts, error } = await query
 
     if (error) {
-      console.error("Error fetching alerts:", error)
+      console.error("[GET /api/alerts] Error fetching alerts:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        params: { type, status, dateFrom, dateTo, agencyId, sellerId, limit },
+        userRole: user.role
+      })
       // Si la tabla no existe o hay un error de RLS, retornar array vacío en lugar de error 500
       if (error.code === "42P01" || error.code === "42501") {
         console.warn("Tabla alerts no accesible o no existe, retornando array vacío")
         return NextResponse.json({ alerts: [] })
       }
-      return NextResponse.json({ error: "Error al obtener alertas" }, { status: 500 })
+      // Para cualquier otro error, retornar array vacío también en lugar de 500
+      console.warn("Retornando array vacío debido a error en consulta de alerts")
+      return NextResponse.json({ alerts: [] })
     }
 
     // Obtener mensajes de WhatsApp asociados a las operaciones de las alertas
@@ -179,9 +197,14 @@ export async function GET(request: Request) {
     }))
 
     return NextResponse.json({ alerts: alertsWithMessages })
-  } catch (error) {
-    console.error("Error in GET /api/alerts:", error)
-    return NextResponse.json({ error: "Error al obtener alertas" }, { status: 500 })
+  } catch (error: any) {
+    console.error("[GET /api/alerts] Fatal error:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
+    // Retornar array vacío en lugar de 500 para no romper la UI
+    return NextResponse.json({ alerts: [] })
   }
 }
 

@@ -248,7 +248,7 @@ export function SecurityDashboardClient({
               {stats.failedChecks === 0 && stats.criticalAlerts === 0 ? "Seguro" : "Revisar"}
             </div>
             <p className="text-xs text-muted-foreground">
-              Última verificación: {integrityChecks[0] ? format(new Date(integrityChecks[0].checked_at), "dd/MM/yyyy HH:mm", { locale: es }) : "Nunca"}
+              Última verificación: {integrityChecks.length > 0 && integrityChecks[0]?.checked_at ? format(new Date(integrityChecks[0].checked_at), "dd/MM/yyyy HH:mm", { locale: es }) : "Nunca"}
             </p>
           </CardContent>
         </Card>
