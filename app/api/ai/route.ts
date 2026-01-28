@@ -3,25 +3,28 @@ import { getCurrentUser } from "@/lib/auth"
 import OpenAI from "openai"
 import { createServerClient } from "@/lib/supabase/server"
 
-// Esquema REAL de la base de datos - Actualizado 2025-01-21
+// Esquema REAL de la base de datos - Actualizado 2025-01-28
 const DATABASE_SCHEMA = `
 ## ESQUEMA DE BASE DE DATOS - VIBOOK GESTIÓN
 
 ### users (Usuarios)
-- id, name, email, role ('SUPER_ADMIN','ADMIN','CONTABLE','SELLER','VIEWER'), is_active
+- id, name, email, role ('SUPER_ADMIN','ADMIN','CONTABLE','SELLER','VIEWER'), is_active, created_at
 
-### agencies (Agencias)  
-- id, name, city
+### agencies (Agencias)
+- id, name, city, country, has_used_trial, is_active, created_at
+
+### user_agencies (Relación usuarios-agencias)
+- id, user_id, agency_id, role
 
 ### operators (Operadores/Proveedores)
-- id, name, contact_name, contact_email, contact_phone, credit_limit
+- id, agency_id, name, contact_name, contact_email, contact_phone, credit_limit, is_active, created_at
 
 ### customers (Clientes)
-- id, first_name, last_name, phone, email, document_type, document_number, procedure_number, date_of_birth
+- id, agency_id, first_name, last_name, phone, email, document_type, document_number, procedure_number, date_of_birth, instagram, address, city, country, created_at
 
 ### leads (Consultas)
 - id, agency_id, source, status ('NEW','IN_PROGRESS','QUOTED','WON','LOST'), region, destination
-- contact_name, contact_phone, contact_email, assigned_seller_id, travel_date, return_date, created_at
+- contact_name, contact_phone, contact_email, assigned_seller_id, travel_date, return_date, loss_reason, created_at
 
 ### operations (Operaciones/Ventas) ⭐
 - id, file_code, agency_id, seller_id, operator_id, customer_id
@@ -29,54 +32,93 @@ const DATABASE_SCHEMA = `
 - adults, children, infants
 - status ('PRE_RESERVATION','RESERVED','CONFIRMED','CANCELLED','TRAVELLING','TRAVELLED','CLOSED')
 - sale_amount_total (venta), sale_currency
-- operator_cost (costo), margin_amount (ganancia)
-- commission_amount, created_at
+- operator_cost (costo), margin_amount (ganancia), margin_percentage
+- commission_amount, billing_margin, created_at
 
 ### operation_customers (Pasajeros de operación)
 - id, operation_id, customer_id, role ('MAIN','COMPANION')
+
+### operation_passengers (Datos pasajeros)
+- id, operation_id, first_name, last_name, document_type, document_number, date_of_birth, nationality
+- passport_number, passport_expiry, gender
 
 ### payments (Pagos)
 - id, operation_id, payer_type ('CUSTOMER','OPERATOR'), direction ('INCOME','EXPENSE')
 - method, amount, currency, exchange_rate, amount_usd
 - date_due (fecha vencimiento), date_paid (fecha pago)
-- status ('PENDING','PAID','OVERDUE'), reference, notes, created_at
+- status ('PENDING','PAID','OVERDUE'), reference, notes, account_id, created_at
 
 ### operator_payments (Pagos a operadores)
 - id, operation_id, operator_id, amount, paid_amount, currency
-- due_date, paid_at, status ('PENDING','PAID','OVERDUE'), notes
+- due_date, paid_at, status ('PENDING','PAID','OVERDUE'), notes, created_at
 
 ### financial_accounts (Cuentas financieras)
-- id, name, type ('CASH_ARS','CASH_USD','SAVINGS_ARS','SAVINGS_USD','BANK_ARS','BANK_USD')
-- currency ('ARS','USD'), current_balance, is_active
+- id, agency_id, name, type ('CASH_ARS','CASH_USD','SAVINGS_ARS','SAVINGS_USD','BANK_ARS','BANK_USD','MERCADOPAGO','CREDIT_CARD')
+- currency ('ARS','USD'), current_balance, is_active, created_at
 
 ### cash_movements (Movimientos de caja)
-- id, financial_account_id, type ('INCOME','EXPENSE'), amount, currency, concept, reference, created_at
+- id, agency_id, financial_account_id, type ('INCOME','EXPENSE'), amount, currency, concept, reference, created_at
 
 ### ledger_movements (Movimientos contables)
-- id, type, concept, currency, amount_original, amount_ars_equivalent, exchange_rate
+- id, agency_id, type, concept, currency, amount_original, amount_ars_equivalent, exchange_rate
 - financial_account_id, operation_id, created_at
 
 ### recurring_payments (Gastos recurrentes)
-- id, provider_id, provider_name, amount, currency, frequency ('WEEKLY','BIWEEKLY','MONTHLY','QUARTERLY','YEARLY')
-- category_id, next_due_date, is_active
+- id, agency_id, provider_name, amount, currency, frequency ('WEEKLY','BIWEEKLY','MONTHLY','QUARTERLY','YEARLY')
+- category_id, next_due_date, is_active, created_at
 
 ### recurring_payment_categories (Categorías de gastos)
-- id, name, description, color, is_active
+- id, agency_id, name, description, color, is_active
 
 ### quotations (Cotizaciones)
-- id, lead_id, status ('DRAFT','SENT','APPROVED','REJECTED','CONVERTED'), total_amount, currency
+- id, agency_id, lead_id, seller_id, status ('DRAFT','SENT','APPROVED','REJECTED','CONVERTED')
+- total_amount, currency, valid_until, created_at
+
+### quotation_items (Items de cotización)
+- id, quotation_id, description, quantity, unit_price, total_price
+
+### whatsapp_messages (Mensajes de WhatsApp)
+- id, agency_id, operation_id, customer_id, phone, customer_name, message, whatsapp_link
+- status ('PENDING','SENT','DELIVERED'), scheduled_for, sent_at
+
+### documents (Documentos)
+- id, agency_id, operation_id, customer_id, name, type, file_url, is_required, uploaded_at
+
+### invoices (Facturas)
+- id, agency_id, operation_id, customer_id, invoice_number, invoice_type ('A','B','C','E')
+- subtotal, tax_amount, total_amount, currency, issue_date, due_date, status
 
 ### alerts (Alertas)
-- id, type ('PAYMENT_DUE','OPERATOR_DUE','UPCOMING_TRIP','MISSING_DOC','GENERIC')
-- status ('PENDING','DONE','IGNORED'), title, message, due_date
+- id, agency_id, operation_id, customer_id, user_id, type ('PAYMENT_DUE','OPERATOR_DUE','UPCOMING_TRIP','MISSING_DOCUMENT','PASSPORT_EXPIRY','BIRTHDAY','GENERIC')
+- status ('PENDING','DONE','IGNORED'), title, description, date_due, created_at
+
+### notes (Notas)
+- id, agency_id, entity_type ('LEAD','OPERATION','CUSTOMER'), entity_id, user_id, content, created_at
+
+### exchange_rates (Tipos de cambio)
+- id, currency_from, currency_to, rate, date, source
+
+### subscriptions (Suscripciones)
+- id, agency_id, plan_id, status ('TRIAL','ACTIVE','CANCELED','PAST_DUE','UNPAID','SUSPENDED')
+- current_period_start, current_period_end, trial_start, trial_end, mp_preapproval_id
+
+### subscription_plans (Planes)
+- id, name ('FREE','STARTER','PRO','ENTERPRISE','TESTER'), display_name, price_monthly
+- max_users, max_operations_per_month, max_integrations, is_active
+
+### usage_metrics (Métricas de uso)
+- id, agency_id, period_start, period_end, operations_count, users_count, integrations_count
 
 ### NOTAS IMPORTANTES:
 - Fechas: usar CURRENT_DATE, date_trunc('month', CURRENT_DATE), etc.
 - En payments la fecha de vencimiento es "date_due" (NO "due_date")
-- Para deudores: sale_amount_total - SUM(pagos INCOME) = deuda cliente
+- En operator_payments la fecha es "due_date" (NO "date_due")
+- Para deudores: sale_amount_total - COALESCE(SUM(pagos donde direction='INCOME' AND status='PAID'), 0) = deuda cliente
 - Para deuda operadores: operator_payments WHERE status IN ('PENDING','OVERDUE')
 - Margen = sale_amount_total - operator_cost
-- Tipos de cambio: usar exchange_rate de payments o latest de exchange_rates
+- Tipos de cambio: preferir amount_usd si está disponible, sino usar exchange_rate
+- Siempre filtrar por agency_id excepto para SUPER_ADMIN
+- Las tablas tienen soft delete o is_active, no usar directamente IS NULL
 `
 
 const SYSTEM_PROMPT = `Eres "Cerebro", el asistente de Vibook Gestión para agencias de viajes.
