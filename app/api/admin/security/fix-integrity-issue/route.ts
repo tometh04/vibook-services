@@ -142,7 +142,7 @@ export async function POST(request: Request) {
               const { error } = await (supabase.from("subscriptions") as any)
                 .update({
                   trial_end: maxTrialEnd.toISOString(),
-                  updated_by: user.id,
+                  updated_at: new Date().toISOString(),
                 })
                 .eq("id", sub.subscription_id)
 
@@ -154,13 +154,14 @@ export async function POST(request: Request) {
                 // Registrar evento de billing (opcional, no crítico)
                 try {
                   await (supabase.from("billing_events") as any).insert({
+                    agency_id: sub.agency_id,
                     subscription_id: sub.subscription_id,
-                    event_type: "TRIAL_ADJUSTED_BY_ADMIN",
-                    description: `Trial ajustado automáticamente a 21 días máximo por verificación de integridad`,
+                    event_type: "TRIAL_EXTENDED_BY_ADMIN",
                     metadata: {
                       previous_trial_end: sub.trial_end,
                       new_trial_end: maxTrialEnd.toISOString(),
                       adjusted_by: user.id,
+                      reason: "Auto-adjusted by integrity check to max 21 days",
                     },
                   })
                 } catch (eventError: any) {
@@ -190,10 +191,12 @@ export async function POST(request: Request) {
               const { error } = await (supabase.from("usage_metrics") as any)
                 .update({
                   operations_count: Math.max(0, metric.operations_count || 0),
-                  leads_count: Math.max(0, metric.leads_count || 0),
-                  updated_by: user.id,
+                  users_count: Math.max(0, metric.users_count || 0),
+                  integrations_count: Math.max(0, metric.integrations_count || 0),
+                  updated_at: new Date().toISOString(),
                 })
-                .eq("id", metric.id)
+                .eq("agency_id", metric.agency_id)
+                .eq("period_start", metric.period_start)
 
               if (error) {
                 errors.push(`Error al corregir métrica ${metric.id}: ${error.message}`)
