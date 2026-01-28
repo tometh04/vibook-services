@@ -12,12 +12,12 @@ export default async function AdminSecurityPage() {
     .order("created_at", { ascending: false })
     .limit(50)
 
-  // Obtener resultados de verificaciones de integridad recientes
+  // Obtener resultados de verificaciones de integridad recientes (solo los más recientes)
   const { data: integrityChecks } = await (supabase
     .from("integrity_check_results") as any)
     .select("*")
+    .eq("is_latest", true)
     .order("checked_at", { ascending: false })
-    .limit(20)
 
   // Obtener auditoría admin reciente
   const { data: auditLogs } = await (supabase
