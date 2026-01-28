@@ -127,6 +127,11 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Error fetching alerts:", error)
+      // Si la tabla no existe o hay un error de RLS, retornar array vacío en lugar de error 500
+      if (error.code === "42P01" || error.code === "42501") {
+        console.warn("Tabla alerts no accesible o no existe, retornando array vacío")
+        return NextResponse.json({ alerts: [] })
+      }
       return NextResponse.json({ error: "Error al obtener alertas" }, { status: 500 })
     }
 

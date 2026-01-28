@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, Shield, CheckCircle, XCircle, Clock, Eye } from "lucide-react"
+import { AlertTriangle, Shield, CheckCircle, XCircle, Clock, Eye, Loader2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -66,6 +66,7 @@ export function SecurityDashboardClient({
 }: SecurityDashboardClientProps) {
   const { toast } = useToast()
   const [runningCheck, setRunningCheck] = useState(false)
+  const [fixingIssues, setFixingIssues] = useState<Record<string, boolean>>({})
 
   const severityColors: Record<string, string> = {
     CRITICAL: "bg-red-500",
@@ -109,6 +110,58 @@ export function SecurityDashboardClient({
     } finally {
       setRunningCheck(false)
     }
+  }
+
+  const fixIntegrityIssue = async (checkType: string, affectedEntities: any) => {
+    setFixingIssues((prev) => ({ ...prev, [checkType]: true }))
+    try {
+      const response = await fetch("/api/admin/security/fix-integrity-issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          checkType,
+          affectedEntities,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al corregir problema")
+      }
+
+      toast({
+        title: "Problema corregido",
+        description: data.message || `Se corrigieron ${data.fixedCount || 0} registros`,
+      })
+
+      // Recargar página después de 2 segundos
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Error al corregir problema",
+        variant: "destructive",
+      })
+    } finally {
+      setFixingIssues((prev) => ({ ...prev, [checkType]: false }))
+    }
+  }
+
+  const canAutoFix = (checkType: string, status: string) => {
+    // Solo se pueden corregir automáticamente FAIL y WARNING
+    if (status !== "FAIL" && status !== "WARNING") return false
+    
+    // Tipos que se pueden corregir automáticamente
+    const autoFixableTypes = [
+      "ACTIVE_WITHOUT_PREAPPROVAL",
+      "EXCESSIVE_TRIAL_EXTENSIONS",
+      "USAGE_METRICS_NEGATIVE",
+    ]
+    
+    return autoFixableTypes.includes(checkType)
   }
 
   return (
@@ -246,6 +299,7 @@ export function SecurityDashboardClient({
                     <TableHead>Estado</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead>Fecha</TableHead>
+                    <TableHead>Acción</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -260,6 +314,29 @@ export function SecurityDashboardClient({
                       <TableCell className="max-w-md truncate">{check.description}</TableCell>
                       <TableCell>
                         {format(new Date(check.checked_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                      </TableCell>
+                      <TableCell>
+                        {canAutoFix(check.check_type, check.status) ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fixIntegrityIssue(check.check_type, check.affected_entities)}
+                            disabled={fixingIssues[check.check_type]}
+                          >
+                            {fixingIssues[check.check_type] ? (
+                              <>
+                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                Corrigiendo...
+                              </>
+                            ) : (
+                              "Corregir"
+                            )}
+                          </Button>
+                        ) : check.status === "FAIL" || check.status === "WARNING" ? (
+                          <span className="text-xs text-muted-foreground">
+                            Requiere acción manual
+                          </span>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}
