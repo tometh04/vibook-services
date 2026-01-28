@@ -10,10 +10,14 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: Request) {
   try {
+    console.log("[fix-integrity-issue] Iniciando request...")
+    
     const { user } = await getCurrentUser()
+    console.log("[fix-integrity-issue] Usuario obtenido:", { id: user.id, role: user.role, email: user.email })
     
     // Solo SUPER_ADMIN puede resolver problemas de integridad
     if (user.role !== "SUPER_ADMIN") {
+      console.log("[fix-integrity-issue] Usuario no es SUPER_ADMIN:", user.role)
       return NextResponse.json(
         { error: "No tiene permiso para resolver problemas de integridad" },
         { status: 403 }
@@ -21,16 +25,31 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    console.log("[fix-integrity-issue] Body recibido:", { 
+      checkType: body.checkType, 
+      affectedEntitiesCount: body.affectedEntities?.length || 0 
+    })
+    
     const { checkType, affectedEntities } = body
 
     if (!checkType) {
+      console.log("[fix-integrity-issue] checkType faltante")
       return NextResponse.json(
         { error: "Tipo de verificación requerido" },
         { status: 400 }
       )
     }
 
+    if (!affectedEntities || !Array.isArray(affectedEntities) || affectedEntities.length === 0) {
+      console.log("[fix-integrity-issue] affectedEntities inválido o vacío")
+      return NextResponse.json(
+        { error: "No hay entidades afectadas para corregir" },
+        { status: 400 }
+      )
+    }
+
     const supabase = await createServerClient()
+    console.log("[fix-integrity-issue] Cliente Supabase creado")
 
     let fixedCount = 0
     let errors: string[] = []
@@ -39,26 +58,32 @@ export async function POST(request: Request) {
       case "ACTIVE_WITHOUT_PREAPPROVAL":
         // Para suscripciones ACTIVE sin preapproval, las marcamos como SUSPENDED
         // ya que no tienen un método de pago válido
-        if (affectedEntities && Array.isArray(affectedEntities) && affectedEntities.length > 0) {
-          for (const sub of affectedEntities) {
-            try {
-              if (!sub.subscription_id) {
-                errors.push(`Entidad sin subscription_id: ${JSON.stringify(sub)}`)
-                continue
-              }
+        console.log(`[fix-integrity-issue] Procesando ${affectedEntities.length} suscripciones sin preapproval`)
+        
+        for (const sub of affectedEntities) {
+          try {
+            if (!sub.subscription_id) {
+              console.warn("[fix-integrity-issue] Entidad sin subscription_id:", sub)
+              errors.push(`Entidad sin subscription_id: ${JSON.stringify(sub)}`)
+              continue
+            }
 
-              const { error } = await (supabase.from("subscriptions") as any)
-                .update({
-                  status: "SUSPENDED",
-                  suspended_reason: "Suscripción sin método de pago válido detectada por verificación de integridad",
-                  suspended_at: new Date().toISOString(),
-                  updated_by: user.id,
-                })
-                .eq("id", sub.subscription_id)
+            console.log(`[fix-integrity-issue] Suspendiéndo suscripción ${sub.subscription_id}`)
+            
+            // Actualizar solo status a SUSPENDED (las columnas suspended_reason y suspended_at no existen)
+            const { data: updateData, error } = await (supabase.from("subscriptions") as any)
+              .update({
+                status: "SUSPENDED",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", sub.subscription_id)
+              .select()
 
               if (error) {
-                errors.push(`Error al suspender suscripción ${sub.subscription_id}: ${error.message}`)
+                console.error(`[fix-integrity-issue] Error al suspender suscripción ${sub.subscription_id}:`, error)
+                errors.push(`Error al suspender suscripción ${sub.subscription_id}: ${error.message || JSON.stringify(error)}`)
               } else {
+                console.log(`[fix-integrity-issue] Suscripción ${sub.subscription_id} suspendida exitosamente`)
                 fixedCount++
                 
                 // Crear alerta de seguridad para registro (opcional, no crítico)
@@ -78,26 +103,22 @@ export async function POST(request: Request) {
                     },
                   })
                 } catch (alertError: any) {
-                  console.warn("Error creando alerta de seguridad:", alertError)
+                  console.warn("[fix-integrity-issue] Error creando alerta de seguridad:", alertError)
                   // No fallar si no se puede crear la alerta
                 }
               }
             } catch (err: any) {
+              console.error(`[fix-integrity-issue] Excepción procesando suscripción ${sub.subscription_id || "desconocida"}:`, err)
               errors.push(`Error procesando suscripción ${sub.subscription_id || "desconocida"}: ${err.message}`)
             }
           }
-        } else {
-          return NextResponse.json(
-            { error: "No hay entidades afectadas para corregir" },
-            { status: 400 }
-          )
-        }
         break
 
       case "EXCESSIVE_TRIAL_EXTENSIONS":
         // Para extensiones excesivas, ajustamos el trial_end a máximo 21 días desde trial_start
-        if (affectedEntities && Array.isArray(affectedEntities) && affectedEntities.length > 0) {
-          for (const sub of affectedEntities) {
+        console.log(`[fix-integrity-issue] Procesando ${affectedEntities.length} suscripciones con extensiones excesivas`)
+        
+        for (const sub of affectedEntities) {
             try {
               if (!sub.subscription_id) {
                 errors.push(`Entidad sin subscription_id: ${JSON.stringify(sub)}`)
@@ -148,15 +169,10 @@ export async function POST(request: Request) {
                 }
               }
             } catch (err: any) {
+              console.error(`[fix-integrity-issue] Excepción procesando suscripción ${sub.subscription_id || "desconocida"}:`, err)
               errors.push(`Error procesando suscripción ${sub.subscription_id || "desconocida"}: ${err.message}`)
             }
           }
-        } else {
-          return NextResponse.json(
-            { error: "No hay entidades afectadas para corregir" },
-            { status: 400 }
-          )
-        }
         break
 
       case "MULTIPLE_TRIALS_PER_USER":
@@ -198,24 +214,35 @@ export async function POST(request: Request) {
         )
     }
 
+    console.log(`[fix-integrity-issue] Corrección completada: ${fixedCount} corregidos, ${errors.length} errores`)
+
     // Ejecutar verificación nuevamente para actualizar resultados (opcional, no crítico)
     try {
+      console.log("[fix-integrity-issue] Ejecutando run_all_integrity_checks...")
       await (supabase.rpc("run_all_integrity_checks") as any)
+      console.log("[fix-integrity-issue] run_all_integrity_checks completado")
     } catch (rpcError: any) {
-      console.warn("Error ejecutando run_all_integrity_checks después de corregir:", rpcError)
+      console.warn("[fix-integrity-issue] Error ejecutando run_all_integrity_checks después de corregir:", rpcError)
       // No fallar si el RPC falla, ya corregimos los problemas
     }
 
-    return NextResponse.json({
+    const response = {
       success: true,
       fixedCount,
       errors: errors.length > 0 ? errors : undefined,
       message: `Se corrigieron ${fixedCount} ${checkType === "ACTIVE_WITHOUT_PREAPPROVAL" ? "suscripciones" : "registros"}`,
-    })
+    }
+    
+    console.log("[fix-integrity-issue] Retornando respuesta exitosa:", response)
+    return NextResponse.json(response)
   } catch (error: any) {
-    console.error("Error in POST /api/admin/security/fix-integrity-issue:", error)
+    console.error("[fix-integrity-issue] ERROR CRÍTICO:", error)
+    console.error("[fix-integrity-issue] Stack:", error.stack)
     return NextResponse.json(
-      { error: error.message || "Error al resolver problema de integridad" },
+      { 
+        error: error.message || "Error al resolver problema de integridad",
+        details: process.env.NODE_ENV === "development" ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
