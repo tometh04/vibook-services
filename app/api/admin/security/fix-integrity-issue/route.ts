@@ -39,9 +39,14 @@ export async function POST(request: Request) {
       case "ACTIVE_WITHOUT_PREAPPROVAL":
         // Para suscripciones ACTIVE sin preapproval, las marcamos como SUSPENDED
         // ya que no tienen un método de pago válido
-        if (affectedEntities && Array.isArray(affectedEntities)) {
+        if (affectedEntities && Array.isArray(affectedEntities) && affectedEntities.length > 0) {
           for (const sub of affectedEntities) {
             try {
+              if (!sub.subscription_id) {
+                errors.push(`Entidad sin subscription_id: ${JSON.stringify(sub)}`)
+                continue
+              }
+
               const { error } = await (supabase.from("subscriptions") as any)
                 .update({
                   status: "SUSPENDED",
@@ -56,35 +61,60 @@ export async function POST(request: Request) {
               } else {
                 fixedCount++
                 
-                // Crear alerta de seguridad para registro
-                await (supabase.from("security_alerts") as any).insert({
-                  alert_type: "SUBSCRIPTION_SUSPENDED_BY_INTEGRITY_CHECK",
-                  severity: "HIGH",
-                  title: "Suscripción suspendida automáticamente",
-                  description: `Suscripción ${sub.subscription_id} suspendida por falta de método de pago válido`,
-                  entity_type: "subscription",
-                  entity_id: sub.subscription_id,
-                  metadata: {
-                    previous_status: "ACTIVE",
-                    reason: "Sin mp_preapproval_id válido",
-                    fixed_by: user.id,
-                    fixed_at: new Date().toISOString(),
-                  },
-                })
+                // Crear alerta de seguridad para registro (opcional, no crítico)
+                try {
+                  await (supabase.from("security_alerts") as any).insert({
+                    alert_type: "SUBSCRIPTION_SUSPENDED_BY_INTEGRITY_CHECK",
+                    severity: "HIGH",
+                    title: "Suscripción suspendida automáticamente",
+                    description: `Suscripción ${sub.subscription_id} suspendida por falta de método de pago válido`,
+                    entity_type: "subscription",
+                    entity_id: sub.subscription_id,
+                    metadata: {
+                      previous_status: "ACTIVE",
+                      reason: "Sin mp_preapproval_id válido",
+                      fixed_by: user.id,
+                      fixed_at: new Date().toISOString(),
+                    },
+                  })
+                } catch (alertError: any) {
+                  console.warn("Error creando alerta de seguridad:", alertError)
+                  // No fallar si no se puede crear la alerta
+                }
               }
             } catch (err: any) {
-              errors.push(`Error procesando suscripción ${sub.subscription_id}: ${err.message}`)
+              errors.push(`Error procesando suscripción ${sub.subscription_id || "desconocida"}: ${err.message}`)
             }
           }
+        } else {
+          return NextResponse.json(
+            { error: "No hay entidades afectadas para corregir" },
+            { status: 400 }
+          )
         }
         break
 
       case "EXCESSIVE_TRIAL_EXTENSIONS":
         // Para extensiones excesivas, ajustamos el trial_end a máximo 21 días desde trial_start
-        if (affectedEntities && Array.isArray(affectedEntities)) {
+        if (affectedEntities && Array.isArray(affectedEntities) && affectedEntities.length > 0) {
           for (const sub of affectedEntities) {
             try {
+              if (!sub.subscription_id) {
+                errors.push(`Entidad sin subscription_id: ${JSON.stringify(sub)}`)
+                continue
+              }
+
+              if (!sub.trial_start) {
+                errors.push(`Suscripción ${sub.subscription_id} sin trial_start`)
+                continue
+              }
+
               const trialStart = new Date(sub.trial_start)
+              if (isNaN(trialStart.getTime())) {
+                errors.push(`Fecha trial_start inválida para suscripción ${sub.subscription_id}`)
+                continue
+              }
+
               const maxTrialEnd = new Date(trialStart)
               maxTrialEnd.setDate(maxTrialEnd.getDate() + 21)
 
@@ -100,22 +130,32 @@ export async function POST(request: Request) {
               } else {
                 fixedCount++
                 
-                // Registrar evento de billing
-                await (supabase.from("billing_events") as any).insert({
-                  subscription_id: sub.subscription_id,
-                  event_type: "TRIAL_ADJUSTED_BY_ADMIN",
-                  description: `Trial ajustado automáticamente a 21 días máximo por verificación de integridad`,
-                  metadata: {
-                    previous_trial_end: sub.trial_end,
-                    new_trial_end: maxTrialEnd.toISOString(),
-                    adjusted_by: user.id,
-                  },
-                })
+                // Registrar evento de billing (opcional, no crítico)
+                try {
+                  await (supabase.from("billing_events") as any).insert({
+                    subscription_id: sub.subscription_id,
+                    event_type: "TRIAL_ADJUSTED_BY_ADMIN",
+                    description: `Trial ajustado automáticamente a 21 días máximo por verificación de integridad`,
+                    metadata: {
+                      previous_trial_end: sub.trial_end,
+                      new_trial_end: maxTrialEnd.toISOString(),
+                      adjusted_by: user.id,
+                    },
+                  })
+                } catch (eventError: any) {
+                  console.warn("Error creando billing event:", eventError)
+                  // No fallar si no se puede crear el evento
+                }
               }
             } catch (err: any) {
-              errors.push(`Error procesando suscripción ${sub.subscription_id}: ${err.message}`)
+              errors.push(`Error procesando suscripción ${sub.subscription_id || "desconocida"}: ${err.message}`)
             }
           }
+        } else {
+          return NextResponse.json(
+            { error: "No hay entidades afectadas para corregir" },
+            { status: 400 }
+          )
         }
         break
 
@@ -158,8 +198,13 @@ export async function POST(request: Request) {
         )
     }
 
-    // Ejecutar verificación nuevamente para actualizar resultados
-    await (supabase.rpc("run_all_integrity_checks") as any)
+    // Ejecutar verificación nuevamente para actualizar resultados (opcional, no crítico)
+    try {
+      await (supabase.rpc("run_all_integrity_checks") as any)
+    } catch (rpcError: any) {
+      console.warn("Error ejecutando run_all_integrity_checks después de corregir:", rpcError)
+      // No fallar si el RPC falla, ya corregimos los problemas
+    }
 
     return NextResponse.json({
       success: true,

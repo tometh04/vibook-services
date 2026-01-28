@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Shield, CheckCircle, XCircle, Clock, Eye, Loader2 } from "lucide-react"
+import { FixIntegrityIssueDialog } from "./fix-integrity-issue-dialog"
 import {
   Table,
   TableBody,
@@ -67,6 +68,12 @@ export function SecurityDashboardClient({
   const { toast } = useToast()
   const [runningCheck, setRunningCheck] = useState(false)
   const [fixingIssues, setFixingIssues] = useState<Record<string, boolean>>({})
+  const [fixDialogOpen, setFixDialogOpen] = useState(false)
+  const [selectedCheck, setSelectedCheck] = useState<{
+    checkType: string
+    description: string
+    affectedEntities: any
+  } | null>(null)
 
   const severityColors: Record<string, string> = {
     CRITICAL: "bg-red-500",
@@ -112,8 +119,21 @@ export function SecurityDashboardClient({
     }
   }
 
-  const fixIntegrityIssue = async (checkType: string, affectedEntities: any) => {
+  const handleFixClick = (check: typeof integrityChecks[0]) => {
+    setSelectedCheck({
+      checkType: check.check_type,
+      description: check.description,
+      affectedEntities: check.affected_entities,
+    })
+    setFixDialogOpen(true)
+  }
+
+  const fixIntegrityIssue = async () => {
+    if (!selectedCheck) return
+
+    const { checkType, affectedEntities } = selectedCheck
     setFixingIssues((prev) => ({ ...prev, [checkType]: true }))
+    
     try {
       const response = await fetch("/api/admin/security/fix-integrity-issue", {
         method: "POST",
@@ -145,6 +165,7 @@ export function SecurityDashboardClient({
         description: error.message || "Error al corregir problema",
         variant: "destructive",
       })
+      throw error // Re-throw para que el diálogo no se cierre
     } finally {
       setFixingIssues((prev) => ({ ...prev, [checkType]: false }))
     }
@@ -320,7 +341,7 @@ export function SecurityDashboardClient({
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => fixIntegrityIssue(check.check_type, check.affected_entities)}
+                            onClick={() => handleFixClick(check)}
                             disabled={fixingIssues[check.check_type]}
                           >
                             {fixingIssues[check.check_type] ? (
@@ -388,6 +409,18 @@ export function SecurityDashboardClient({
           )}
         </CardContent>
       </Card>
+
+      {/* Diálogo de confirmación para corregir problemas */}
+      {selectedCheck && (
+        <FixIntegrityIssueDialog
+          open={fixDialogOpen}
+          onOpenChange={setFixDialogOpen}
+          checkType={selectedCheck.checkType}
+          description={selectedCheck.description}
+          affectedEntities={selectedCheck.affectedEntities}
+          onConfirm={fixIntegrityIssue}
+        />
+      )}
     </div>
   )
 }

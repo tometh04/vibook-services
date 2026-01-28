@@ -8,29 +8,41 @@ export const dynamic = 'force-dynamic'
  * GET /api/agencies
  * Lista agencias: SUPER_ADMIN ve todas, otros solo sus agencias
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+    const { searchParams } = new URL(request.url)
+    const idsParam = searchParams.get("ids")
     
     let query = supabase.from("agencies").select("id, name")
     
-    // SUPER_ADMIN (admin@vibook.ai) ve TODAS las agencias
-    if (user.role !== "SUPER_ADMIN") {
-      // ADMIN y otros roles solo ven sus agencias
-      const { data: userAgencies } = await supabase
-        .from("user_agencies")
-        .select("agency_id")
-        .eq("user_id", user.id)
-      
-      const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
-      
-      if (agencyIds.length === 0) {
-        console.log(`[API /agencies] User ${user.id} has no agencies`)
+    // Si se proporcionan IDs específicos, filtrar por esos
+    if (idsParam) {
+      const ids = idsParam.split(",").filter(Boolean)
+      if (ids.length > 0) {
+        query = query.in("id", ids)
+      } else {
         return NextResponse.json({ agencies: [] })
       }
-      
-      query = query.in("id", agencyIds)
+    } else {
+      // SUPER_ADMIN (admin@vibook.ai) ve TODAS las agencias
+      if (user.role !== "SUPER_ADMIN") {
+        // ADMIN y otros roles solo ven sus agencias
+        const { data: userAgencies } = await supabase
+          .from("user_agencies")
+          .select("agency_id")
+          .eq("user_id", user.id)
+        
+        const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+        
+        if (agencyIds.length === 0) {
+          console.log(`[API /agencies] User ${user.id} has no agencies`)
+          return NextResponse.json({ agencies: [] })
+        }
+        
+        query = query.in("id", agencyIds)
+      }
     }
 
     const { data, error } = await query.order("name")
