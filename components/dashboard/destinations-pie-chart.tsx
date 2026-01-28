@@ -103,7 +103,7 @@ export const DestinationsPieChart = memo(function DestinationsPieChart({ data }:
         <CardTitle>Distribución de Ventas</CardTitle>
         <CardDescription>Top 5 destinos por ventas</CardDescription>
       </CardHeader>
-      <CardContent className="overflow-hidden">
+      <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full sm:h-[300px]">
           <PieChart>
             <ChartTooltip

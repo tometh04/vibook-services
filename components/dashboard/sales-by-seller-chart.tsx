@@ -12,10 +12,10 @@ import {
 import { useChartColors } from "@/hooks/use-chart-colors"
 
 interface SellerData {
-  sellerId: string
-  sellerName: string
+  id: string
+  name: string
   totalSales: number
-  totalMargin: number
+  margin: number
   operationsCount: number
   avgMarginPercent: number
 }
@@ -44,9 +44,9 @@ const chartConfig = {
 export const SalesBySellerChart = memo(function SalesBySellerChart({ data }: SalesBySellerChartProps) {
   const colors = useChartColors()
   const chartData = data.map((seller) => ({
-    name: seller.sellerName,
+    name: seller.name,
     Ventas: seller.totalSales,
-    Margen: seller.totalMargin,
+    Margen: seller.margin,
   }))
 
   if (chartData.length === 0) {

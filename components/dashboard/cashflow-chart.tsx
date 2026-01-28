@@ -61,15 +61,11 @@ export const CashflowChart = memo(function CashflowChart({ data }: CashflowChart
 
   if (chartData.length === 0) {
     return (
-      <Card className="h-full">
+      <Card>
         <CardHeader>
           <CardTitle>Flujo de Caja</CardTitle>
-          <CardDescription>Ingresos, egresos y flujo neto en el tiempo</CardDescription>
+          <CardDescription>No hay datos disponibles</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center h-[calc(100%-80px)] text-center text-muted-foreground space-y-2 p-6">
-          <p className="text-sm">No hay movimientos de caja en el rango de fechas seleccionado.</p>
-          <p className="text-xs">Los movimientos de caja se crean cuando se marcan pagos como pagados.</p>
-        </CardContent>
       </Card>
     )
   }
