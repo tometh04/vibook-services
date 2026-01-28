@@ -87,12 +87,12 @@ export function EditCustomerDialog({
 
   // Generar schema dinámicamente según configuración
   const customerSchema = useMemo(() => {
-    // Schema base
+    // Schema base - email es opcional, document_type y document_number son opcionales en edición
     const baseFields: Record<string, z.ZodTypeAny> = {
       first_name: z.string().min(1, "Nombre es requerido"),
       last_name: z.string().min(1, "Apellido es requerido"),
       phone: z.string().min(1, "Teléfono es requerido"),
-      email: z.string().email("Email inválido"),
+      email: z.string().email("Email inválido").optional().or(z.literal("")),
       instagram_handle: z.string().optional(),
       document_type: z.string().optional(),
       document_number: z.string().optional(),
@@ -275,7 +275,7 @@ export function EditCustomerDialog({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email *</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="juan@email.com" {...field} />
                     </FormControl>

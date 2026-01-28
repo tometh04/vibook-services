@@ -92,14 +92,15 @@ export function NewCustomerDialog({
   // Generar schema dinámicamente según configuración
   const customerSchema = useMemo(() => {
     // Schema base - email ahora es opcional por defecto
+    // document_type y document_number son obligatorios
     const baseFields: Record<string, z.ZodTypeAny> = {
       first_name: z.string().min(1, "Nombre es requerido"),
       last_name: z.string().min(1, "Apellido es requerido"),
       phone: z.string().min(1, "Teléfono es requerido"),
       email: z.string().email("Email inválido").optional().or(z.literal("")),
       instagram_handle: z.string().optional(),
-      document_type: z.string().optional(),
-      document_number: z.string().optional(),
+      document_type: z.string().min(1, "Tipo de documento es requerido"),
+      document_number: z.string().min(1, "Número de documento es requerido"),
       procedure_number: z.string().optional(),
       date_of_birth: z.string().optional(),
       nationality: z.string().optional(),
@@ -483,10 +484,24 @@ export function NewCustomerDialog({
 
                 <FormField
                   control={form.control}
+                  name="instagram_handle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Instagram</FormLabel>
+                      <FormControl>
+                        <Input placeholder="@usuario" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="document_type"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tipo de Documento</FormLabel>
+                      <FormLabel>Tipo de Documento *</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -511,7 +526,7 @@ export function NewCustomerDialog({
                   name="document_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Número de Documento</FormLabel>
+                      <FormLabel>Número de Documento *</FormLabel>
                       <FormControl>
                         <Input placeholder="12345678" {...field} />
                       </FormControl>
