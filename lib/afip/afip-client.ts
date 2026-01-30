@@ -158,6 +158,12 @@ export async function createInvoice(
   try {
     const afip = createAfipInstance(config)
 
+    // Determinar si es Factura C (tipo 11) - no discrimina IVA
+    const esFacturaC = request.CbteTipo === 11
+
+    // Convertir fecha a número entero (yyyymmdd) como requiere el SDK
+    const cbteFch = parseInt((request.CbteFch || formatDate(new Date())).replace(/\D/g, ''), 10)
+
     // Construir datos del comprobante para createNextVoucher
     const voucherData: Record<string, any> = {
       CantReg: 1,
@@ -166,19 +172,20 @@ export async function createInvoice(
       Concepto: request.Concepto,
       DocTipo: request.DocTipo,
       DocNro: request.DocNro,
-      CbteFch: request.CbteFch || formatDate(new Date()),
+      CbteFch: cbteFch,
       ImpTotal: request.ImpTotal,
-      ImpTotConc: request.ImpTotConc || 0,
-      ImpNeto: request.ImpNeto,
+      // Factura C: todo es no gravado, no se discrimina IVA
+      ImpTotConc: esFacturaC ? request.ImpTotal : (request.ImpTotConc || 0),
+      ImpNeto: esFacturaC ? 0 : request.ImpNeto,
       ImpOpEx: request.ImpOpEx || 0,
-      ImpIVA: request.ImpIVA || 0,
+      ImpIVA: esFacturaC ? 0 : (request.ImpIVA || 0),
       ImpTrib: request.ImpTrib || 0,
       MonId: request.MonId || 'PES',
       MonCotiz: request.MonCotiz || 1,
     }
 
-    // Agregar IVA si existe
-    if (request.Iva && request.Iva.length > 0) {
+    // Agregar IVA solo si NO es Factura C
+    if (!esFacturaC && request.Iva && request.Iva.length > 0) {
       voucherData.Iva = request.Iva
     }
 
@@ -199,9 +206,15 @@ export async function createInvoice(
 
     // Agregar fechas de servicio si el concepto es servicios (2) o productos y servicios (3)
     if (request.Concepto === 2 || request.Concepto === 3) {
-      voucherData.FchServDesde = request.FchServDesde
-      voucherData.FchServHasta = request.FchServHasta
-      voucherData.FchVtoPago = request.FchVtoPago
+      if (request.FchServDesde) {
+        voucherData.FchServDesde = parseInt(String(request.FchServDesde).replace(/\D/g, ''), 10)
+      }
+      if (request.FchServHasta) {
+        voucherData.FchServHasta = parseInt(String(request.FchServHasta).replace(/\D/g, ''), 10)
+      }
+      if (request.FchVtoPago) {
+        voucherData.FchVtoPago = parseInt(String(request.FchVtoPago).replace(/\D/g, ''), 10)
+      }
     }
 
     console.log('[AFIP SDK] createNextVoucher data:', JSON.stringify(voucherData).substring(0, 500))
@@ -217,8 +230,8 @@ export async function createInvoice(
         data: {
           CAE: response.CAE,
           CAEFchVto: response.CAEFchVto,
-          CbteDesde: response.voucherNumber || response.CbteDesde,
-          CbteHasta: response.voucherNumber || response.CbteHasta,
+          CbteDesde: response.voucher_number || response.voucherNumber || response.CbteDesde,
+          CbteHasta: response.voucher_number || response.voucherNumber || response.CbteHasta,
           FchProceso: new Date().toISOString(),
           Resultado: 'A',
         },

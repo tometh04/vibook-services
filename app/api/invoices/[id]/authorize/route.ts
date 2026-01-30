@@ -105,9 +105,7 @@ export async function POST(
       Concepto: invoice.concepto as 1 | 2 | 3,
       DocTipo: invoice.receptor_doc_tipo as TipoDocumento,
       DocNro: parseInt(invoice.receptor_doc_nro.replace(/\D/g, ''), 10),
-      CbteFch: invoice.fecha_emision 
-        ? formatDate(new Date(invoice.fecha_emision))
-        : formatDate(new Date()),
+      CbteFch: formatDate(new Date()),
       ImpTotal: invoice.imp_total,
       ImpTotConc: invoice.imp_tot_conc || 0,
       ImpNeto: invoice.imp_neto,
@@ -117,11 +115,15 @@ export async function POST(
       MonId: invoice.moneda || 'PES',
       MonCotiz: invoice.cotizacion || 1,
       Iva: ivaArray.length > 0 ? ivaArray : undefined,
-      FchServDesde: invoice.fch_serv_desde,
-      FchServHasta: invoice.fch_serv_hasta,
-      FchVtoPago: invoice.fecha_vto_pago 
+      FchServDesde: invoice.fch_serv_desde
+        ? formatDate(new Date(invoice.fch_serv_desde))
+        : formatDate(new Date()),
+      FchServHasta: invoice.fch_serv_hasta
+        ? formatDate(new Date(invoice.fch_serv_hasta))
+        : formatDate(new Date()),
+      FchVtoPago: invoice.fecha_vto_pago
         ? formatDate(new Date(invoice.fecha_vto_pago))
-        : undefined,
+        : formatDate(new Date()),
     }
 
     // Enviar a AFIP (usa config de la agencia si existe)
