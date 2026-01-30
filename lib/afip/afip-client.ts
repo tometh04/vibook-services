@@ -61,6 +61,7 @@ async function afipRequest<T>(
   const url = `${AFIP_SDK_BASE_URL}${endpoint}`
 
   console.log(`[AFIP SDK] ${method} ${url}`)
+  console.log(`[AFIP SDK] API Key length: ${AFIP_SDK_API_KEY.length}, first 10: ${AFIP_SDK_API_KEY.substring(0, 10)}, last 5: ${AFIP_SDK_API_KEY.substring(AFIP_SDK_API_KEY.length - 5)}`)
 
   try {
     const response = await fetch(url, {
