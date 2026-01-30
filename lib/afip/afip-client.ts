@@ -103,6 +103,46 @@ export function isAfipConfigured(): boolean {
 }
 
 /**
+ * Helper: determina URLs de AFIP según environment
+ */
+function getWsfeUrls(environment: string) {
+  const isProd = environment === 'production' || environment === 'prod'
+  return {
+    env: isProd ? 'prod' : 'dev',
+    url: isProd
+      ? 'https://servicios1.afip.gov.ar/wsfev1/service.asmx'
+      : 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx',
+    wsdl: isProd
+      ? 'https://servicios1.afip.gov.ar/wsfev1/service.asmx?WSDL'
+      : 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL',
+  }
+}
+
+/**
+ * Ejecuta un método del web service wsfe via AFIP SDK
+ */
+async function executeWsfeMethod(
+  method: string,
+  params: Record<string, any>,
+  config?: { cuit: string; environment: string }
+): Promise<any> {
+  const cuit = config?.cuit || process.env.AFIP_CUIT || ''
+  const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
+  const urls = getWsfeUrls(environment)
+
+  return afipRequest<any>(`/afip/requests`, 'POST', {
+    environment: urls.env,
+    method,
+    params,
+    wsid: 'wsfe',
+    url: urls.url,
+    wsdl: urls.wsdl,
+    soap_v_1_2: false,
+    tax_id: cuit,
+  })
+}
+
+/**
  * Obtiene el último número de comprobante
  */
 export async function getLastVoucherNumber(
@@ -111,24 +151,16 @@ export async function getLastVoucherNumber(
   config?: { cuit: string; environment: string }
 ): Promise<GetLastVoucherResponse> {
   try {
-    const cuit = config?.cuit || process.env.AFIP_CUIT || ''
-    const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
-
-    const response = await afipRequest<any>(
-      `/facturacion/ultimo-comprobante`,
-      'POST',
-      {
-        environment,
-        cuit,
-        pto_vta: ptoVta,
-        cbte_tipo: cbteTipo,
-      }
+    const response = await executeWsfeMethod(
+      'FECompUltimoAutorizado',
+      { PtoVta: ptoVta, CbteTipo: cbteTipo },
+      config
     )
 
     return {
       success: true,
       data: {
-        CbteNro: response.CbteNro || response.cbte_nro || 0,
+        CbteNro: response.CbteNro || 0,
         PtoVta: ptoVta,
         CbteTipo: cbteTipo,
       },
@@ -142,77 +174,109 @@ export async function getLastVoucherNumber(
 }
 
 /**
- * Crea una factura electrónica
+ * Crea una factura electrónica via AFIP SDK (FECAESolicitar)
  */
 export async function createInvoice(
   request: CreateInvoiceRequest,
   config?: { cuit: string; environment: string }
 ): Promise<CreateInvoiceResponse> {
   try {
-    const cuit = config?.cuit || process.env.AFIP_CUIT || ''
-    const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
-
     // Obtener el próximo número de comprobante
     const lastVoucher = await getLastVoucherNumber(request.PtoVta, request.CbteTipo, config)
     const nextNumber = (lastVoucher.data?.CbteNro || 0) + 1
 
-    const response = await afipRequest<any>(
-      `/facturacion/crear`,
-      'POST',
-      {
-        environment,
-        cuit,
-        pto_vta: request.PtoVta,
-        cbte_tipo: request.CbteTipo,
-        cbte_nro: nextNumber,
-        concepto: request.Concepto,
-        doc_tipo: request.DocTipo,
-        doc_nro: request.DocNro,
-        cbte_fch: request.CbteFch || formatDate(new Date()),
-        imp_total: request.ImpTotal,
-        imp_tot_conc: request.ImpTotConc,
-        imp_neto: request.ImpNeto,
-        imp_op_ex: request.ImpOpEx,
-        imp_iva: request.ImpIVA,
-        imp_trib: request.ImpTrib,
-        fch_serv_desde: request.FchServDesde,
-        fch_serv_hasta: request.FchServHasta,
-        fch_vto_pago: request.FchVtoPago,
-        mon_id: request.MonId || 'PES',
-        mon_cotiz: request.MonCotiz || 1,
-        iva: request.Iva,
-        tributos: request.Tributos,
-        cbtes_asoc: request.CbtesAsoc,
-        opcionales: request.Opcionales,
-      }
-    )
+    // Construir el detalle del comprobante
+    const feDetReq: Record<string, any> = {
+      Concepto: request.Concepto,
+      DocTipo: request.DocTipo,
+      DocNro: request.DocNro,
+      CbteDesde: nextNumber,
+      CbteHasta: nextNumber,
+      CbteFch: request.CbteFch || formatDate(new Date()),
+      ImpTotal: request.ImpTotal,
+      ImpTotConc: request.ImpTotConc || 0,
+      ImpNeto: request.ImpNeto,
+      ImpOpEx: request.ImpOpEx || 0,
+      ImpIVA: request.ImpIVA || 0,
+      ImpTrib: request.ImpTrib || 0,
+      MonId: request.MonId || 'PES',
+      MonCotiz: request.MonCotiz || 1,
+    }
 
-    if (response.CAE || response.cae) {
+    // Agregar IVA si existe
+    if (request.Iva && request.Iva.length > 0) {
+      feDetReq.Iva = request.Iva
+    }
+
+    // Agregar tributos si existen
+    if (request.Tributos && request.Tributos.length > 0) {
+      feDetReq.Tributos = request.Tributos
+    }
+
+    // Agregar comprobantes asociados si existen
+    if (request.CbtesAsoc && request.CbtesAsoc.length > 0) {
+      feDetReq.CbtesAsoc = request.CbtesAsoc
+    }
+
+    // Agregar opcionales si existen
+    if (request.Opcionales && request.Opcionales.length > 0) {
+      feDetReq.Opcionales = request.Opcionales
+    }
+
+    // Agregar fechas de servicio si el concepto es servicios (2) o productos y servicios (3)
+    if (request.Concepto === 2 || request.Concepto === 3) {
+      feDetReq.FchServDesde = request.FchServDesde
+      feDetReq.FchServHasta = request.FchServHasta
+      feDetReq.FchVtoPago = request.FchVtoPago
+    }
+
+    const params = {
+      FeCAEReq: {
+        FeCabReq: {
+          CantReg: 1,
+          PtoVta: request.PtoVta,
+          CbteTipo: request.CbteTipo,
+        },
+        FeDetReq: {
+          FECAEDetRequest: feDetReq,
+        },
+      },
+    }
+
+    const response = await executeWsfeMethod('FECAESolicitar', params, config)
+
+    // La respuesta viene en FECAESolicitarResult > FeDetResp > FECAEDetResponse
+    const detResp = response?.FeDetResp?.FECAEDetResponse || response?.FECAEDetResponse || response
+    const resultado = detResp?.Resultado || response?.Resultado
+
+    if (resultado === 'A' && (detResp?.CAE || response?.CAE)) {
       return {
         success: true,
         data: {
-          CAE: response.CAE || response.cae,
-          CAEFchVto: response.CAEFchVto || response.cae_fch_vto,
-          CbteDesde: response.CbteDesde || response.cbte_desde || nextNumber,
-          CbteHasta: response.CbteHasta || response.cbte_hasta || nextNumber,
-          FchProceso: response.FchProceso || response.fch_proceso || new Date().toISOString(),
-          Resultado: response.Resultado || response.resultado || 'A',
-          Observaciones: response.Observaciones || response.observaciones,
-          Errores: response.Errores || response.errores,
+          CAE: detResp?.CAE || response?.CAE,
+          CAEFchVto: detResp?.CAEFchVto || response?.CAEFchVto,
+          CbteDesde: detResp?.CbteDesde || nextNumber,
+          CbteHasta: detResp?.CbteHasta || nextNumber,
+          FchProceso: response?.FchProceso || new Date().toISOString(),
+          Resultado: 'A',
+          Observaciones: detResp?.Observaciones,
+          Errores: response?.Errors,
         },
       }
     } else {
       return {
         success: false,
-        error: response.error || response.message || 'Error al crear factura',
+        error: detResp?.Observaciones?.Obs?.[0]?.Msg
+          || response?.Errors?.Err?.[0]?.Msg
+          || 'Error al crear factura',
         data: {
           CAE: '',
           CAEFchVto: '',
           CbteDesde: nextNumber,
           CbteHasta: nextNumber,
           FchProceso: new Date().toISOString(),
-          Resultado: 'R',
-          Errores: response.Errores || response.errores,
+          Resultado: resultado || 'R',
+          Errores: response?.Errors || detResp?.Observaciones,
         },
       }
     }
@@ -377,21 +441,16 @@ export async function getPointsOfSale(
   error?: string
 }> {
   try {
-    const cuit = config?.cuit || process.env.AFIP_CUIT || ''
-    const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
+    const response = await executeWsfeMethod('FEParamGetPtosVenta', {}, config)
 
-    const response = await afipRequest<any>(
-      `/facturacion/puntos-venta`,
-      'POST',
-      {
-        environment,
-        cuit,
-      }
-    )
-
+    const ptosVta = response?.ResultGet?.PtoVenta || []
     return {
       success: true,
-      data: response.puntos_venta || response.PtosVta || [],
+      data: (Array.isArray(ptosVta) ? ptosVta : [ptosVta]).map((pv: any) => ({
+        numero: pv.Nro,
+        tipo: pv.EmisionTipo,
+        bloqueado: pv.Bloqueado === 'S',
+      })),
     }
   } catch (error: any) {
     return {
