@@ -250,7 +250,7 @@ export async function createInvoice(
         CbteHasta: 0,
         FchProceso: new Date().toISOString(),
         Resultado: 'R',
-        Errores: { debug: error.message },
+        Errores: [{ Code: 0, Msg: error.message || 'Error desconocido' }],
       },
     }
   }
