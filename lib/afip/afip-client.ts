@@ -103,46 +103,19 @@ export function isAfipConfigured(): boolean {
 }
 
 /**
- * Helper: determina URLs de AFIP según environment
+ * Crea una instancia del SDK de AFIP para una agencia
  */
-function getWsfeUrls(environment: string) {
-  const isProd = environment === 'production' || environment === 'prod'
-  return {
-    env: isProd ? 'prod' : 'dev',
-    url: isProd
-      ? 'https://servicios1.afip.gov.ar/wsfev1/service.asmx'
-      : 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx',
-    wsdl: isProd
-      ? 'https://servicios1.afip.gov.ar/wsfev1/service.asmx?WSDL'
-      : 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL',
-  }
-}
-
-/**
- * Ejecuta un método del web service wsfe via AFIP SDK
- */
-async function executeWsfeMethod(
-  method: string,
-  params: Record<string, any>,
-  config?: { cuit: string; environment: string }
-): Promise<any> {
+function createAfipInstance(config?: { cuit: string; environment: string }) {
+  const Afip = require('@afipsdk/afip.js')
   const cuit = config?.cuit || process.env.AFIP_CUIT || ''
   const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
-  const urls = getWsfeUrls(environment)
+  const isProd = environment === 'production' || environment === 'prod'
 
-  const requestBody = {
-    environment: urls.env,
-    method,
-    params,
-    wsid: 'wsfe',
-    url: urls.url,
-    wsdl: urls.wsdl,
-    soap_v_1_2: false,
-    tax_id: cuit,
-  }
-  console.log(`[AFIP SDK] executeWsfeMethod: ${method}, cuit: ${cuit}, env: ${urls.env}`)
-  console.log(`[AFIP SDK] Request body:`, JSON.stringify(requestBody).substring(0, 1000))
-  return afipRequest<any>(`/afip/requests`, 'POST', requestBody)
+  return new Afip({
+    CUIT: cuit,
+    production: isProd,
+    access_token: AFIP_SDK_API_KEY,
+  })
 }
 
 /**
@@ -154,21 +127,19 @@ export async function getLastVoucherNumber(
   config?: { cuit: string; environment: string }
 ): Promise<GetLastVoucherResponse> {
   try {
-    const response = await executeWsfeMethod(
-      'FECompUltimoAutorizado',
-      { PtoVta: ptoVta, CbteTipo: cbteTipo },
-      config
-    )
+    const afip = createAfipInstance(config)
+    const lastVoucher = await afip.ElectronicBilling.getLastVoucher(ptoVta, cbteTipo)
 
     return {
       success: true,
       data: {
-        CbteNro: response.CbteNro || 0,
+        CbteNro: lastVoucher || 0,
         PtoVta: ptoVta,
         CbteTipo: cbteTipo,
       },
     }
   } catch (error: any) {
+    console.error('[AFIP SDK] getLastVoucherNumber error:', error)
     return {
       success: false,
       error: error.message || 'Error al obtener último comprobante',
@@ -177,24 +148,24 @@ export async function getLastVoucherNumber(
 }
 
 /**
- * Crea una factura electrónica via AFIP SDK (FECAESolicitar)
+ * Crea una factura electrónica usando el SDK de AFIP
+ * Usa createNextVoucher que obtiene el último número automáticamente
  */
 export async function createInvoice(
   request: CreateInvoiceRequest,
   config?: { cuit: string; environment: string }
 ): Promise<CreateInvoiceResponse> {
   try {
-    // Obtener el próximo número de comprobante
-    const lastVoucher = await getLastVoucherNumber(request.PtoVta, request.CbteTipo, config)
-    const nextNumber = (lastVoucher.data?.CbteNro || 0) + 1
+    const afip = createAfipInstance(config)
 
-    // Construir el detalle del comprobante
-    const feDetReq: Record<string, any> = {
+    // Construir datos del comprobante para createNextVoucher
+    const voucherData: Record<string, any> = {
+      CantReg: 1,
+      PtoVta: request.PtoVta,
+      CbteTipo: request.CbteTipo,
       Concepto: request.Concepto,
       DocTipo: request.DocTipo,
       DocNro: request.DocNro,
-      CbteDesde: nextNumber,
-      CbteHasta: nextNumber,
       CbteFch: request.CbteFch || formatDate(new Date()),
       ImpTotal: request.ImpTotal,
       ImpTotConc: request.ImpTotConc || 0,
@@ -208,85 +179,79 @@ export async function createInvoice(
 
     // Agregar IVA si existe
     if (request.Iva && request.Iva.length > 0) {
-      feDetReq.Iva = request.Iva
+      voucherData.Iva = request.Iva
     }
 
     // Agregar tributos si existen
     if (request.Tributos && request.Tributos.length > 0) {
-      feDetReq.Tributos = request.Tributos
+      voucherData.Tributos = request.Tributos
     }
 
     // Agregar comprobantes asociados si existen
     if (request.CbtesAsoc && request.CbtesAsoc.length > 0) {
-      feDetReq.CbtesAsoc = request.CbtesAsoc
+      voucherData.CbtesAsoc = request.CbtesAsoc
     }
 
     // Agregar opcionales si existen
     if (request.Opcionales && request.Opcionales.length > 0) {
-      feDetReq.Opcionales = request.Opcionales
+      voucherData.Opcionales = request.Opcionales
     }
 
     // Agregar fechas de servicio si el concepto es servicios (2) o productos y servicios (3)
     if (request.Concepto === 2 || request.Concepto === 3) {
-      feDetReq.FchServDesde = request.FchServDesde
-      feDetReq.FchServHasta = request.FchServHasta
-      feDetReq.FchVtoPago = request.FchVtoPago
+      voucherData.FchServDesde = request.FchServDesde
+      voucherData.FchServHasta = request.FchServHasta
+      voucherData.FchVtoPago = request.FchVtoPago
     }
 
-    const params = {
-      FeCAEReq: {
-        FeCabReq: {
-          CantReg: 1,
-          PtoVta: request.PtoVta,
-          CbteTipo: request.CbteTipo,
-        },
-        FeDetReq: {
-          FECAEDetRequest: feDetReq,
-        },
-      },
-    }
+    console.log('[AFIP SDK] createNextVoucher data:', JSON.stringify(voucherData).substring(0, 500))
 
-    const response = await executeWsfeMethod('FECAESolicitar', params, config)
+    // createNextVoucher obtiene el último número, incrementa y crea
+    const response = await afip.ElectronicBilling.createNextVoucher(voucherData)
 
-    // La respuesta viene en FECAESolicitarResult > FeDetResp > FECAEDetResponse
-    const detResp = response?.FeDetResp?.FECAEDetResponse || response?.FECAEDetResponse || response
-    const resultado = detResp?.Resultado || response?.Resultado
+    console.log('[AFIP SDK] createNextVoucher response:', JSON.stringify(response).substring(0, 500))
 
-    if (resultado === 'A' && (detResp?.CAE || response?.CAE)) {
+    if (response?.CAE) {
       return {
         success: true,
         data: {
-          CAE: detResp?.CAE || response?.CAE,
-          CAEFchVto: detResp?.CAEFchVto || response?.CAEFchVto,
-          CbteDesde: detResp?.CbteDesde || nextNumber,
-          CbteHasta: detResp?.CbteHasta || nextNumber,
-          FchProceso: response?.FchProceso || new Date().toISOString(),
+          CAE: response.CAE,
+          CAEFchVto: response.CAEFchVto,
+          CbteDesde: response.voucherNumber || response.CbteDesde,
+          CbteHasta: response.voucherNumber || response.CbteHasta,
+          FchProceso: new Date().toISOString(),
           Resultado: 'A',
-          Observaciones: detResp?.Observaciones,
-          Errores: response?.Errors,
         },
       }
     } else {
       return {
         success: false,
-        error: detResp?.Observaciones?.Obs?.[0]?.Msg
-          || response?.Errors?.Err?.[0]?.Msg
-          || 'Error al crear factura',
+        error: 'No se recibió CAE de AFIP',
         data: {
           CAE: '',
           CAEFchVto: '',
-          CbteDesde: nextNumber,
-          CbteHasta: nextNumber,
+          CbteDesde: 0,
+          CbteHasta: 0,
           FchProceso: new Date().toISOString(),
-          Resultado: resultado || 'R',
-          Errores: response?.Errors || detResp?.Observaciones,
+          Resultado: 'R',
+          Errores: response,
         },
       }
     }
   } catch (error: any) {
+    console.error('[AFIP SDK] createInvoice error:', error)
     return {
       success: false,
       error: error.message || 'Error al crear factura',
+      data: {
+        CAE: '',
+        CAEFchVto: '',
+        CbteDesde: 0,
+        CbteHasta: 0,
+        FchProceso: new Date().toISOString(),
+        Resultado: 'R',
+        Errores: { debug: error.message },
+      },
     }
   }
 }
@@ -444,12 +409,12 @@ export async function getPointsOfSale(
   error?: string
 }> {
   try {
-    const response = await executeWsfeMethod('FEParamGetPtosVenta', {}, config)
+    const afip = createAfipInstance(config)
+    const ptosVta = await afip.ElectronicBilling.getSalesPoints()
 
-    const ptosVta = response?.ResultGet?.PtoVenta || []
     return {
       success: true,
-      data: (Array.isArray(ptosVta) ? ptosVta : [ptosVta]).map((pv: any) => ({
+      data: (ptosVta || []).map((pv: any) => ({
         numero: pv.Nro,
         tipo: pv.EmisionTipo,
         bloqueado: pv.Bloqueado === 'S',
