@@ -239,11 +239,13 @@ export async function runAfipAutomation(
       'POST',
       {
         automation: 'auth-web-service-prod',
-        cuit,
-        username: cuit,
-        password,
-        alias: 'afipsdk',
-        service: 'wsfe',
+        params: {
+          cuit,
+          username: cuit,
+          password,
+          alias: 'afipsdk',
+          service: 'wsfe',
+        },
       }
     )
 
