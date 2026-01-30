@@ -76,7 +76,7 @@ async function afipRequest<T>(
       throw new Error(data.message || data.error || `Error ${response.status}`)
     }
 
-    console.log('[AFIP SDK] Success response:', JSON.stringify(data).substring(0, 200))
+    console.log('[AFIP SDK] Success response:', JSON.stringify(data).substring(0, 500))
     return data
   } catch (error: any) {
     console.error('[AFIP SDK] Request failed:', error)
@@ -130,7 +130,7 @@ async function executeWsfeMethod(
   const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
   const urls = getWsfeUrls(environment)
 
-  return afipRequest<any>(`/afip/requests`, 'POST', {
+  const requestBody = {
     environment: urls.env,
     method,
     params,
@@ -139,7 +139,10 @@ async function executeWsfeMethod(
     wsdl: urls.wsdl,
     soap_v_1_2: false,
     tax_id: cuit,
-  })
+  }
+  console.log(`[AFIP SDK] executeWsfeMethod: ${method}, cuit: ${cuit}, env: ${urls.env}`)
+  console.log(`[AFIP SDK] Request body:`, JSON.stringify(requestBody).substring(0, 1000))
+  return afipRequest<any>(`/afip/requests`, 'POST', requestBody)
 }
 
 /**

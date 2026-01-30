@@ -170,6 +170,7 @@ export async function POST(
           success: false,
           error: afipResponse.error || "Error al autorizar factura en AFIP",
           details: afipResponse.data?.Errores,
+          afip_debug: afipResponse,
         },
         { status: 400 }
       )
