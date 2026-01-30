@@ -225,16 +225,82 @@ export async function createInvoice(
 }
 
 /**
- * Ejecuta la automatización auth-web-service-prod para vincular CUIT
- * La automatización es asíncrona: POST crea, luego polling con GET hasta completar
+ * Espera que una automatización de AFIP SDK termine (polling)
+ */
+async function waitForAutomation(
+  automationId: string,
+  label: string
+): Promise<{ success: boolean; error?: string }> {
+  const maxAttempts = 24 // 2 minutos
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, 5000))
+
+    const statusResponse = await afipRequest<any>(
+      `/automations/${automationId}`,
+      'GET'
+    )
+
+    console.log(`[AFIP ${label}] Polling ${i + 1}/${maxAttempts}: status=${statusResponse.status}`)
+
+    if (statusResponse.status === 'complete') {
+      return { success: true }
+    }
+
+    if (statusResponse.status === 'error' || statusResponse.status === 'failed') {
+      return {
+        success: false,
+        error: statusResponse.data?.message || statusResponse.data?.error || statusResponse.error || `${label} falló`,
+      }
+    }
+
+    if (statusResponse.status !== 'in_process') {
+      return { success: false, error: `Estado inesperado: ${statusResponse.status}` }
+    }
+  }
+  return { success: false, error: `Timeout: ${label} tardó demasiado` }
+}
+
+/**
+ * Ejecuta el flujo completo de vinculación AFIP:
+ * 1. Crear certificado de producción (create-certificate-prod)
+ * 2. Autorizar web service de producción (auth-web-service-prod)
  */
 export async function runAfipAutomation(
   cuit: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Crear la automatización
-    const createResponse = await afipRequest<any>(
+    // Paso 1: Crear certificado de producción
+    console.log('[AFIP Automation] Paso 1: Creando certificado de producción...')
+    const certResponse = await afipRequest<any>(
+      `/automations`,
+      'POST',
+      {
+        automation: 'create-cert-prod',
+        params: {
+          cuit,
+          username: cuit,
+          password,
+          alias: 'afipsdk',
+        },
+      }
+    )
+
+    if (certResponse.id && certResponse.status !== 'complete') {
+      const certResult = await waitForAutomation(certResponse.id, 'Certificado')
+      if (!certResult.success) {
+        // Si falla porque ya existe, continuar
+        if (certResult.error?.includes('ya existe') || certResult.error?.includes('already exists')) {
+          console.log('[AFIP Automation] Certificado ya existe, continuando...')
+        } else {
+          return certResult
+        }
+      }
+    }
+
+    // Paso 2: Autorizar web service wsfe
+    console.log('[AFIP Automation] Paso 2: Autorizando web service wsfe...')
+    const authResponse = await afipRequest<any>(
       `/automations`,
       'POST',
       {
@@ -249,45 +315,15 @@ export async function runAfipAutomation(
       }
     )
 
-    const automationId = createResponse.id
-    if (!automationId) {
-      // Si ya viene con status complete, no hace falta polling
-      if (createResponse.status === 'complete') {
-        return { success: true }
-      }
+    if (authResponse.status === 'complete') {
+      return { success: true }
+    }
+
+    if (!authResponse.id) {
       return { success: false, error: 'No se recibió ID de automatización' }
     }
 
-    // 2. Polling cada 5 segundos hasta que complete (máximo 2 minutos)
-    const maxAttempts = 24
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(resolve => setTimeout(resolve, 5000))
-
-      const statusResponse = await afipRequest<any>(
-        `/automations/${automationId}`,
-        'GET'
-      )
-
-      console.log(`[AFIP Automation] Polling ${i + 1}/${maxAttempts}: status=${statusResponse.status}`)
-
-      if (statusResponse.status === 'complete') {
-        return { success: true }
-      }
-
-      if (statusResponse.status === 'error' || statusResponse.status === 'failed') {
-        return {
-          success: false,
-          error: statusResponse.data?.error || statusResponse.error || 'La automatización falló',
-        }
-      }
-
-      // Si no es "in_process", algo raro pasó
-      if (statusResponse.status !== 'in_process') {
-        return { success: false, error: `Estado inesperado: ${statusResponse.status}` }
-      }
-    }
-
-    return { success: false, error: 'Timeout: la automatización tardó demasiado' }
+    return await waitForAutomation(authResponse.id, 'Auth WS')
   } catch (error: any) {
     return { success: false, error: error.message || 'Error en automatización AFIP' }
   }
