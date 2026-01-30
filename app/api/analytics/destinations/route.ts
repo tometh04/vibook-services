@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
       const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
-      let query = supabase.from("operations").select("destination, sale_amount_total, margin_amount")
+      let query = supabase.from("operations").select("destination, sale_amount_total, margin_amount").neq("status", "CANCELLED")
 
       // Apply role-based filtering
       if (user.role === "SELLER") {

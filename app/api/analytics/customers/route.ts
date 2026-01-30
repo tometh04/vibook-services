@@ -25,6 +25,7 @@ export async function GET(request: Request) {
     let operationsQuery = supabase
       .from("operations")
       .select("id, agency_id")
+      .neq("status", "CANCELLED")
 
     // Filtrar por agencia
     if (agencyId && agencyId !== "ALL") {

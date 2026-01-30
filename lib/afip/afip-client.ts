@@ -1,5 +1,5 @@
 /**
- * Cliente HTTP para AFIP SDK API REST
+ * Cliente HTTP para AFIP SDK API REST (Multi-tenant por agencia)
  * Documentación: https://afipsdk.com/docs/api-reference/introduction/
  */
 
@@ -12,17 +12,43 @@ import {
   GetTaxpayerDataResponse,
   TipoComprobante,
 } from './types'
+import { SupabaseClient } from '@supabase/supabase-js'
 
-// Configuración del cliente
+// Config global (API key es de la plataforma, no por agencia)
 const AFIP_SDK_BASE_URL = process.env.AFIP_SDK_BASE_URL || 'https://app.afipsdk.com/api/v1'
 const AFIP_SDK_API_KEY = process.env.AFIP_SDK_API_KEY || ''
-const AFIP_SDK_ENVIRONMENT = process.env.AFIP_SDK_ENVIRONMENT || 'sandbox' // 'sandbox' | 'production'
 
 // Headers comunes para todas las requests
 const getHeaders = () => ({
   'Content-Type': 'application/json',
   'Authorization': `Bearer ${AFIP_SDK_API_KEY}`,
 })
+
+export interface AgencyAfipConfig {
+  cuit: string
+  environment: string
+  punto_venta: number
+  is_active: boolean
+  automation_status: string
+}
+
+/**
+ * Obtiene la configuración AFIP de una agencia desde la BD
+ */
+export async function getAgencyAfipConfig(
+  supabase: SupabaseClient,
+  agencyId: string
+): Promise<AgencyAfipConfig | null> {
+  const { data, error } = await supabase
+    .from('afip_config')
+    .select('cuit, environment, punto_venta, is_active, automation_status')
+    .eq('agency_id', agencyId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as AgencyAfipConfig
+}
 
 /**
  * Hace una request a la API de AFIP SDK
@@ -33,9 +59,9 @@ async function afipRequest<T>(
   body?: Record<string, any>
 ): Promise<T> {
   const url = `${AFIP_SDK_BASE_URL}${endpoint}`
-  
+
   console.log(`[AFIP SDK] ${method} ${url}`)
-  
+
   try {
     const response = await fetch(url, {
       method,
@@ -59,24 +85,21 @@ async function afipRequest<T>(
 }
 
 /**
- * Obtiene el CUIT configurado para facturación
+ * Verifica si AFIP está configurado para una agencia
  */
-export function getAfipCuit(): string {
-  return process.env.AFIP_CUIT || ''
+export async function isAfipConfiguredForAgency(
+  supabase: SupabaseClient,
+  agencyId: string
+): Promise<boolean> {
+  const config = await getAgencyAfipConfig(supabase, agencyId)
+  return !!config && !!AFIP_SDK_API_KEY && config.automation_status === 'complete'
 }
 
 /**
- * Obtiene el punto de venta configurado
- */
-export function getAfipPointOfSale(): number {
-  return parseInt(process.env.AFIP_POINT_OF_SALE || '1', 10)
-}
-
-/**
- * Verifica si la API de AFIP está configurada
+ * Verifica si la API de AFIP está configurada (legacy - usa env vars)
  */
 export function isAfipConfigured(): boolean {
-  return !!AFIP_SDK_API_KEY && !!getAfipCuit()
+  return !!AFIP_SDK_API_KEY
 }
 
 /**
@@ -84,16 +107,18 @@ export function isAfipConfigured(): boolean {
  */
 export async function getLastVoucherNumber(
   ptoVta: number,
-  cbteTipo: TipoComprobante
+  cbteTipo: TipoComprobante,
+  config?: { cuit: string; environment: string }
 ): Promise<GetLastVoucherResponse> {
   try {
-    const cuit = getAfipCuit()
-    
+    const cuit = config?.cuit || process.env.AFIP_CUIT || ''
+    const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
+
     const response = await afipRequest<any>(
       `/facturacion/ultimo-comprobante`,
       'POST',
       {
-        environment: AFIP_SDK_ENVIRONMENT,
+        environment,
         cuit,
         pto_vta: ptoVta,
         cbte_tipo: cbteTipo,
@@ -120,20 +145,22 @@ export async function getLastVoucherNumber(
  * Crea una factura electrónica
  */
 export async function createInvoice(
-  request: CreateInvoiceRequest
+  request: CreateInvoiceRequest,
+  config?: { cuit: string; environment: string }
 ): Promise<CreateInvoiceResponse> {
   try {
-    const cuit = getAfipCuit()
-    
+    const cuit = config?.cuit || process.env.AFIP_CUIT || ''
+    const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
+
     // Obtener el próximo número de comprobante
-    const lastVoucher = await getLastVoucherNumber(request.PtoVta, request.CbteTipo)
+    const lastVoucher = await getLastVoucherNumber(request.PtoVta, request.CbteTipo, config)
     const nextNumber = (lastVoucher.data?.CbteNro || 0) + 1
 
     const response = await afipRequest<any>(
       `/facturacion/crear`,
       'POST',
       {
-        environment: AFIP_SDK_ENVIRONMENT,
+        environment,
         cuit,
         pto_vta: request.PtoVta,
         cbte_tipo: request.CbteTipo,
@@ -160,7 +187,6 @@ export async function createInvoice(
       }
     )
 
-    // Parsear respuesta
     if (response.CAE || response.cae) {
       return {
         success: true,
@@ -195,6 +221,32 @@ export async function createInvoice(
       success: false,
       error: error.message || 'Error al crear factura',
     }
+  }
+}
+
+/**
+ * Ejecuta la automatización auth-web-service-prod para vincular CUIT
+ */
+export async function runAfipAutomation(
+  cuit: string,
+  password: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await afipRequest<any>(
+      `/automation`,
+      'POST',
+      {
+        automation: 'auth-web-service-prod',
+        cuit,
+        username: cuit,
+        password,
+        alias: 'afipsdk',
+        service: 'wsfe',
+      }
+    )
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Error en automatización AFIP' }
   }
 }
 
@@ -234,7 +286,9 @@ export async function getTaxpayerData(
 /**
  * Obtiene los puntos de venta habilitados
  */
-export async function getPointsOfSale(): Promise<{
+export async function getPointsOfSale(
+  config?: { cuit: string; environment: string }
+): Promise<{
   success: boolean
   data?: Array<{
     numero: number
@@ -244,13 +298,14 @@ export async function getPointsOfSale(): Promise<{
   error?: string
 }> {
   try {
-    const cuit = getAfipCuit()
-    
+    const cuit = config?.cuit || process.env.AFIP_CUIT || ''
+    const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
+
     const response = await afipRequest<any>(
       `/facturacion/puntos-venta`,
       'POST',
       {
-        environment: AFIP_SDK_ENVIRONMENT,
+        environment,
         cuit,
       }
     )
@@ -268,42 +323,44 @@ export async function getPointsOfSale(): Promise<{
 }
 
 /**
- * Verifica la conexión con AFIP
+ * Verifica la conexión con AFIP para una agencia
  */
-export async function testConnection(): Promise<{
+export async function testConnection(
+  config?: { cuit: string; environment: string; punto_venta: number }
+): Promise<{
   success: boolean
   message: string
   environment: string
   cuit: string
 }> {
   try {
-    if (!isAfipConfigured()) {
+    if (!AFIP_SDK_API_KEY) {
       return {
         success: false,
-        message: 'AFIP SDK no está configurado. Verifique las variables de entorno.',
-        environment: AFIP_SDK_ENVIRONMENT,
+        message: 'AFIP SDK no está configurado. Verifique AFIP_SDK_API_KEY.',
+        environment: '',
         cuit: '',
       }
     }
 
-    const cuit = getAfipCuit()
-    const ptoVta = getAfipPointOfSale()
-    
-    // Intentar obtener el último comprobante como test
-    const result = await getLastVoucherNumber(ptoVta, 6) // Factura B
+    const cuit = config?.cuit || process.env.AFIP_CUIT || ''
+    const environment = config?.environment || process.env.AFIP_SDK_ENVIRONMENT || 'sandbox'
+    const ptoVta = config?.punto_venta || parseInt(process.env.AFIP_POINT_OF_SALE || '1', 10)
+
+    const result = await getLastVoucherNumber(ptoVta, 6, { cuit, environment })
 
     if (result.success) {
       return {
         success: true,
         message: `Conexión exitosa. Último comprobante: ${result.data?.CbteNro || 0}`,
-        environment: AFIP_SDK_ENVIRONMENT,
+        environment,
         cuit,
       }
     } else {
       return {
         success: false,
         message: result.error || 'Error de conexión',
-        environment: AFIP_SDK_ENVIRONMENT,
+        environment,
         cuit,
       }
     }
@@ -311,8 +368,8 @@ export async function testConnection(): Promise<{
     return {
       success: false,
       message: error.message || 'Error de conexión',
-      environment: AFIP_SDK_ENVIRONMENT,
-      cuit: getAfipCuit(),
+      environment: '',
+      cuit: '',
     }
   }
 }
@@ -348,9 +405,6 @@ export function calculateIVA(neto: number, porcentaje: number): number {
 
 /**
  * Determina el tipo de factura según la condición IVA del cliente
- * Responsable Inscripto → Factura A
- * Consumidor Final / Monotributo → Factura B
- * Exportación → Factura E
  */
 export function determineInvoiceType(
   emisorCondicion: number,
@@ -361,21 +415,16 @@ export function determineInvoiceType(
     return 19 // Factura E
   }
 
-  // Si el emisor es Responsable Inscripto
   if (emisorCondicion === 1) {
-    // Si el receptor es Responsable Inscripto
     if (receptorCondicion === 1) {
       return 1 // Factura A
     }
-    // Consumidor Final, Monotributo, etc.
     return 6 // Factura B
   }
 
-  // Si el emisor es Monotributo
   if (emisorCondicion === 6 || emisorCondicion === 11) {
     return 11 // Factura C
   }
 
-  // Default: Factura B
   return 6
 }

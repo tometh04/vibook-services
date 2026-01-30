@@ -3,9 +3,10 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { canAccessModule } from "@/lib/permissions"
-import { 
-  createInvoice, 
+import {
+  createInvoice,
   isAfipConfigured,
+  getAgencyAfipConfig,
   formatDate,
 } from "@/lib/afip/afip-client"
 import { TipoComprobante, TipoDocumento, TipoIVA, IVA_PORCENTAJES } from "@/lib/afip/types"
@@ -50,6 +51,11 @@ export async function POST(
       .eq("id", id)
       .in("agency_id", agencyIds)
       .single()
+
+    // Obtener config AFIP de la agencia de la factura
+    const afipConfig = invoice?.agency_id
+      ? await getAgencyAfipConfig(supabase, invoice.agency_id)
+      : null
 
     if (fetchError || !invoice) {
       return NextResponse.json(
@@ -118,8 +124,11 @@ export async function POST(
         : undefined,
     }
 
-    // Enviar a AFIP
-    const afipResponse = await createInvoice(afipRequest)
+    // Enviar a AFIP (usa config de la agencia si existe)
+    const afipResponse = await createInvoice(
+      afipRequest,
+      afipConfig ? { cuit: afipConfig.cuit, environment: afipConfig.environment } : undefined
+    )
 
     if (afipResponse.success && afipResponse.data?.CAE) {
       // Éxito: actualizar factura

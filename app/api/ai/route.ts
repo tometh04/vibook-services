@@ -11,7 +11,8 @@ const DATABASE_SCHEMA = `
 - id, name, email, role ('SUPER_ADMIN','ADMIN','CONTABLE','SELLER','VIEWER'), is_active, created_at
 
 ### agencies (Agencias)
-- id, name, city, country, has_used_trial, is_active, created_at
+- id, name, city, timezone, has_used_trial, created_at, updated_at
+- ⚠️ NO tiene is_active ni country
 
 ### user_agencies (Relación usuarios-agencias)
 - id, user_id, agency_id, role
@@ -27,13 +28,15 @@ const DATABASE_SCHEMA = `
 - contact_name, contact_phone, contact_email, assigned_seller_id, travel_date, return_date, loss_reason, created_at
 
 ### operations (Operaciones/Ventas) ⭐
-- id, file_code, agency_id, seller_id, operator_id, customer_id
-- type, origin, destination, departure_date, return_date, checkin_date, checkout_date
+- id, file_code, agency_id, lead_id, seller_id, operator_id
+- ⚠️ NO tiene customer_id directo. Para obtener el cliente: JOIN operation_customers oc ON oc.operation_id = operations.id AND oc.role = 'MAIN' JOIN customers c ON c.id = oc.customer_id
+- type ('FLIGHT','HOTEL','PACKAGE','CRUISE','TRANSFER','MIXED'), origin, destination
+- departure_date, return_date, operation_date
 - adults, children, infants
-- status ('PRE_RESERVATION','RESERVED','CONFIRMED','CANCELLED','TRAVELLING','TRAVELLED','CLOSED')
-- sale_amount_total (venta), sale_currency
-- operator_cost (costo), margin_amount (ganancia), margin_percentage
-- commission_amount, billing_margin, created_at
+- status ('PRE_RESERVATION','RESERVED','CONFIRMED','CANCELLED','TRAVELLED','CLOSED')
+- sale_amount_total (venta total), currency ('ARS','USD')
+- operator_cost (costo operador), margin_amount (ganancia), margin_percentage
+- billing_margin, notes, created_at, updated_at
 
 ### operation_customers (Pasajeros de operación)
 - id, operation_id, customer_id, role ('MAIN','COMPANION')
@@ -52,12 +55,18 @@ const DATABASE_SCHEMA = `
 - id, operation_id, operator_id, amount, paid_amount, currency
 - due_date, paid_at, status ('PENDING','PAID','OVERDUE'), notes, created_at
 
-### financial_accounts (Cuentas financieras)
-- id, agency_id, name, type ('CASH_ARS','CASH_USD','SAVINGS_ARS','SAVINGS_USD','BANK_ARS','BANK_USD','MERCADOPAGO','CREDIT_CARD')
-- currency ('ARS','USD'), current_balance, is_active, created_at
+### financial_accounts (Cuentas financieras / Caja)
+- id, agency_id, name, type ('CASH','BANK','MP','USD','OTHER','SAVINGS_ARS','SAVINGS_USD','CHECKING_ARS','CHECKING_USD','CASH_ARS','CASH_USD','CREDIT_CARD','ASSETS')
+- currency ('ARS','USD'), initial_balance, is_active, notes, created_at
+- ⚠️ NO tiene current_balance. El balance actual se calcula: initial_balance + SUM(cash_movements donde type='INCOME') - SUM(cash_movements donde type='EXPENSE')
+- También: account_number, bank_name, card_number, card_holder, card_expiry_date, asset_type, asset_description, asset_quantity
+
+### cash_boxes (Cajas) ⭐ PARA SABER "CUÁNTO HAY EN CAJA"
+- id, agency_id, name, description, box_type ('MAIN','PETTY','USD','BANK','OTHER')
+- currency ('ARS','USD'), initial_balance, current_balance, is_active, created_at
 
 ### cash_movements (Movimientos de caja)
-- id, agency_id, financial_account_id, type ('INCOME','EXPENSE'), amount, currency, concept, reference, created_at
+- id, agency_id, operation_id, user_id, cash_box_id, type ('INCOME','EXPENSE'), category, amount, currency, movement_date, notes, created_at
 
 ### ledger_movements (Movimientos contables)
 - id, agency_id, type, concept, currency, amount_original, amount_ars_equivalent, exchange_rate
@@ -119,6 +128,11 @@ const DATABASE_SCHEMA = `
 - Tipos de cambio: preferir amount_usd si está disponible, sino usar exchange_rate
 - Siempre filtrar por agency_id excepto para SUPER_ADMIN
 - Las tablas tienen soft delete o is_active, no usar directamente IS NULL
+- ⚠️ operations NO tiene customer_id. Para obtener clientes de una operación: JOIN operation_customers oc ON oc.operation_id = o.id JOIN customers c ON c.id = oc.customer_id
+- Para "¿cuánto hay en caja?": SELECT name, currency, current_balance FROM cash_boxes WHERE is_active = true ORDER BY currency, name. NO usar financial_accounts para esto.
+- Para ventas = operaciones con status NOT IN ('CANCELLED'). Una operación ES una venta.
+- Para "últimos clientes que compraron": usar operation_customers JOIN customers JOIN operations
+- Para vendedor con más ventas: operations.seller_id JOIN users
 `
 
 const SYSTEM_PROMPT = `Eres "Cerebro", el asistente de Vibook Gestión para agencias de viajes.

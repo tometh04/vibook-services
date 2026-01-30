@@ -10,6 +10,7 @@ import { SeedMockData } from "@/components/settings/seed-mock-data"
 import { MigrateHistoricalAccounting } from "@/components/settings/migrate-historical-accounting"
 import { ImportSettings } from "@/components/settings/import-settings"
 import { DestinationRequirementsClient } from "@/components/settings/destination-requirements-client"
+import { AfipSettings } from "@/components/settings/afip-settings"
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +65,7 @@ export default async function SettingsPage() {
           <TabsTrigger value="ai">AI</TabsTrigger>
           <TabsTrigger value="requirements">Requisitos</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
+          <TabsTrigger value="afip">AFIP</TabsTrigger>
           {user.role === "SUPER_ADMIN" && <TabsTrigger value="seed">Seed Data</TabsTrigger>}
         </TabsList>
         <TabsContent value="users">
@@ -86,6 +88,9 @@ export default async function SettingsPage() {
         </TabsContent>
         <TabsContent value="import">
           <ImportSettings />
+        </TabsContent>
+        <TabsContent value="afip">
+          <AfipSettings agencies={agencies} defaultAgencyId={firstAgencyId} />
         </TabsContent>
         {user.role === "SUPER_ADMIN" && (
           <TabsContent value="seed" className="space-y-4">

@@ -231,7 +231,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  ${Math.round(kpis.totalSales).toLocaleString()}
+                  USD ${Math.round(kpis.totalSales).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {kpis.operationsCount} ops • vs anterior
@@ -277,7 +277,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  ${Math.round(kpis.totalMargin).toLocaleString()}
+                  USD ${Math.round(kpis.totalMargin).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {kpis.avgMarginPercent.toFixed(1)}% promedio
@@ -325,7 +325,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  ${Math.round(kpis.pendingCustomerPayments).toLocaleString()}
+                  USD ${Math.round(kpis.pendingCustomerPayments).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Por cobrar de clientes
@@ -348,7 +348,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  ${Math.round(kpis.pendingOperatorPayments).toLocaleString()}
+                  USD ${Math.round(kpis.pendingOperatorPayments).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Por pagar a operadores

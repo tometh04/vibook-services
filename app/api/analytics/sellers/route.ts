@@ -44,6 +44,7 @@ export async function GET(request: Request) {
       let query = supabase
         .from("operations")
       .select("sale_amount_total, margin_amount, seller_id")
+      .neq("status", "CANCELLED")
 
       // Apply role-based filtering
       if (user.role === "SELLER") {

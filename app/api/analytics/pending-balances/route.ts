@@ -44,6 +44,7 @@ export async function GET(request: Request) {
           agency_id
         `)
         .in("agency_id", agencyIds)
+        .neq("status", "CANCELLED")
 
       if (operationsError) {
         console.error("[PendingBalances] Error obteniendo operaciones:", operationsError)
