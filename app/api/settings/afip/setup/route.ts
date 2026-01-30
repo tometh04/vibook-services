@@ -34,8 +34,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
     }
 
+    console.log("[AFIP Setup] Ejecutando automatización para CUIT:", cuitClean, "agency:", agency_id)
+
     // Ejecutar automatización AFIP SDK
     const automationResult = await runAfipAutomation(cuitClean, password)
+
+    console.log("[AFIP Setup] Resultado automatización:", JSON.stringify(automationResult))
 
     const automationStatus = automationResult.success ? 'complete' : 'failed'
 
@@ -60,7 +64,7 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error("[AFIP Setup] Error saving config:", insertError)
-      return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 })
+      return NextResponse.json({ error: "Error al guardar configuración", details: insertError.message }, { status: 500 })
     }
 
     if (!automationResult.success) {
