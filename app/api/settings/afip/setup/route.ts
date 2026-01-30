@@ -86,6 +86,8 @@ export async function POST(request: Request) {
       },
     })
   } catch (error: any) {
+    // No atrapar NEXT_REDIRECT
+    if (error?.digest?.startsWith('NEXT_REDIRECT')) throw error
     console.error("[AFIP Setup] Error:", error)
     return NextResponse.json({ error: error.message || "Error al configurar AFIP" }, { status: 500 })
   }

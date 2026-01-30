@@ -89,7 +89,9 @@ export function AfipSettings({ agencies, defaultAgencyId }: AfipSettingsProps) {
         setCuit("")
         checkStatus(selectedAgencyId)
       } else {
-        toast({ title: "Error", description: data.error || "Error al configurar AFIP", variant: "destructive" })
+        const errorMsg = data.error || data.message || JSON.stringify(data)
+        toast({ title: "Error", description: errorMsg, variant: "destructive" })
+        console.error("[AFIP Setup] Response:", data)
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Error de conexión", variant: "destructive" })
