@@ -5,6 +5,7 @@ import { getUserAgencyIds } from "@/lib/permissions-api"
 import { runAfipAutomation } from "@/lib/afip/afip-client"
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 120 // La automatización AFIP puede tardar hasta 2 min
 
 export async function POST(request: Request) {
   try {

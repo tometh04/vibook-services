@@ -226,14 +226,16 @@ export async function createInvoice(
 
 /**
  * Ejecuta la automatización auth-web-service-prod para vincular CUIT
+ * La automatización es asíncrona: POST crea, luego polling con GET hasta completar
  */
 export async function runAfipAutomation(
   cuit: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await afipRequest<any>(
-      `/automation`,
+    // 1. Crear la automatización
+    const createResponse = await afipRequest<any>(
+      `/automations`,
       'POST',
       {
         automation: 'auth-web-service-prod',
@@ -244,7 +246,46 @@ export async function runAfipAutomation(
         service: 'wsfe',
       }
     )
-    return { success: true }
+
+    const automationId = createResponse.id
+    if (!automationId) {
+      // Si ya viene con status complete, no hace falta polling
+      if (createResponse.status === 'complete') {
+        return { success: true }
+      }
+      return { success: false, error: 'No se recibió ID de automatización' }
+    }
+
+    // 2. Polling cada 5 segundos hasta que complete (máximo 2 minutos)
+    const maxAttempts = 24
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(resolve => setTimeout(resolve, 5000))
+
+      const statusResponse = await afipRequest<any>(
+        `/automations/${automationId}`,
+        'GET'
+      )
+
+      console.log(`[AFIP Automation] Polling ${i + 1}/${maxAttempts}: status=${statusResponse.status}`)
+
+      if (statusResponse.status === 'complete') {
+        return { success: true }
+      }
+
+      if (statusResponse.status === 'error' || statusResponse.status === 'failed') {
+        return {
+          success: false,
+          error: statusResponse.data?.error || statusResponse.error || 'La automatización falló',
+        }
+      }
+
+      // Si no es "in_process", algo raro pasó
+      if (statusResponse.status !== 'in_process') {
+        return { success: false, error: `Estado inesperado: ${statusResponse.status}` }
+      }
+    }
+
+    return { success: false, error: 'Timeout: la automatización tardó demasiado' }
   } catch (error: any) {
     return { success: false, error: error.message || 'Error en automatización AFIP' }
   }
