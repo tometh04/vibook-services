@@ -217,45 +217,70 @@ export async function createInvoice(
       }
     }
 
-    console.log('[AFIP SDK] createNextVoucher data:', JSON.stringify(voucherData).substring(0, 500))
+    console.log('[AFIP SDK] createNextVoucher data:', JSON.stringify(voucherData))
 
-    // createNextVoucher obtiene el último número, incrementa y crea
-    const response = await afip.ElectronicBilling.createNextVoucher(voucherData)
+    // Paso 1: obtener último comprobante
+    const lastVoucher = await afip.ElectronicBilling.getLastVoucher(request.PtoVta, request.CbteTipo)
+    const voucherNumber = lastVoucher + 1
 
-    console.log('[AFIP SDK] createNextVoucher response:', JSON.stringify(response).substring(0, 500))
+    console.log('[AFIP SDK] lastVoucher:', lastVoucher, 'next:', voucherNumber)
 
-    if (response?.CAE) {
+    // Paso 2: asignar números de comprobante
+    voucherData.CbteDesde = voucherNumber
+    voucherData.CbteHasta = voucherNumber
+
+    // Paso 3: crear comprobante con returnResponse=true para ver respuesta completa de AFIP
+    const fullResponse = await afip.ElectronicBilling.createVoucher(voucherData, true)
+
+    console.log('[AFIP SDK] createVoucher fullResponse:', JSON.stringify(fullResponse).substring(0, 1000))
+
+    // Extraer detalle del response
+    let detResponse = fullResponse?.FeDetResp?.FECAEDetResponse
+    if (Array.isArray(detResponse)) {
+      detResponse = detResponse[0]
+    }
+
+    if (detResponse?.CAE) {
       return {
         success: true,
         data: {
-          CAE: response.CAE,
-          CAEFchVto: response.CAEFchVto,
-          CbteDesde: response.voucher_number || response.voucherNumber || response.CbteDesde,
-          CbteHasta: response.voucher_number || response.voucherNumber || response.CbteHasta,
-          FchProceso: new Date().toISOString(),
-          Resultado: 'A',
+          CAE: detResponse.CAE,
+          CAEFchVto: detResponse.CAEFchVto,
+          CbteDesde: voucherNumber,
+          CbteHasta: voucherNumber,
+          FchProceso: fullResponse?.FeCabResp?.FchProceso || new Date().toISOString(),
+          Resultado: detResponse.Resultado || 'A',
         },
       }
     } else {
+      // Extraer observaciones/errores de AFIP
+      const obs = detResponse?.Observaciones?.Obs
+      const errores = fullResponse?.Errors?.Err
+      const errorList = obs || errores || []
+      const errorArr = Array.isArray(errorList) ? errorList : [errorList]
+      const errorMsg = errorArr.map((e: any) => `(${e.Code}) ${e.Msg}`).join('; ')
+
       return {
         success: false,
-        error: 'No se recibió CAE de AFIP',
+        error: errorMsg || 'No se recibió CAE de AFIP',
         data: {
           CAE: '',
           CAEFchVto: '',
-          CbteDesde: 0,
-          CbteHasta: 0,
+          CbteDesde: voucherNumber,
+          CbteHasta: voucherNumber,
           FchProceso: new Date().toISOString(),
-          Resultado: 'R',
-          Errores: response,
+          Resultado: detResponse?.Resultado || 'R',
+          Errores: errorArr,
         },
       }
     }
   } catch (error: any) {
-    // Extraer detalles del error de AFIP (axios response)
-    const afipErrorData = error?.response?.data
+    // El SDK intercepta axios errors: error.data contiene la respuesta del servidor
+    const afipErrorData = error?.data || error?.response?.data
     const afipErrorMsg = afipErrorData?.message || afipErrorData?.error || error.message || 'Error al crear factura'
-    console.error('[AFIP SDK] createInvoice error:', afipErrorMsg, JSON.stringify(afipErrorData || {}).substring(0, 1000))
+    console.error('[AFIP SDK] createInvoice error:', afipErrorMsg)
+    console.error('[AFIP SDK] error.data:', JSON.stringify(afipErrorData || {}).substring(0, 1000))
+    console.error('[AFIP SDK] error.status:', error?.status)
     return {
       success: false,
       error: afipErrorMsg,
@@ -266,7 +291,7 @@ export async function createInvoice(
         CbteHasta: 0,
         FchProceso: new Date().toISOString(),
         Resultado: 'R',
-        Errores: afipErrorData?.errores || afipErrorData?.Errors || [{ Code: 0, Msg: afipErrorMsg }],
+        Errores: afipErrorData?.errores || afipErrorData?.Errors?.Err || [{ Code: 0, Msg: afipErrorMsg }],
       },
     }
   }
