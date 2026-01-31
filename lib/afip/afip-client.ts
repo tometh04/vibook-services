@@ -174,9 +174,9 @@ export async function createInvoice(
       DocNro: request.DocNro,
       CbteFch: cbteFch,
       ImpTotal: request.ImpTotal,
-      // Factura C: todo es no gravado, no se discrimina IVA
-      ImpTotConc: esFacturaC ? request.ImpTotal : (request.ImpTotConc || 0),
-      ImpNeto: esFacturaC ? 0 : request.ImpNeto,
+      // Factura C: ImpNeto = total, ImpTotConc = 0, ImpIVA = 0 (no discrimina IVA)
+      ImpTotConc: esFacturaC ? 0 : (request.ImpTotConc || 0),
+      ImpNeto: esFacturaC ? request.ImpTotal : request.ImpNeto,
       ImpOpEx: request.ImpOpEx || 0,
       ImpIVA: esFacturaC ? 0 : (request.ImpIVA || 0),
       ImpTrib: request.ImpTrib || 0,
@@ -252,10 +252,13 @@ export async function createInvoice(
       }
     }
   } catch (error: any) {
-    console.error('[AFIP SDK] createInvoice error:', error)
+    // Extraer detalles del error de AFIP (axios response)
+    const afipErrorData = error?.response?.data
+    const afipErrorMsg = afipErrorData?.message || afipErrorData?.error || error.message || 'Error al crear factura'
+    console.error('[AFIP SDK] createInvoice error:', afipErrorMsg, JSON.stringify(afipErrorData || {}).substring(0, 1000))
     return {
       success: false,
-      error: error.message || 'Error al crear factura',
+      error: afipErrorMsg,
       data: {
         CAE: '',
         CAEFchVto: '',
@@ -263,7 +266,7 @@ export async function createInvoice(
         CbteHasta: 0,
         FchProceso: new Date().toISOString(),
         Resultado: 'R',
-        Errores: [{ Code: 0, Msg: error.message || 'Error desconocido' }],
+        Errores: afipErrorData?.errores || afipErrorData?.Errors || [{ Code: 0, Msg: afipErrorMsg }],
       },
     }
   }
