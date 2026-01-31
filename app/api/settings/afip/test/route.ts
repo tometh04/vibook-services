@@ -14,16 +14,26 @@ export async function GET(request: Request) {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
-    const agencyId = searchParams.get("agencyId")
-
-    if (!agencyId) {
-      return NextResponse.json({ error: "agencyId requerido" }, { status: 400 })
-    }
+    let agencyId = searchParams.get("agencyId")
 
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
-    if (!agencyIds.includes(agencyId)) {
-      return NextResponse.json({ error: "No tiene acceso" }, { status: 403 })
+
+    // Si no se pasa agencyId, buscar la primera agencia con AFIP configurado
+    if (!agencyId) {
+      const { data: configs } = await supabase
+        .from('afip_config')
+        .select('agency_id')
+        .eq('is_active', true)
+        .in('agency_id', agencyIds)
+        .limit(1)
+      agencyId = configs?.[0]?.agency_id || agencyIds[0]
     }
+
+    if (!agencyId || !agencyIds.includes(agencyId)) {
+      return NextResponse.json({ error: "No tiene agencias con acceso" }, { status: 403 })
+    }
+
+    steps.push({ step: "0_agency", status: "ok", data: { agencyId } })
 
     // Step 1: Obtener config de BD
     steps.push({ step: "1_get_config", status: "running" })
