@@ -334,69 +334,67 @@ async function waitForAutomation(
 }
 
 /**
- * Ejecuta el flujo completo de vinculación AFIP:
- * 1. Crear certificado de producción (create-certificate-prod)
+ * Ejecuta el flujo completo de vinculación AFIP usando el SDK JS:
+ * 1. Crear certificado de producción (create-cert-prod)
  * 2. Autorizar web service de producción (auth-web-service-prod)
+ *
+ * IMPORTANTE: Usamos el SDK JS (CreateAutomation) en vez de REST API directo
+ * para que el cert/key quede correctamente asociado al access_token en el backend.
  */
 export async function runAfipAutomation(
   cuit: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Paso 1: Crear certificado de producción
-    console.log('[AFIP Automation] Paso 1: Creando certificado de producción...')
-    const certResponse = await afipRequest<any>(
-      `/automations`,
-      'POST',
-      {
-        automation: 'create-cert-prod',
-        params: {
-          cuit,
-          username: cuit,
-          password,
-          alias: 'afipsdk',
-        },
-      }
-    )
+    const Afip = require('@afipsdk/afip.js')
+    const afip = new Afip({
+      CUIT: cuit,
+      production: true,
+      access_token: AFIP_SDK_API_KEY,
+    })
 
-    if (certResponse.id && certResponse.status !== 'complete') {
-      const certResult = await waitForAutomation(certResponse.id, 'Certificado')
-      if (!certResult.success) {
-        // Si falla porque ya existe, continuar
-        if (certResult.error?.includes('ya existe') || certResult.error?.includes('already exists')) {
-          console.log('[AFIP Automation] Certificado ya existe, continuando...')
-        } else {
-          return certResult
-        }
+    // Paso 1: Crear certificado de producción
+    console.log('[AFIP Automation] Paso 1: Creando certificado de producción via SDK...')
+    try {
+      const certResult = await afip.CreateAutomation('create-cert-prod', {
+        cuit,
+        username: cuit,
+        password,
+        alias: 'afipsdk',
+      })
+      console.log('[AFIP Automation] Paso 1 resultado:', JSON.stringify(certResult).substring(0, 500))
+    } catch (certError: any) {
+      const errMsg = certError?.data?.message || certError.message || ''
+      // Si falla porque ya existe, continuar
+      if (errMsg.includes('ya existe') || errMsg.includes('already exists') || errMsg.includes('already')) {
+        console.log('[AFIP Automation] Certificado ya existe, continuando...')
+      } else {
+        console.error('[AFIP Automation] Error paso 1:', errMsg)
+        return { success: false, error: `Error creando certificado: ${errMsg}` }
       }
     }
 
     // Paso 2: Autorizar web service wsfe
-    console.log('[AFIP Automation] Paso 2: Autorizando web service wsfe...')
-    const authResponse = await afipRequest<any>(
-      `/automations`,
-      'POST',
-      {
-        automation: 'auth-web-service-prod',
-        params: {
-          cuit,
-          username: cuit,
-          password,
-          alias: 'afipsdk',
-          service: 'wsfe',
-        },
+    console.log('[AFIP Automation] Paso 2: Autorizando web service wsfe via SDK...')
+    try {
+      const authResult = await afip.CreateAutomation('auth-web-service-prod', {
+        cuit,
+        username: cuit,
+        password,
+        alias: 'afipsdk',
+        service: 'wsfe',
+      })
+      console.log('[AFIP Automation] Paso 2 resultado:', JSON.stringify(authResult).substring(0, 500))
+
+      if (authResult.status === 'complete') {
+        return { success: true }
       }
-    )
-
-    if (authResponse.status === 'complete') {
-      return { success: true }
+      return { success: false, error: `Estado inesperado: ${authResult.status}` }
+    } catch (authError: any) {
+      const errMsg = authError?.data?.message || authError.message || ''
+      console.error('[AFIP Automation] Error paso 2:', errMsg)
+      return { success: false, error: `Error autorizando WS: ${errMsg}` }
     }
-
-    if (!authResponse.id) {
-      return { success: false, error: 'No se recibió ID de automatización' }
-    }
-
-    return await waitForAutomation(authResponse.id, 'Auth WS')
   } catch (error: any) {
     return { success: false, error: error.message || 'Error en automatización AFIP' }
   }
