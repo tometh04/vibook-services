@@ -88,7 +88,7 @@ export async function GET(request: Request) {
           if (operationIds.length > 0) {
             const { data: opsData, error: opsError } = await supabase
               .from("operations")
-              .select("id, status, sale_amount_total, departure_date, created_at, currency, sale_currency, agency_id")
+              .select("id, status, sale_amount_total, operation_date, departure_date, created_at, currency, sale_currency, agency_id")
               .in("id", operationIds)
 
             if (opsError) {
@@ -188,23 +188,24 @@ export async function GET(request: Request) {
     const customerStats = filteredCustomers.map((customer: any) => {
       const customerOperations = operationsByCustomer.get(customer.id) || []
 
-      // Operaciones confirmadas/cerradas para cálculo de gasto
-      const confirmedOperations = customerOperations.filter((op: any) => 
-        op && ["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)
-      )
+      // Operaciones con venta registrada (todas excepto canceladas)
+      const salesOperations = customerOperations.filter((op: any) => op && op.status !== "CANCELLED")
 
-      const totalSpent = confirmedOperations.reduce((sum: number, op: any) => {
+      const totalSpent = salesOperations.reduce((sum: number, op: any) => {
         const amount = parseFloat(op.sale_amount_total) || 0
         return sum + toUsd(amount, op)
       }, 0)
 
-      // Total de operaciones (todas)
-      const totalOperations = customerOperations.length
+      // Total de operaciones (sin canceladas)
+      const totalOperations = salesOperations.length
       const avgTicket = totalOperations > 0 ? totalSpent / totalOperations : 0
 
-      const lastOperationDate = customerOperations.length > 0
-        ? customerOperations
-            .map((op: any) => op.departure_date ? new Date(op.departure_date) : null)
+      const lastOperationDate = totalOperations > 0
+        ? salesOperations
+            .map((op: any) => {
+              const dateValue = op.departure_date || op.operation_date || op.created_at
+              return dateValue ? new Date(dateValue) : null
+            })
             .filter((d: Date | null) => d !== null)
             .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0]
         : null

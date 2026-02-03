@@ -202,11 +202,15 @@ export async function GET(request: Request) {
       }
     }
 
+    const revenueStatuses = new Set(["PRE_RESERVATION", "RESERVED", "CONFIRMED", "TRAVELLED", "CLOSED"])
+    const confirmedStatuses = new Set(["CONFIRMED", "TRAVELLED", "CLOSED"])
+
     // Procesar operaciones
     let totalSales = 0
     let totalMargin = 0
     let totalOperations = 0
     let confirmedOperations = 0
+    let salesOperations = 0
 
     for (const op of opsList) {
       if (!op || !op.id) continue
@@ -218,10 +222,13 @@ export async function GET(request: Request) {
       }
 
       totalOperations++
-
-      // Solo estadísticas financieras para operaciones confirmadas/viajadas/cerradas
-      if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(status)) {
+      if (confirmedStatuses.has(status)) {
         confirmedOperations++
+      }
+
+      // Estadísticas financieras para operaciones con venta registrada
+      if (revenueStatuses.has(status)) {
+        salesOperations++
         const saleAmount = safeParseFloat(op.sale_amount_total)
         const marginAmount = safeParseFloat(op.margin_amount)
         const saleAmountUsd = toUsd(saleAmount, op)
@@ -286,7 +293,7 @@ export async function GET(request: Request) {
 
     // Estadísticas de rentabilidad
     const avgMarginPercentage = totalSales > 0 ? (totalMargin / totalSales) * 100 : 0
-    const avgTicket = confirmedOperations > 0 ? totalSales / confirmedOperations : 0
+    const avgTicket = salesOperations > 0 ? totalSales / salesOperations : 0
 
     // Operaciones pendientes
     const pendingOperations = opsList.filter((op: any) => {
@@ -313,7 +320,7 @@ export async function GET(request: Request) {
     for (const op of opsList) {
       if (!op) continue
       const status = op.status || ''
-      if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(status) && op.seller_id) {
+      if (revenueStatuses.has(status) && op.seller_id) {
         const sellerId = op.seller_id
         if (!sellerStats[sellerId]) {
           sellerStats[sellerId] = {

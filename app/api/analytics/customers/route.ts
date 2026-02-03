@@ -57,6 +57,7 @@ export async function GET(request: Request) {
             sale_amount_total,
             currency,
             sale_currency,
+            operation_date,
             departure_date,
             created_at,
             status,
@@ -141,22 +142,24 @@ export async function GET(request: Request) {
 
       const stats = customerStats[oc.customer_id]
       
-      if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)) {
-        stats.totalOperations += 1
-        const amount = parseFloat(op.sale_amount_total) || 0
-        const currency = op.sale_currency || op.currency || "USD"
-        if (currency === "ARS") {
-          const rate = getRateForOperation(op)
-          stats.totalSpent += rate ? amount / rate : 0
-        } else {
-          stats.totalSpent += amount
+      // Contabilizar operaciones con venta registrada (todas excepto canceladas)
+      stats.totalOperations += 1
+      const amount = parseFloat(op.sale_amount_total) || 0
+      const currency = op.sale_currency || op.currency || "USD"
+      if (currency === "ARS") {
+        const rate = getRateForOperation(op)
+        stats.totalSpent += rate ? amount / rate : 0
+      } else {
+        stats.totalSpent += amount
+      }
+
+      const opDateValue = op.departure_date || op.operation_date || op.created_at
+      if (opDateValue) {
+        const opDate = new Date(opDateValue)
+        if (!stats.lastOperationDate || opDate > new Date(stats.lastOperationDate)) {
+          stats.lastOperationDate = opDateValue
         }
-        
-        if (!stats.lastOperationDate || new Date(op.departure_date) > new Date(stats.lastOperationDate)) {
-          stats.lastOperationDate = op.departure_date
-        }
-        
-        if (new Date(op.departure_date) > inactiveThreshold) {
+        if (opDate > inactiveThreshold) {
           stats.isInactive = false
         }
       }

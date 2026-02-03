@@ -29,9 +29,9 @@ export async function GET(request: Request) {
     // Query base
     let query = (supabase.from("operations") as any)
       .select("destination, sale_amount_total, operator_cost, margin_amount, margin_percentage, currency, sale_currency, departure_date, created_at")
-      .in("status", ["CONFIRMED", "TRAVELLED", "CLOSED"])
-      .gte("departure_date", startDate.toISOString())
-      .lte("departure_date", endDate.toISOString())
+      .not("status", "eq", "CANCELLED")
+      .gte("created_at", startDate.toISOString())
+      .lte("created_at", endDate.toISOString())
 
     // Filtrar por agencia
     if (agencyId && agencyId !== "ALL") {

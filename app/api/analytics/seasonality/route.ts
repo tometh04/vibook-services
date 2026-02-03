@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     // Query base
     let query = (supabase.from("operations") as any)
       .select("sale_amount_total, margin_amount, currency, sale_currency, departure_date, created_at")
-      .in("status", ["CONFIRMED", "TRAVELLED", "CLOSED"])
+      .not("status", "eq", "CANCELLED")
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString())
 
