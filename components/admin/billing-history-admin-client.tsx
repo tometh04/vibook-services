@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table"
 import { format } from "date-fns"
 import { es } from "date-fns/locale/es"
-import { Search, Calendar, DollarSign, CreditCard } from "lucide-react"
+import { Search, Calendar, DollarSign, CreditCard, Sparkles } from "lucide-react"
 
 interface BillingEvent {
   id: string
@@ -60,20 +60,20 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
   })
 
   const getEventTypeBadge = (eventType: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", label: string, icon: any }> = {
-      SUBSCRIPTION_CREATED: { variant: "default", label: "Creada", icon: Calendar },
-      SUBSCRIPTION_UPDATED: { variant: "secondary", label: "Actualizada", icon: Calendar },
-      SUBSCRIPTION_CANCELED: { variant: "destructive", label: "Cancelada", icon: Calendar },
-      SUBSCRIPTION_RENEWED: { variant: "default", label: "Renovada", icon: Calendar },
-      PAYMENT_SUCCEEDED: { variant: "default", label: "Pago Exitoso", icon: DollarSign },
-      PAYMENT_FAILED: { variant: "destructive", label: "Pago Fallido", icon: CreditCard },
-      TRIAL_EXTENDED_BY_ADMIN: { variant: "secondary", label: "Trial Extendido", icon: Calendar },
-      SUBSCRIPTION_PLAN_CHANGED: { variant: "secondary", label: "Plan Cambiado", icon: Calendar },
+    const variants: Record<string, { label: string; icon: any; className: string }> = {
+      SUBSCRIPTION_CREATED: { label: "Creada", icon: Calendar, className: "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300" },
+      SUBSCRIPTION_UPDATED: { label: "Actualizada", icon: Calendar, className: "border border-indigo-500/30 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300" },
+      SUBSCRIPTION_CANCELED: { label: "Cancelada", icon: Calendar, className: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300" },
+      SUBSCRIPTION_RENEWED: { label: "Renovada", icon: Calendar, className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
+      PAYMENT_SUCCEEDED: { label: "Pago Exitoso", icon: DollarSign, className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
+      PAYMENT_FAILED: { label: "Pago Fallido", icon: CreditCard, className: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300" },
+      TRIAL_EXTENDED_BY_ADMIN: { label: "Trial Extendido", icon: Calendar, className: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+      SUBSCRIPTION_PLAN_CHANGED: { label: "Plan Cambiado", icon: Calendar, className: "border border-purple-500/30 bg-purple-500/15 text-purple-600 dark:text-purple-300" },
     }
-    const config = variants[eventType] || { variant: "outline" as const, label: eventType, icon: Calendar }
+    const config = variants[eventType] || { label: eventType, icon: Calendar, className: "border border-border text-muted-foreground" }
     const Icon = config.icon
     return (
-      <Badge variant={config.variant}>
+      <Badge variant="outline" className={config.className}>
         <Icon className="h-3 w-3 mr-1" />
         {config.label}
       </Badge>
@@ -83,30 +83,42 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
   const eventTypes = Array.from(new Set(events.map(e => e.event_type)))
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Historial de Pagos</h1>
-        <p className="text-muted-foreground">Eventos y transacciones de billing del sistema</p>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            Billing
+          </div>
+          <h1 className="mt-3 text-3xl font-semibold text-foreground">Historial de pagos</h1>
+          <p className="mt-1 text-muted-foreground">
+            Eventos, renovaciones y notificaciones de billing del sistema.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Sparkles className="h-4 w-4 text-primary" />
+          {filteredEvents.length} eventos listados
+        </div>
       </div>
 
-      <Card>
+      <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar por agencia, tipo de evento..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+                className="pl-9"
               />
             </div>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-2 border rounded-md"
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:w-56"
             >
               <option value="all">Todos los eventos</option>
               {eventTypes.map((type) => (
@@ -117,17 +129,17 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
         <CardHeader>
-          <CardTitle>Eventos de Billing</CardTitle>
+          <CardTitle>Eventos de billing</CardTitle>
           <CardDescription>
             {filteredEvents.length} eventos encontrados
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-2xl border border-border/60 bg-background/60">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Agencia</TableHead>
@@ -146,7 +158,7 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
                   </TableRow>
                 ) : (
                   filteredEvents.map((event) => (
-                    <TableRow key={event.id}>
+                    <TableRow key={event.id} className="odd:bg-muted/20">
                       <TableCell>
                         <div className="text-sm">
                           {format(new Date(event.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
@@ -174,7 +186,7 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
                       </TableCell>
                       <TableCell>
                         {event.subscription ? (
-                          <Badge variant={event.subscription.status === 'ACTIVE' ? 'default' : 'outline'}>
+                          <Badge variant="outline" className="border-border/70 text-muted-foreground">
                             {event.subscription.status}
                           </Badge>
                         ) : (

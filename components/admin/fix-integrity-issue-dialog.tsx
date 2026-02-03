@@ -198,7 +198,7 @@ export function FixIntegrityIssueDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto border-border/60 bg-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -208,8 +208,8 @@ export function FixIntegrityIssueDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
               {getActionDescription()}
             </p>
           </div>
@@ -226,7 +226,7 @@ export function FixIntegrityIssueDialog({
               {entitiesDetails.map((entity, index) => (
                 <div
                   key={index}
-                  className="border rounded-lg p-3 bg-muted/50"
+                  className="rounded-lg border border-border/60 bg-muted/30 p-3"
                 >
                   {getEntityDisplay(entity)}
                 </div>
@@ -238,7 +238,7 @@ export function FixIntegrityIssueDialog({
             </div>
           )}
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
             <p className="text-sm text-blue-800 dark:text-blue-200">
               <strong>Total de entidades a corregir:</strong> {entitiesDetails.length || affectedEntities?.length || 0}
             </p>
@@ -256,7 +256,7 @@ export function FixIntegrityIssueDialog({
           <Button
             onClick={handleConfirm}
             disabled={loading || loadingDetails}
-            className="bg-yellow-600 hover:bg-yellow-700"
+            className="bg-amber-600 text-white hover:bg-amber-700"
           >
             {loading ? (
               <>

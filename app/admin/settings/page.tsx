@@ -11,64 +11,82 @@ export default async function AdminSettingsPage() {
   const hasSupabaseUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Configuración del Sistema</h1>
-        <p className="text-muted-foreground">Configuración general y variables de entorno</p>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            Configuracion
+          </div>
+          <h1 className="mt-3 text-3xl font-semibold text-foreground">Configuracion del sistema</h1>
+          <p className="mt-1 text-muted-foreground">
+            Variables clave y estado de integraciones.
+          </p>
+        </div>
+        <Badge className="border border-border bg-muted/60 text-muted-foreground">
+          Entorno {process.env.NODE_ENV || "production"}
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card className="border-border/60 bg-card/80">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              <CardTitle>URLs del Sistema</CardTitle>
+              <Globe className="h-5 w-5 text-primary" />
+              <CardTitle>URLs del sistema</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <div>
               <div className="text-sm font-medium">App URL</div>
-              <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">{appUrl}</code>
+              <code className="mt-1 block rounded bg-muted px-2 py-1 text-xs">{appUrl}</code>
             </div>
             <div>
               <div className="text-sm font-medium">Admin URL</div>
-              <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">{appUrl.replace('app.', 'admin.')}</code>
+              <code className="mt-1 block rounded bg-muted px-2 py-1 text-xs">{appUrl.replace('app.', 'admin.')}</code>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60 bg-card/80">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
+              <Key className="h-5 w-5 text-primary" />
               <CardTitle>Integraciones</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Mercado Pago</div>
               {hasMercadoPagoToken ? (
-                <Badge className="bg-green-500">Configurado</Badge>
+                <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                  Configurado
+                </Badge>
               ) : (
-                <Badge variant="destructive">No configurado</Badge>
+                <Badge className="border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300">
+                  No configurado
+                </Badge>
               )}
             </div>
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Supabase</div>
               {hasSupabaseUrl ? (
-                <Badge className="bg-green-500">Configurado</Badge>
+                <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                  Configurado
+                </Badge>
               ) : (
-                <Badge variant="destructive">No configurado</Badge>
+                <Badge className="border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300">
+                  No configurado
+                </Badge>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60 bg-card/80">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              <CardTitle>Base de Datos</CardTitle>
+              <Database className="h-5 w-5 text-primary" />
+              <CardTitle>Base de datos</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -79,16 +97,16 @@ export default async function AdminSettingsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/60 bg-card/80">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Settings2 className="h-5 w-5" />
-              <CardTitle>Información del Sistema</CardTitle>
+              <Settings2 className="h-5 w-5 text-primary" />
+              <CardTitle>Informacion del sistema</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             <div>
-              <div className="text-sm font-medium">Versión</div>
+              <div className="text-sm font-medium">Version</div>
               <div className="text-sm text-muted-foreground">v1.0.0</div>
             </div>
             <div>

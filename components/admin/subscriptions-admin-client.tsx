@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select"
 import { format } from "date-fns"
 import { es } from "date-fns/locale/es"
-import { Loader2 } from "lucide-react"
+import { Loader2, Shield, CreditCard, CalendarDays } from "lucide-react"
 import { toast } from "sonner"
 
 interface Subscription {
@@ -161,16 +161,16 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
   }
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", label: string }> = {
-      ACTIVE: { variant: "default", label: "Activa" },
-      TRIAL: { variant: "secondary", label: "Prueba" },
-      CANCELED: { variant: "destructive", label: "Cancelada" },
-      UNPAID: { variant: "outline", label: "Sin pago" },
-      SUSPENDED: { variant: "outline", label: "Suspendida" },
-      PAST_DUE: { variant: "destructive", label: "Vencida" },
+    const variants: Record<string, { label: string; className: string }> = {
+      ACTIVE: { label: "Activa", className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
+      TRIAL: { label: "Prueba", className: "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300" },
+      CANCELED: { label: "Cancelada", className: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300" },
+      UNPAID: { label: "Sin pago", className: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+      SUSPENDED: { label: "Suspendida", className: "border border-slate-400/40 bg-slate-500/10 text-slate-600 dark:text-slate-300" },
+      PAST_DUE: { label: "Vencida", className: "border border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300" },
     }
-    const config = variants[status] || { variant: "outline" as const, label: status }
-    return <Badge variant={config.variant}>{config.label}</Badge>
+    const config = variants[status] || { label: status, className: "border border-border text-muted-foreground" }
+    return <Badge variant="outline" className={config.className}>{config.label}</Badge>
   }
 
   const formatPrice = (price: number | null) => {
@@ -183,23 +183,76 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Suscripciones</h1>
-        <p className="text-muted-foreground">Gestión y monitoreo de todas las suscripciones</p>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            Suscripciones
+          </div>
+          <h1 className="mt-3 text-3xl font-semibold text-foreground">Gestion de suscripciones</h1>
+          <p className="mt-1 text-muted-foreground">
+            Controla estados, planes y ciclos de facturacion del sistema.
+          </p>
+        </div>
+        <Badge className="border border-border bg-muted/60 text-muted-foreground">
+          {subscriptions.length} registros activos
+        </Badge>
       </div>
 
-      <Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Card className="border-border/60 bg-card/80">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Suscripciones totales</CardTitle>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100/80 text-blue-600 dark:bg-blue-500/20 dark:text-blue-200">
+              <CreditCard className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold">{subscriptions.length}</div>
+            <p className="text-xs text-muted-foreground">Incluye pruebas y activas</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 bg-card/80">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Estado Mercado Pago</CardTitle>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100/80 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200">
+              <Shield className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold">
+              {subscriptions.filter((sub) => sub.mp_status).length}
+            </div>
+            <p className="text-xs text-muted-foreground">Con estado MP registrado</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 bg-card/80">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Ultima actividad</CardTitle>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100/80 text-purple-600 dark:bg-purple-500/20 dark:text-purple-200">
+              <CalendarDays className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm font-semibold text-foreground">
+              {subscriptions[0]?.created_at ? format(new Date(subscriptions[0].created_at), "dd/MM/yyyy", { locale: es }) : "Sin datos"}
+            </div>
+            <p className="text-xs text-muted-foreground">Fecha de ultima suscripcion</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
         <CardHeader>
-          <CardTitle>Todas las Suscripciones</CardTitle>
+          <CardTitle>Listado de suscripciones</CardTitle>
           <CardDescription>
             {subscriptions.length} suscripciones en total
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-2xl border border-border/60 bg-background/60">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Agencia</TableHead>
                   <TableHead>Usuario</TableHead>
@@ -208,7 +261,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                   <TableHead>Estado</TableHead>
                   <TableHead>Cambiar Estado</TableHead>
                   <TableHead>MP Status</TableHead>
-                  <TableHead>Período Actual</TableHead>
+                  <TableHead>Periodo Actual</TableHead>
                   <TableHead>Trial</TableHead>
                   <TableHead>Extender Trial</TableHead>
                   <TableHead>MP Preapproval ID</TableHead>
@@ -227,7 +280,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                     const user = sub.agency?.users?.[0]?.user
 
                     return (
-                      <TableRow key={sub.id}>
+                      <TableRow key={sub.id} className="odd:bg-muted/20">
                         <TableCell>
                           {sub.agency ? (
                             <div>
@@ -266,7 +319,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                             onValueChange={(value) => handlePlanChange(sub.id, value)}
                             disabled={updating === sub.id}
                           >
-                            <SelectTrigger className="w-[180px]">
+                            <SelectTrigger className="w-[180px] bg-background">
                               <SelectValue placeholder="Seleccionar plan" />
                             </SelectTrigger>
                             <SelectContent>
@@ -285,7 +338,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                             onValueChange={(value) => handleStatusChange(sub.id, value)}
                             disabled={updating === sub.id}
                           >
-                            <SelectTrigger className="w-[150px]">
+                            <SelectTrigger className="w-[150px] bg-background">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -300,7 +353,9 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                         </TableCell>
                         <TableCell>
                           {sub.mp_status ? (
-                            <Badge variant="outline">{sub.mp_status}</Badge>
+                            <Badge variant="outline" className="border-border/70 text-muted-foreground">
+                              {sub.mp_status}
+                            </Badge>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
@@ -317,12 +372,12 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                           {sub.trial_end ? (
                             <div className="text-sm">
                               {sub.status === 'TRIAL' ? (
-                                <span className="text-green-600">
+                                <span className="text-emerald-600 dark:text-emerald-300">
                                   Hasta {format(new Date(sub.trial_end), "dd/MM/yyyy", { locale: es })}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">
-                                  Finalizó {format(new Date(sub.trial_end), "dd/MM/yyyy", { locale: es })}
+                                  Finalizo {format(new Date(sub.trial_end), "dd/MM/yyyy", { locale: es })}
                                 </span>
                               )}
                             </div>
@@ -341,7 +396,7 @@ export function SubscriptionsAdminClient({ subscriptions }: SubscriptionsAdminCl
                               {updating === sub.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                '+7 días'
+                                '+7 dias'
                               )}
                             </Button>
                           )}

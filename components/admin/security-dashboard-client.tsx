@@ -76,16 +76,16 @@ export function SecurityDashboardClient({
   } | null>(null)
 
   const severityColors: Record<string, string> = {
-    CRITICAL: "bg-red-500",
-    HIGH: "bg-orange-500",
-    MEDIUM: "bg-yellow-500",
-    LOW: "bg-blue-500",
+    CRITICAL: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300",
+    HIGH: "border border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300",
+    MEDIUM: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300",
+    LOW: "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300",
   }
 
   const statusColors: Record<string, string> = {
-    PASS: "bg-green-500",
-    FAIL: "bg-red-500",
-    WARNING: "bg-yellow-500",
+    PASS: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+    FAIL: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300",
+    WARNING: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300",
   }
 
   const runIntegrityCheck = async () => {
@@ -186,79 +186,73 @@ export function SecurityDashboardClient({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard de Seguridad</h1>
-          <p className="text-muted-foreground">Monitoreo y gestión de seguridad del sistema</p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            Seguridad
+          </div>
+          <h1 className="mt-3 text-3xl font-semibold text-foreground">Dashboard de seguridad</h1>
+          <p className="mt-1 text-muted-foreground">Monitoreo y gestion de riesgos del sistema.</p>
         </div>
-        <Button onClick={runIntegrityCheck} disabled={runningCheck}>
-          {runningCheck ? "Ejecutando..." : "Ejecutar Verificación de Integridad"}
+        <Button onClick={runIntegrityCheck} disabled={runningCheck} className="h-10 px-4">
+          {runningCheck ? "Ejecutando..." : "Ejecutar verificacion"}
         </Button>
       </div>
 
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Alertas Activas</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalAlerts}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.criticalAlerts} críticas, {stats.highAlerts} altas
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Verificaciones Fallidas</CardTitle>
-            <XCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-500">{stats.failedChecks}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.warnings} advertencias
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Alertas Críticas</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-500">{stats.criticalAlerts}</div>
-            <p className="text-xs text-muted-foreground">
-              Requieren atención inmediata
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estado del Sistema</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-500">
-              {stats.failedChecks === 0 && stats.criticalAlerts === 0 ? "Seguro" : "Revisar"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Última verificación: {integrityChecks.length > 0 && integrityChecks[0]?.checked_at ? format(new Date(integrityChecks[0].checked_at), "dd/MM/yyyy HH:mm", { locale: es }) : "Nunca"}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: "Alertas activas",
+            value: stats.totalAlerts,
+            description: `${stats.criticalAlerts} criticas · ${stats.highAlerts} altas`,
+            icon: AlertTriangle,
+            tone: "bg-amber-100/80 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+          },
+          {
+            label: "Verificaciones fallidas",
+            value: stats.failedChecks,
+            description: `${stats.warnings} advertencias`,
+            icon: XCircle,
+            tone: "bg-rose-100/80 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300",
+          },
+          {
+            label: "Alertas criticas",
+            value: stats.criticalAlerts,
+            description: "Requieren accion inmediata",
+            icon: Shield,
+            tone: "bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
+          },
+          {
+            label: "Estado del sistema",
+            value: stats.failedChecks === 0 && stats.criticalAlerts === 0 ? "Seguro" : "Revisar",
+            description: `Ultima verificacion: ${integrityChecks.length > 0 && integrityChecks[0]?.checked_at ? format(new Date(integrityChecks[0].checked_at), "dd/MM/yyyy HH:mm", { locale: es }) : "Nunca"}`,
+            icon: CheckCircle,
+            tone: "bg-emerald-100/80 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
+          },
+        ].map((card) => {
+          const Icon = card.icon
+          return (
+            <Card key={card.label} className="border-border/60 bg-card/80">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle>
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full ${card.tone}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-semibold text-foreground">{card.value}</div>
+                <p className="text-xs text-muted-foreground">{card.description}</p>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
-      {/* Alertas de Seguridad */}
-      <Card>
+      <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
         <CardHeader>
-          <CardTitle>Alertas de Seguridad</CardTitle>
-          <CardDescription>Alertas activas que requieren atención</CardDescription>
+          <CardTitle>Alertas de seguridad</CardTitle>
+          <CardDescription>Alertas activas que requieren atencion</CardDescription>
         </CardHeader>
         <CardContent>
           {alerts.length === 0 ? (
@@ -266,22 +260,22 @@ export function SecurityDashboardClient({
               No hay alertas activas
             </p>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-2xl border border-border/60 bg-background/60">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>Severidad</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Descripción</TableHead>
+                    <TableHead>Titulo</TableHead>
+                    <TableHead>Descripcion</TableHead>
                     <TableHead>Fecha</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {alerts.map((alert) => (
-                    <TableRow key={alert.id}>
+                    <TableRow key={alert.id} className="odd:bg-muted/20">
                       <TableCell>
-                        <Badge className={severityColors[alert.severity] || "bg-gray-500"}>
+                        <Badge variant="outline" className={severityColors[alert.severity] || "border border-border text-muted-foreground"}>
                           {alert.severity}
                         </Badge>
                       </TableCell>
@@ -301,10 +295,10 @@ export function SecurityDashboardClient({
       </Card>
 
       {/* Verificaciones de Integridad */}
-      <Card>
+      <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
         <CardHeader>
-          <CardTitle>Verificaciones de Integridad</CardTitle>
-          <CardDescription>Resultados de las últimas verificaciones</CardDescription>
+          <CardTitle>Verificaciones de integridad</CardTitle>
+          <CardDescription>Resultados de las ultimas verificaciones</CardDescription>
         </CardHeader>
         <CardContent>
           {integrityChecks.length === 0 ? (
@@ -312,9 +306,9 @@ export function SecurityDashboardClient({
               No hay verificaciones ejecutadas aún
             </p>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-2xl border border-border/60 bg-background/60">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Estado</TableHead>
@@ -325,10 +319,10 @@ export function SecurityDashboardClient({
                 </TableHeader>
                 <TableBody>
                   {integrityChecks.map((check) => (
-                    <TableRow key={check.id}>
+                    <TableRow key={check.id} className="odd:bg-muted/20">
                       <TableCell>{check.check_type}</TableCell>
                       <TableCell>
-                        <Badge className={statusColors[check.status] || "bg-gray-500"}>
+                        <Badge variant="outline" className={statusColors[check.status] || "border border-border text-muted-foreground"}>
                           {check.status}
                         </Badge>
                       </TableCell>
@@ -369,9 +363,9 @@ export function SecurityDashboardClient({
       </Card>
 
       {/* Auditoría Admin */}
-      <Card>
+      <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
         <CardHeader>
-          <CardTitle>Auditoría de Cambios Admin</CardTitle>
+          <CardTitle>Auditoria de cambios</CardTitle>
           <CardDescription>Registro de cambios realizados por administradores</CardDescription>
         </CardHeader>
         <CardContent>
@@ -380,9 +374,9 @@ export function SecurityDashboardClient({
               No hay registros de auditoría
             </p>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-2xl border border-border/60 bg-background/60">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>Acción</TableHead>
                     <TableHead>Entidad</TableHead>
@@ -393,7 +387,7 @@ export function SecurityDashboardClient({
                 </TableHeader>
                 <TableBody>
                   {auditLogs.map((log) => (
-                    <TableRow key={log.id}>
+                    <TableRow key={log.id} className="odd:bg-muted/20">
                       <TableCell>{log.action_type}</TableCell>
                       <TableCell>{log.entity_type}</TableCell>
                       <TableCell>{log.admin_email || "N/A"}</TableCell>

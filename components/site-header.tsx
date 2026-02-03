@@ -35,6 +35,13 @@ const getPageTitle = (pathname: string): string => {
     "/settings": "Configuración",
     "/tools/cerebro": "Cerebro",
     "/emilia": "Emilia",
+    "/admin": "Admin",
+    "/admin/users": "Admin · Usuarios",
+    "/admin/subscriptions": "Admin · Suscripciones",
+    "/admin/stats": "Admin · Estadisticas",
+    "/admin/security": "Admin · Seguridad",
+    "/admin/settings": "Admin · Configuracion",
+    "/admin/billing-history": "Admin · Billing",
   }
 
   // Buscar coincidencia exacta o parcial

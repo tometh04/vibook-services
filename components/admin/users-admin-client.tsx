@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Users, UserCheck, UserX, CreditCard, TrendingUp, Loader2 } from "lucide-react"
+import { Users, UserCheck, UserX, CreditCard, Loader2, Search } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale/es"
 import { toast } from "sonner"
@@ -187,16 +187,16 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
   })
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", label: string }> = {
-      ACTIVE: { variant: "default", label: "Activa" },
-      TRIAL: { variant: "secondary", label: "Prueba" },
-      CANCELED: { variant: "destructive", label: "Cancelada" },
-      UNPAID: { variant: "outline", label: "Sin pago" },
-      SUSPENDED: { variant: "outline", label: "Suspendida" },
-      PAST_DUE: { variant: "destructive", label: "Vencida" },
+    const variants: Record<string, { label: string; className: string }> = {
+      ACTIVE: { label: "Activa", className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
+      TRIAL: { label: "Prueba", className: "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300" },
+      CANCELED: { label: "Cancelada", className: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300" },
+      UNPAID: { label: "Sin pago", className: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+      SUSPENDED: { label: "Suspendida", className: "border border-slate-400/40 bg-slate-500/10 text-slate-600 dark:text-slate-300" },
+      PAST_DUE: { label: "Vencida", className: "border border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300" },
     }
-    const config = variants[status] || { variant: "outline" as const, label: status }
-    return <Badge variant={config.variant}>{config.label}</Badge>
+    const config = variants[status] || { label: status, className: "border border-border text-muted-foreground" }
+    return <Badge variant="outline" className={config.className}>{config.label}</Badge>
   }
 
   const formatPrice = (price: number | null) => {
@@ -208,88 +208,103 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
     }).format(price)
   }
 
+  const statCards = [
+    {
+      label: "Total usuarios",
+      value: stats.total,
+      description: `${stats.active} activos · ${stats.inactive} inactivos`,
+      icon: Users,
+      tone: "bg-blue-100/80 text-blue-600 dark:bg-blue-500/20 dark:text-blue-200",
+    },
+    {
+      label: "Con suscripcion",
+      value: stats.withSubscription,
+      description: `${stats.subscriptions.active} activas · ${stats.subscriptions.trial} en prueba`,
+      icon: CreditCard,
+      tone: "bg-indigo-100/80 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-200",
+    },
+    {
+      label: "Suscripciones activas",
+      value: stats.subscriptions.active,
+      description: `${stats.subscriptions.trial} en prueba`,
+      icon: UserCheck,
+      tone: "bg-emerald-100/80 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200",
+    },
+    {
+      label: "Sin pago",
+      value: stats.subscriptions.unpaid,
+      description: `${stats.subscriptions.canceled} canceladas`,
+      icon: UserX,
+      tone: "bg-rose-100/80 text-rose-600 dark:bg-rose-500/20 dark:text-rose-200",
+    },
+  ]
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Panel de Administración</h1>
-        <p className="text-muted-foreground">Gestión de usuarios y suscripciones</p>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            Administracion
+          </div>
+          <h1 className="mt-3 text-3xl font-semibold text-foreground">Usuarios y suscripciones</h1>
+          <p className="mt-1 text-muted-foreground">
+            Gestiona usuarios, roles y planes activos desde un solo lugar.
+          </p>
+        </div>
+        <Badge className="border border-border bg-muted/60 text-muted-foreground">
+          {stats.total} usuarios registrados
+        </Badge>
       </div>
 
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.active} activos, {stats.inactive} inactivos
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Con Suscripción</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.withSubscription}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.subscriptions.active} activas, {stats.subscriptions.trial} en prueba
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Suscripciones Activas</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.subscriptions.active}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.subscriptions.trial} en período de prueba
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sin Pago</CardTitle>
-            <UserX className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.subscriptions.unpaid}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.subscriptions.canceled} canceladas
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {statCards.map((card) => {
+          const Icon = card.icon
+          return (
+            <Card
+              key={card.label}
+              className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]"
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle>
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full ${card.tone}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-semibold text-foreground">{card.value}</div>
+                <p className="text-xs text-muted-foreground">{card.description}</p>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
-      {/* Tabla de usuarios */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Usuarios</CardTitle>
+      <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-xl">Usuarios</CardTitle>
           <CardDescription>
             Lista completa de usuarios con sus suscripciones. Puedes asignar planes manualmente.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Input
-              placeholder="Buscar por nombre, email o rol..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre, email o rol..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {filteredUsers.length} resultados visibles
+            </div>
           </div>
-          <div className="rounded-md border">
+
+          <div className="rounded-2xl border border-border/60 bg-background/60">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Usuario</TableHead>
                   <TableHead>Rol</TableHead>
@@ -297,9 +312,9 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                   <TableHead>Agencia</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Asignar Plan</TableHead>
-                  <TableHead>Estado Suscripción</TableHead>
+                  <TableHead>Estado Suscripcion</TableHead>
                   <TableHead>Cambiar Estado</TableHead>
-                  <TableHead>Período de Prueba</TableHead>
+                  <TableHead>Periodo de Prueba</TableHead>
                   <TableHead>Fecha Registro</TableHead>
                 </TableRow>
               </TableHeader>
@@ -313,9 +328,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                 ) : (
                   filteredUsers.map((user) => {
                     const agency = user.user_agencies?.[0]?.agencies
-                    // Obtener todas las suscripciones y encontrar la más relevante
                     const subscriptions = agency?.subscriptions || []
-                    // Priorizar: TRIAL > ACTIVE > otras
                     const subscription = subscriptions.find((s: any) => s.status === 'TRIAL') 
                       || subscriptions.find((s: any) => s.status === 'ACTIVE')
                       || subscriptions.find((s: any) => s.status !== 'CANCELED' && s.status !== 'UNPAID')
@@ -323,27 +336,33 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                     const plan = subscription?.plan
 
                     return (
-                      <TableRow key={user.id}>
+                      <TableRow key={user.id} className="odd:bg-muted/20">
                         <TableCell>
                           <div>
-                            <div className="font-medium">{user.name}</div>
+                            <div className="font-medium text-foreground">{user.name}</div>
                             <div className="text-sm text-muted-foreground">{user.email}</div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{user.role}</Badge>
+                          <Badge variant="outline" className="border-border/70 text-xs text-muted-foreground">
+                            {user.role}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           {user.is_active ? (
-                            <Badge className="bg-green-500">Activo</Badge>
+                            <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                              Activo
+                            </Badge>
                           ) : (
-                            <Badge variant="destructive">Inactivo</Badge>
+                            <Badge className="border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300">
+                              Inactivo
+                            </Badge>
                           )}
                         </TableCell>
                         <TableCell>
                           {agency ? (
                             <div>
-                              <div className="font-medium">{agency.name}</div>
+                              <div className="font-medium text-foreground">{agency.name}</div>
                               <div className="text-sm text-muted-foreground">{agency.city}</div>
                             </div>
                           ) : (
@@ -353,7 +372,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                         <TableCell>
                           {plan ? (
                             <div>
-                              <div className="font-medium">{plan.display_name}</div>
+                              <div className="font-medium text-foreground">{plan.display_name}</div>
                               <div className="text-sm text-muted-foreground">
                                 {formatPrice(plan.price_monthly)}
                               </div>
@@ -374,7 +393,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                               }}
                               disabled={updating === (subscription?.id || agency.id)}
                             >
-                              <SelectTrigger className="w-[150px]">
+                              <SelectTrigger className="w-[150px] bg-background">
                                 <SelectValue placeholder="Asignar plan" />
                               </SelectTrigger>
                               <SelectContent>
@@ -393,7 +412,9 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                           {subscription ? (
                             getStatusBadge(subscription.status)
                           ) : (
-                            <Badge variant="outline">Sin suscripción</Badge>
+                            <Badge variant="outline" className="border-border/70 text-muted-foreground">
+                              Sin suscripcion
+                            </Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -403,7 +424,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                               onValueChange={(value) => handleStatusChange(subscription.id, value)}
                               disabled={updating === subscription.id}
                             >
-                              <SelectTrigger className="w-[130px]">
+                              <SelectTrigger className="w-[130px] bg-background">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -423,18 +444,18 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                           {subscription?.trial_end ? (
                             <div className="text-sm">
                               {subscription.status === 'TRIAL' ? (
-                                <span className="text-green-600">
+                                <span className="text-emerald-600 dark:text-emerald-300">
                                   Hasta {format(new Date(subscription.trial_end), "dd/MM/yyyy", { locale: es })}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">
-                                  Finalizó {format(new Date(subscription.trial_end), "dd/MM/yyyy", { locale: es })}
+                                  Finalizo {format(new Date(subscription.trial_end), "dd/MM/yyyy", { locale: es })}
                                 </span>
                               )}
                             </div>
                           ) : subscription?.trial_start ? (
                             <div className="text-sm">
-                              <span className="text-green-600">
+                              <span className="text-emerald-600 dark:text-emerald-300">
                                 Desde {format(new Date(subscription.trial_start), "dd/MM/yyyy", { locale: es })}
                               </span>
                             </div>
