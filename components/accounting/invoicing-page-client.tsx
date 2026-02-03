@@ -440,7 +440,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
                 id="is_active"
                 checked={config.is_active}
                 onChange={(e) => setConfig({ ...config, is_active: e.target.checked })}
-                className="rounded border-gray-300"
+                className="rounded border-border"
               />
               <Label htmlFor="is_active">Activar facturación electrónica</Label>
             </div>

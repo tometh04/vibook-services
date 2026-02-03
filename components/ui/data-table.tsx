@@ -97,7 +97,7 @@ export function DataTable<TData, TValue>({
         )}
         <DataTableViewOptions table={table} />
       </div>
-      <div className="rounded-md border border-gray-200 bg-white overflow-hidden">
+      <div className="rounded-md border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[800px]">
           <TableHeader>
@@ -139,7 +139,7 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center text-sm text-gray-500"
+                  className="h-24 text-center text-sm text-muted-foreground"
                 >
                   No hay resultados.
                 </TableCell>
@@ -153,4 +153,3 @@ export function DataTable<TData, TValue>({
     </div>
   )
 }
-

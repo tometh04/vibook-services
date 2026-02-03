@@ -58,7 +58,7 @@ export const TrendChart = memo(function TrendChart({ className }: TrendChartProp
   const maxSales = Math.max(...data.map(d => d.sales), 1)
 
   const TrendIcon = trend.direction === "up" ? TrendingUp : trend.direction === "down" ? TrendingDown : Minus
-  const trendColor = trend.direction === "up" ? "text-green-600" : trend.direction === "down" ? "text-red-600" : "text-gray-600"
+  const trendColor = trend.direction === "up" ? "text-green-600" : trend.direction === "down" ? "text-red-600" : "text-muted-foreground"
 
   return (
     <Card className={className}>
@@ -125,4 +125,3 @@ export const TrendChart = memo(function TrendChart({ className }: TrendChartProp
     </Card>
   )
 })
-

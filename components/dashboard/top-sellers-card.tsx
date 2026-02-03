@@ -92,7 +92,7 @@ export function TopSellersCard({ agencyId, sellerId, dateFrom, dateTo }: TopSell
       case 0:
         return <Trophy className="h-3 w-3 text-amber-500" />
       case 1:
-        return <Medal className="h-3 w-3 text-gray-400" />
+        return <Medal className="h-3 w-3 text-muted-foreground" />
       case 2:
         return <Award className="h-3 w-3 text-amber-700" />
       default:
@@ -105,7 +105,7 @@ export function TopSellersCard({ agencyId, sellerId, dateFrom, dateTo }: TopSell
       case 0:
         return "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
       case 1:
-        return "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700"
+        return "bg-muted border-border"
       case 2:
         return "bg-amber-50/50 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900"
       default:

@@ -27,18 +27,18 @@ interface Alert {
 }
 
 const alertTypeConfig: Record<string, { icon: any; color: string }> = {
-  PAYMENT_DUE: { icon: DollarSign, color: "text-gray-400" },
-  UPCOMING_TRIP: { icon: Calendar, color: "text-gray-400" },
-  MISSING_DOCUMENT: { icon: FileText, color: "text-gray-400" },
-  LOW_MARGIN: { icon: AlertTriangle, color: "text-gray-400" },
-  QUOTATION_EXPIRING: { icon: Bell, color: "text-gray-400" },
-  PAYMENT_REMINDER_7D: { icon: DollarSign, color: "text-gray-400" },
-  PAYMENT_REMINDER_3D: { icon: DollarSign, color: "text-gray-400" },
-  PAYMENT_REMINDER_TODAY: { icon: DollarSign, color: "text-gray-400" },
-  PAYMENT_OVERDUE: { icon: AlertTriangle, color: "text-gray-400" },
-  PASSPORT_EXPIRY: { icon: FileText, color: "text-gray-400" },
-  GENERIC: { icon: Bell, color: "text-gray-400" },
-  BIRTHDAY: { icon: Calendar, color: "text-gray-400" },
+  PAYMENT_DUE: { icon: DollarSign, color: "text-muted-foreground" },
+  UPCOMING_TRIP: { icon: Calendar, color: "text-muted-foreground" },
+  MISSING_DOCUMENT: { icon: FileText, color: "text-muted-foreground" },
+  LOW_MARGIN: { icon: AlertTriangle, color: "text-muted-foreground" },
+  QUOTATION_EXPIRING: { icon: Bell, color: "text-muted-foreground" },
+  PAYMENT_REMINDER_7D: { icon: DollarSign, color: "text-muted-foreground" },
+  PAYMENT_REMINDER_3D: { icon: DollarSign, color: "text-muted-foreground" },
+  PAYMENT_REMINDER_TODAY: { icon: DollarSign, color: "text-muted-foreground" },
+  PAYMENT_OVERDUE: { icon: AlertTriangle, color: "text-muted-foreground" },
+  PASSPORT_EXPIRY: { icon: FileText, color: "text-muted-foreground" },
+  GENERIC: { icon: Bell, color: "text-muted-foreground" },
+  BIRTHDAY: { icon: Calendar, color: "text-muted-foreground" },
 }
 
 export function NotificationBell() {
@@ -134,14 +134,14 @@ export function NotificationBell() {
   }
 
   const getAlertConfig = (type: string) => {
-    return alertTypeConfig[type] || { icon: Bell, color: "text-gray-500" }
+  return alertTypeConfig[type] || { icon: Bell, color: "text-muted-foreground" }
   }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-8 w-8">
-          <Bell className="h-4 w-4 text-gray-600" />
+          <Bell className="h-4 w-4 text-muted-foreground" />
           {unreadCount > 0 && (
             <Badge 
               variant="destructive" 
@@ -153,10 +153,10 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-3 border-b border-gray-200">
-          <h4 className="text-sm font-medium text-gray-900">Alertas</h4>
+        <div className="flex items-center justify-between p-3 border-b border-border">
+          <h4 className="text-sm font-medium text-foreground">Alertas</h4>
           <Link href="/alerts" onClick={() => setOpen(false)}>
-            <Button variant="ghost" size="sm" className="text-xs text-gray-600 h-7 px-2">
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7 px-2">
               Ver todas
               <ChevronRight className="h-3 w-3 ml-1" />
             </Button>
@@ -166,11 +166,11 @@ export function NotificationBell() {
         <ScrollArea className="h-[300px]">
           {alerts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
-              <Bell className="h-8 w-8 text-gray-400 mb-2" />
-              <p className="text-sm text-gray-500">Sin alertas</p>
+              <Bell className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">Sin alertas</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-border">
               {alerts.map((alert) => {
                 const config = getAlertConfig(alert.type)
                 const Icon = config.icon
@@ -178,15 +178,15 @@ export function NotificationBell() {
                 return (
                   <div
                     key={alert.id}
-                    className="p-3 hover:bg-gray-50 transition-colors"
+                    className="p-3 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-start gap-3">
                       <Icon className={`h-4 w-4 mt-0.5 ${config.color} shrink-0`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700 line-clamp-2">
+                        <p className="text-sm text-foreground line-clamp-2">
                           {alert.description}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {formatDistanceToNow(new Date(alert.created_at), { 
                             addSuffix: true,
                             locale: es 
@@ -196,7 +196,7 @@ export function NotificationBell() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 shrink-0 text-gray-400 hover:text-gray-600"
+                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
                         onClick={(e) => markAsDone(alert.id, e)}
                         title="Marcar como completada"
                       >
@@ -222,4 +222,3 @@ export function NotificationBell() {
     </Popover>
   )
 }
-

@@ -62,7 +62,7 @@ const categoryColors: Record<string, string> = {
   BIRTHDAY: "bg-pink-100 text-pink-800",
   ANNIVERSARY: "bg-rose-100 text-rose-800",
   MARKETING: "bg-green-100 text-green-800",
-  CUSTOM: "bg-gray-100 text-gray-800",
+  CUSTOM: "bg-muted text-foreground",
 }
 
 export function MessageCard({ message, onMarkSent, onSkip }: MessageCardProps) {
@@ -236,4 +236,3 @@ export function MessageCard({ message, onMarkSent, onSkip }: MessageCardProps) {
     </Card>
   )
 }
-

@@ -4,10 +4,15 @@ import { getCurrentUser } from "@/lib/auth"
 
 export const dynamic = 'force-dynamic'
 
+function isMissingTableError(error: any) {
+  const message = String(error?.message || "")
+  return error?.code === "PGRST205" || message.toLowerCase().includes("schema cache")
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const key = searchParams.get("key")
+    const key = (searchParams.get("key") || searchParams.get("type") || "").trim() || null
 
     const supabase = await createServerClient()
 
@@ -20,6 +25,10 @@ export async function GET(request: Request) {
         .single()
 
       if (error) {
+        const isMissingRow = error?.code === "PGRST116"
+        if (key === "trial_days" && (isMissingRow || isMissingTableError(error))) {
+          return NextResponse.json({ key, value: "7", default: true })
+        }
         return NextResponse.json(
           { error: "Configuración no encontrada" },
           { status: 404 }

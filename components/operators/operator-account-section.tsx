@@ -172,14 +172,14 @@ export function OperatorAccountSection({ operatorId, creditLimit }: OperatorAcco
               ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
               : summary.totalOwed > 0 
                 ? "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800" 
-                : "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700"
+                : "bg-muted border-border"
           }`}>
             <div className={`flex items-center gap-2 ${
               exceedsCreditLimit 
                 ? "text-red-600 dark:text-red-400"
                 : summary.totalOwed > 0 
                   ? "text-yellow-600 dark:text-yellow-400" 
-                  : "text-gray-600"
+                  : "text-muted-foreground"
             }`}>
               <TrendingDown className="h-4 w-4" />
               <span className="text-sm font-medium">Saldo Adeudado</span>
@@ -280,4 +280,3 @@ export function OperatorAccountSection({ operatorId, creditLimit }: OperatorAcco
     </Card>
   )
 }
-

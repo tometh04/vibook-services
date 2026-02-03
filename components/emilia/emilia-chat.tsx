@@ -475,7 +475,7 @@ export function EmiliaChat({ conversationId, userId, userName, onConversationUpd
                 </ScrollArea>
 
                 {/* Input Area */}
-                <CardContent className="p-4 border-t bg-white">
+                <CardContent className="p-4 border-t border-border bg-card">
                     <div className="flex gap-2">
                         <div className="relative flex-1">
                             <Input
@@ -905,4 +905,3 @@ function HotelsEmptyState() {
         </div>
     )
 }
-

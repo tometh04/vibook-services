@@ -5,6 +5,11 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 
 export const dynamic = 'force-dynamic'
 
+function isMissingTableError(error: any) {
+  const message = String(error?.message || "")
+  return error?.code === "PGRST205" || message.toLowerCase().includes("schema cache")
+}
+
 /**
  * GET /api/subscription
  * Obtiene la suscripción del usuario actual (usa admin client para bypasear RLS)
@@ -43,6 +48,14 @@ export async function GET() {
     
     if (subError) {
       console.error("[API /subscription] Error fetching subscriptions:", subError)
+      if (isMissingTableError(subError)) {
+        return NextResponse.json({
+          subscription: null,
+          usage: null,
+          agencyId: agencyIds[0],
+          warning: "billing_tables_missing",
+        })
+      }
       return NextResponse.json({ error: "Error al obtener suscripción" }, { status: 500 })
     }
     
@@ -77,14 +90,18 @@ export async function GET() {
     currentMonthStart.setDate(1)
     currentMonthStart.setHours(0, 0, 0, 0)
     
-    const { data: usageData } = await (adminSupabase
+    const { data: usageData, error: usageError } = await (adminSupabase
       .from("usage_metrics") as any)
       .select("*")
       .eq("agency_id", selectedAgencyId)
       .eq("period_start", currentMonthStart.toISOString().split('T')[0])
       .maybeSingle()
     
-    if (usageData) {
+    if (usageError) {
+      if (!isMissingTableError(usageError)) {
+        console.error("[API /subscription] Error fetching usage:", usageError)
+      }
+    } else if (usageData) {
       usage = usageData
     }
     
@@ -103,6 +120,13 @@ export async function GET() {
     })
   } catch (error: any) {
     console.error("[API /subscription] Error:", error)
+    if (isMissingTableError(error)) {
+      return NextResponse.json({
+        subscription: null,
+        usage: null,
+        warning: "billing_tables_missing",
+      })
+    }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

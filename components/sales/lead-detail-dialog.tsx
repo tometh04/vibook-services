@@ -128,7 +128,7 @@ function DescriptionWithLinks({ text }: { text: string }) {
     return parts.length > 0 ? parts : [text]
   }
   
-  return <p className="text-sm text-gray-700 whitespace-pre-wrap">{processText(text)}</p>
+  return <p className="text-sm text-foreground whitespace-pre-wrap">{processText(text)}</p>
 }
 
 interface Lead {
@@ -378,7 +378,7 @@ export function LeadDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-gray-900">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             {formatLeadDisplayName(lead)}
           </DialogTitle>
         </DialogHeader>
@@ -386,32 +386,32 @@ export function LeadDetailDialog({
         <div className="space-y-8 mt-6">
           {/* Información de contacto */}
           <div className="space-y-3">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Información de Contacto</h3>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Información de Contacto</h3>
             <div className="space-y-2">
               {lead.contact_phone && (
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <a href={`tel:${lead.contact_phone}`} className="text-sm text-gray-700 hover:text-primary">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <a href={`tel:${lead.contact_phone}`} className="text-sm text-foreground hover:text-primary">
                     {lead.contact_phone}
                   </a>
                 </div>
               )}
               {lead.contact_email && (
                 <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-gray-400" />
-                  <a href={`mailto:${lead.contact_email}`} className="text-sm text-gray-700 hover:text-primary">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <a href={`mailto:${lead.contact_email}`} className="text-sm text-foreground hover:text-primary">
                     {lead.contact_email}
                   </a>
                 </div>
               )}
               {lead.contact_instagram && (
                 <div className="flex items-center gap-2">
-                  <Instagram className="h-4 w-4 text-gray-400" />
+                  <Instagram className="h-4 w-4 text-muted-foreground" />
                   <a
                     href={`https://instagram.com/${lead.contact_instagram}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-gray-700 hover:text-primary"
+                    className="text-sm text-foreground hover:text-primary"
                   >
                     @{lead.contact_instagram}
                   </a>
@@ -422,12 +422,12 @@ export function LeadDetailDialog({
 
           {/* Información del viaje */}
           <div className="space-y-3">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Información del Viaje</h3>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Información del Viaje</h3>
             <div className="space-y-2">
               {lead.destination && lead.destination !== "Sin destino" && (
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-700">{lead.destination}</span>
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-foreground">{lead.destination}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 flex-wrap">
@@ -447,10 +447,10 @@ export function LeadDetailDialog({
           {/* Responsable */}
           {lead.users && (
             <div className="space-y-3">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Responsable</h3>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Responsable</h3>
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs bg-gray-100 text-gray-700">
+                  <AvatarFallback className="text-xs bg-muted text-muted-foreground">
                     {(lead.users.name || "")
                       .split(" ")
                       .map((n) => n[0])
@@ -460,8 +460,8 @@ export function LeadDetailDialog({
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{lead.users.name || "Sin nombre"}</p>
-                  {lead.users.email && <p className="text-xs text-gray-500">{lead.users.email}</p>}
+                  <p className="text-sm font-medium text-foreground">{lead.users.name || "Sin nombre"}</p>
+                  {lead.users.email && <p className="text-xs text-muted-foreground">{lead.users.email}</p>}
                 </div>
               </div>
             </div>
@@ -470,7 +470,7 @@ export function LeadDetailDialog({
           {/* Entidades Relacionadas (cuando el lead está convertido) */}
           {lead.status === "WON" && (lead.operations?.length || lead.customers?.length) ? (
             <div className="space-y-3">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-success" />
                 Lead Convertido
               </h3>
@@ -478,28 +478,28 @@ export function LeadDetailDialog({
                 {/* Link a Operación */}
                 {lead.operations && lead.operations.length > 0 && (
                   <Link href={`/operations/${lead.operations[0].id}`}>
-                    <div className="flex flex-col gap-2 p-3 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
+                    <div className="flex flex-col gap-2 p-3 rounded-md border border-border hover:bg-muted/50 transition-colors cursor-pointer">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Briefcase className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-900">
+                          <Briefcase className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-foreground">
                             Operación Creada
                           </span>
                         </div>
-                        <ExternalLink className="h-4 w-4 text-gray-400" />
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="text-sm space-y-1 ml-6">
                         {lead.operations[0].file_code && (
-                          <p className="font-medium text-gray-900">{lead.operations[0].file_code}</p>
+                          <p className="font-medium text-foreground">{lead.operations[0].file_code}</p>
                         )}
-                        <p className="text-gray-500">{lead.operations[0].destination}</p>
+                        <p className="text-muted-foreground">{lead.operations[0].destination}</p>
                         {lead.operations[0].created_at && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Creada: {format(new Date(lead.operations[0].created_at), "dd/MM/yyyy")}
                           </p>
                         )}
                         {lead.operations[0].departure_date && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Salida: {format(new Date(lead.operations[0].departure_date), "dd/MM/yyyy")}
                           </p>
                         )}
@@ -511,12 +511,12 @@ export function LeadDetailDialog({
                 {/* Link a Cliente */}
                 {lead.customers && lead.customers.length > 0 && (
                   <Link href={`/customers/${lead.customers[0].id}`}>
-                    <div className="flex items-center gap-3 p-3 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm flex-1 text-gray-700">
+                    <div className="flex items-center gap-3 p-3 rounded-md border border-border hover:bg-muted/50 transition-colors cursor-pointer">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm flex-1 text-foreground">
                         Cliente: {lead.customers[0].first_name} {lead.customers[0].last_name}
                       </span>
-                      <ExternalLink className="h-3 w-3 text-gray-400" />
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
                     </div>
                   </Link>
                 )}
@@ -527,7 +527,7 @@ export function LeadDetailDialog({
           {/* Descripción/Notas */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Descripción
               </h3>
@@ -536,7 +536,7 @@ export function LeadDetailDialog({
                   variant="ghost"
                   size="sm"
                   onClick={() => setEditingNotes(true)}
-                  className="h-8 text-gray-600"
+                  className="h-8 text-muted-foreground hover:text-foreground"
                 >
                   <Edit className="h-3 w-3 mr-1" />
                   Editar
@@ -573,13 +573,13 @@ export function LeadDetailDialog({
                 </div>
               )}
             </div>
-            <div className="rounded-md border border-gray-200 p-4 bg-white">
+            <div className="rounded-md border border-border p-4 bg-card">
               {editingNotes ? (
                 <Textarea
                   value={notesValue}
                   onChange={(e) => setNotesValue(e.target.value)}
                   placeholder="Escribe la descripción del lead..."
-                  className="min-h-[120px] bg-white"
+                  className="min-h-[120px] bg-background"
                   disabled={savingNotes}
                 />
               ) : (
@@ -590,7 +590,7 @@ export function LeadDetailDialog({
 
           {/* Comentarios */}
           <div className="space-y-3">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               Comentarios
             </h3>
@@ -601,7 +601,7 @@ export function LeadDetailDialog({
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Escribe un comentario..."
-                className="min-h-[80px] bg-white"
+                className="min-h-[80px] bg-background"
                 disabled={savingComment}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -625,17 +625,17 @@ export function LeadDetailDialog({
 
             {/* Lista de comentarios */}
             {loadingComments ? (
-              <div className="text-sm text-gray-500">Cargando comentarios...</div>
+              <div className="text-sm text-muted-foreground">Cargando comentarios...</div>
             ) : comments.length === 0 ? (
-              <div className="text-sm text-gray-500">No hay comentarios aún</div>
+              <div className="text-sm text-muted-foreground">No hay comentarios aún</div>
             ) : (
               <div className="space-y-3 max-h-60 overflow-y-auto">
                 {comments.map((comment) => (
-                  <div key={comment.id} className="rounded-md border border-gray-200 p-3 bg-white">
+                  <div key={comment.id} className="rounded-md border border-border p-3 bg-card">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-gray-100 text-gray-700">
+                          <AvatarFallback className="text-xs bg-muted text-muted-foreground">
                             {comment.users?.name
                               ?.split(" ")
                               .map((n) => n[0])
@@ -645,14 +645,14 @@ export function LeadDetailDialog({
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-xs font-medium text-gray-900">{comment.users?.name || "Usuario desconocido"}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs font-medium text-foreground">{comment.users?.name || "Usuario desconocido"}</p>
+                          <p className="text-xs text-muted-foreground">
                             {format(new Date(comment.created_at), "PPp")}
                           </p>
                         </div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.comment}</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{comment.comment}</p>
                   </div>
                 ))}
               </div>
@@ -664,22 +664,22 @@ export function LeadDetailDialog({
 
           {/* Información adicional */}
           <div className="space-y-3">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Información Adicional</h3>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Información Adicional</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Agencia</p>
-                <p className="font-medium text-gray-900">{lead.agencies?.name || "N/A"}</p>
+                <p className="text-muted-foreground">Agencia</p>
+                <p className="font-medium text-foreground">{lead.agencies?.name || "N/A"}</p>
               </div>
               <div>
-                <p className="text-gray-500">Creado</p>
-                <p className="font-medium text-gray-900">
+                <p className="text-muted-foreground">Creado</p>
+                <p className="font-medium text-foreground">
                   {format(new Date(lead.created_at), "PPp")}
                 </p>
               </div>
               {lead.updated_at && (
                 <div>
-                  <p className="text-gray-500">Actualizado</p>
-                  <p className="font-medium text-gray-900">
+                  <p className="text-muted-foreground">Actualizado</p>
+                  <p className="font-medium text-foreground">
                     {format(new Date(lead.updated_at), "PPp")}
                   </p>
                 </div>
@@ -689,7 +689,7 @@ export function LeadDetailDialog({
         </div>
 
         {/* Acciones */}
-        <DialogFooter className="flex-col sm:flex-row gap-2 border-t border-gray-200 pt-4 mt-6">
+        <DialogFooter className="flex-col sm:flex-row gap-2 border-t border-border pt-4 mt-6">
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             {/* Botón Agarrar Lead - solo si no tiene vendedor asignado Y no es WON */}
             {!lead.assigned_seller_id && canClaimLeads && lead.status !== "WON" && (
@@ -818,4 +818,3 @@ export function LeadDetailDialog({
     </Dialog>
   )
 }
-

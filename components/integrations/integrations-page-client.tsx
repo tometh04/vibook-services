@@ -216,7 +216,7 @@ export function IntegrationsPageClient() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
+            <div className="text-2xl font-bold text-muted-foreground">{stats.inactive}</div>
             <p className="text-xs text-muted-foreground">Inactivas</p>
           </CardContent>
         </Card>
@@ -364,7 +364,7 @@ export function IntegrationsPageClient() {
                             <StatusIcon className={`h-3 w-3 ${
                               integration.status === 'active' ? 'text-green-500' :
                               integration.status === 'error' ? 'text-red-500' :
-                              integration.status === 'pending' ? 'text-yellow-500' : 'text-gray-500'
+                              integration.status === 'pending' ? 'text-yellow-500' : 'text-muted-foreground'
                             }`} />
                             {status.label}
                           </Badge>

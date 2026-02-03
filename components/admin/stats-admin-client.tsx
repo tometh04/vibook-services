@@ -161,7 +161,7 @@ export function StatsAdminClient({ stats }: StatsAdminClientProps) {
               </div>
               <div className="flex items-center justify-between">
                 <div className="font-medium">Sin Pago</div>
-                <div className="font-bold text-gray-600">{stats.subscriptions.byStatus.unpaid}</div>
+                <div className="font-bold text-muted-foreground">{stats.subscriptions.byStatus.unpaid}</div>
               </div>
               <div className="flex items-center justify-between">
                 <div className="font-medium">Canceladas</div>

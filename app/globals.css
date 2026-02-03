@@ -62,40 +62,40 @@
   }
 
   .dark {
-    /* Background & Foreground - Tema oscuro mejorado */
-    --background: 240 10% 4%;      /* #0a0a0f - Fondo oscuro elegante */
-    --foreground: 0 0% 98%;       /* Texto casi blanco para buen contraste */
+    /* Background & Foreground - Tema oscuro refinado */
+    --background: 222 20% 8%;      /* #111827 - Fondo oscuro neutro */
+    --foreground: 210 40% 98%;     /* Texto claro con buen contraste */
     
     /* Cards - Con mejor contraste */
-    --card: 240 8% 8%;             /* Ligeramente más claro que background */
-    --card-foreground: 0 0% 98%;
-    --popover: 240 8% 8%;
-    --popover-foreground: 0 0% 98%;
+    --card: 222 18% 12%;           /* #1f2937 - Superficie */
+    --card-foreground: 210 40% 98%;
+    --popover: 222 18% 12%;
+    --popover-foreground: 210 40% 98%;
     
     /* Primary - Azul vibrante para dark mode */
-    --primary: 217 91% 60%;        /* Blue-400 - Más brillante en dark */
+    --primary: 214 90% 60%;        /* Azul más nítido en dark */
     --primary-foreground: 0 0% 100%;
     
     /* Success */
-    --success: 142 76% 46%;
+    --success: 142 76% 45%;
     --success-foreground: 0 0% 100%;
     
     /* Warning */
-    --warning: 38 92% 60%;
+    --warning: 38 92% 56%;
     --warning-foreground: 0 0% 100%;
     
     /* Destructive */
-    --destructive: 0 84% 65%;
+    --destructive: 0 84% 64%;
     --destructive-foreground: 0 0% 100%;
     
     /* Muted - Mejor contraste */
-    --muted: 240 6% 12%;           /* Más claro para mejor legibilidad */
-    --muted-foreground: 240 5% 70%; /* Texto muted más visible */
+    --muted: 222 14% 16%;          /* Superficie secundaria */
+    --muted-foreground: 215 20% 70%; /* Texto muted más visible */
     
     /* Borders - Más visibles */
-    --border: 240 6% 18%;         /* Bordes más visibles */
-    --input: 240 6% 18%;
-    --ring: 217 91% 60%;
+    --border: 222 14% 22%;         /* Bordes más visibles */
+    --input: 222 14% 22%;
+    --ring: 214 90% 60%;
     
     /* Charts - Colores vibrantes */
     --chart-1: 217 91% 60%;        /* Blue */
@@ -106,14 +106,14 @@
     --chart-6: 0 84% 60%;           /* Red */
     
     /* Sidebar - Tema oscuro mejorado */
-    --sidebar-background: 240 8% 6%;
-    --sidebar-foreground: 240 5% 96%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 222 18% 9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 214 90% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 12%;   /* Hover más visible */
-    --sidebar-accent-foreground: 240 5% 96%;
-    --sidebar-border: 240 6% 18%;  /* Bordes más visibles */
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 222 14% 17%;   /* Hover más visible */
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 14% 22%;  /* Bordes más visibles */
+    --sidebar-ring: 214 90% 60%;
   }
 }
 

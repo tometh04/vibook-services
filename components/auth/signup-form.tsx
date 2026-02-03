@@ -129,20 +129,20 @@ export function SignupForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Crear cuenta</CardTitle>
-        <CardDescription>
+    <Card className="w-full max-w-md border-slate-200/80 bg-white shadow-xl shadow-slate-200/40">
+      <CardHeader className="space-y-1 pb-2">
+        <CardTitle className="text-2xl font-semibold text-slate-900">Crear cuenta</CardTitle>
+        <CardDescription className="text-slate-500">
           Comenzá tu prueba gratuita y gestioná tu agencia de viajes
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-2">
         <Button
           type="button"
           variant="outline"
           onClick={handleSocialLogin}
           disabled={loading || !!socialLoading}
-          className="w-full h-12 text-base"
+          className="w-full h-12 text-base border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
         >
           {socialLoading === "google" ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -171,10 +171,10 @@ export function SignupForm() {
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <Separator />
+            <Separator className="bg-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
+            <span className="bg-white px-2 text-slate-400">
               O continuá con email
             </span>
           </div>
@@ -182,13 +182,13 @@ export function SignupForm() {
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {error && (
-            <Alert variant="destructive">
+            <Alert className="border-red-200 bg-red-50 text-red-700">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="name">Nombre completo</Label>
+            <Label htmlFor="name" className="text-slate-900">Nombre completo</Label>
             <Input
               id="name"
               type="text"
@@ -196,6 +196,7 @@ export function SignupForm() {
               {...form.register("name")}
               disabled={loading || !!socialLoading}
               autoComplete="name"
+              className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
             />
             {form.formState.errors.name && (
               <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
@@ -203,7 +204,7 @@ export function SignupForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-slate-900">Email</Label>
             <Input
               id="email"
               type="email"
@@ -211,6 +212,7 @@ export function SignupForm() {
               {...form.register("email")}
               disabled={loading || !!socialLoading}
               autoComplete="email"
+              className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
             />
             {form.formState.errors.email && (
               <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
@@ -218,30 +220,32 @@ export function SignupForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
+            <Label htmlFor="password" className="text-slate-900">Contraseña</Label>
             <Input
               id="password"
               type="password"
               {...form.register("password")}
               disabled={loading || !!socialLoading}
               autoComplete="new-password"
+              className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
             />
             {form.formState.errors.password && (
               <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-500">
               Mínimo 8 caracteres con mayúscula, minúscula y número
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="agencyName">Nombre de tu agencia</Label>
+            <Label htmlFor="agencyName" className="text-slate-900">Nombre de tu agencia</Label>
             <Input
               id="agencyName"
               type="text"
               placeholder="Mi Agencia de Viajes"
               {...form.register("agencyName")}
               disabled={loading || !!socialLoading}
+              className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
             />
             {form.formState.errors.agencyName && (
               <p className="text-sm text-destructive">{form.formState.errors.agencyName.message}</p>
@@ -249,20 +253,25 @@ export function SignupForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="city">Ciudad</Label>
+            <Label htmlFor="city" className="text-slate-900">Ciudad</Label>
             <Input
               id="city"
               type="text"
               placeholder="Buenos Aires"
               {...form.register("city")}
               disabled={loading || !!socialLoading}
+              className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
             />
             {form.formState.errors.city && (
               <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading || !!socialLoading}>
+          <Button
+            type="submit"
+            className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200/60 bg-none"
+            disabled={loading || !!socialLoading}
+          >
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -274,20 +283,20 @@ export function SignupForm() {
           </Button>
         </form>
 
-        <div className="text-center text-sm text-muted-foreground">
+        <div className="text-center text-sm text-slate-500">
           ¿Ya tenés una cuenta?{" "}
-          <Link href="/login" className="text-primary hover:underline font-medium">
+          <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
             Iniciar sesión
           </Link>
         </div>
 
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-xs text-center text-slate-500">
           Al crear una cuenta, aceptás nuestros{" "}
-          <Link href="/terms" className="text-primary hover:underline">
+          <Link href="/terms" className="text-blue-600 hover:text-blue-700">
             Términos de servicio
           </Link>{" "}
           y{" "}
-          <Link href="/privacy" className="text-primary hover:underline">
+          <Link href="/privacy" className="text-blue-600 hover:text-blue-700">
             Política de privacidad
           </Link>
         </p>

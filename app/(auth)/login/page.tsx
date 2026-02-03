@@ -8,12 +8,12 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       {/* Panel izquierdo con branding moderno */}
-      <div className="bg-[#0a0a0f] relative hidden lg:flex items-center justify-center overflow-hidden">
+      <div className="bg-[#0b1220] relative hidden lg:flex items-center justify-center overflow-hidden">
         {/* Animated background gradient orbs */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px]" />
+          <div className="absolute top-1/4 left-1/4 w-[520px] h-[520px] bg-sky-500/20 rounded-full blur-[130px] animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-[420px] h-[420px] bg-blue-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[640px] bg-cyan-400/10 rounded-full blur-[160px]" />
         </div>
 
         {/* Grid pattern overlay */}
@@ -30,9 +30,9 @@ export default function LoginPage() {
         <div className="relative z-10 px-8 text-white">
           <h2 className="text-4xl font-bold mb-4 leading-tight">
             El sistema de gestión definitivo<br />
-            para <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">AGENCIAS</span> de viajes
+            para <span className="bg-gradient-to-r from-sky-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">AGENCIAS</span> de viajes
           </h2>
-          <p className="text-gray-300 text-lg">Operaciones, clientes, finanzas y más en un solo lugar</p>
+          <p className="text-slate-300 text-lg">Operaciones, clientes, finanzas y más en un solo lugar</p>
         </div>
       </div>
       {/* Login centrado a la derecha */}
@@ -57,4 +57,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

@@ -130,20 +130,20 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
-        <CardDescription>
+    <Card className="w-full max-w-md border-slate-200/80 bg-white shadow-xl shadow-slate-200/40">
+      <CardHeader className="space-y-1 pb-2">
+        <CardTitle className="text-2xl font-semibold text-slate-900">Iniciar Sesión</CardTitle>
+        <CardDescription className="text-slate-500">
           Ingresa tus credenciales para acceder al sistema
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-2">
         <Button
           type="button"
           variant="outline"
           onClick={handleSocialLogin}
           disabled={loading || !!socialLoading}
-          className="w-full h-12 text-base"
+          className="w-full h-12 text-base border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
         >
           {socialLoading === "google" ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -172,10 +172,10 @@ export function LoginForm() {
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <Separator />
+            <Separator className="bg-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
+            <span className="bg-white px-2 text-slate-400">
               O continuá con email
             </span>
           </div>
@@ -183,12 +183,12 @@ export function LoginForm() {
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {error && (
-            <Alert className="text-red-600">
+            <Alert className="border-red-200 bg-red-50 text-red-700">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-slate-900">Email</Label>
             <Input
               id="email"
               type="email"
@@ -196,6 +196,7 @@ export function LoginForm() {
               {...form.register("email")}
               disabled={loading || !!socialLoading}
               autoComplete="email"
+              className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
             />
             {form.formState.errors.email && (
               <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
@@ -203,10 +204,10 @@ export function LoginForm() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password" className="text-slate-900">Contraseña</Label>
               <Link
                 href="/forgot-password"
-                className="text-xs text-primary hover:underline"
+                className="text-xs text-blue-600 hover:text-blue-700"
               >
                 ¿Olvidaste tu contraseña?
               </Link>
@@ -217,19 +218,24 @@ export function LoginForm() {
               {...form.register("password")}
               disabled={loading || !!socialLoading}
               autoComplete="current-password"
+              className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
             />
             {form.formState.errors.password && (
               <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full" disabled={loading || !!socialLoading}>
+          <Button
+            type="submit"
+            className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200/60 bg-none"
+            disabled={loading || !!socialLoading}
+          >
             {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>
         </form>
 
-        <div className="text-center text-sm text-muted-foreground">
+        <div className="text-center text-sm text-slate-500">
           ¿No tenés una cuenta?{" "}
-          <Link href="/signup" className="text-primary hover:underline font-medium">
+          <Link href="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
             Crear cuenta
           </Link>
         </div>
@@ -237,4 +243,3 @@ export function LoginForm() {
     </Card>
   )
 }
-

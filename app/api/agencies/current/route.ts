@@ -5,6 +5,16 @@ import { getUserAgencyIds } from "@/lib/permissions-api"
 
 export const dynamic = 'force-dynamic'
 
+function isMissingColumnError(error: any) {
+  const message = String(error?.message || "")
+  return (
+    error?.code === "PGRST204" ||
+    error?.code === "42703" ||
+    message.toLowerCase().includes("has_used_trial") ||
+    message.toLowerCase().includes("schema cache")
+  )
+}
+
 export async function GET() {
   try {
     const { user } = await getCurrentUser()
@@ -26,7 +36,34 @@ export async function GET() {
       .eq("id", agencyIds[0])
       .single()
 
-    if (error || !agency) {
+    if (error) {
+      if (isMissingColumnError(error)) {
+        const { data: fallbackAgency, error: fallbackError } = await supabase
+          .from("agencies")
+          .select("id, name")
+          .eq("id", agencyIds[0])
+          .single()
+
+        if (fallbackError || !fallbackAgency) {
+          return NextResponse.json(
+            { error: "Agencia no encontrada" },
+            { status: 404 }
+          )
+        }
+
+        return NextResponse.json({
+          id: fallbackAgency.id,
+          name: fallbackAgency.name,
+          has_used_trial: false,
+        })
+      }
+      return NextResponse.json(
+        { error: "Agencia no encontrada" },
+        { status: 404 }
+      )
+    }
+
+    if (!agency) {
       return NextResponse.json(
         { error: "Agencia no encontrada" },
         { status: 404 }

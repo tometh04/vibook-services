@@ -6,7 +6,7 @@ type User = Database['public']['Tables']['users']['Row']
 
 export async function getCurrentUser(): Promise<{ user: User; session: { user: any } }> {
   const supabase = await createServerClient()
-  
+
   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
   
   if (authError || !authUser) {

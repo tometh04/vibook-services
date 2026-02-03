@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Favicon Generator</title>
+</head>
+<body>
+    <canvas id="canvas" width="32" height="32"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Fondo transparente
+        ctx.clearRect(0, 0, 32, 32);
+        
+        // Dibujar símbolo infinito negro
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        
+        // Curva izquierda del infinito
+        ctx.moveTo(16, 16);
+        ctx.bezierCurveTo(8, 8, 2, 8, 2, 16);
+        ctx.bezierCurveTo(2, 24, 8, 24, 16, 16);
+        
+        // Curva derecha del infinito
+        ctx.bezierCurveTo(24, 8, 30, 8, 30, 16);
+        ctx.bezierCurveTo(30, 24, 24, 24, 16, 16);
+        
+        ctx.stroke();
+        
+        // Descargar
+        canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'favicon_temp.png';
+            a.click();
+        });
+    </script>
+</body>
+</html>

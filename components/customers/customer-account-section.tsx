@@ -157,10 +157,10 @@ export function CustomerAccountSection({ customerId }: CustomerAccountSectionPro
           <div className={`p-4 rounded-lg border ${
             balance > 0 
               ? "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800" 
-              : "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700"
+              : "bg-muted border-border"
           }`}>
             <div className={`flex items-center gap-2 ${
-              balance > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-600"
+              balance > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-muted-foreground"
             }`}>
               <TrendingDown className="h-4 w-4" />
               <span className="text-sm font-medium">Saldo Pendiente</span>
@@ -256,4 +256,3 @@ export function CustomerAccountSection({ customerId }: CustomerAccountSectionPro
     </Card>
   )
 }
-

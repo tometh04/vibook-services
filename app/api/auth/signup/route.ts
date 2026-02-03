@@ -97,16 +97,27 @@ export async function POST(request: Request) {
       )
     }
 
-    // Crear usuario en Supabase Auth
-    // Intentamos crear el usuario directamente - si ya existe, Supabase nos lo dirá
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Resolver origen para el redirect del email de verificación
+    const forwardedProto = request.headers.get("x-forwarded-proto")
+    const forwardedHost = request.headers.get("x-forwarded-host")
+    const origin =
+      request.headers.get("origin") ||
+      (forwardedProto && forwardedHost ? `${forwardedProto}://${forwardedHost}` : null) ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3044"
+
+    // Crear usuario en Supabase Auth y enviar email de verificación
+    // Usamos signUp para que Supabase dispare el email automáticamente
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
       email,
       password,
-      email_confirm: false, // El usuario debe verificar su email
-      user_metadata: {
-        name,
-        agency_name: agencyName,
-        city,
+      options: {
+        data: {
+          name,
+          agency_name: agencyName,
+          city,
+        },
+        emailRedirectTo: `${origin}/auth/verify-email?email=${encodeURIComponent(email)}`,
       },
     })
 
@@ -276,9 +287,8 @@ export async function POST(request: Request) {
       // No fallar si solo falla los settings
     }
 
-    // Supabase envía el email de verificación automáticamente cuando creamos el usuario
-    // con email_confirm: false. El email usará la redirect URL configurada en Supabase Dashboard
-    // que debe ser: https://vibookservicessaas.vercel.app/auth/verified
+    // Supabase envía el email de verificación automáticamente con signUp.
+    // El redirect vuelve a /auth/verify-email para completar el flujo.
 
     return NextResponse.json({
       success: true,

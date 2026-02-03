@@ -47,26 +47,26 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+      <Card className="w-full max-w-md border-slate-200/80 bg-white shadow-xl shadow-slate-200/40">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
+          <CardTitle className="text-2xl font-semibold text-center text-slate-900">
             Panel de Administración
           </CardTitle>
-          <CardDescription className="text-center">
+          <CardDescription className="text-center text-slate-500">
             Ingresa tus credenciales para acceder
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <Alert variant="destructive">
+              <Alert className="border-red-200 bg-red-50 text-red-700">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email">Usuario</Label>
+              <Label htmlFor="email" className="text-slate-900">Usuario</Label>
               <Input
                 id="email"
                 type="email"
@@ -76,11 +76,12 @@ export default function AdminLoginPage() {
                 required
                 disabled={loading}
                 autoComplete="username"
+                className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password" className="text-slate-900">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
@@ -90,12 +91,13 @@ export default function AdminLoginPage() {
                 required
                 disabled={loading}
                 autoComplete="current-password"
+                className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-offset-0"
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200/60 bg-none"
               disabled={loading}
             >
               {loading ? (
