@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export async function GET(request: Request) {
   try {
@@ -23,11 +24,13 @@ export async function GET(request: Request) {
         destination,
         operation_date,
         departure_date,
+        created_at,
         sale_amount_total,
         operator_cost,
         margin_amount,
         margin_percentage,
         currency,
+        sale_currency,
         status,
         product_type,
         seller_id,
@@ -66,16 +69,53 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener reporte" }, { status: 500 })
     }
 
-    // Calcular totales
+    const operationsArray = operations || []
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const arsOperations = operationsArray.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+    const rateDates = arsOperations.map((op: any) => op.operation_date || op.departure_date || op.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForOperation = (op: any) => {
+      const dateValue = op.operation_date || op.departure_date || op.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
+    }
+
+    const enrichedOperations = operationsArray.map((op: any) => {
+      const currency = op.sale_currency || op.currency || "USD"
+      const sale = Number(op.sale_amount_total) || 0
+      const cost = Number(op.operator_cost) || 0
+      const margin = Number(op.margin_amount) || 0
+      if (currency === "ARS") {
+        const rate = getRateForOperation(op)
+        const divisor = rate || 1
+        return {
+          ...op,
+          sale_amount_usd: sale / divisor,
+          operator_cost_usd: cost / divisor,
+          margin_amount_usd: margin / divisor,
+          exchange_rate_used: rate,
+        }
+      }
+      return {
+        ...op,
+        sale_amount_usd: sale,
+        operator_cost_usd: cost,
+        margin_amount_usd: margin,
+        exchange_rate_used: null,
+      }
+    })
+
+    // Calcular totales (USD)
     const totals: any = {
-      count: operations?.length || 0,
+      count: enrichedOperations.length || 0,
       total_sale_usd: 0,
-      total_sale_ars: 0,
       total_cost_usd: 0,
-      total_cost_ars: 0,
       total_margin_usd: 0,
-      total_margin_ars: 0,
-      currency: "USD", // Moneda principal según cuál tenga más ventas
+      currency: "USD",
       total_sale: 0,
       total_cost: 0,
       total_margin: 0,
@@ -84,47 +124,25 @@ export async function GET(request: Request) {
       avg_margin_percent: 0,
     }
 
-    for (const op of operations || []) {
-      const sale = Number(op.sale_amount_total) || 0
-      const cost = Number(op.operator_cost) || 0
-      const margin = Number(op.margin_amount) || 0
-
-      if (op.currency === "ARS") {
-        totals.total_sale_ars += sale
-        totals.total_cost_ars += cost
-        totals.total_margin_ars += margin
-      } else {
-        totals.total_sale_usd += sale
-        totals.total_cost_usd += cost
-        totals.total_margin_usd += margin
-      }
+    for (const op of enrichedOperations) {
+      totals.total_sale_usd += Number(op.sale_amount_usd) || 0
+      totals.total_cost_usd += Number(op.operator_cost_usd) || 0
+      totals.total_margin_usd += Number(op.margin_amount_usd) || 0
     }
 
-    // Determinar moneda principal
-    if (totals.total_sale_ars > totals.total_sale_usd) {
-      totals.currency = "ARS"
-      totals.total_sale = totals.total_sale_ars
-      totals.total_cost = totals.total_cost_ars
-      totals.total_margin = totals.total_margin_ars
-      totals.total_sale_other = totals.total_sale_usd
-      totals.total_margin_other = totals.total_margin_usd
-    } else {
-      totals.total_sale = totals.total_sale_usd
-      totals.total_cost = totals.total_cost_usd
-      totals.total_margin = totals.total_margin_usd
-      totals.total_sale_other = totals.total_sale_ars
-      totals.total_margin_other = totals.total_margin_ars
-    }
+    totals.total_sale = totals.total_sale_usd
+    totals.total_cost = totals.total_cost_usd
+    totals.total_margin = totals.total_margin_usd
 
     totals.avg_margin_percent = totals.total_sale > 0 ? (totals.total_margin / totals.total_sale) * 100 : 0
 
-    let result: any = { totals, operations: operations || [] }
+    let result: any = { totals, operations: enrichedOperations }
 
     // Agrupar por vendedor
     if (viewType === "seller" || viewType === "all") {
       const bySeller: Record<string, any> = {}
       
-      for (const op of operations || []) {
+      for (const op of enrichedOperations) {
         const sellerId = op.seller_id || "unknown"
         const sellerName = (op.sellers as any)?.name || "Sin asignar"
         
@@ -134,37 +152,24 @@ export async function GET(request: Request) {
             seller_name: sellerName,
             count: 0,
             total_sale_usd: 0,
-            total_sale_ars: 0,
             total_cost_usd: 0,
-            total_cost_ars: 0,
             total_margin_usd: 0,
-            total_margin_ars: 0,
             margins: [],
           }
         }
 
         bySeller[sellerId].count++
-        const sale = Number(op.sale_amount_total) || 0
-        const cost = Number(op.operator_cost) || 0
-        const margin = Number(op.margin_amount) || 0
-
-        if (op.currency === "ARS") {
-          bySeller[sellerId].total_sale_ars += sale
-          bySeller[sellerId].total_cost_ars += cost
-          bySeller[sellerId].total_margin_ars += margin
-        } else {
-          bySeller[sellerId].total_sale_usd += sale
-          bySeller[sellerId].total_cost_usd += cost
-          bySeller[sellerId].total_margin_usd += margin
-        }
+        bySeller[sellerId].total_sale_usd += Number(op.sale_amount_usd) || 0
+        bySeller[sellerId].total_cost_usd += Number(op.operator_cost_usd) || 0
+        bySeller[sellerId].total_margin_usd += Number(op.margin_amount_usd) || 0
         bySeller[sellerId].margins.push(Number(op.margin_percentage) || 0)
       }
 
       const sellerData = Object.values(bySeller).map((s: any) => {
-        const currency = s.total_sale_ars > s.total_sale_usd ? "ARS" : "USD"
-        const total_sale = currency === "ARS" ? s.total_sale_ars : s.total_sale_usd
-        const total_cost = currency === "ARS" ? s.total_cost_ars : s.total_cost_usd
-        const total_margin = currency === "ARS" ? s.total_margin_ars : s.total_margin_usd
+        const currency = "USD"
+        const total_sale = s.total_sale_usd
+        const total_cost = s.total_cost_usd
+        const total_margin = s.total_margin_usd
         const avg_margin_percent = total_sale > 0 ? (total_margin / total_sale) * 100 : 0
 
         return {
@@ -184,7 +189,7 @@ export async function GET(request: Request) {
     if (viewType === "operator" || viewType === "all") {
       const byOperator: Record<string, any> = {}
       
-      for (const op of operations || []) {
+      for (const op of enrichedOperations) {
         const operatorId = op.operator_id || "unknown"
         const operatorName = (op.operators as any)?.name || "Sin operador"
         
@@ -194,31 +199,21 @@ export async function GET(request: Request) {
             operator_name: operatorName,
             count: 0,
             total_cost_usd: 0,
-            total_cost_ars: 0,
             total_margin_usd: 0,
-            total_margin_ars: 0,
             margins: [],
           }
         }
 
         byOperator[operatorId].count++
-        const cost = Number(op.operator_cost) || 0
-        const margin = Number(op.margin_amount) || 0
-
-        if (op.currency === "ARS") {
-          byOperator[operatorId].total_cost_ars += cost
-          byOperator[operatorId].total_margin_ars += margin
-        } else {
-          byOperator[operatorId].total_cost_usd += cost
-          byOperator[operatorId].total_margin_usd += margin
-        }
+        byOperator[operatorId].total_cost_usd += Number(op.operator_cost_usd) || 0
+        byOperator[operatorId].total_margin_usd += Number(op.margin_amount_usd) || 0
         byOperator[operatorId].margins.push(Number(op.margin_percentage) || 0)
       }
 
       const operatorData = Object.values(byOperator).map((o: any) => {
-        const currency = o.total_cost_ars > o.total_cost_usd ? "ARS" : "USD"
-        const total_cost = currency === "ARS" ? o.total_cost_ars : o.total_cost_usd
-        const total_margin = currency === "ARS" ? o.total_margin_ars : o.total_margin_usd
+        const currency = "USD"
+        const total_cost = o.total_cost_usd
+        const total_margin = o.total_margin_usd
         const avg_margin_percent = total_cost > 0 ? (total_margin / total_cost) * 100 : 0
 
         return {
@@ -237,7 +232,7 @@ export async function GET(request: Request) {
     if (viewType === "product" || viewType === "all") {
       const byProduct: Record<string, any> = {}
       
-      for (const op of operations || []) {
+      for (const op of enrichedOperations) {
         const productType = op.product_type || "Sin clasificar"
         
         if (!byProduct[productType]) {
@@ -245,31 +240,21 @@ export async function GET(request: Request) {
             product_type: productType,
             count: 0,
             total_sale_usd: 0,
-            total_sale_ars: 0,
             total_margin_usd: 0,
-            total_margin_ars: 0,
             margins: [],
           }
         }
 
         byProduct[productType].count++
-        const sale = Number(op.sale_amount_total) || 0
-        const margin = Number(op.margin_amount) || 0
-
-        if (op.currency === "ARS") {
-          byProduct[productType].total_sale_ars += sale
-          byProduct[productType].total_margin_ars += margin
-        } else {
-          byProduct[productType].total_sale_usd += sale
-          byProduct[productType].total_margin_usd += margin
-        }
+        byProduct[productType].total_sale_usd += Number(op.sale_amount_usd) || 0
+        byProduct[productType].total_margin_usd += Number(op.margin_amount_usd) || 0
         byProduct[productType].margins.push(Number(op.margin_percentage) || 0)
       }
 
       const productData = Object.values(byProduct).map((p: any) => {
-        const currency = p.total_sale_ars > p.total_sale_usd ? "ARS" : "USD"
-        const total_sale = currency === "ARS" ? p.total_sale_ars : p.total_sale_usd
-        const total_margin = currency === "ARS" ? p.total_margin_ars : p.total_margin_usd
+        const currency = "USD"
+        const total_sale = p.total_sale_usd
+        const total_margin = p.total_margin_usd
         const avg_margin_percent = total_sale > 0 ? (total_margin / total_sale) * 100 : 0
 
         return {
@@ -290,4 +275,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Error interno" }, { status: 500 })
   }
 }
-

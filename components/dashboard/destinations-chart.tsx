@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { useChartColors } from "@/hooks/use-chart-colors"
+import { formatUSD, formatUSDCompact } from "@/lib/currency"
 
 interface DestinationData {
   destination: string
@@ -26,17 +27,11 @@ interface DestinationsChartProps {
 const chartConfig = {
   Ventas: {
     label: "Ventas",
-    theme: {
-      light: "hsl(45, 93%, 47%)",
-      dark: "hsl(45, 93%, 65%)",
-    },
+    color: "hsl(var(--chart-1))",
   },
   Operaciones: {
     label: "Operaciones",
-    theme: {
-      light: "hsl(43, 96%, 56%)",
-      dark: "hsl(43, 96%, 70%)",
-    },
+    color: "hsl(var(--chart-3))",
   },
 } satisfies ChartConfig
 
@@ -74,7 +69,7 @@ export const DestinationsChart = memo(function DestinationsChart({ data }: Desti
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`}
+              tickFormatter={(value) => formatUSDCompact(Number(value))}
             />
             <YAxis
               dataKey="name"
@@ -86,6 +81,11 @@ export const DestinationsChart = memo(function DestinationsChart({ data }: Desti
             />
             <ChartTooltip
               cursor={false}
+              formatter={(value, name) =>
+                name === "Operaciones"
+                  ? Number(value).toLocaleString("es-AR")
+                  : formatUSD(Number(value))
+              }
               content={<ChartTooltipContent />}
             />
             <Bar dataKey="Ventas" fill={colors["1"]} radius={8} />

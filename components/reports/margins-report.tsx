@@ -19,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import { TrendingUp, Download, Loader2, Building2, Package, Users } from "lucide-react"
@@ -40,6 +39,7 @@ import {
   Cell,
 } from "recharts"
 import { useRouter } from "next/navigation"
+import { formatUSD } from "@/lib/currency"
 
 interface MarginsReportProps {
   userRole: string
@@ -97,20 +97,19 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
     let rows: any[] = []
 
     if (viewType === "detail") {
-      headers = ["Fecha", "Código", "Destino", "Vendedor", "Venta", "Costo", "Margen", "% Margen", "Moneda"]
+      headers = ["Fecha", "Código", "Destino", "Vendedor", "Venta USD", "Costo USD", "Margen USD", "% Margen"]
       rows = (data.operations || []).map((op: any) => [
         op.operation_date || op.departure_date,
         op.file_code || "-",
         op.destination,
         op.sellers?.name || "-",
-        op.sale_amount_total,
-        op.operator_cost,
-        op.margin_amount,
+        op.sale_amount_usd,
+        op.operator_cost_usd,
+        op.margin_amount_usd,
         `${op.margin_percentage?.toFixed(1) || 0}%`,
-        op.currency,
       ])
     } else if (viewType === "seller") {
-      headers = ["Vendedor", "Operaciones", "Venta Total", "Costo Total", "Margen Total", "% Margen Promedio"]
+      headers = ["Vendedor", "Operaciones", "Venta Total USD", "Costo Total USD", "Margen Total USD", "% Margen Promedio"]
       rows = (data.bySeller || []).map((s: any) => [
         s.seller_name,
         s.count,
@@ -120,7 +119,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
         `${s.avg_margin_percent?.toFixed(1) || 0}%`,
       ])
     } else if (viewType === "operator") {
-      headers = ["Operador", "Operaciones", "Costo Total", "Margen Generado", "% Margen Promedio"]
+      headers = ["Operador", "Operaciones", "Costo Total USD", "Margen Generado USD", "% Margen Promedio"]
       rows = (data.byOperator || []).map((o: any) => [
         o.operator_name,
         o.count,
@@ -129,7 +128,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
         `${o.avg_margin_percent?.toFixed(1) || 0}%`,
       ])
     } else if (viewType === "product") {
-      headers = ["Tipo Producto", "Operaciones", "Venta Total", "Margen Total", "% Margen Promedio"]
+      headers = ["Tipo Producto", "Operaciones", "Venta Total USD", "Margen Total USD", "% Margen Promedio"]
       rows = (data.byProduct || []).map((p: any) => [
         p.product_type,
         p.count,
@@ -175,7 +174,16 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
   const totals = data?.totals || {}
 
   // Colores para gráficos
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
+  const COLORS = [
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+  ]
+
+  const kpiCardClass =
+    "border-border/60 bg-gradient-to-br from-primary/5 via-background to-background/80 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] dark:from-primary/10"
 
   return (
     <div className="space-y-6">
@@ -282,7 +290,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Operaciones
@@ -293,7 +301,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
             <div className="text-2xl font-bold">{totals.count || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Venta Total
@@ -302,14 +310,14 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totals.currency === "USD" ? "US$" : "$"} {Math.round(totals.total_sale || 0).toLocaleString("es-AR")}
+              {formatUSD(totals.total_sale || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {totals.currency === "USD" ? "ARS" : "USD"}: {Math.round(totals.total_sale_other || 0).toLocaleString("es-AR")}
+              Sobre el período seleccionado
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Margen Total
@@ -318,14 +326,14 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {totals.currency === "USD" ? "US$" : "$"} {Math.round(totals.total_margin || 0).toLocaleString("es-AR")}
+              {formatUSD(totals.total_margin || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {totals.currency === "USD" ? "ARS" : "USD"}: {Math.round(totals.total_margin_other || 0).toLocaleString("es-AR")}
+              Rentabilidad consolidada
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               % Margen Promedio
@@ -374,16 +382,15 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                     <TableHead>Código</TableHead>
                     <TableHead>Destino</TableHead>
                     <TableHead>Vendedor</TableHead>
-                    <TableHead className="text-right">Venta</TableHead>
-                    <TableHead className="text-right">Costo</TableHead>
-                    <TableHead className="text-right">Margen</TableHead>
-                    <TableHead className="text-right">% Margen</TableHead>
-                    <TableHead>Moneda</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.operations.map((op: any) => (
+                  <TableHead className="text-right">Venta</TableHead>
+                  <TableHead className="text-right">Costo</TableHead>
+                  <TableHead className="text-right">Margen</TableHead>
+                  <TableHead className="text-right">% Margen</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.operations.map((op: any) => (
                     <TableRow key={op.id}>
                       <TableCell className="text-xs">
                         {op.operation_date 
@@ -394,21 +401,18 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                       <TableCell className="text-sm">{op.destination || "-"}</TableCell>
                       <TableCell className="text-sm">{op.sellers?.name || "-"}</TableCell>
                       <TableCell className="text-right font-medium">
-                        {op.currency === "USD" ? "US$" : "$"} {Math.round(op.sale_amount_total || 0).toLocaleString("es-AR")}
+                        {formatUSD(op.sale_amount_usd || 0)}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {op.currency === "USD" ? "US$" : "$"} {Math.round(op.operator_cost || 0).toLocaleString("es-AR")}
+                        {formatUSD(op.operator_cost_usd || 0)}
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${(op.margin_amount || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {op.currency === "USD" ? "US$" : "$"} {Math.round(op.margin_amount || 0).toLocaleString("es-AR")}
+                      <TableCell className={`text-right font-medium ${(op.margin_amount_usd || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {formatUSD(op.margin_amount_usd || 0)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={(op.margin_percentage || 0) >= 20 ? "default" : "secondary"} className="text-xs">
                           {(op.margin_percentage || 0).toFixed(1)}%
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">{op.currency}</Badge>
                       </TableCell>
                       <TableCell>
                         <Button
@@ -433,10 +437,10 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vendedor</TableHead>
-                    <TableHead className="text-right">Operaciones</TableHead>
-                    <TableHead className="text-right">Venta Total</TableHead>
-                    <TableHead className="text-right">Costo Total</TableHead>
-                    <TableHead className="text-right">Margen Total</TableHead>
+                  <TableHead className="text-right">Operaciones</TableHead>
+                  <TableHead className="text-right">Venta Total</TableHead>
+                  <TableHead className="text-right">Costo Total</TableHead>
+                  <TableHead className="text-right">Margen Total</TableHead>
                     <TableHead className="text-right">% Margen Prom.</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -455,13 +459,13 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                       </TableCell>
                       <TableCell className="text-right">{s.count}</TableCell>
                       <TableCell className="text-right font-medium">
-                        {s.currency === "USD" ? "US$" : "$"} {Math.round(s.total_sale).toLocaleString("es-AR")}
+                        {formatUSD(s.total_sale)}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {s.currency === "USD" ? "US$" : "$"} {Math.round(s.total_cost).toLocaleString("es-AR")}
+                        {formatUSD(s.total_cost)}
                       </TableCell>
                       <TableCell className={`text-right font-medium ${s.total_margin >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {s.currency === "USD" ? "US$" : "$"} {Math.round(s.total_margin).toLocaleString("es-AR")}
+                        {formatUSD(s.total_margin)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={s.avg_margin_percent >= 20 ? "default" : "secondary"}>
@@ -502,10 +506,10 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                       </TableCell>
                       <TableCell className="text-right">{o.count}</TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {o.currency === "USD" ? "US$" : "$"} {Math.round(o.total_cost).toLocaleString("es-AR")}
+                        {formatUSD(o.total_cost)}
                       </TableCell>
                       <TableCell className={`text-right font-medium ${o.total_margin >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {o.currency === "USD" ? "US$" : "$"} {Math.round(o.total_margin).toLocaleString("es-AR")}
+                        {formatUSD(o.total_margin)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={o.avg_margin_percent >= 20 ? "default" : "secondary"}>
@@ -547,10 +551,10 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                         </TableCell>
                         <TableCell className="text-right">{p.count}</TableCell>
                         <TableCell className="text-right font-medium">
-                          {p.currency === "USD" ? "US$" : "$"} {Math.round(p.total_sale).toLocaleString("es-AR")}
+                          {formatUSD(p.total_sale)}
                         </TableCell>
                         <TableCell className={`text-right font-medium ${p.total_margin >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {p.currency === "USD" ? "US$" : "$"} {Math.round(p.total_margin).toLocaleString("es-AR")}
+                          {formatUSD(p.total_margin)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Badge variant={p.avg_margin_percent >= 20 ? "default" : "secondary"}>
@@ -590,7 +594,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip formatter={(value: number) => formatUSD(value)} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -604,4 +608,3 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
     </div>
   )
 }
-

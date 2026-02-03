@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { startOfMonth, endOfMonth, subMonths, format, getMonth, getYear } from "date-fns"
 import { es } from "date-fns/locale"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export async function GET(request: Request) {
   try {
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
 
     // Query base
     let query = (supabase.from("operations") as any)
-      .select("sale_amount_total, margin_amount, currency, departure_date, created_at")
+      .select("sale_amount_total, margin_amount, currency, sale_currency, departure_date, created_at")
       .in("status", ["CONFIRMED", "TRAVELLED", "CLOSED"])
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString())
@@ -45,6 +46,21 @@ export async function GET(request: Request) {
     if (error) {
       console.error("Error fetching operations:", error)
       return NextResponse.json({ error: "Error al obtener datos" }, { status: 500 })
+    }
+
+    const operationsArray = operations || []
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const arsOperations = operationsArray.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+    const rateDates = arsOperations.map((op: any) => op.departure_date || op.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForOperation = (op: any) => {
+      const dateValue = op.departure_date || op.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
     }
 
     // Generar estructura de meses
@@ -72,12 +88,22 @@ export async function GET(request: Request) {
     }
 
     // Agregar datos de operaciones
-    for (const op of operations || []) {
+    for (const op of operationsArray) {
       const date = new Date(op.created_at)
       const key = format(date, "yyyy-MM")
       if (monthsData[key]) {
-        monthsData[key].sales += op.sale_amount_total || 0
-        monthsData[key].margin += op.margin_amount || 0
+        const currency = op.sale_currency || op.currency || "USD"
+        const saleAmount = op.sale_amount_total || 0
+        const marginAmount = op.margin_amount || 0
+        if (currency === "ARS") {
+          const rate = getRateForOperation(op)
+          const divisor = rate || 1
+          monthsData[key].sales += saleAmount / divisor
+          monthsData[key].margin += marginAmount / divisor
+        } else {
+          monthsData[key].sales += saleAmount
+          monthsData[key].margin += marginAmount
+        }
         monthsData[key].operationCount += 1
       }
     }
@@ -130,4 +156,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-

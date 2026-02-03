@@ -45,6 +45,7 @@ import {
   Line,
   Legend,
 } from "recharts"
+import { formatUSD } from "@/lib/currency"
 
 // EXACTAMENTE igual a SalesStatistics
 interface LeadsStatistics {
@@ -108,7 +109,13 @@ interface LeadsStatistics {
   }
 }
 
-const PIPELINE_COLORS = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#ef4444']
+const PIPELINE_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+]
 const SOURCE_COLORS: Record<string, string> = {
   Instagram: '#E1306C',
   WhatsApp: '#25D366',
@@ -116,15 +123,14 @@ const SOURCE_COLORS: Record<string, string> = {
   Otro: '#6b7280',
 }
 
-const REGION_COLORS = ['#3b82f6', '#06b6d4', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b']
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const REGION_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-6))",
+]
 
 const getSourceIcon = (source: string) => {
   switch (source) {
@@ -189,6 +195,9 @@ export function LeadsStatisticsPageClient() {
     )
   }
 
+  const kpiCardClass =
+    "border-border/60 bg-gradient-to-br from-primary/5 via-background to-background/80 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] dark:from-primary/10"
+
   return (
     <div className="space-y-6">
       <Breadcrumb>
@@ -231,7 +240,7 @@ export function LeadsStatisticsPageClient() {
 
       {/* Cards de resumen - EXACTAMENTE igual a sales-statistics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -244,7 +253,7 @@ export function LeadsStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Activos</CardTitle>
             <Target className="h-4 w-4 text-orange-500" />
@@ -257,7 +266,7 @@ export function LeadsStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tasa de Conversión</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
@@ -272,13 +281,13 @@ export function LeadsStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Depósitos</CardTitle>
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.overview.totalDeposits)}</div>
+            <div className="text-2xl font-bold text-green-600">{formatUSD(stats.overview.totalDeposits)}</div>
             <p className="text-xs text-muted-foreground">
               total en depósitos
             </p>
@@ -298,15 +307,15 @@ export function LeadsStatisticsPageClient() {
               <div key={stage.status} className="text-center">
                 <div 
                   className="rounded-lg p-4 mb-2"
-                  style={{ backgroundColor: `${PIPELINE_COLORS[index]}20` }}
+                  style={{ backgroundColor: `hsl(${PIPELINE_COLORS[index]} / 0.12)` }}
                 >
-                  <div className="text-3xl font-bold" style={{ color: PIPELINE_COLORS[index] }}>
+                  <div className="text-3xl font-bold" style={{ color: `hsl(${PIPELINE_COLORS[index]})` }}>
                     {stage.count}
                   </div>
                 </div>
                 <p className="font-medium">{stage.label}</p>
                 {stage.value > 0 && (
-                  <p className="text-xs text-muted-foreground">{formatCurrency(stage.value)}</p>
+                  <p className="text-xs text-muted-foreground">{formatUSD(stage.value)}</p>
                 )}
               </div>
             ))}
@@ -335,25 +344,25 @@ export function LeadsStatisticsPageClient() {
                     type="monotone" 
                     dataKey="newLeads" 
                     name="Nuevos"
-                    stroke="#f97316" 
+                    stroke="hsl(var(--chart-1))" 
                     strokeWidth={2}
-                    dot={{ fill: '#f97316' }}
+                    dot={{ fill: 'hsl(var(--chart-1))' }}
                   />
                   <Line 
                     type="monotone" 
                     dataKey="wonLeads" 
                     name="Ganados"
-                    stroke="#22c55e" 
+                    stroke="hsl(var(--chart-5))" 
                     strokeWidth={2}
-                    dot={{ fill: '#22c55e' }}
+                    dot={{ fill: 'hsl(var(--chart-5))' }}
                   />
                   <Line 
                     type="monotone" 
                     dataKey="lostLeads" 
                     name="Perdidos"
-                    stroke="#ef4444" 
+                    stroke="hsl(var(--chart-6))" 
                     strokeWidth={2}
-                    dot={{ fill: '#ef4444' }}
+                    dot={{ fill: 'hsl(var(--chart-6))' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -377,9 +386,9 @@ export function LeadsStatisticsPageClient() {
                   <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${v}%`} />
                   <Tooltip />
                   <Legend />
-                  <Bar yAxisId="left" dataKey="count" name="Leads" fill="#3b82f6" />
-                  <Bar yAxisId="left" dataKey="won" name="Ganados" fill="#22c55e" />
-                  <Line yAxisId="right" type="monotone" dataKey="conversionRate" name="Conversión %" stroke="#f97316" />
+                  <Bar yAxisId="left" dataKey="count" name="Leads" fill="hsl(var(--chart-1))" />
+                  <Bar yAxisId="left" dataKey="won" name="Ganados" fill="hsl(var(--chart-5))" />
+                  <Line yAxisId="right" type="monotone" dataKey="conversionRate" name="Conversión %" stroke="hsl(var(--chart-3))" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -403,7 +412,7 @@ export function LeadsStatisticsPageClient() {
                     labelLine={false}
                     label={({ region, percent }) => `${region}: ${(percent * 100).toFixed(0)}%`}
                     outerRadius={100}
-                    fill="#8884d8"
+                    fill="hsl(var(--chart-3))"
                     dataKey="count"
                   >
                     {stats.distributions.byRegion.map((entry, index) => (

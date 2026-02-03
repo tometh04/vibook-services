@@ -45,6 +45,7 @@ import {
   Line,
   Legend,
 } from "recharts"
+import { formatUSD } from "@/lib/currency"
 
 interface CustomerStatistics {
   overview: {
@@ -90,15 +91,14 @@ interface CustomerStatistics {
   }
 }
 
-const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899']
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-6))",
+]
 
 export function CustomersStatisticsPageClient() {
   const { toast } = useToast()
@@ -150,6 +150,9 @@ export function CustomersStatisticsPageClient() {
     )
   }
 
+  const kpiCardClass =
+    "border-border/60 bg-gradient-to-br from-primary/5 via-background to-background/80 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] dark:from-primary/10"
+
   return (
     <div className="space-y-6">
       <Breadcrumb>
@@ -192,7 +195,7 @@ export function CustomersStatisticsPageClient() {
 
       {/* Cards de resumen */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Clientes</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -205,7 +208,7 @@ export function CustomersStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Crecimiento</CardTitle>
             {stats.overview.growthPercentage >= 0 ? (
@@ -224,20 +227,20 @@ export function CustomersStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Gasto Promedio</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.overview.avgSpentPerCustomer)}</div>
+            <div className="text-2xl font-bold">{formatUSD(stats.overview.avgSpentPerCustomer)}</div>
             <p className="text-xs text-muted-foreground">
               por cliente
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Operaciones Prom.</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
@@ -272,9 +275,9 @@ export function CustomersStatisticsPageClient() {
                     type="monotone" 
                     dataKey="count" 
                     name="Nuevos clientes"
-                    stroke="#10b981" 
+                    stroke="hsl(var(--chart-5))" 
                     strokeWidth={2}
-                    dot={{ fill: '#10b981' }}
+                    dot={{ fill: 'hsl(var(--chart-5))' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -296,7 +299,7 @@ export function CustomersStatisticsPageClient() {
                   <XAxis type="number" />
                   <YAxis dataKey="range" type="category" width={100} />
                   <Tooltip />
-                  <Bar dataKey="count" name="Clientes" fill="#3b82f6" />
+                  <Bar dataKey="count" name="Clientes" fill="hsl(var(--chart-1))" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -320,7 +323,7 @@ export function CustomersStatisticsPageClient() {
                     labelLine={false}
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     outerRadius={100}
-                    fill="#8884d8"
+                    fill="hsl(var(--chart-3))"
                     dataKey="value"
                   >
                     {stats.distributions.activeVsInactive.map((entry, index) => (
@@ -372,7 +375,7 @@ export function CustomersStatisticsPageClient() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(customer.totalSpent)}</TableCell>
+                    <TableCell className="text-right">{formatUSD(customer.totalSpent)}</TableCell>
                     <TableCell className="text-right">{customer.totalOperations}</TableCell>
                   </TableRow>
                 ))}
@@ -414,7 +417,7 @@ export function CustomersStatisticsPageClient() {
                     </TableCell>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell className="text-right">{customer.totalOperations}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(customer.totalSpent)}</TableCell>
+                    <TableCell className="text-right">{formatUSD(customer.totalSpent)}</TableCell>
                   </TableRow>
                 ))}
                 {stats.rankings.topByFrequency.length === 0 && (

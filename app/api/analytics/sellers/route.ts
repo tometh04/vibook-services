@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 // Forzar ruta dinámica (usa cookies para autenticación)
 export const dynamic = 'force-dynamic'
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     // First, get operations without the relation to avoid potential issues
       let query = supabase
         .from("operations")
-      .select("sale_amount_total, margin_amount, seller_id")
+      .select("sale_amount_total, margin_amount, seller_id, currency, sale_currency, departure_date, created_at")
       .neq("status", "CANCELLED")
 
       // Apply role-based filtering
@@ -96,8 +97,23 @@ export async function GET(request: Request) {
       }
       }
 
-      // Group by seller
-      const sellerStats = (operations || []).reduce((acc: any, op: any) => {
+      const operationsArray = operations || []
+      const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+      const arsOperations = operationsArray.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+      const rateDates = arsOperations.map((op: any) => op.departure_date || op.created_at || new Date())
+      const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+      const getRateForOperation = (op: any) => {
+        const dateValue = op.departure_date || op.created_at || new Date()
+        const dateStr = typeof dateValue === "string"
+          ? dateValue.split("T")[0]
+          : dateValue.toISOString().split("T")[0]
+        const rate = exchangeRatesMap.get(dateStr) || 0
+        return rate > 0 ? rate : latestExchangeRate
+      }
+
+      // Group by seller (USD)
+      const sellerStats = operationsArray.reduce((acc: any, op: any) => {
         const sellerId = op.seller_id
       if (!sellerId) return acc
 
@@ -114,8 +130,17 @@ export async function GET(request: Request) {
           }
         }
 
-        acc[sellerId].totalSales += op.sale_amount_total || 0
-        acc[sellerId].totalMargin += op.margin_amount || 0
+        const currency = op.sale_currency || op.currency || "USD"
+        const saleAmount = op.sale_amount_total || 0
+        const marginAmount = op.margin_amount || 0
+        if (currency === "ARS") {
+          const rate = getRateForOperation(op)
+          acc[sellerId].totalSales += rate ? saleAmount / rate : 0
+          acc[sellerId].totalMargin += rate ? marginAmount / rate : 0
+        } else {
+          acc[sellerId].totalSales += saleAmount
+          acc[sellerId].totalMargin += marginAmount
+        }
         acc[sellerId].operationsCount += 1
 
         return acc
@@ -139,4 +164,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message || "Error al obtener datos de vendedores" }, { status: 500 })
   }
 }
-

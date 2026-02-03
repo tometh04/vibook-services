@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export async function GET(request: Request) {
   try {
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
         margin_amount,
         margin_percentage,
         currency,
+        sale_currency,
         status,
         seller_id,
         agency_id,
@@ -62,33 +64,64 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener reporte" }, { status: 500 })
     }
 
-    // Calcular totales
+    const operationsArray = operations || []
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const arsOperations = operationsArray.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+    const rateDates = arsOperations.map((op: any) => op.operation_date || op.departure_date || op.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForOperation = (op: any) => {
+      const dateValue = op.operation_date || op.departure_date || op.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
+    }
+
+    const enrichedOperations = operationsArray.map((op: any) => {
+      const currency = op.sale_currency || op.currency || "USD"
+      const sale = Number(op.sale_amount_total) || 0
+      const cost = Number(op.operator_cost) || 0
+      const margin = Number(op.margin_amount) || 0
+      if (currency === "ARS") {
+        const rate = getRateForOperation(op)
+        const divisor = rate || 1
+        return {
+          ...op,
+          sale_amount_usd: sale / divisor,
+          operator_cost_usd: cost / divisor,
+          margin_amount_usd: margin / divisor,
+          exchange_rate_used: rate,
+        }
+      }
+      return {
+        ...op,
+        sale_amount_usd: sale,
+        operator_cost_usd: cost,
+        margin_amount_usd: margin,
+        exchange_rate_used: null,
+      }
+    })
+
+    // Calcular totales (USD)
     const totals = {
-      count: operations?.length || 0,
-      sale_total_ars: 0,
+      count: enrichedOperations.length || 0,
       sale_total_usd: 0,
-      cost_total_ars: 0,
       cost_total_usd: 0,
-      margin_total_ars: 0,
       margin_total_usd: 0,
     }
 
-    for (const op of operations || []) {
-      if (op.currency === "ARS") {
-        totals.sale_total_ars += Number(op.sale_amount_total) || 0
-        totals.cost_total_ars += Number(op.operator_cost) || 0
-        totals.margin_total_ars += Number(op.margin_amount) || 0
-      } else {
-        totals.sale_total_usd += Number(op.sale_amount_total) || 0
-        totals.cost_total_usd += Number(op.operator_cost) || 0
-        totals.margin_total_usd += Number(op.margin_amount) || 0
-      }
+    for (const op of enrichedOperations) {
+      totals.sale_total_usd += Number(op.sale_amount_usd) || 0
+      totals.cost_total_usd += Number(op.operator_cost_usd) || 0
+      totals.margin_total_usd += Number(op.margin_amount_usd) || 0
     }
 
     // Agrupar por período
     const grouped: Record<string, any> = {}
     
-    for (const op of operations || []) {
+    for (const op of enrichedOperations) {
       const date = new Date((op.operation_date || op.departure_date) + "T12:00:00")
       let key = ""
       
@@ -109,21 +142,14 @@ export async function GET(request: Request) {
         grouped[key] = {
           period: key,
           count: 0,
-          sale_ars: 0,
           sale_usd: 0,
-          margin_ars: 0,
           margin_usd: 0,
         }
       }
 
       grouped[key].count++
-      if (op.currency === "ARS") {
-        grouped[key].sale_ars += Number(op.sale_amount_total) || 0
-        grouped[key].margin_ars += Number(op.margin_amount) || 0
-      } else {
-        grouped[key].sale_usd += Number(op.sale_amount_total) || 0
-        grouped[key].margin_usd += Number(op.margin_amount) || 0
-      }
+      grouped[key].sale_usd += Number(op.sale_amount_usd) || 0
+      grouped[key].margin_usd += Number(op.margin_amount_usd) || 0
     }
 
     const byPeriod = Object.values(grouped).sort((a: any, b: any) => 
@@ -133,7 +159,7 @@ export async function GET(request: Request) {
     // Agrupar por vendedor
     const bySeller: Record<string, any> = {}
     
-    for (const op of operations || []) {
+    for (const op of enrichedOperations) {
       const sellerId = op.seller_id || "unknown"
       const sellerName = (op.sellers as any)?.name || "Sin asignar"
       
@@ -142,29 +168,22 @@ export async function GET(request: Request) {
           seller_id: sellerId,
           seller_name: sellerName,
           count: 0,
-          sale_ars: 0,
           sale_usd: 0,
-          margin_ars: 0,
           margin_usd: 0,
         }
       }
 
       bySeller[sellerId].count++
-      if (op.currency === "ARS") {
-        bySeller[sellerId].sale_ars += Number(op.sale_amount_total) || 0
-        bySeller[sellerId].margin_ars += Number(op.margin_amount) || 0
-      } else {
-        bySeller[sellerId].sale_usd += Number(op.sale_amount_total) || 0
-        bySeller[sellerId].margin_usd += Number(op.margin_amount) || 0
-      }
+      bySeller[sellerId].sale_usd += Number(op.sale_amount_usd) || 0
+      bySeller[sellerId].margin_usd += Number(op.margin_amount_usd) || 0
     }
 
     const sellerData = Object.values(bySeller).sort((a: any, b: any) => 
-      (b.sale_usd + b.sale_ars) - (a.sale_usd + a.sale_ars)
+      b.sale_usd - a.sale_usd
     )
 
     return NextResponse.json({
-      operations: operations || [],
+      operations: enrichedOperations,
       totals,
       byPeriod,
       bySeller: sellerData,
@@ -174,4 +193,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Error interno" }, { status: 500 })
   }
 }
-

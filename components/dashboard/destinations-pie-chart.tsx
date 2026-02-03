@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { useChartColors } from "@/hooks/use-chart-colors"
+import { formatUSD } from "@/lib/currency"
 
 interface DestinationData {
   destination: string
@@ -108,6 +109,7 @@ export const DestinationsPieChart = memo(function DestinationsPieChart({ data }:
           <PieChart>
             <ChartTooltip
               cursor={false}
+              formatter={(value) => formatUSD(Number(value))}
               content={<ChartTooltipContent hideLabel />}
             />
             <Pie
@@ -132,4 +134,3 @@ export const DestinationsPieChart = memo(function DestinationsPieChart({ data }:
     </Card>
   )
 })
-

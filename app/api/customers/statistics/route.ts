@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns"
 import { es } from "date-fns/locale"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export const dynamic = 'force-dynamic'
 
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
           if (operationIds.length > 0) {
             const { data: opsData, error: opsError } = await supabase
               .from("operations")
-              .select("id, status, sale_amount_total, departure_date, agency_id")
+              .select("id, status, sale_amount_total, departure_date, created_at, currency, sale_currency, agency_id")
               .in("id", operationIds)
 
             if (opsError) {
@@ -113,6 +114,29 @@ export async function GET(request: Request) {
           }
         }
       }
+    }
+
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const arsOperations = operations.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+    const rateDates = arsOperations.map((op: any) => op.departure_date || op.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForOperation = (op: any) => {
+      const dateValue = op.departure_date || op.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
+    }
+
+    const toUsd = (amount: number, op: any) => {
+      const currency = op.sale_currency || op.currency || "USD"
+      if (currency === "ARS") {
+        const rate = getRateForOperation(op)
+        return rate ? amount / rate : 0
+      }
+      return amount
     }
 
     // Estadísticas generales
@@ -169,9 +193,10 @@ export async function GET(request: Request) {
         op && ["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)
       )
 
-      const totalSpent = confirmedOperations.reduce((sum: number, op: any) => 
-        sum + (parseFloat(op.sale_amount_total) || 0), 0
-      )
+      const totalSpent = confirmedOperations.reduce((sum: number, op: any) => {
+        const amount = parseFloat(op.sale_amount_total) || 0
+        return sum + toUsd(amount, op)
+      }, 0)
 
       // Total de operaciones (todas)
       const totalOperations = customerOperations.length
@@ -219,11 +244,11 @@ export async function GET(request: Request) {
 
     // Clientes por rango de gasto
     const spendingRanges = [
-      { range: "$0 - $500k", min: 0, max: 500000, count: 0 },
-      { range: "$500k - $1M", min: 500000, max: 1000000, count: 0 },
-      { range: "$1M - $2M", min: 1000000, max: 2000000, count: 0 },
-      { range: "$2M - $5M", min: 2000000, max: 5000000, count: 0 },
-      { range: "+$5M", min: 5000000, max: Infinity, count: 0 },
+      { range: "USD 0 - 1k", min: 0, max: 1000, count: 0 },
+      { range: "USD 1k - 3k", min: 1000, max: 3000, count: 0 },
+      { range: "USD 3k - 10k", min: 3000, max: 10000, count: 0 },
+      { range: "USD 10k - 25k", min: 10000, max: 25000, count: 0 },
+      { range: "USD 25k+", min: 25000, max: Infinity, count: 0 },
     ]
 
     customerStats.forEach((c: any) => {

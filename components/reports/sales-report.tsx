@@ -19,10 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Download, Loader2, Users } from "lucide-react"
+import { TrendingUp, DollarSign, ShoppingCart, Download, Loader2, Users } from "lucide-react"
 import { toast } from "sonner"
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns"
 import { es } from "date-fns/locale"
@@ -36,6 +35,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts"
+import { formatUSD, formatUSDCompact } from "@/lib/currency"
 
 interface SalesReportProps {
   userRole: string
@@ -88,15 +88,14 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
   const handleExportCSV = () => {
     if (!data?.operations) return
 
-    const headers = ["Fecha", "Destino", "Vendedor", "Venta", "Costo", "Margen", "Moneda", "Estado"]
+    const headers = ["Fecha", "Destino", "Vendedor", "Venta USD", "Costo USD", "Margen USD", "Estado"]
     const rows = data.operations.map((op: any) => [
       op.operation_date || op.departure_date,
       op.destination,
       op.sellers?.name || "-",
-      op.sale_amount_total,
-      op.operator_cost,
-      op.margin_amount,
-      op.currency,
+      op.sale_amount_usd,
+      op.operator_cost_usd,
+      op.margin_amount_usd,
       op.status,
     ])
 
@@ -142,10 +141,12 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
     name: groupBy === "month" 
       ? format(new Date(p.period + "-01"), "MMM yyyy", { locale: es })
       : format(new Date(p.period + "T12:00:00"), "dd/MM", { locale: es }),
-    "Ventas USD": Math.round(p.sale_usd),
-    "Ventas ARS": Math.round(p.sale_ars / 1000), // En miles para mejor visualización
-    "Margen USD": Math.round(p.margin_usd),
+    Ventas: Math.round(p.sale_usd),
+    Margen: Math.round(p.margin_usd),
   }))
+
+  const kpiCardClass =
+    "border-border/60 bg-gradient-to-br from-primary/5 via-background to-background/80 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] dark:from-primary/10"
 
   return (
     <div className="space-y-6">
@@ -231,7 +232,7 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Operaciones
@@ -242,39 +243,39 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
             <div className="text-2xl font-bold">{totals.count || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ventas USD
+              Ventas
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              US$ {Math.round(totals.sale_total_usd || 0).toLocaleString("es-AR")}
+              {formatUSD(totals.sale_total_usd || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Margen: US$ {Math.round(totals.margin_total_usd || 0).toLocaleString("es-AR")}
+              Margen: {formatUSD(totals.margin_total_usd || 0)}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ventas ARS
+              Margen Total
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              $ {Math.round(totals.sale_total_ars || 0).toLocaleString("es-AR")}
+              {formatUSD(totals.margin_total_usd || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Margen: $ {Math.round(totals.margin_total_ars || 0).toLocaleString("es-AR")}
+              Sobre ventas en USD
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Margen Promedio
@@ -288,7 +289,7 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
                 : 0}%
             </div>
             <p className="text-xs text-muted-foreground">
-              Sobre ventas USD
+              Sobre ventas en USD
             </p>
           </CardContent>
         </Card>
@@ -299,7 +300,7 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
         <Card>
           <CardHeader>
             <CardTitle>Evolución de Ventas</CardTitle>
-            <CardDescription>Ventas y márgenes por período (ARS en miles)</CardDescription>
+            <CardDescription>Ventas y márgenes por período (USD)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -307,16 +308,17 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" />
+                  <YAxis className="text-xs" tickFormatter={(value) => formatUSDCompact(Number(value))} />
                   <Tooltip 
+                    formatter={(value: number) => formatUSD(value)}
                     contentStyle={{ 
                       backgroundColor: "hsl(var(--background))", 
                       border: "1px solid hsl(var(--border))" 
                     }}
                   />
                   <Legend />
-                  <Bar dataKey="Ventas USD" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Margen USD" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Ventas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Margen" fill="hsl(var(--chart-5))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -346,10 +348,8 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
                 <TableRow>
                   <TableHead>Vendedor</TableHead>
                   <TableHead className="text-right">Operaciones</TableHead>
-                  <TableHead className="text-right">Ventas USD</TableHead>
-                  <TableHead className="text-right">Margen USD</TableHead>
-                  <TableHead className="text-right">Ventas ARS</TableHead>
-                  <TableHead className="text-right">Margen ARS</TableHead>
+                  <TableHead className="text-right">Ventas</TableHead>
+                  <TableHead className="text-right">Margen</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -367,16 +367,10 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
                     </TableCell>
                     <TableCell className="text-right">{s.count}</TableCell>
                     <TableCell className="text-right font-medium">
-                      US$ {Math.round(s.sale_usd).toLocaleString("es-AR")}
+                      {formatUSD(s.sale_usd)}
                     </TableCell>
                     <TableCell className="text-right text-green-600">
-                      US$ {Math.round(s.margin_usd).toLocaleString("es-AR")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      $ {Math.round(s.sale_ars).toLocaleString("es-AR")}
-                    </TableCell>
-                    <TableCell className="text-right text-green-600">
-                      $ {Math.round(s.margin_ars).toLocaleString("es-AR")}
+                      {formatUSD(s.margin_usd)}
                     </TableCell>
                   </TableRow>
                 ))}

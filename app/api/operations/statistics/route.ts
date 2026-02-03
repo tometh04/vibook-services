@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export const dynamic = 'force-dynamic'
 
@@ -107,7 +108,7 @@ export async function GET(request: Request) {
     // Query de operaciones
     let operationsQuery = supabase
       .from("operations")
-      .select("id, destination, status, sale_amount_total, operator_cost, margin_amount, margin_percentage, currency, departure_date, created_at, agency_id, seller_id")
+      .select("id, destination, status, sale_amount_total, operator_cost, margin_amount, margin_percentage, currency, sale_currency, departure_date, created_at, agency_id, seller_id")
 
     // Filtrar por agencia
     if (agencyId && agencyId !== "ALL") {
@@ -129,6 +130,29 @@ export async function GET(request: Request) {
     console.log(`[Operations Statistics] Found ${opsList.length} operations`)
 
     const now = new Date()
+
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const arsOperations = opsList.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+    const rateDates = arsOperations.map((op: any) => op.departure_date || op.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForOperation = (op: any) => {
+      const dateValue = op.departure_date || op.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
+    }
+
+    const toUsd = (amount: number, op: any) => {
+      const currency = op.sale_currency || op.currency || "USD"
+      if (currency === "ARS") {
+        const rate = getRateForOperation(op)
+        return rate ? amount / rate : 0
+      }
+      return amount
+    }
 
     // Inicializar estructuras
     const statusCounts: Record<string, number> = {
@@ -200,9 +224,11 @@ export async function GET(request: Request) {
         confirmedOperations++
         const saleAmount = safeParseFloat(op.sale_amount_total)
         const marginAmount = safeParseFloat(op.margin_amount)
+        const saleAmountUsd = toUsd(saleAmount, op)
+        const marginAmountUsd = toUsd(marginAmount, op)
 
-        totalSales += saleAmount
-        totalMargin += marginAmount
+        totalSales += saleAmountUsd
+        totalMargin += marginAmountUsd
 
         // Por destino
         const dest = (op.destination || "Sin destino").trim()
@@ -216,8 +242,8 @@ export async function GET(request: Request) {
           }
         }
         destinationStats[dest].count++
-        destinationStats[dest].totalSales += saleAmount
-        destinationStats[dest].totalMargin += marginAmount
+        destinationStats[dest].totalSales += saleAmountUsd
+        destinationStats[dest].totalMargin += marginAmountUsd
 
         // Por mes (usando departure_date o created_at como fallback)
         const dateToUse = op.departure_date || op.created_at
@@ -227,8 +253,8 @@ export async function GET(request: Request) {
             const monthKey = format(date, "yyyy-MM")
             if (monthlyStats[monthKey]) {
               monthlyStats[monthKey].count++
-              monthlyStats[monthKey].sales += saleAmount
-              monthlyStats[monthKey].margin += marginAmount
+              monthlyStats[monthKey].sales += saleAmountUsd
+              monthlyStats[monthKey].margin += marginAmountUsd
             }
           }
         }
@@ -299,8 +325,10 @@ export async function GET(request: Request) {
           }
         }
         sellerStats[sellerId].count++
-        sellerStats[sellerId].sales += safeParseFloat(op.sale_amount_total)
-        sellerStats[sellerId].margin += safeParseFloat(op.margin_amount)
+        const saleAmount = safeParseFloat(op.sale_amount_total)
+        const marginAmount = safeParseFloat(op.margin_amount)
+        sellerStats[sellerId].sales += toUsd(saleAmount, op)
+        sellerStats[sellerId].margin += toUsd(marginAmount, op)
       }
     }
 

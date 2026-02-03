@@ -19,10 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowUpCircle, ArrowDownCircle, Wallet, Download, Loader2, TrendingUp, TrendingDown } from "lucide-react"
+import { ArrowUpCircle, ArrowDownCircle, Wallet, Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns"
 import { es } from "date-fns/locale"
@@ -36,6 +35,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts"
+import { formatUSD, formatUSDCompact } from "@/lib/currency"
 
 const categoryLabels: Record<string, string> = {
   PAGO_CLIENTE: "Pago de Cliente",
@@ -116,15 +116,18 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
   const totals = data?.totals || {}
   const byCategory = data?.byCategory || []
   const byDay = data?.byDay || []
-  const accountBalances = data?.accountBalances || { summary: { total_ars: 0, total_usd: 0, by_agency: {} }, accounts: [] }
+  const accountBalances = data?.accountBalances || { summary: { total_usd: 0, by_agency: {} }, accounts: [] }
 
   // Preparar datos para el gráfico
   const chartData = byDay.map((d: any) => ({
     name: format(new Date(d.date + "T12:00:00"), "dd/MM", { locale: es }),
-    "Ingresos USD": Math.round(d.income_usd),
-    "Egresos USD": Math.round(d.expense_usd),
-    "Balance USD": Math.round(d.balance_usd),
+    Ingresos: Math.round(d.income_usd),
+    Egresos: Math.round(d.expense_usd),
+    Balance: Math.round(d.balance_usd),
   }))
+
+  const kpiCardClass =
+    "border-border/60 bg-gradient-to-br from-primary/5 via-background to-background/80 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] dark:from-primary/10"
 
   return (
     <div className="space-y-6">
@@ -209,15 +212,9 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 mb-6">
               <div className="space-y-1">
-                <div className="text-sm text-muted-foreground">Total ARS</div>
-                <div className="text-2xl font-bold text-amber-600">
-                  $ {Math.round(accountBalances.summary.total_ars || 0).toLocaleString("es-AR")}
-                </div>
-              </div>
-              <div className="space-y-1">
                 <div className="text-sm text-muted-foreground">Total USD</div>
                 <div className="text-2xl font-bold text-amber-600">
-                  US$ {Math.round(accountBalances.summary.total_usd || 0).toLocaleString("es-AR")}
+                  {formatUSD(accountBalances.summary.total_usd || 0)}
                 </div>
               </div>
             </div>
@@ -245,8 +242,8 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className={`font-semibold ${(account.current_balance || 0) >= 0 ? "text-amber-600" : "text-red-600"}`}>
-                                {account.currency === "USD" ? "US$" : "$"} {Math.round(account.current_balance || 0).toLocaleString("es-AR")}
+                              <span className={`font-semibold ${(account.current_balance_usd || 0) >= 0 ? "text-amber-600" : "text-red-600"}`}>
+                                {formatUSD(account.current_balance_usd || 0)}
                               </span>
                             </TableCell>
                           </TableRow>
@@ -258,10 +255,7 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
                           <TableCell className="text-right">
                             <div className="space-y-1">
                               <div className="font-semibold text-amber-600">
-                                $ {Math.round(agencyData.ars || 0).toLocaleString("es-AR")}
-                              </div>
-                              <div className="font-semibold text-amber-600">
-                                US$ {Math.round(agencyData.usd || 0).toLocaleString("es-AR")}
+                                {formatUSD(agencyData.usd || 0)}
                               </div>
                             </div>
                           </TableCell>
@@ -278,7 +272,7 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ingresos
@@ -286,17 +280,12 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
             <ArrowUpCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              <div className="text-xl font-bold text-green-600">
-                US$ {Math.round(totals.income_usd || 0).toLocaleString("es-AR")}
-              </div>
-              <div className="text-lg font-semibold text-green-600">
-                $ {Math.round(totals.income_ars || 0).toLocaleString("es-AR")}
-              </div>
+            <div className="text-xl font-bold text-green-600">
+              {formatUSD(totals.income_usd || 0)}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Egresos
@@ -304,17 +293,12 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              <div className="text-xl font-bold text-red-600">
-                US$ {Math.round(totals.expense_usd || 0).toLocaleString("es-AR")}
-              </div>
-              <div className="text-lg font-semibold text-red-600">
-                $ {Math.round(totals.expense_ars || 0).toLocaleString("es-AR")}
-              </div>
+            <div className="text-xl font-bold text-red-600">
+              {formatUSD(totals.expense_usd || 0)}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Balance Neto
@@ -322,13 +306,8 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              <div className={`text-xl font-bold ${(totals.net_usd || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                US$ {Math.round(totals.net_usd || 0).toLocaleString("es-AR")}
-              </div>
-              <div className={`text-lg font-semibold ${(totals.net_ars || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                $ {Math.round(totals.net_ars || 0).toLocaleString("es-AR")}
-              </div>
+            <div className={`text-xl font-bold ${(totals.net_usd || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {formatUSD(totals.net_usd || 0)}
             </div>
           </CardContent>
         </Card>
@@ -347,8 +326,9 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" />
+                  <YAxis className="text-xs" tickFormatter={(value) => formatUSDCompact(Number(value))} />
                   <Tooltip 
+                    formatter={(value: number) => formatUSD(value)}
                     contentStyle={{ 
                       backgroundColor: "hsl(var(--background))", 
                       border: "1px solid hsl(var(--border))" 
@@ -357,7 +337,7 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
                   <Legend />
                   <Area 
                     type="monotone" 
-                    dataKey="Balance USD" 
+                    dataKey="Balance" 
                     stroke="hsl(var(--primary))" 
                     fill="hsl(var(--primary))" 
                     fillOpacity={0.3}
@@ -381,40 +361,28 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Categoría</TableHead>
-                  <TableHead className="text-right">Ingresos USD</TableHead>
-                  <TableHead className="text-right">Egresos USD</TableHead>
-                  <TableHead className="text-right">Ingresos ARS</TableHead>
-                  <TableHead className="text-right">Egresos ARS</TableHead>
+                  <TableHead className="text-right">Ingresos</TableHead>
+                  <TableHead className="text-right">Egresos</TableHead>
                   <TableHead className="text-right">Neto</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {byCategory.map((c: any) => {
                   const netUsd = c.income_usd - c.expense_usd
-                  const netArs = c.income_ars - c.expense_ars
                   return (
                     <TableRow key={c.category}>
                       <TableCell className="font-medium">
                         {categoryLabels[c.category] || c.category}
                       </TableCell>
                       <TableCell className="text-right text-green-600">
-                        {c.income_usd > 0 ? `US$ ${Math.round(c.income_usd).toLocaleString("es-AR")}` : "-"}
+                        {c.income_usd > 0 ? formatUSD(c.income_usd) : "-"}
                       </TableCell>
                       <TableCell className="text-right text-red-600">
-                        {c.expense_usd > 0 ? `US$ ${Math.round(c.expense_usd).toLocaleString("es-AR")}` : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-green-600">
-                        {c.income_ars > 0 ? `$ ${Math.round(c.income_ars).toLocaleString("es-AR")}` : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-red-600">
-                        {c.expense_ars > 0 ? `$ ${Math.round(c.expense_ars).toLocaleString("es-AR")}` : "-"}
+                        {c.expense_usd > 0 ? formatUSD(c.expense_usd) : "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className={`font-medium ${netUsd >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {netUsd !== 0 && `US$ ${Math.round(netUsd).toLocaleString("es-AR")}`}
-                        </div>
-                        <div className={`text-sm ${netArs >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {netArs !== 0 && `$ ${Math.round(netArs).toLocaleString("es-AR")}`}
+                          {netUsd !== 0 && formatUSD(netUsd)}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -428,4 +396,3 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
     </div>
   )
 }
-

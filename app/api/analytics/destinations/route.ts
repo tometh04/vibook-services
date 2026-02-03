@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 // Forzar ruta dinámica (usa cookies para autenticación)
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
 
       const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
-      let query = supabase.from("operations").select("destination, sale_amount_total, margin_amount").neq("status", "CANCELLED")
+      let query = supabase.from("operations").select("destination, sale_amount_total, margin_amount, currency, sale_currency, departure_date, created_at").neq("status", "CANCELLED")
 
       // Apply role-based filtering
       if (user.role === "SELLER") {
@@ -65,8 +66,23 @@ export async function GET(request: Request) {
         throw new Error("Error al obtener datos de destinos")
       }
 
-      // Group by destination
-      const destinationStats = (operations || []).reduce((acc: any, op: any) => {
+      const operationsArray = operations || []
+      const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+      const arsOperations = operationsArray.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+      const rateDates = arsOperations.map((op: any) => op.departure_date || op.created_at || new Date())
+      const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+      const getRateForOperation = (op: any) => {
+        const dateValue = op.departure_date || op.created_at || new Date()
+        const dateStr = typeof dateValue === "string"
+          ? dateValue.split("T")[0]
+          : dateValue.toISOString().split("T")[0]
+        const rate = exchangeRatesMap.get(dateStr) || 0
+        return rate > 0 ? rate : latestExchangeRate
+      }
+
+      // Group by destination (USD)
+      const destinationStats = operationsArray.reduce((acc: any, op: any) => {
         const destination = op.destination || "Sin destino"
 
         if (!acc[destination]) {
@@ -78,8 +94,17 @@ export async function GET(request: Request) {
           }
         }
 
-        acc[destination].totalSales += op.sale_amount_total || 0
-        acc[destination].totalMargin += op.margin_amount || 0
+        const currency = op.sale_currency || op.currency || "USD"
+        const saleAmount = op.sale_amount_total || 0
+        const marginAmount = op.margin_amount || 0
+        if (currency === "ARS") {
+          const rate = getRateForOperation(op)
+          acc[destination].totalSales += rate ? saleAmount / rate : 0
+          acc[destination].totalMargin += rate ? marginAmount / rate : 0
+        } else {
+          acc[destination].totalSales += saleAmount
+          acc[destination].totalMargin += marginAmount
+        }
         acc[destination].operationsCount += 1
 
         return acc
@@ -99,4 +124,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message || "Error al obtener datos de destinos" }, { status: 500 })
   }
 }
-

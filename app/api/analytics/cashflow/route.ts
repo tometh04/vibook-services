@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 // Forzar ruta dinámica (usa cookies para autenticación)
 export const dynamic = 'force-dynamic'
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
         amount,
         amount_usd,
         currency,
+        exchange_rate,
         date_paid,
         status,
         operation_id,
@@ -123,8 +125,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ cashflow: [] })
     }
 
-    // Group by date
-    const cashflowByDate = (payments || []).reduce((acc: any, payment: any) => {
+    const paymentsArray = payments || []
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const arsPayments = paymentsArray.filter((p: any) => p.currency === "ARS")
+    const paymentDates = arsPayments.map((p: any) => p.date_paid || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, paymentDates)
+
+    const getRateForPayment = (payment: any) => {
+      if (payment.exchange_rate && payment.exchange_rate > 0) {
+        return Number(payment.exchange_rate)
+      }
+      const dateValue = payment.date_paid || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
+    }
+
+    // Group by date (USD)
+    const cashflowByDate = paymentsArray.reduce((acc: any, payment: any) => {
       // Use date_paid for grouping
       let dateStr: string
       if (payment.date_paid) {
@@ -148,9 +168,9 @@ export async function GET(request: Request) {
         amountUsd = parseFloat(payment.amount_usd) || 0
       } else if (payment.currency === "USD") {
         amountUsd = parseFloat(payment.amount) || 0
-      } else {
-        // ARS sin conversión (usar amount como está)
-        amountUsd = parseFloat(payment.amount) || 0
+      } else if (payment.currency === "ARS") {
+        const rate = getRateForPayment(payment)
+        amountUsd = rate ? (parseFloat(payment.amount) || 0) / rate : 0
       }
 
       if (payment.direction === "INCOME") {
@@ -174,4 +194,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message || "Error al obtener datos de flujo de caja" }, { status: 500 })
   }
 }
-

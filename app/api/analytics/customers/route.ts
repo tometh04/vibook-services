@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { subMonths, format } from "date-fns"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export async function GET(request: Request) {
   try {
@@ -55,7 +56,9 @@ export async function GET(request: Request) {
             id,
             sale_amount_total,
             currency,
+            sale_currency,
             departure_date,
+            created_at,
             status,
             agency_id
           )
@@ -84,6 +87,21 @@ export async function GET(request: Request) {
 
         customers = customersData || []
       }
+    }
+
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const opsListForRates = (operationsData || []).map((oc: any) => oc.operations).filter(Boolean)
+    const arsOperations = opsListForRates.filter((op: any) => (op.sale_currency || op.currency || "USD") === "ARS")
+    const rateDates = arsOperations.map((op: any) => op.departure_date || op.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForOperation = (op: any) => {
+      const dateValue = op.departure_date || op.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
     }
 
     // Procesar datos por cliente
@@ -125,7 +143,14 @@ export async function GET(request: Request) {
       
       if (["CONFIRMED", "TRAVELLED", "CLOSED"].includes(op.status)) {
         stats.totalOperations += 1
-        stats.totalSpent += op.sale_amount_total || 0
+        const amount = parseFloat(op.sale_amount_total) || 0
+        const currency = op.sale_currency || op.currency || "USD"
+        if (currency === "ARS") {
+          const rate = getRateForOperation(op)
+          stats.totalSpent += rate ? amount / rate : 0
+        } else {
+          stats.totalSpent += amount
+        }
         
         if (!stats.lastOperationDate || new Date(op.departure_date) > new Date(stats.lastOperationDate)) {
           stats.lastOperationDate = op.departure_date
@@ -195,4 +220,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-

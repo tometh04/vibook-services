@@ -219,3 +219,73 @@ export function getExchangeRateFromObject(obj: any): number | null {
   return null
 }
 
+/**
+ * Convertir ARS a USD usando exchange_rate (ARS por USD).
+ * Si no hay exchange_rate, retorna null.
+ */
+export function convertToUSD(
+  amount: number,
+  currency: Currency,
+  exchangeRate: number | null | undefined
+): number | null {
+  if (currency === "USD") {
+    return amount
+  }
+
+  if (currency === "ARS") {
+    if (!exchangeRate || isNaN(exchangeRate) || exchangeRate <= 0) {
+      return null
+    }
+    return amount / exchangeRate
+  }
+
+  return null
+}
+
+/**
+ * Formatear montos en USD de forma consistente (para KPIs y reportes).
+ */
+export function formatUSD(
+  amount: number,
+  options: { maximumFractionDigits?: number; minimumFractionDigits?: number } = {}
+): string {
+  if (isNaN(amount) || amount === null || amount === undefined) {
+    return "USD 0"
+  }
+
+  const formatted = new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: options.minimumFractionDigits ?? 0,
+    maximumFractionDigits: options.maximumFractionDigits ?? 0,
+  }).format(amount)
+
+  return `USD ${formatted}`
+}
+
+/**
+ * Formateo compacto en USD para ejes de gráficos (k, M).
+ */
+export function formatUSDCompact(
+  amount: number,
+  options: { maximumFractionDigits?: number } = {}
+): string {
+  if (isNaN(amount) || amount === null || amount === undefined) {
+    return "USD 0"
+  }
+
+  const abs = Math.abs(amount)
+  const sign = amount < 0 ? "-" : ""
+  const formatter = new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: options.maximumFractionDigits ?? 1,
+    minimumFractionDigits: 0,
+  })
+
+  if (abs >= 1_000_000) {
+    return `${sign}USD ${formatter.format(abs / 1_000_000)}M`
+  }
+
+  if (abs >= 1_000) {
+    return `${sign}USD ${formatter.format(abs / 1_000)}k`
+  }
+
+  return `${sign}${formatUSD(abs, { maximumFractionDigits: options.maximumFractionDigits ?? 0 })}`
+}

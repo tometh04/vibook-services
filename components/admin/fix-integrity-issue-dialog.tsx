@@ -37,53 +37,25 @@ export function FixIntegrityIssueDialog({
   const [loadingDetails, setLoadingDetails] = useState(true)
 
   useEffect(() => {
-    if (open && affectedEntities && Array.isArray(affectedEntities)) {
-      loadEntitiesDetails()
-    } else {
-      setEntitiesDetails([])
-      setLoadingDetails(false)
-    }
-  }, [open, affectedEntities])
+    const loadEntitiesDetails = async () => {
+      setLoadingDetails(true)
+      try {
+        // Obtener detalles de agencias y planes según el tipo de verificación
+        const details: any[] = []
 
-  const loadEntitiesDetails = async () => {
-    setLoadingDetails(true)
-    try {
-      // Obtener detalles de agencias y planes según el tipo de verificación
-      const details: any[] = []
+        if (checkType === "ACTIVE_WITHOUT_PREAPPROVAL") {
+          // Obtener nombres de agencias
+          const agencyIds = Array.from(
+            new Set(affectedEntities.map((e: any) => e.agency_id).filter(Boolean))
+          )
 
-      if (checkType === "ACTIVE_WITHOUT_PREAPPROVAL") {
-        // Obtener nombres de agencias
-        const agencyIds = Array.from(
-          new Set(affectedEntities.map((e: any) => e.agency_id).filter(Boolean))
-        )
+          const agenciesRes =
+            agencyIds.length > 0
+              ? await fetch(`/api/agencies?ids=${agencyIds.join(",")}`)
+              : { json: () => Promise.resolve({ agencies: [] }) }
 
-        const agenciesRes =
-          agencyIds.length > 0
-            ? await fetch(`/api/agencies?ids=${agencyIds.join(",")}`)
-            : { json: () => Promise.resolve({ agencies: [] }) }
-
-        const agenciesData = await agenciesRes.json()
-
-        const agenciesMap = new Map(
-          (agenciesData.agencies || []).map((a: any) => [a.id, a.name])
-        )
-
-        details.push(
-          ...affectedEntities.map((entity: any) => ({
-            ...entity,
-            agency_name: agenciesMap.get(entity.agency_id) || "N/A",
-            plan_name: entity.plan_name || "N/A", // Ya viene en el entity desde la función SQL
-          }))
-        )
-      } else if (checkType === "EXCESSIVE_TRIAL_EXTENSIONS") {
-        // Obtener nombres de agencias
-        const agencyIds = Array.from(
-          new Set(affectedEntities.map((e: any) => e.agency_id).filter(Boolean))
-        )
-
-        if (agencyIds.length > 0) {
-          const agenciesRes = await fetch(`/api/agencies?ids=${agencyIds.join(",")}`)
           const agenciesData = await agenciesRes.json()
+
           const agenciesMap = new Map(
             (agenciesData.agencies || []).map((a: any) => [a.id, a.name])
           )
@@ -92,23 +64,51 @@ export function FixIntegrityIssueDialog({
             ...affectedEntities.map((entity: any) => ({
               ...entity,
               agency_name: agenciesMap.get(entity.agency_id) || "N/A",
+              plan_name: entity.plan_name || "N/A", // Ya viene en el entity desde la función SQL
             }))
           )
+        } else if (checkType === "EXCESSIVE_TRIAL_EXTENSIONS") {
+          // Obtener nombres de agencias
+          const agencyIds = Array.from(
+            new Set(affectedEntities.map((e: any) => e.agency_id).filter(Boolean))
+          )
+
+          if (agencyIds.length > 0) {
+            const agenciesRes = await fetch(`/api/agencies?ids=${agencyIds.join(",")}`)
+            const agenciesData = await agenciesRes.json()
+            const agenciesMap = new Map(
+              (agenciesData.agencies || []).map((a: any) => [a.id, a.name])
+            )
+
+            details.push(
+              ...affectedEntities.map((entity: any) => ({
+                ...entity,
+                agency_name: agenciesMap.get(entity.agency_id) || "N/A",
+              }))
+            )
+          } else {
+            details.push(...affectedEntities)
+          }
         } else {
           details.push(...affectedEntities)
         }
-      } else {
-        details.push(...affectedEntities)
-      }
 
-      setEntitiesDetails(details)
-    } catch (error) {
-      console.error("Error loading entities details:", error)
-      setEntitiesDetails(affectedEntities || [])
-    } finally {
+        setEntitiesDetails(details)
+      } catch (error) {
+        console.error("Error loading entities details:", error)
+        setEntitiesDetails(affectedEntities || [])
+      } finally {
+        setLoadingDetails(false)
+      }
+    }
+
+    if (open && affectedEntities && Array.isArray(affectedEntities)) {
+      loadEntitiesDetails()
+    } else {
+      setEntitiesDetails([])
       setLoadingDetails(false)
     }
-  }
+  }, [open, affectedEntities, checkType])
 
   const handleConfirm = async () => {
     setLoading(true)

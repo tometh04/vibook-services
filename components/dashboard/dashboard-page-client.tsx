@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowUpIcon, ArrowDownIcon } from "@radix-ui/react-icons"
 import { DollarSign, TrendingUp, Package, Percent, Users, Building2 } from "lucide-react"
+import { formatUSD } from "@/lib/currency"
 
 // Dynamic imports para charts pesados (reduce bundle inicial ~200KB)
 const SalesBySellerChart = dynamic(() => import("./sales-by-seller-chart").then(mod => ({ default: mod.SalesBySellerChart })), {
@@ -192,6 +193,9 @@ export function DashboardPageClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.dateFrom, filters.dateTo, filters.agencyId, filters.sellerId])
 
+  const kpiCardClass =
+    "border-border/60 bg-gradient-to-br from-primary/5 via-background to-background/80 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] dark:from-primary/10"
+
   return (
     <div className="flex-1 space-y-4 pt-4 md:pt-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -218,7 +222,7 @@ export function DashboardPageClient({
 
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
               Ventas Totales
@@ -231,7 +235,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  USD ${Math.round(kpis.totalSales).toLocaleString()}
+                  {formatUSD(kpis.totalSales)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {kpis.operationsCount} ops • vs anterior
@@ -241,7 +245,7 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
               Total Operaciones
@@ -264,7 +268,7 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
               Margen Total
@@ -277,7 +281,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  USD ${Math.round(kpis.totalMargin).toLocaleString()}
+                  {formatUSD(kpis.totalMargin)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {kpis.avgMarginPercent.toFixed(1)}% promedio
@@ -287,7 +291,7 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
               Margen Promedio
@@ -312,7 +316,7 @@ export function DashboardPageClient({
       </div>
 
       <div className="grid gap-3 grid-cols-2">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
               Deudores por Ventas
@@ -325,7 +329,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  USD ${Math.round(kpis.pendingCustomerPayments).toLocaleString()}
+                  {formatUSD(kpis.pendingCustomerPayments)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Por cobrar de clientes
@@ -335,7 +339,7 @@ export function DashboardPageClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">
               Deuda a Operadores
@@ -348,7 +352,7 @@ export function DashboardPageClient({
             ) : (
               <>
                 <div className="text-4xl font-bold text-foreground">
-                  USD ${Math.round(kpis.pendingOperatorPayments).toLocaleString()}
+                  {formatUSD(kpis.pendingOperatorPayments)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Por pagar a operadores
@@ -393,4 +397,3 @@ export function DashboardPageClient({
     </div>
   )
 }
-

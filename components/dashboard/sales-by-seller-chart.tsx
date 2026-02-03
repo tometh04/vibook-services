@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { useChartColors } from "@/hooks/use-chart-colors"
+import { formatUSD } from "@/lib/currency"
 
 interface SellerData {
   id: string
@@ -27,17 +28,11 @@ interface SalesBySellerChartProps {
 const chartConfig = {
   Ventas: {
     label: "Ventas",
-    theme: {
-      light: "hsl(45, 93%, 47%)",
-      dark: "hsl(45, 93%, 65%)",
-    },
+    color: "hsl(var(--chart-1))",
   },
   Margen: {
     label: "Margen",
-    theme: {
-      light: "hsl(43, 96%, 56%)",
-      dark: "hsl(43, 96%, 70%)",
-    },
+    color: "hsl(var(--chart-5))",
   },
 } satisfies ChartConfig
 
@@ -79,6 +74,7 @@ export const SalesBySellerChart = memo(function SalesBySellerChart({ data }: Sal
             />
             <ChartTooltip
               cursor={false}
+              formatter={(value) => formatUSD(Number(value))}
               content={<ChartTooltipContent />}
             />
             <Bar dataKey="Ventas" fill={colors["1"]} radius={8} />

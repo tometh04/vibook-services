@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +33,8 @@ export async function GET(request: Request) {
         assigned_seller_id,
         has_deposit,
         deposit_amount,
+        deposit_currency,
+        deposit_date,
         agency_id
       `)
 
@@ -96,21 +99,41 @@ export async function GET(request: Request) {
       }
     }
 
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const leadsArray = leads || []
+    const arsDeposits = leadsArray.filter((lead: any) => lead.has_deposit && lead.deposit_amount && (lead.deposit_currency || "USD") === "ARS")
+    const rateDates = arsDeposits.map((lead: any) => lead.deposit_date || lead.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForLead = (lead: any) => {
+      const dateValue = lead.deposit_date || lead.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
+    }
+
     // Procesar leads - EXACTAMENTE igual
     let totalLeads = 0
     let totalWon = 0
     let totalLost = 0
     let totalDeposits = 0
 
-    for (const lead of leads || []) {
+    for (const lead of leadsArray) {
       totalLeads++
 
       // Pipeline
       if (pipeline[lead.status]) {
         pipeline[lead.status].count++
         if (lead.has_deposit && lead.deposit_amount) {
-          pipeline[lead.status].value += parseFloat(lead.deposit_amount) || 0
-          totalDeposits += parseFloat(lead.deposit_amount) || 0
+          const depositAmount = parseFloat(lead.deposit_amount) || 0
+          const currency = lead.deposit_currency || "USD"
+          const depositUsd = currency === "ARS"
+            ? (depositAmount / (getRateForLead(lead) || 1))
+            : depositAmount
+          pipeline[lead.status].value += depositUsd
+          totalDeposits += depositUsd
         }
       }
 

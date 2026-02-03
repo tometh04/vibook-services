@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Plane, TrendingUp, DollarSign, Target, Calendar, BarChart3, Download, Percent } from "lucide-react"
+import { Loader2, Plane, TrendingUp, DollarSign, Download, Percent } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -44,9 +44,8 @@ import {
   LineChart,
   Line,
   Legend,
-  AreaChart,
-  Area,
 } from "recharts"
+import { formatUSD, formatUSDCompact } from "@/lib/currency"
 
 interface OperationStatistics {
   overview: {
@@ -110,15 +109,16 @@ const STATUS_COLORS: Record<string, string> = {
   CLOSED: '#64748b',
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-6))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+]
 
 export function OperationsStatisticsPageClient() {
   const { toast } = useToast()
@@ -170,6 +170,9 @@ export function OperationsStatisticsPageClient() {
     )
   }
 
+  const kpiCardClass =
+    "border-border/60 bg-gradient-to-br from-primary/5 via-background to-background/80 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] dark:from-primary/10"
+
   return (
     <div className="space-y-6">
       <Breadcrumb>
@@ -212,7 +215,7 @@ export function OperationsStatisticsPageClient() {
 
       {/* Cards de resumen */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Operaciones</CardTitle>
             <Plane className="h-4 w-4 text-muted-foreground" />
@@ -225,33 +228,33 @@ export function OperationsStatisticsPageClient() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.overview.totalSales)}</div>
+            <div className="text-2xl font-bold">{formatUSD(stats.overview.totalSales)}</div>
             <p className="text-xs text-muted-foreground">
-              Ticket promedio: {formatCurrency(stats.overview.avgTicket)}
+              Ticket promedio: {formatUSD(stats.overview.avgTicket)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Margen Total</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.overview.totalMargin)}</div>
+            <div className="text-2xl font-bold text-green-600">{formatUSD(stats.overview.totalMargin)}</div>
             <p className="text-xs text-muted-foreground">
               {Math.round(stats.overview.avgMarginPercentage * 10) / 10}% margen promedio
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={kpiCardClass}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tasa de Conversión</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
@@ -281,11 +284,11 @@ export function OperationsStatisticsPageClient() {
                 <LineChart data={stats.trends.monthly}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="monthName" />
-                  <YAxis yAxisId="left" tickFormatter={(value) => formatCurrency(value)} />
+                  <YAxis yAxisId="left" tickFormatter={(value) => formatUSDCompact(Number(value))} />
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip 
                     formatter={(value: number, name: string) => [
-                      name === 'count' ? value : formatCurrency(value),
+                      name === 'count' ? value : formatUSD(value),
                       name === 'sales' ? 'Ventas' : name === 'margin' ? 'Margen' : 'Operaciones'
                     ]}
                   />
@@ -295,27 +298,27 @@ export function OperationsStatisticsPageClient() {
                     type="monotone" 
                     dataKey="sales" 
                     name="Ventas"
-                    stroke="#3b82f6" 
+                    stroke="hsl(var(--chart-1))" 
                     strokeWidth={2}
-                    dot={{ fill: '#3b82f6' }}
+                    dot={{ fill: 'hsl(var(--chart-1))' }}
                   />
                   <Line 
                     yAxisId="left"
                     type="monotone" 
                     dataKey="margin" 
                     name="Margen"
-                    stroke="#10b981" 
+                    stroke="hsl(var(--chart-5))" 
                     strokeWidth={2}
-                    dot={{ fill: '#10b981' }}
+                    dot={{ fill: 'hsl(var(--chart-5))' }}
                   />
                   <Line 
                     yAxisId="right"
                     type="monotone" 
                     dataKey="count" 
                     name="Operaciones"
-                    stroke="#8b5cf6" 
+                    stroke="hsl(var(--chart-3))" 
                     strokeWidth={2}
-                    dot={{ fill: '#8b5cf6' }}
+                    dot={{ fill: 'hsl(var(--chart-3))' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -365,10 +368,10 @@ export function OperationsStatisticsPageClient() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.rankings.topDestinations.slice(0, 8)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                  <XAxis type="number" tickFormatter={(value) => formatUSDCompact(Number(value))} />
                   <YAxis dataKey="destination" type="category" width={120} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Bar dataKey="totalSales" name="Ventas" fill="#3b82f6" />
+                  <Tooltip formatter={(value: number) => formatUSD(value)} />
+                  <Bar dataKey="totalSales" name="Ventas" fill="hsl(var(--chart-1))" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -403,7 +406,7 @@ export function OperationsStatisticsPageClient() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{dest.destination}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(dest.totalSales)}</TableCell>
+                    <TableCell className="text-right">{formatUSD(dest.totalSales)}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={dest.avgMargin >= 15 ? "default" : dest.avgMargin >= 10 ? "secondary" : "outline"}>
                         {Math.round(dest.avgMargin * 10) / 10}%
@@ -448,7 +451,7 @@ export function OperationsStatisticsPageClient() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{seller.name}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(seller.sales)}</TableCell>
+                    <TableCell className="text-right">{formatUSD(seller.sales)}</TableCell>
                     <TableCell className="text-right">{seller.count}</TableCell>
                   </TableRow>
                 ))}

@@ -14,6 +14,7 @@ import {
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useChartColors } from "@/hooks/use-chart-colors"
+import { formatUSD, formatUSDCompact } from "@/lib/currency"
 
 interface CashflowData {
   date: string
@@ -29,24 +30,15 @@ interface CashflowChartProps {
 const chartConfig = {
   Ingresos: {
     label: "Ingresos",
-    theme: {
-      light: "hsl(45, 93%, 47%)",
-      dark: "hsl(45, 93%, 65%)",
-    },
+    color: "hsl(var(--chart-5))",
   },
   Egresos: {
     label: "Egresos",
-    theme: {
-      light: "hsl(43, 96%, 56%)",
-      dark: "hsl(43, 96%, 70%)",
-    },
+    color: "hsl(var(--chart-6))",
   },
   Neto: {
     label: "Neto",
-    theme: {
-      light: "hsl(37, 92%, 50%)",
-      dark: "hsl(37, 92%, 63%)",
-    },
+    color: "hsl(var(--chart-3))",
   },
 } satisfies ChartConfig
 
@@ -90,10 +82,11 @@ export const CashflowChart = memo(function CashflowChart({ data }: CashflowChart
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`}
+              tickFormatter={(value) => formatUSDCompact(Number(value))}
             />
             <ChartTooltip
               cursor={false}
+              formatter={(value) => formatUSD(Number(value))}
               content={<ChartTooltipContent />}
             />
             <ChartLegend content={<ChartLegendContent />} />

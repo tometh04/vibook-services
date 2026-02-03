@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { useChartColors } from "@/hooks/use-chart-colors"
+import { formatUSD } from "@/lib/currency"
 
 interface DestinationData {
   destination: string
@@ -27,10 +28,7 @@ interface RegionsRadarChartProps {
 const chartConfig = {
   Ventas: {
     label: "Ventas",
-    theme: {
-      light: "hsl(45, 93%, 47%)",
-      dark: "hsl(45, 93%, 65%)",
-    },
+    color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig
 
@@ -81,7 +79,7 @@ export const RegionsRadarChart = memo(function RegionsRadarChart({ data }: Regio
     .slice(0, 6)
     .map((item) => ({
       region: item.region,
-      Ventas: item.ventas / 1000000, // Normalizar a millones
+      Ventas: item.ventas,
     }))
 
   if (chartData.length === 0) {
@@ -104,7 +102,11 @@ export const RegionsRadarChart = memo(function RegionsRadarChart({ data }: Regio
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full sm:h-[300px]">
           <RadarChart data={chartData}>
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <ChartTooltip
+              cursor={false}
+              formatter={(value) => formatUSD(Number(value))}
+              content={<ChartTooltipContent />}
+            />
             <PolarAngleAxis dataKey="region" />
             <PolarGrid />
             <Radar
@@ -122,4 +124,3 @@ export const RegionsRadarChart = memo(function RegionsRadarChart({ data }: Regio
     </Card>
   )
 })
-

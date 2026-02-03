@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getAccountBalance, getAccountBalancesBatch } from "@/lib/accounting/ledger"
+import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export async function GET(request: Request) {
   try {
@@ -59,11 +60,31 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener flujo de caja" }, { status: 500 })
     }
 
-    // Calcular totales
+    const movementsArray = movements || []
+    const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000
+    const arsMovements = movementsArray.filter((mov: any) => (mov.currency || "ARS") === "ARS")
+    const rateDates = arsMovements.map((mov: any) => mov.movement_date || mov.created_at || new Date())
+    const exchangeRatesMap = await getExchangeRatesBatch(supabase, rateDates)
+
+    const getRateForMovement = (mov: any) => {
+      const dateValue = mov.movement_date || mov.created_at || new Date()
+      const dateStr = typeof dateValue === "string"
+        ? dateValue.split("T")[0]
+        : dateValue.toISOString().split("T")[0]
+      const rate = exchangeRatesMap.get(dateStr) || 0
+      return rate > 0 ? rate : latestExchangeRate
+    }
+
+    const toUsd = (amount: number, currency: string, mov: any) => {
+      if (currency === "ARS") {
+        const rate = getRateForMovement(mov)
+        return rate ? amount / rate : 0
+      }
+      return amount
+    }
+
+    // Calcular totales (USD)
     const totals = {
-      income_ars: 0,
-      expense_ars: 0,
-      net_ars: 0,
       income_usd: 0,
       expense_usd: 0,
       net_usd: 0,
@@ -75,24 +96,17 @@ export async function GET(request: Request) {
     // Agrupar por día
     const byDay: Record<string, any> = {}
 
-    for (const mov of movements || []) {
+    for (const mov of movementsArray) {
       const amount = Number(mov.amount) || 0
       const isIncome = mov.type === "INCOME"
       const curr = mov.currency || "ARS"
+      const amountUsd = toUsd(amount, curr, mov)
 
       // Totales
-      if (curr === "ARS") {
-        if (isIncome) {
-          totals.income_ars += amount
-        } else {
-          totals.expense_ars += amount
-        }
+      if (isIncome) {
+        totals.income_usd += amountUsd
       } else {
-        if (isIncome) {
-          totals.income_usd += amount
-        } else {
-          totals.expense_usd += amount
-        }
+        totals.expense_usd += amountUsd
       }
 
       // Por categoría
@@ -100,24 +114,14 @@ export async function GET(request: Request) {
       if (!byCategory[cat]) {
         byCategory[cat] = {
           category: cat,
-          income_ars: 0,
-          expense_ars: 0,
           income_usd: 0,
           expense_usd: 0,
         }
       }
-      if (curr === "ARS") {
-        if (isIncome) {
-          byCategory[cat].income_ars += amount
-        } else {
-          byCategory[cat].expense_ars += amount
-        }
+      if (isIncome) {
+        byCategory[cat].income_usd += amountUsd
       } else {
-        if (isIncome) {
-          byCategory[cat].income_usd += amount
-        } else {
-          byCategory[cat].expense_usd += amount
-        }
+        byCategory[cat].expense_usd += amountUsd
       }
 
       // Por día
@@ -125,34 +129,22 @@ export async function GET(request: Request) {
       if (!byDay[day]) {
         byDay[day] = {
           date: day,
-          income_ars: 0,
-          expense_ars: 0,
           income_usd: 0,
           expense_usd: 0,
         }
       }
-      if (curr === "ARS") {
-        if (isIncome) {
-          byDay[day].income_ars += amount
-        } else {
-          byDay[day].expense_ars += amount
-        }
+      if (isIncome) {
+        byDay[day].income_usd += amountUsd
       } else {
-        if (isIncome) {
-          byDay[day].income_usd += amount
-        } else {
-          byDay[day].expense_usd += amount
-        }
+        byDay[day].expense_usd += amountUsd
       }
     }
 
-    totals.net_ars = totals.income_ars - totals.expense_ars
     totals.net_usd = totals.income_usd - totals.expense_usd
 
     // Convertir a arrays ordenados
     const categoryData = Object.values(byCategory).sort((a: any, b: any) => 
-      (b.income_ars + b.income_usd - b.expense_ars - b.expense_usd) - 
-      (a.income_ars + a.income_usd - a.expense_ars - a.expense_usd)
+      (b.income_usd - b.expense_usd) - (a.income_usd - a.expense_usd)
     )
 
     const dailyData = Object.values(byDay).sort((a: any, b: any) => 
@@ -160,14 +152,11 @@ export async function GET(request: Request) {
     )
 
     // Calcular balance acumulado
-    let balanceArs = 0
     let balanceUsd = 0
     const dailyWithBalance = dailyData.map((d: any) => {
-      balanceArs += d.income_ars - d.expense_ars
       balanceUsd += d.income_usd - d.expense_usd
       return {
         ...d,
-        balance_ars: balanceArs,
         balance_usd: balanceUsd,
       }
     })
@@ -220,17 +209,19 @@ export async function GET(request: Request) {
     // Mapear cuentas con sus balances
     const accountsWithBalance = (accounts || []).map((account: any) => {
       const balance = balancesMap.get(account.id) ?? account.initial_balance ?? 0
+      const currency = account.currency || "ARS"
+      const balanceUsd = currency === "ARS" ? (latestExchangeRate ? balance / latestExchangeRate : 0) : balance
       return {
         ...account,
         current_balance: balance,
+        current_balance_usd: balanceUsd,
       }
     })
 
-    // Calcular totales por moneda y agencia
+    // Calcular totales en USD por agencia
     const balanceSummary: any = {
-      total_ars: 0,
       total_usd: 0,
-      by_agency: {} as Record<string, { ars: number; usd: number; accounts: any[]; agency_name?: string }>,
+      by_agency: {} as Record<string, { usd: number; accounts: any[]; agency_name?: string }>,
     }
 
     for (const account of accountsWithBalance) {
@@ -239,20 +230,14 @@ export async function GET(request: Request) {
       
       if (!balanceSummary.by_agency[agencyId]) {
         balanceSummary.by_agency[agencyId] = {
-          ars: 0,
           usd: 0,
           accounts: [],
           agency_name: agencyName,
         }
       }
 
-      if (account.currency === "ARS") {
-        balanceSummary.total_ars += account.current_balance
-        balanceSummary.by_agency[agencyId].ars += account.current_balance
-      } else {
-        balanceSummary.total_usd += account.current_balance
-        balanceSummary.by_agency[agencyId].usd += account.current_balance
-      }
+      balanceSummary.total_usd += account.current_balance_usd || 0
+      balanceSummary.by_agency[agencyId].usd += account.current_balance_usd || 0
 
       balanceSummary.by_agency[agencyId].accounts.push(account)
     }
@@ -272,4 +257,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Error interno" }, { status: 500 })
   }
 }
-
