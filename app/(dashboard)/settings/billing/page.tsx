@@ -42,14 +42,18 @@ export default function BillingPage() {
       })
       const data = await response.json()
       if (data.success) {
-        alert('Suscripción cancelada exitosamente')
+        alert('Suscripción dada de baja exitosamente')
         window.location.reload()
       } else {
-        alert('Error al cancelar la suscripción: ' + (data.error || 'Error desconocido'))
+        if (data.code === 'MP_PREAPPROVAL_MISSING') {
+          alert('No encontramos el vínculo con Mercado Pago para esta suscripción. Contactá soporte.')
+          return
+        }
+        alert('Error al dar de baja la suscripción: ' + (data.error || 'Error desconocido'))
       }
     } catch (error) {
       console.error('Error canceling subscription:', error)
-      alert('Error al cancelar la suscripción. Por favor intenta nuevamente.')
+      alert('Error al dar de baja la suscripción. Por favor intenta nuevamente.')
     } finally {
       setCanceling(false)
     }

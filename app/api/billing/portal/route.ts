@@ -57,7 +57,10 @@ export async function POST(request: Request) {
 
     if (!subData.mp_preapproval_id) {
       return NextResponse.json(
-        { error: "Esta suscripción no tiene un preapproval de Mercado Pago asociado" },
+        {
+          error: "No encontramos el vínculo con Mercado Pago para esta suscripción.",
+          code: "MP_PREAPPROVAL_MISSING",
+        },
         { status: 400 }
       )
     }

@@ -27,33 +27,61 @@ export const runtime = 'nodejs'
 
 /**
  * Verificar firma del webhook de Mercado Pago
- * Mercado Pago envía un header x-signature con la firma HMAC
+ * Mercado Pago envía un header x-signature con ts y v1
+ * El manifest se arma como: id:{data.id};request-id:{x-request-id};ts:{ts};
  *
  * SEGURIDAD: En producción, SIEMPRE debe haber un secret configurado
  */
-function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
+function verifyWebhookSignature(params: {
+  signatureHeader: string | null
+  requestId: string | null
+  dataId: string | null
+  secret: string
+}): boolean {
+  const { signatureHeader, requestId, dataId, secret } = params
+
   if (!secret) {
-    // CRÍTICO: En producción esto debería fallar
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
 
     if (isProduction) {
       console.error('🚨 CRÍTICO: Webhook secret NO configurado en producción')
-      return false // RECHAZAR en producción sin secret
+      return false
     }
 
-    // En desarrollo, permitir pero con warning
     console.warn('⚠️ Webhook secret no configurado - solo válido en desarrollo')
     return true
   }
 
-  try {
-    const hash = crypto
-      .createHmac('sha256', secret)
-      .update(body)
-      .digest('hex')
+  if (!signatureHeader || !requestId || !dataId) {
+    console.error('Webhook signature incompleta', {
+      hasSignature: !!signatureHeader,
+      hasRequestId: !!requestId,
+      hasDataId: !!dataId,
+    })
+    return false
+  }
 
-    // Mercado Pago puede enviar la firma en diferentes formatos
-    return hash === signature || signature === `sha256=${hash}`
+  const parts = signatureHeader.split(',').reduce<Record<string, string>>((acc, item) => {
+    const [key, value] = item.trim().split('=')
+    if (key && value) {
+      acc[key] = value
+    }
+    return acc
+  }, {})
+
+  const ts = parts.ts
+  const v1 = parts.v1
+
+  if (!ts || !v1) {
+    console.error('Webhook signature header inválido:', signatureHeader)
+    return false
+  }
+
+  try {
+    const normalizedId = dataId.toLowerCase()
+    const manifest = `id:${normalizedId};request-id:${requestId};ts:${ts};`
+    const hash = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
+    return hash === v1 || `sha256=${hash}` === v1
   } catch (error) {
     console.error('Error verifying webhook signature:', error)
     return false
@@ -64,6 +92,9 @@ function verifyWebhookSignature(body: string, signature: string, secret: string)
 // Mercado Pago envía POST con body JSON y header x-signature
 export async function POST(request: Request) {
   try {
+    const requestUrl = new URL(request.url)
+    const dataIdFromQuery = requestUrl.searchParams.get('data.id')
+
     // Leer el body como texto para validar firma
     const bodyText = await request.text()
     
@@ -76,17 +107,25 @@ export async function POST(request: Request) {
     
     // SEGURIDAD: Validación obligatoria de firma en producción
     const signature = request.headers.get('x-signature') || request.headers.get('X-Signature')
+    const requestId = request.headers.get('x-request-id') || request.headers.get('X-Request-Id')
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
 
     // Validar firma
     console.log('🔐 Validando firma del webhook...')
-    const isValid = verifyWebhookSignature(bodyText, signature || '', WEBHOOK_SECRET)
+    const isValid = verifyWebhookSignature({
+      signatureHeader: signature,
+      requestId,
+      dataId: dataIdFromQuery,
+      secret: WEBHOOK_SECRET,
+    })
 
     if (!isValid) {
       if (isProduction) {
         // En producción: RECHAZAR webhooks sin firma válida
         console.error('🚨 RECHAZADO: Webhook con firma inválida o sin firma en producción')
         console.error('Signature recibida:', signature ? signature.substring(0, 20) + '...' : 'NINGUNA')
+        console.error('Request ID:', requestId || 'NINGUNO')
+        console.error('Data ID:', dataIdFromQuery || 'NINGUNO')
         console.error('Body length:', bodyText.length)
         return NextResponse.json(
           { error: "Invalid webhook signature" },
@@ -96,6 +135,8 @@ export async function POST(request: Request) {
         // En desarrollo: Permitir pero advertir
         console.warn('⚠️ Webhook signature inválida (permitiendo en desarrollo)')
         console.warn('Signature recibida:', signature ? signature.substring(0, 20) + '...' : 'NINGUNA')
+        console.warn('Request ID:', requestId || 'NINGUNO')
+        console.warn('Data ID:', dataIdFromQuery || 'NINGUNO')
         console.warn('Body length:', bodyText.length)
       }
     } else {
@@ -245,11 +286,11 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     }
 
     // Mapear estados de Mercado Pago a nuestros estados
-    const mpStatus = preapproval.status as string
+    const mpStatus = (preapproval.status as string) || ''
     type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
     let status: SubscriptionStatus = 'ACTIVE' // Inicializar con valor por defecto
     
-    if (mpStatus === 'cancelled') {
+    if (mpStatus === 'cancelled' || mpStatus === 'canceled') {
       status = 'CANCELED'
     } else if (mpStatus === 'paused') {
       status = 'SUSPENDED'
@@ -270,7 +311,8 @@ async function handlePreApprovalNotification(preapprovalId: string) {
         }
       }
     } else if (mpStatus === 'pending') {
-      status = 'TRIAL'
+      const currentStatus = (subscription as any)?.status as SubscriptionStatus | undefined
+      status = currentStatus === 'TRIAL' ? 'TRIAL' : 'UNPAID'
     } else if (mpStatus === 'rejected' || mpStatus === 'failed') {
       // Si el pago fue rechazado o falló, incrementar intentos
       // La función increment_payment_attempt manejará el cambio a PAST_DUE después de 3 intentos
