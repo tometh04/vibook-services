@@ -29,7 +29,7 @@ export default function BillingPage() {
   const [verifying, setVerifying] = useState(false)
 
   const handleCancel = async () => {
-    if (!confirm('¿Estás seguro que querés cancelar tu suscripción? Perderás acceso a las features premium cuando termine el período actual.')) {
+    if (!confirm('¿Estás seguro que querés dar de baja tu suscripción? No se realizarán más cobros y el acceso se cerrará según el estado actual.')) {
       return
     }
 
@@ -145,8 +145,8 @@ export default function BillingPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Facturación y Suscripción</h1>
-          <p className="text-muted-foreground">Gestiona tu plan y métodos de pago</p>
+          <h1 className="text-3xl font-bold">Suscripción</h1>
+          <p className="text-muted-foreground">Gestiona tu plan, estado y pagos</p>
         </div>
         <div className="text-center py-10">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
@@ -160,8 +160,8 @@ export default function BillingPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Facturación y Suscripción</h1>
-          <p className="text-muted-foreground">Gestiona tu plan y métodos de pago</p>
+          <h1 className="text-3xl font-bold">Suscripción</h1>
+          <p className="text-muted-foreground">Gestiona tu plan, estado y pagos</p>
         </div>
         <Alert>
           <AlertCircle className="h-4 w-4" />
@@ -180,8 +180,8 @@ export default function BillingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Facturación y Suscripción</h1>
-        <p className="text-muted-foreground">Gestiona tu plan y métodos de pago</p>
+        <h1 className="text-3xl font-bold">Suscripción</h1>
+        <p className="text-muted-foreground">Gestiona tu plan, estado y pagos</p>
       </div>
 
       {/* Plan Actual */}
@@ -265,22 +265,24 @@ export default function BillingPage() {
                 )}
               </Button>
             )}
-            {subscription.status === 'ACTIVE' && (
+            {(subscription.status === 'ACTIVE' || subscription.status === 'TRIAL' || subscription.status === 'PAST_DUE') && (
               <>
-                <Button 
-                  variant="outline" 
-                  onClick={handlePause}
-                  disabled={pausing || canceling}
-                >
-                  {pausing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Pausando...
-                    </>
-                  ) : (
-                    'Pausar Suscripción'
-                  )}
-                </Button>
+                {subscription.status === 'ACTIVE' && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePause}
+                    disabled={pausing || canceling}
+                  >
+                    {pausing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Pausando...
+                      </>
+                    ) : (
+                      'Pausar Suscripción'
+                    )}
+                  </Button>
+                )}
                 <Button 
                   variant="destructive" 
                   onClick={handleCancel}
@@ -289,10 +291,10 @@ export default function BillingPage() {
                   {canceling ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Cancelando...
+                      Dando de baja...
                     </>
                   ) : (
-                    'Cancelar Suscripción'
+                    'Dar de baja la Suscripción'
                   )}
                 </Button>
               </>
@@ -359,7 +361,7 @@ export default function BillingPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Para gestionar tus métodos de pago, facturas y detalles de tu cuenta de Mercado Pago, ingresá a tu cuenta en{' '}
+            Podés dar de baja tu suscripción directamente desde Vibook. Para gestionar métodos de pago y facturas, ingresá a tu cuenta en{' '}
             <a href="https://www.mercadopago.com.ar" target="_blank" rel="noopener noreferrer" className="text-primary underline">
               mercadopago.com.ar
             </a>

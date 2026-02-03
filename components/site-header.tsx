@@ -33,6 +33,7 @@ const getPageTitle = (pathname: string): string => {
     "/my/balance": "Mi Balance",
     "/my/commissions": "Mis Comisiones",
     "/settings": "Configuración",
+    "/settings/billing": "Suscripción",
     "/tools/cerebro": "Cerebro",
     "/emilia": "Emilia",
     "/admin": "Admin",
