@@ -35,6 +35,18 @@ export async function verifySubscriptionAccess(
   userRole: string
 ): Promise<SubscriptionCheckResult> {
   try {
+    // Bypass para desarrollo local cuando la auth está deshabilitada
+    if (process.env.DISABLE_AUTH === "true") {
+      return {
+        hasAccess: true,
+        subscription: {
+          id: "dev",
+          status: "ACTIVE",
+          planName: "DEV",
+        },
+      }
+    }
+
     const supabase = await createServerClient()
     const supabaseAdmin = createAdminSupabaseClient()
     

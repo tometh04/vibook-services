@@ -28,6 +28,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 2. Trigger para validar cambios en system_config
+DROP TRIGGER IF EXISTS validate_system_config_change_trigger ON system_config;
 CREATE TRIGGER validate_system_config_change_trigger
   BEFORE INSERT OR UPDATE ON system_config
   FOR EACH ROW

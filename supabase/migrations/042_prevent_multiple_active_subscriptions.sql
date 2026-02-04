@@ -26,6 +26,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 2. Trigger para prevenir múltiples suscripciones activas
+DROP TRIGGER IF EXISTS prevent_multiple_active_subscriptions_trigger ON subscriptions;
 CREATE TRIGGER prevent_multiple_active_subscriptions_trigger
   BEFORE INSERT ON subscriptions
   FOR EACH ROW
@@ -57,6 +58,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS prevent_multiple_active_subscriptions_update_trigger ON subscriptions;
 CREATE TRIGGER prevent_multiple_active_subscriptions_update_trigger
   BEFORE UPDATE ON subscriptions
   FOR EACH ROW

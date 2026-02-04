@@ -64,6 +64,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS validate_trial_start_on_insert_trigger ON subscriptions;
 CREATE TRIGGER validate_trial_start_on_insert_trigger
   BEFORE INSERT ON subscriptions
   FOR EACH ROW

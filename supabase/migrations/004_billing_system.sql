@@ -180,10 +180,12 @@ ALTER TABLE usage_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_events ENABLE ROW LEVEL SECURITY;
 
 -- Planes: Todos pueden leer planes públicos
+DROP POLICY IF EXISTS "Plans are viewable by everyone" ON subscription_plans;
 CREATE POLICY "Plans are viewable by everyone" ON subscription_plans
   FOR SELECT USING (is_public = true OR is_active = true);
 
 -- Suscripciones: Solo pueden ver sus propias suscripciones
+DROP POLICY IF EXISTS "Agencies can view own subscriptions" ON subscriptions;
 CREATE POLICY "Agencies can view own subscriptions" ON subscriptions
   FOR SELECT USING (
     agency_id IN (
@@ -193,6 +195,7 @@ CREATE POLICY "Agencies can view own subscriptions" ON subscriptions
   );
 
 -- Métodos de pago: Solo pueden ver sus propios métodos
+DROP POLICY IF EXISTS "Agencies can view own payment methods" ON payment_methods;
 CREATE POLICY "Agencies can view own payment methods" ON payment_methods
   FOR SELECT USING (
     agency_id IN (
@@ -202,6 +205,7 @@ CREATE POLICY "Agencies can view own payment methods" ON payment_methods
   );
 
 -- Métricas de uso: Solo pueden ver sus propias métricas
+DROP POLICY IF EXISTS "Agencies can view own usage metrics" ON usage_metrics;
 CREATE POLICY "Agencies can view own usage metrics" ON usage_metrics
   FOR SELECT USING (
     agency_id IN (
@@ -211,6 +215,7 @@ CREATE POLICY "Agencies can view own usage metrics" ON usage_metrics
   );
 
 -- Eventos de billing: Solo pueden ver sus propios eventos
+DROP POLICY IF EXISTS "Agencies can view own billing events" ON billing_events;
 CREATE POLICY "Agencies can view own billing events" ON billing_events
   FOR SELECT USING (
     agency_id IN (
@@ -326,6 +331,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger: Crear suscripción FREE cuando se crea una agencia
+DROP TRIGGER IF EXISTS create_free_subscription_on_agency_creation ON agencies;
 CREATE TRIGGER create_free_subscription_on_agency_creation
   AFTER INSERT ON agencies
   FOR EACH ROW
@@ -366,6 +372,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger: Actualizar métricas cuando se crea una operación
+DROP TRIGGER IF EXISTS update_usage_on_operation_creation ON operations;
 CREATE TRIGGER update_usage_on_operation_creation
   AFTER INSERT ON operations
   FOR EACH ROW

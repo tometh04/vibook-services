@@ -117,6 +117,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS audit_subscription_changes_trigger ON subscriptions;
 CREATE TRIGGER audit_subscription_changes_trigger
   AFTER UPDATE ON subscriptions
   FOR EACH ROW
@@ -149,6 +150,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS audit_trial_status_changes_trigger ON agencies;
 CREATE TRIGGER audit_trial_status_changes_trigger
   AFTER UPDATE OF has_used_trial ON agencies
   FOR EACH ROW

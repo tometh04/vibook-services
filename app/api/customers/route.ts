@@ -263,21 +263,41 @@ export async function POST(request: Request) {
     // Create customer (CRÍTICO: incluir agency_id para aislamiento SaaS)
     console.log(`[POST /api/customers] Creating customer with agency_id: ${requestedAgencyId}`)
     
-    const { data: customer, error: createError } = await (supabase.from("customers") as any)
-      .insert({
-        agency_id: requestedAgencyId, // CRÍTICO: Aislar por agencia
-        first_name,
-        last_name,
-        phone,
-        email,
-        instagram_handle: instagram_handle || null,
-        document_type: document_type || null,
-        document_number: document_number || null,
-        date_of_birth: date_of_birth || null,
-        nationality: nationality || null,
-      })
+    const customerPayload: Record<string, any> = {
+      agency_id: requestedAgencyId, // CRÍTICO: Aislar por agencia
+      first_name,
+      last_name,
+      phone,
+      email,
+      instagram_handle: instagram_handle || null,
+      document_type: document_type || null,
+      document_number: document_number || null,
+      date_of_birth: date_of_birth || null,
+      nationality: nationality || null,
+    }
+
+    let { data: customer, error: createError } = await (supabase.from("customers") as any)
+      .insert(customerPayload)
       .select()
       .single()
+
+    // Fallback para entornos legacy donde customers.agency_id no existe
+    if (
+      createError &&
+      process.env.DISABLE_AUTH === "true" &&
+      (createError as any)?.code === "PGRST204" &&
+      String((createError as any)?.message || "").includes("agency_id")
+    ) {
+      console.warn("[POST /api/customers] agency_id column missing, retrying without agency_id")
+      const legacyPayload = { ...customerPayload }
+      delete legacyPayload.agency_id
+      const retry = await (supabase.from("customers") as any)
+        .insert(legacyPayload)
+        .select()
+        .single()
+      customer = retry.data
+      createError = retry.error
+    }
 
     if (createError || !customer) {
       console.error("[POST /api/customers] Error creating customer:", createError)
@@ -313,4 +333,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Error al crear cliente" }, { status: 500 })
   }
 }
-

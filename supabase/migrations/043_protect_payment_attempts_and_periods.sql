@@ -90,6 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS prevent_manual_period_end_change_trigger ON subscriptions;
 CREATE TRIGGER prevent_manual_period_end_change_trigger
   BEFORE UPDATE ON subscriptions
   FOR EACH ROW

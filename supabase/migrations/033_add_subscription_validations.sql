@@ -17,6 +17,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS prevent_trial_reset_trigger ON agencies;
 CREATE TRIGGER prevent_trial_reset_trigger
   BEFORE UPDATE ON agencies
   FOR EACH ROW
@@ -43,6 +44,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS validate_trial_dates_trigger ON subscriptions;
 CREATE TRIGGER validate_trial_dates_trigger
   BEFORE INSERT OR UPDATE ON subscriptions
   FOR EACH ROW
@@ -71,6 +73,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS validate_active_subscription_trigger ON subscriptions;
 CREATE TRIGGER validate_active_subscription_trigger
   BEFORE INSERT OR UPDATE ON subscriptions
   FOR EACH ROW
@@ -94,6 +97,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS validate_period_dates_trigger ON subscriptions;
 CREATE TRIGGER validate_period_dates_trigger
   BEFORE INSERT OR UPDATE ON subscriptions
   FOR EACH ROW

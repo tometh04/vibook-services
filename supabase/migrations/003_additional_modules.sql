@@ -185,6 +185,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_quota_reserved_count ON quota_reservations;
 CREATE TRIGGER trigger_update_quota_reserved_count
   AFTER INSERT OR UPDATE OR DELETE ON quota_reservations
   FOR EACH ROW
@@ -305,6 +306,7 @@ ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE note_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE note_attachments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view notes based on visibility" ON notes;
 CREATE POLICY "Users can view notes based on visibility" ON notes
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
@@ -314,11 +316,13 @@ CREATE POLICY "Users can view notes based on visibility" ON notes
     )
   );
 
+DROP POLICY IF EXISTS "Users can create notes" ON notes;
 CREATE POLICY "Users can create notes" ON notes
   FOR INSERT WITH CHECK (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Users can update own notes" ON notes;
 CREATE POLICY "Users can update own notes" ON notes
   FOR UPDATE USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
@@ -328,6 +332,7 @@ CREATE POLICY "Users can update own notes" ON notes
     )
   );
 
+DROP POLICY IF EXISTS "Users can view comments on accessible notes" ON note_comments;
 CREATE POLICY "Users can view comments on accessible notes" ON note_comments
   FOR SELECT USING (
     note_id IN (
@@ -335,6 +340,7 @@ CREATE POLICY "Users can view comments on accessible notes" ON note_comments
     )
   );
 
+DROP POLICY IF EXISTS "Users can create comments" ON note_comments;
 CREATE POLICY "Users can create comments" ON note_comments
   FOR ALL USING (
     note_id IN (
@@ -342,6 +348,7 @@ CREATE POLICY "Users can create comments" ON note_comments
     )
   );
 
+DROP POLICY IF EXISTS "Users can view attachments on accessible notes" ON note_attachments;
 CREATE POLICY "Users can view attachments on accessible notes" ON note_attachments
   FOR SELECT USING (
     note_id IN (
@@ -349,6 +356,7 @@ CREATE POLICY "Users can view attachments on accessible notes" ON note_attachmen
     )
   );
 
+DROP POLICY IF EXISTS "Users can upload attachments" ON note_attachments;
 CREATE POLICY "Users can upload attachments" ON note_attachments
   FOR ALL USING (
     note_id IN (
@@ -421,17 +429,20 @@ CREATE TABLE IF NOT EXISTS integration_logs (
 ALTER TABLE integration_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE integration_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their integration configs" ON integration_configs;
 CREATE POLICY "Users can view their integration configs" ON integration_configs
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage integration configs" ON integration_configs;
 CREATE POLICY "Admins can manage integration configs" ON integration_configs
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
     AND EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role IN ('ADMIN', 'SUPER_ADMIN'))
   );
 
+DROP POLICY IF EXISTS "Users can view their integration logs" ON integration_logs;
 CREATE POLICY "Users can view their integration logs" ON integration_logs
   FOR SELECT USING (
     integration_config_id IN (
@@ -519,44 +530,52 @@ ALTER TABLE operation_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financial_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tools_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view settings for their agencies" ON customer_settings;
 CREATE POLICY "Users can view settings for their agencies" ON customer_settings
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage settings" ON customer_settings;
 CREATE POLICY "Admins can manage settings" ON customer_settings
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
     AND EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role IN ('ADMIN', 'SUPER_ADMIN'))
   );
 
+DROP POLICY IF EXISTS "Users can view operation settings" ON operation_settings;
 CREATE POLICY "Users can view operation settings" ON operation_settings
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage operation settings" ON operation_settings;
 CREATE POLICY "Admins can manage operation settings" ON operation_settings
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
     AND EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role IN ('ADMIN', 'SUPER_ADMIN'))
   );
 
+DROP POLICY IF EXISTS "Users can view financial settings" ON financial_settings;
 CREATE POLICY "Users can view financial settings" ON financial_settings
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage financial settings" ON financial_settings;
 CREATE POLICY "Admins can manage financial settings" ON financial_settings
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
     AND EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role IN ('ADMIN', 'SUPER_ADMIN'))
   );
 
+DROP POLICY IF EXISTS "Users can view tools settings" ON tools_settings;
 CREATE POLICY "Users can view tools settings" ON tools_settings
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage tools settings" ON tools_settings;
 CREATE POLICY "Admins can manage tools settings" ON tools_settings
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
@@ -644,51 +663,67 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 -- TRIGGERS PARA UPDATED_AT PARTE 3
 -- =====================================================
 
+DROP TRIGGER IF EXISTS trigger_update_quotations_updated_at ON quotations;
 CREATE TRIGGER trigger_update_quotations_updated_at BEFORE UPDATE ON quotations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_quotation_items_updated_at ON quotation_items;
 CREATE TRIGGER trigger_update_quotation_items_updated_at BEFORE UPDATE ON quotation_items
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_tariffs_updated_at ON tariffs;
 CREATE TRIGGER trigger_update_tariffs_updated_at BEFORE UPDATE ON tariffs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_tariff_items_updated_at ON tariff_items;
 CREATE TRIGGER trigger_update_tariff_items_updated_at BEFORE UPDATE ON tariff_items
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_quotas_updated_at ON quotas;
 CREATE TRIGGER trigger_update_quotas_updated_at BEFORE UPDATE ON quotas
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_message_templates_updated_at ON message_templates;
 CREATE TRIGGER trigger_update_message_templates_updated_at BEFORE UPDATE ON message_templates
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_conversations_updated_at ON conversations;
 CREATE TRIGGER trigger_update_conversations_updated_at BEFORE UPDATE ON conversations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_notes_updated_at ON notes;
 CREATE TRIGGER trigger_update_notes_updated_at BEFORE UPDATE ON notes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_note_comments_updated_at ON note_comments;
 CREATE TRIGGER trigger_update_note_comments_updated_at BEFORE UPDATE ON note_comments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_teams_updated_at ON teams;
 CREATE TRIGGER trigger_update_teams_updated_at BEFORE UPDATE ON teams
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_integration_configs_updated_at ON integration_configs;
 CREATE TRIGGER trigger_update_integration_configs_updated_at BEFORE UPDATE ON integration_configs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_customer_settings_updated_at ON customer_settings;
 CREATE TRIGGER trigger_update_customer_settings_updated_at BEFORE UPDATE ON customer_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_operation_settings_updated_at ON operation_settings;
 CREATE TRIGGER trigger_update_operation_settings_updated_at BEFORE UPDATE ON operation_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_financial_settings_updated_at ON financial_settings;
 CREATE TRIGGER trigger_update_financial_settings_updated_at BEFORE UPDATE ON financial_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_tools_settings_updated_at ON tools_settings;
 CREATE TRIGGER trigger_update_tools_settings_updated_at BEFORE UPDATE ON tools_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_destination_requirements_updated_at ON destination_requirements;
 CREATE TRIGGER trigger_update_destination_requirements_updated_at BEFORE UPDATE ON destination_requirements
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

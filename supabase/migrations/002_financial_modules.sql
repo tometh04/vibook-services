@@ -171,6 +171,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_cash_box_balance ON cash_movements;
 CREATE TRIGGER trigger_update_cash_box_balance
   AFTER INSERT OR UPDATE OR DELETE ON cash_movements
   FOR EACH ROW
@@ -204,6 +205,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_cash_box_balance_on_transfer ON cash_transfers;
 CREATE TRIGGER trigger_update_cash_box_balance_on_transfer
   AFTER INSERT OR UPDATE ON cash_transfers
   FOR EACH ROW
@@ -412,29 +414,34 @@ ALTER TABLE commission_schemes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE commission_details ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view commission schemes" ON commission_schemes;
 CREATE POLICY "Users can view commission schemes" ON commission_schemes
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage commission schemes" ON commission_schemes;
 CREATE POLICY "Admins can manage commission schemes" ON commission_schemes
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
     AND EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role IN ('ADMIN', 'SUPER_ADMIN'))
   );
 
+DROP POLICY IF EXISTS "Users can view own commissions" ON commissions;
 CREATE POLICY "Users can view own commissions" ON commissions
   FOR SELECT USING (
     user_id IN (SELECT id FROM users WHERE auth_id = auth.uid())
     OR agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage commissions" ON commissions;
 CREATE POLICY "Admins can manage commissions" ON commissions
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
     AND EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role IN ('ADMIN', 'SUPER_ADMIN'))
   );
 
+DROP POLICY IF EXISTS "Users can view commission details" ON commission_details;
 CREATE POLICY "Users can view commission details" ON commission_details
   FOR SELECT USING (
     commission_id IN (
@@ -502,21 +509,25 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view invoices for their agencies" ON invoices;
 CREATE POLICY "Users can view invoices for their agencies" ON invoices
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Users can create invoices for their agencies" ON invoices;
 CREATE POLICY "Users can create invoices for their agencies" ON invoices
   FOR INSERT WITH CHECK (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Users can update invoices for their agencies" ON invoices;
 CREATE POLICY "Users can update invoices for their agencies" ON invoices
   FOR UPDATE USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Users can view invoice items" ON invoice_items;
 CREATE POLICY "Users can view invoice items" ON invoice_items
   FOR SELECT USING (
     invoice_id IN (
@@ -524,6 +535,7 @@ CREATE POLICY "Users can view invoice items" ON invoice_items
     )
   );
 
+DROP POLICY IF EXISTS "Users can manage invoice items" ON invoice_items;
 CREATE POLICY "Users can manage invoice items" ON invoice_items
   FOR ALL USING (
     invoice_id IN (
@@ -561,35 +573,46 @@ CREATE INDEX IF NOT EXISTS idx_financial_accounts_agency ON financial_accounts(a
 -- TRIGGERS PARA UPDATED_AT PARTE 2
 -- =====================================================
 
+DROP TRIGGER IF EXISTS trigger_update_cash_boxes_updated_at ON cash_boxes;
 CREATE TRIGGER trigger_update_cash_boxes_updated_at BEFORE UPDATE ON cash_boxes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_cash_transfers_updated_at ON cash_transfers;
 CREATE TRIGGER trigger_update_cash_transfers_updated_at BEFORE UPDATE ON cash_transfers
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_iva_sales_updated_at ON iva_sales;
 CREATE TRIGGER trigger_update_iva_sales_updated_at BEFORE UPDATE ON iva_sales
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_iva_purchases_updated_at ON iva_purchases;
 CREATE TRIGGER trigger_update_iva_purchases_updated_at BEFORE UPDATE ON iva_purchases
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_operator_payments_updated_at ON operator_payments;
 CREATE TRIGGER trigger_update_operator_payments_updated_at BEFORE UPDATE ON operator_payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_recurring_payments_updated_at ON recurring_payments;
 CREATE TRIGGER trigger_update_recurring_payments_updated_at BEFORE UPDATE ON recurring_payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_partner_accounts_updated_at ON partner_accounts;
 CREATE TRIGGER trigger_update_partner_accounts_updated_at BEFORE UPDATE ON partner_accounts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_chart_of_accounts_updated_at ON chart_of_accounts;
 CREATE TRIGGER trigger_update_chart_of_accounts_updated_at BEFORE UPDATE ON chart_of_accounts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_commission_schemes_updated_at ON commission_schemes;
 CREATE TRIGGER trigger_update_commission_schemes_updated_at BEFORE UPDATE ON commission_schemes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_commissions_updated_at ON commissions;
 CREATE TRIGGER trigger_update_commissions_updated_at BEFORE UPDATE ON commissions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_invoices_updated_at ON invoices;
 CREATE TRIGGER trigger_update_invoices_updated_at BEFORE UPDATE ON invoices
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -62,6 +62,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 4. Trigger para sincronizar automáticamente
+DROP TRIGGER IF EXISTS sync_user_trial_status_trigger ON agencies;
 CREATE TRIGGER sync_user_trial_status_trigger
   AFTER UPDATE OF has_used_trial ON agencies
   FOR EACH ROW

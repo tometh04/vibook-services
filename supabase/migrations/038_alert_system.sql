@@ -99,6 +99,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS alert_on_tester_assignment_trigger ON subscriptions;
 CREATE TRIGGER alert_on_tester_assignment_trigger
   AFTER INSERT OR UPDATE ON subscriptions
   FOR EACH ROW
@@ -139,6 +140,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS alert_on_trial_extension_trigger ON subscriptions;
 CREATE TRIGGER alert_on_trial_extension_trigger
   AFTER UPDATE ON subscriptions
   FOR EACH ROW
@@ -183,6 +185,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS alert_on_active_without_preapproval_trigger ON subscriptions;
 CREATE TRIGGER alert_on_active_without_preapproval_trigger
   AFTER UPDATE ON subscriptions
   FOR EACH ROW
@@ -215,6 +218,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS alert_on_trial_reset_trigger ON agencies;
 CREATE TRIGGER alert_on_trial_reset_trigger
   AFTER UPDATE ON agencies
   FOR EACH ROW

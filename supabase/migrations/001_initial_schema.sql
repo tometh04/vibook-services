@@ -64,11 +64,13 @@ CREATE TABLE IF NOT EXISTS tenant_branding (
 
 ALTER TABLE tenant_branding ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Tenants can view their own branding" ON tenant_branding;
 CREATE POLICY "Tenants can view their own branding" ON tenant_branding
   FOR SELECT USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Admins can manage branding" ON tenant_branding;
 CREATE POLICY "Admins can manage branding" ON tenant_branding
   FOR ALL USING (
     agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
@@ -265,6 +267,7 @@ CREATE TABLE IF NOT EXISTS documents (
 
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view documents from their agencies" ON documents;
 CREATE POLICY "Users can view documents from their agencies" ON documents
   FOR SELECT USING (
     (operation_id IS NULL OR operation_id IN (SELECT id FROM operations WHERE agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))))
@@ -272,6 +275,7 @@ CREATE POLICY "Users can view documents from their agencies" ON documents
     OR (lead_id IS NULL OR lead_id IN (SELECT id FROM leads WHERE agency_id IN (SELECT agency_id FROM user_agencies WHERE user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))))
   );
 
+DROP POLICY IF EXISTS "Users can upload documents" ON documents;
 CREATE POLICY "Users can upload documents" ON documents
   FOR INSERT WITH CHECK (
     uploaded_by_user_id IN (SELECT id FROM users WHERE auth_id = auth.uid())
@@ -337,29 +341,38 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_users_updated_at ON users;
 CREATE TRIGGER trigger_update_users_updated_at BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_agencies_updated_at ON agencies;
 CREATE TRIGGER trigger_update_agencies_updated_at BEFORE UPDATE ON agencies
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_operators_updated_at ON operators;
 CREATE TRIGGER trigger_update_operators_updated_at BEFORE UPDATE ON operators
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_customers_updated_at ON customers;
 CREATE TRIGGER trigger_update_customers_updated_at BEFORE UPDATE ON customers
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_leads_updated_at ON leads;
 CREATE TRIGGER trigger_update_leads_updated_at BEFORE UPDATE ON leads
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_operations_updated_at ON operations;
 CREATE TRIGGER trigger_update_operations_updated_at BEFORE UPDATE ON operations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_payments_updated_at ON payments;
 CREATE TRIGGER trigger_update_payments_updated_at BEFORE UPDATE ON payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_alerts_updated_at ON alerts;
 CREATE TRIGGER trigger_update_alerts_updated_at BEFORE UPDATE ON alerts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_update_tenant_branding_updated_at ON tenant_branding;
 CREATE TRIGGER trigger_update_tenant_branding_updated_at BEFORE UPDATE ON tenant_branding
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

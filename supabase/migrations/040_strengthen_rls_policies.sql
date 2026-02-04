@@ -15,16 +15,19 @@ DROP POLICY IF EXISTS "Agencies can delete subscriptions" ON subscriptions;
 
 -- Bloquear explícitamente INSERT, UPDATE, DELETE para usuarios autenticados
 -- (Solo admin client con service_role_key puede modificar)
+DROP POLICY IF EXISTS "Block subscriptions INSERT" ON subscriptions;
 CREATE POLICY "Block subscriptions INSERT" ON subscriptions
   FOR INSERT
   TO authenticated
   WITH CHECK (false); -- Bloquear todos los INSERT
 
+DROP POLICY IF EXISTS "Block subscriptions UPDATE" ON subscriptions;
 CREATE POLICY "Block subscriptions UPDATE" ON subscriptions
   FOR UPDATE
   TO authenticated
   USING (false); -- Bloquear todos los UPDATE
 
+DROP POLICY IF EXISTS "Block subscriptions DELETE" ON subscriptions;
 CREATE POLICY "Block subscriptions DELETE" ON subscriptions
   FOR DELETE
   TO authenticated
@@ -40,16 +43,19 @@ DROP POLICY IF EXISTS "Agencies can update usage metrics" ON usage_metrics;
 DROP POLICY IF EXISTS "Agencies can delete usage metrics" ON usage_metrics;
 
 -- Bloquear explícitamente INSERT, UPDATE, DELETE
+DROP POLICY IF EXISTS "Block usage_metrics INSERT" ON usage_metrics;
 CREATE POLICY "Block usage_metrics INSERT" ON usage_metrics
   FOR INSERT
   TO authenticated
   WITH CHECK (false);
 
+DROP POLICY IF EXISTS "Block usage_metrics UPDATE" ON usage_metrics;
 CREATE POLICY "Block usage_metrics UPDATE" ON usage_metrics
   FOR UPDATE
   TO authenticated
   USING (false);
 
+DROP POLICY IF EXISTS "Block usage_metrics DELETE" ON usage_metrics;
 CREATE POLICY "Block usage_metrics DELETE" ON usage_metrics
   FOR DELETE
   TO authenticated
@@ -66,11 +72,13 @@ DROP POLICY IF EXISTS "Agencies can delete billing events" ON billing_events;
 
 -- Bloquear explícitamente UPDATE y DELETE (INSERT puede ser necesario para webhooks)
 -- Para INSERT, solo permitir desde funciones RPC o admin client
+DROP POLICY IF EXISTS "Block billing_events UPDATE" ON billing_events;
 CREATE POLICY "Block billing_events UPDATE" ON billing_events
   FOR UPDATE
   TO authenticated
   USING (false);
 
+DROP POLICY IF EXISTS "Block billing_events DELETE" ON billing_events;
 CREATE POLICY "Block billing_events DELETE" ON billing_events
   FOR DELETE
   TO authenticated

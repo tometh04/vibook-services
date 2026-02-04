@@ -105,12 +105,11 @@ export async function POST(request: Request) {
     )
 
     // Calcular ARS equivalent
-    // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
-    // ARS: SÍ necesita tipo de cambio (para convertir a USD)
+    // ARS: necesita tipo de cambio (para convertir a USD)
+    // USD: también necesita tipo de cambio para calcular equivalente en ARS
     let exchangeRate: number | null = null
     if (currency === "ARS") {
       // Para ARS, el tipo de cambio es obligatorio (viene del frontend o se busca)
-      // Por ahora, si no viene, intentamos buscarlo (pero debería venir del frontend)
       const rateDate = movement_date ? new Date(movement_date) : new Date()
       exchangeRate = await getExchangeRate(supabase, rateDate)
       
@@ -124,8 +123,14 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+    } else if (currency === "USD") {
+      // Para USD usamos la última tasa disponible para calcular ARS equivalente
+      exchangeRate = await getLatestExchangeRate(supabase)
+      if (!exchangeRate) {
+        console.warn("⚠️ No se encontró tipo de cambio; usando 1 para ARS equivalente")
+        exchangeRate = 1
+      }
     }
-    // Para USD, exchangeRate = null (no se necesita tipo de cambio)
     
     const amountARS = calculateARSEquivalent(
       Number(amount),
@@ -162,7 +167,7 @@ export async function POST(request: Request) {
         concept: category,
         currency: currency as "ARS" | "USD",
         amount_original: Number(amount),
-        exchange_rate: currency === "ARS" ? exchangeRate : null, // Solo guardar exchange_rate para ARS
+        exchange_rate: exchangeRate, // Guardar exchange_rate para ARS y USD
         amount_ars_equivalent: amountARS,
         method,
         account_id: accountId,

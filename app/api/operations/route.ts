@@ -114,24 +114,29 @@ export async function POST(request: Request) {
     })
 
     if (limitError) {
-      console.error("Error checking operation limit:", limitError)
-      return NextResponse.json(
-        { error: "Error al verificar límite de operaciones. Por favor, intentá nuevamente." },
-        { status: 500 }
-      )
-    }
-
-    const limitCheck = limitResult as any
-    if (!limitCheck.allowed || limitCheck.limit_reached) {
-      return NextResponse.json(
-        { 
-          error: limitCheck.message || "Has alcanzado el límite de operaciones de tu plan",
-          limitReached: true,
-          limit: limitCheck.limit,
-          current: limitCheck.current
-        },
-        { status: 403 }
-      )
+      // En desarrollo local, permitir continuar si la RPC no existe
+      if (process.env.DISABLE_AUTH === "true") {
+        console.warn("⚠️ check_and_increment_operation_limit falló en dev, se omite el bloqueo:", limitError)
+      } else {
+        console.error("Error checking operation limit:", limitError)
+        return NextResponse.json(
+          { error: "Error al verificar límite de operaciones. Por favor, intentá nuevamente." },
+          { status: 500 }
+        )
+      }
+    } else {
+      const limitCheck = limitResult as any
+      if (!limitCheck.allowed || limitCheck.limit_reached) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.message || "Has alcanzado el límite de operaciones de tu plan",
+            limitReached: true,
+            limit: limitCheck.limit,
+            current: limitCheck.current
+          },
+          { status: 403 }
+        )
+      }
     }
 
     // Aplicar validaciones de configuración
