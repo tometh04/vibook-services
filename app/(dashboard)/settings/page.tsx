@@ -5,7 +5,6 @@ import { UsersSettings } from "@/components/settings/users-settings"
 import { AgenciesSettings } from "@/components/settings/agencies-settings"
 import { BrandingSettings } from "@/components/settings/branding-settings"
 import { CommissionsSettings } from "@/components/settings/commissions-settings"
-import { AISettings } from "@/components/settings/ai-settings"
 import { SeedMockData } from "@/components/settings/seed-mock-data"
 import { MigrateHistoricalAccounting } from "@/components/settings/migrate-historical-accounting"
 import { ImportSettings } from "@/components/settings/import-settings"
@@ -62,7 +61,6 @@ export default async function SettingsPage() {
           <TabsTrigger value="agencies">Agencias</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="commissions">Comisiones</TabsTrigger>
-          <TabsTrigger value="ai">AI</TabsTrigger>
           <TabsTrigger value="requirements">Requisitos</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
           <TabsTrigger value="afip">AFIP</TabsTrigger>
@@ -79,9 +77,6 @@ export default async function SettingsPage() {
         </TabsContent>
         <TabsContent value="commissions">
           <CommissionsSettings />
-        </TabsContent>
-        <TabsContent value="ai">
-          <AISettings />
         </TabsContent>
         <TabsContent value="requirements">
           <DestinationRequirementsClient />
@@ -102,4 +97,3 @@ export default async function SettingsPage() {
     </div>
   )
 }
-

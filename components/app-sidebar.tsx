@@ -173,8 +173,6 @@ const allNavigation: NavItem[] = [
       { title: "Suscripción", url: "/settings/billing" },
       { title: "Operadores", url: "/operators", module: "operators" as const },
       { title: "Usuarios", url: "/settings/users" },
-      { title: "Equipos", url: "/settings/teams" },
-      { title: "Integraciones", url: "/settings/integrations" },
     ],
   },
   // Herramientas - Colapsable
@@ -185,7 +183,6 @@ const allNavigation: NavItem[] = [
     items: [
       { title: "Cerebro", url: "/tools/cerebro" },
       { title: "Emilia", url: "/emilia" },
-      { title: "Configuración", url: "/tools/settings" },
     ],
   },
 ]
