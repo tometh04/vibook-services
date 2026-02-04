@@ -31,15 +31,13 @@ interface OperationAccountingSectionProps {
   saleAmount?: number
   operatorCost?: number
   currency?: string
-  commissionPercent?: number
 }
 
 export function OperationAccountingSection({ 
   operationId, 
   saleAmount = 0, 
   operatorCost = 0, 
-  currency = "USD",
-  commissionPercent = 10
+  currency = "USD"
 }: OperationAccountingSectionProps) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{
@@ -87,11 +85,6 @@ export function OperationAccountingSection({
   // Costo neto: costo del operador sin IVA
   const costoNeto = operatorCost / 1.21
   const marginNeto = ventaNeta - costoNeto
-  
-  // Comisiones estimadas
-  const comisionEstimada = marginBruto * (commissionPercent / 100)
-  const gananciaFinal = marginBruto - comisionEstimada
-  const gananciaFinalPercent = saleAmount > 0 ? (gananciaFinal / saleAmount) * 100 : 0
   
   // ROI
   const roi = operatorCost > 0 ? ((marginBruto / operatorCost) * 100) : 0
@@ -198,10 +191,10 @@ export function OperationAccountingSection({
           </CardHeader>
           <CardContent className="px-3 pb-3 pt-0">
             <div className="text-lg font-bold lg:text-xl truncate">
-              {formatCurrency(gananciaFinal, currency)}
+              {formatCurrency(marginNeto, currency)}
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Después de comisión ({commissionPercent}%)
+              Margen luego de IVA
             </p>
           </CardContent>
         </Card>
@@ -314,33 +307,18 @@ export function OperationAccountingSection({
                   />
                 </div>
 
-                <div className="p-3 rounded-lg border">
+                <div className="p-3 rounded-lg border bg-muted/30 md:col-span-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-muted-foreground">Comisión</span>
-                    <Badge variant="secondary" className="text-[10px] h-5">
-                      {commissionPercent}%
-                    </Badge>
-                  </div>
-                  <p className="text-base font-bold text-amber-600">
-                    -{formatCurrency(comisionEstimada, currency)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    Sobre margen bruto
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-lg border bg-muted/30">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium">Utilidad Final</span>
+                    <span className="text-xs font-medium">Utilidad Neta</span>
                     <Badge variant="default" className="text-[10px] h-5">
-                      {formatPercent(gananciaFinalPercent)}
+                      {formatPercent(saleAmount > 0 ? (marginNeto / saleAmount) * 100 : 0)}
                     </Badge>
                   </div>
                   <p className="text-base font-bold">
-                    {formatCurrency(gananciaFinal, currency)}
+                    {formatCurrency(marginNeto, currency)}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-2">
-                    Ganancia neta
+                    Margen luego de IVA
                   </p>
                 </div>
               </div>

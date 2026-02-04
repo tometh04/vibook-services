@@ -10,6 +10,7 @@ export interface TenantBranding {
   logo_url: string | null
   logo_dark_url: string | null
   favicon_url: string | null
+  palette_id: string
   primary_color: string
   secondary_color: string
   accent_color: string
@@ -21,6 +22,16 @@ export interface TenantBranding {
   website_url: string | null
   instagram_url: string | null
   facebook_url: string | null
+  company_name: string | null
+  company_tax_id: string | null
+  company_address_line1: string | null
+  company_address_line2: string | null
+  company_city: string | null
+  company_state: string | null
+  company_postal_code: string | null
+  company_country: string | null
+  company_phone: string | null
+  company_email: string | null
 }
 
 const DEFAULT_BRANDING: TenantBranding = {
@@ -30,6 +41,7 @@ const DEFAULT_BRANDING: TenantBranding = {
   logo_url: null,
   logo_dark_url: null,
   favicon_url: null,
+  palette_id: 'vibook',
   primary_color: '#6366f1',
   secondary_color: '#8b5cf6',
   accent_color: '#f59e0b',
@@ -41,6 +53,16 @@ const DEFAULT_BRANDING: TenantBranding = {
   website_url: null,
   instagram_url: null,
   facebook_url: null,
+  company_name: null,
+  company_tax_id: null,
+  company_address_line1: null,
+  company_address_line2: null,
+  company_city: null,
+  company_state: null,
+  company_postal_code: null,
+  company_country: null,
+  company_phone: null,
+  company_email: null,
 }
 
 interface UseTenantBrandingReturn {
@@ -90,21 +112,32 @@ export function useTenantBranding(agencyId?: string): UseTenantBrandingReturn {
         setBranding({
           id: brandingData.id,
           agency_id: brandingData.agency_id,
-          app_name: brandingData.app_name || DEFAULT_BRANDING.app_name,
+          app_name: brandingData.app_name || brandingData.brand_name || DEFAULT_BRANDING.app_name,
           logo_url: brandingData.logo_url,
           logo_dark_url: brandingData.logo_dark_url,
           favicon_url: brandingData.favicon_url,
+          palette_id: brandingData.palette_id || DEFAULT_BRANDING.palette_id,
           primary_color: brandingData.primary_color || DEFAULT_BRANDING.primary_color,
           secondary_color: brandingData.secondary_color || DEFAULT_BRANDING.secondary_color,
           accent_color: brandingData.accent_color || DEFAULT_BRANDING.accent_color,
-          email_from_name: brandingData.email_from_name || DEFAULT_BRANDING.email_from_name,
+          email_from_name: brandingData.email_from_name || brandingData.brand_name || DEFAULT_BRANDING.email_from_name,
           email_from_address: brandingData.email_from_address,
           support_email: brandingData.support_email,
           support_phone: brandingData.support_phone,
-          support_whatsapp: brandingData.support_whatsapp,
+          support_whatsapp: brandingData.support_whatsapp || brandingData.social_whatsapp,
           website_url: brandingData.website_url,
-          instagram_url: brandingData.instagram_url,
-          facebook_url: brandingData.facebook_url,
+          instagram_url: brandingData.instagram_url || brandingData.social_instagram,
+          facebook_url: brandingData.facebook_url || brandingData.social_facebook,
+          company_name: brandingData.company_name,
+          company_tax_id: brandingData.company_tax_id,
+          company_address_line1: brandingData.company_address_line1,
+          company_address_line2: brandingData.company_address_line2,
+          company_city: brandingData.company_city,
+          company_state: brandingData.company_state,
+          company_postal_code: brandingData.company_postal_code,
+          company_country: brandingData.company_country,
+          company_phone: brandingData.company_phone,
+          company_email: brandingData.company_email,
         })
       }
     } catch (err: any) {
@@ -170,7 +203,61 @@ export function useBrandingColors(branding: TenantBranding) {
 
     const root = document.documentElement
 
-    // Aplicar colores como variables CSS
+    const hexToHsl = (hex: string): { h: number; s: number; l: number } | null => {
+      const normalized = hex.replace('#', '')
+      if (normalized.length !== 6) return null
+      const r = parseInt(normalized.slice(0, 2), 16) / 255
+      const g = parseInt(normalized.slice(2, 4), 16) / 255
+      const b = parseInt(normalized.slice(4, 6), 16) / 255
+      const max = Math.max(r, g, b)
+      const min = Math.min(r, g, b)
+      const delta = max - min
+      let h = 0
+      if (delta !== 0) {
+        if (max === r) h = ((g - b) / delta) % 6
+        else if (max === g) h = (b - r) / delta + 2
+        else h = (r - g) / delta + 4
+        h = Math.round(h * 60)
+        if (h < 0) h += 360
+      }
+      const l = (max + min) / 2
+      const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1))
+      return { h, s: Math.round(s * 100), l: Math.round(l * 100) }
+    }
+
+    const getForegroundHsl = (hex: string): string => {
+      const normalized = hex.replace('#', '')
+      if (normalized.length !== 6) return '0 0% 100%'
+      const r = parseInt(normalized.slice(0, 2), 16) / 255
+      const g = parseInt(normalized.slice(2, 4), 16) / 255
+      const b = parseInt(normalized.slice(4, 6), 16) / 255
+      const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+      return luminance > 0.6 ? '222.2 84% 4.9%' : '0 0% 100%'
+    }
+
+    const primaryHsl = hexToHsl(branding.primary_color)
+    const secondaryHsl = hexToHsl(branding.secondary_color)
+    const accentHsl = hexToHsl(branding.accent_color)
+
+    if (primaryHsl) {
+      const hslValue = `${primaryHsl.h} ${primaryHsl.s}% ${primaryHsl.l}%`
+      root.style.setProperty('--primary', hslValue)
+      root.style.setProperty('--sidebar-primary', hslValue)
+      root.style.setProperty('--ring', hslValue)
+      root.style.setProperty('--chart-1', hslValue)
+      root.style.setProperty('--primary-foreground', getForegroundHsl(branding.primary_color))
+      root.style.setProperty('--sidebar-primary-foreground', getForegroundHsl(branding.primary_color))
+    }
+
+    if (secondaryHsl) {
+      root.style.setProperty('--chart-2', `${secondaryHsl.h} ${secondaryHsl.s}% ${secondaryHsl.l}%`)
+    }
+
+    if (accentHsl) {
+      root.style.setProperty('--chart-3', `${accentHsl.h} ${accentHsl.s}% ${accentHsl.l}%`)
+    }
+
+    // Aplicar colores como variables de marca
     root.style.setProperty('--brand-primary', branding.primary_color)
     root.style.setProperty('--brand-secondary', branding.secondary_color)
     root.style.setProperty('--brand-accent', branding.accent_color)
@@ -180,6 +267,14 @@ export function useBrandingColors(branding: TenantBranding) {
       root.style.removeProperty('--brand-primary')
       root.style.removeProperty('--brand-secondary')
       root.style.removeProperty('--brand-accent')
+      root.style.removeProperty('--primary')
+      root.style.removeProperty('--primary-foreground')
+      root.style.removeProperty('--sidebar-primary')
+      root.style.removeProperty('--sidebar-primary-foreground')
+      root.style.removeProperty('--ring')
+      root.style.removeProperty('--chart-1')
+      root.style.removeProperty('--chart-2')
+      root.style.removeProperty('--chart-3')
     }
   }, [branding.primary_color, branding.secondary_color, branding.accent_color])
 }

@@ -28,8 +28,6 @@ export function applyRoleFilters<T>(
       query = query.eq("assigned_seller_id", userId)
     } else if (table === "operations") {
       query = query.eq("seller_id", userId)
-    } else if (table === "commission_records") {
-      query = query.eq("seller_id", userId)
     } else if (table === "alerts") {
       // Las alertas se filtran por el usuario relacionado
       query = query.or(`user_id.eq.${userId},assigned_to.eq.${userId}`)

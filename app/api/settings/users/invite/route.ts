@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     const supabase = await createServerClient()
     const body = await request.json()
-    const { name, email, role, agencies, default_commission_percentage } = body
+    const { name, email, role, agencies } = body
 
     // Validar campos requeridos
     if (!name || !email || !role) {

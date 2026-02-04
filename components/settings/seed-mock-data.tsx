@@ -76,7 +76,6 @@ export function SeedMockData() {
             <li>120 Pagos (algunos pagados, otros pendientes)</li>
             <li>50 Movimientos de caja</li>
             <li>20 Alertas (pagos vencidos, viajes próximos)</li>
-            <li>Registros de comisiones</li>
           </ul>
         </div>
 
@@ -99,4 +98,3 @@ export function SeedMockData() {
     </Card>
   )
 }
-

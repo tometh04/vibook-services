@@ -24,7 +24,7 @@ function formatCurrency(amount: number, currency: string): string {
 
 interface LedgerMovement {
   id: string
-  type: "INCOME" | "EXPENSE" | "FX_GAIN" | "FX_LOSS" | "COMMISSION" | "OPERATOR_PAYMENT"
+  type: "INCOME" | "EXPENSE" | "FX_GAIN" | "FX_LOSS" | "OPERATOR_PAYMENT"
   concept: string
   currency: "ARS" | "USD"
   amount_original: number
@@ -55,7 +55,6 @@ const typeLabels: Record<string, string> = {
   EXPENSE: "Gasto",
   FX_GAIN: "Ganancia FX",
   FX_LOSS: "Pérdida FX",
-  COMMISSION: "Comisión",
   OPERATOR_PAYMENT: "Pago Operador",
 }
 
@@ -64,7 +63,6 @@ const typeColors: Record<string, string> = {
   EXPENSE: "bg-red-500",
   FX_GAIN: "bg-amber-500",
   FX_LOSS: "bg-orange-500",
-  COMMISSION: "bg-blue-500",
   OPERATOR_PAYMENT: "bg-purple-500",
 }
 
@@ -177,4 +175,3 @@ export function LedgerTable({ filters }: LedgerTableProps) {
     </div>
   )
 }
-

@@ -4,11 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UsersSettings } from "@/components/settings/users-settings"
 import { AgenciesSettings } from "@/components/settings/agencies-settings"
 import { BrandingSettings } from "@/components/settings/branding-settings"
-import { CommissionsSettings } from "@/components/settings/commissions-settings"
 import { SeedMockData } from "@/components/settings/seed-mock-data"
 import { MigrateHistoricalAccounting } from "@/components/settings/migrate-historical-accounting"
 import { ImportSettings } from "@/components/settings/import-settings"
-import { DestinationRequirementsClient } from "@/components/settings/destination-requirements-client"
 import { AfipSettings } from "@/components/settings/afip-settings"
 
 export const dynamic = 'force-dynamic'
@@ -60,8 +58,6 @@ export default async function SettingsPage() {
           <TabsTrigger value="users">Usuarios</TabsTrigger>
           <TabsTrigger value="agencies">Agencias</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="commissions">Comisiones</TabsTrigger>
-          <TabsTrigger value="requirements">Requisitos</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
           <TabsTrigger value="afip">AFIP</TabsTrigger>
           {user.role === "SUPER_ADMIN" && <TabsTrigger value="seed">Seed Data</TabsTrigger>}
@@ -74,12 +70,6 @@ export default async function SettingsPage() {
         </TabsContent>
         <TabsContent value="branding">
           <BrandingSettings agencies={agencies} defaultAgencyId={firstAgencyId} />
-        </TabsContent>
-        <TabsContent value="commissions">
-          <CommissionsSettings />
-        </TabsContent>
-        <TabsContent value="requirements">
-          <DestinationRequirementsClient />
         </TabsContent>
         <TabsContent value="import">
           <ImportSettings />

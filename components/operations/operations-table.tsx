@@ -660,7 +660,6 @@ export function OperationsTable({
                   <li>✅ Movimientos contables (libro mayor, caja)</li>
                   <li>✅ Pagos a operadores pendientes</li>
                   <li>✅ Alertas y documentos</li>
-                  <li>✅ Comisiones calculadas</li>
                 </ul>
                 <p className="text-amber-600 text-sm font-medium">
                   ⚠️ El cliente asociado NO se elimina (se mantiene en la base de datos).
@@ -690,4 +689,3 @@ export function OperationsTable({
     </>
   )
 }
-

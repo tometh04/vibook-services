@@ -70,6 +70,8 @@ export async function POST(request: Request) {
       .from("tenant_branding") as any)
       .update({
         brand_name: brandName,
+        app_name: brandName,
+        email_from_name: brandName,
         updated_at: new Date().toISOString(),
       })
       .eq("agency_id", agencyId)

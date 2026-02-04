@@ -40,8 +40,6 @@ interface FinancialSettings {
   default_accounts: Record<string, string>
   auto_create_accounts: boolean
   enabled_payment_methods: string[]
-  default_commission_rules: Record<string, any>
-  auto_calculate_commissions: boolean
   auto_create_ledger_entries: boolean
   auto_create_iva_entries: boolean
   auto_create_operator_payments: boolean
@@ -77,8 +75,6 @@ export function FinancesSettingsPageClient() {
     default_accounts: {},
     auto_create_accounts: false,
     enabled_payment_methods: ['CASH', 'BANK', 'MP'],
-    default_commission_rules: {},
-    auto_calculate_commissions: true,
     auto_create_ledger_entries: true,
     auto_create_iva_entries: true,
     auto_create_operator_payments: true,
@@ -229,7 +225,6 @@ export function FinancesSettingsPageClient() {
           <TabsTrigger value="currencies">Monedas</TabsTrigger>
           <TabsTrigger value="accounts">Cuentas</TabsTrigger>
           <TabsTrigger value="payments">Métodos de Pago</TabsTrigger>
-          <TabsTrigger value="commissions">Comisiones</TabsTrigger>
           <TabsTrigger value="accounting">Contabilidad</TabsTrigger>
           <TabsTrigger value="invoicing">Facturación</TabsTrigger>
         </TabsList>
@@ -388,35 +383,6 @@ export function FinancesSettingsPageClient() {
                     {method.label}
                   </Badge>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tab: Comisiones */}
-        <TabsContent value="commissions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configuración de Comisiones</CardTitle>
-              <CardDescription>
-                Define cómo se calculan y aplican las comisiones
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Calcular Comisiones Automáticamente</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Las comisiones se calcularán al crear operaciones
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.auto_calculate_commissions}
-                  onCheckedChange={(checked) => setSettings({
-                    ...settings,
-                    auto_calculate_commissions: checked,
-                  })}
-                />
               </div>
             </CardContent>
           </Card>

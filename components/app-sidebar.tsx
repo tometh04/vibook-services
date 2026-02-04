@@ -49,7 +49,7 @@ interface NavSubItem {
   title: string
   url: string
   items?: NavSubSubItem[]
-  module?: "dashboard" | "leads" | "operations" | "customers" | "operators" | "cash" | "accounting" | "alerts" | "reports" | "settings" | "commissions"
+  module?: "dashboard" | "leads" | "operations" | "customers" | "operators" | "cash" | "accounting" | "alerts" | "reports" | "settings"
 }
 
 interface NavItem {
@@ -57,7 +57,7 @@ interface NavItem {
   url: string
   icon?: React.ComponentType<{ className?: string }>
   items?: NavSubItem[]
-  module?: "dashboard" | "leads" | "operations" | "customers" | "operators" | "cash" | "accounting" | "alerts" | "reports" | "settings" | "commissions"
+  module?: "dashboard" | "leads" | "operations" | "customers" | "operators" | "cash" | "accounting" | "alerts" | "reports" | "settings"
   collapsible?: boolean
 }
 
@@ -137,7 +137,6 @@ const allNavigation: NavItem[] = [
       },
       // Items directos sin submenú
       { title: "Mi Balance", url: "/my/balance" },
-      { title: "Mis Comisiones", url: "/my/commissions" },
       { title: "Configuración", url: "/finances/settings" },
     ],
   },
@@ -248,7 +247,7 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
     .filter((item): item is NavItem => {
       if (!item) return false
       // Items sin módulo (como "Mi Balance") solo para vendedores
-      if (item.url === "/my/balance" || item.url === "/my/commissions") {
+      if (item.url === "/my/balance") {
         return userRole === "SELLER"
       }
       return true

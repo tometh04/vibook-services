@@ -14,7 +14,6 @@ export type LedgerMovementType =
   | "EXPENSE"
   | "FX_GAIN"
   | "FX_LOSS"
-  | "COMMISSION"
   | "OPERATOR_PAYMENT"
 
 export type LedgerMovementMethod = "CASH" | "BANK" | "MP" | "USD" | "OTHER"
@@ -79,17 +78,6 @@ export async function createLedgerMovement(
 
   if (error) {
     throw new Error(`Error creando ledger movement: ${error.message}`)
-  }
-
-  // Si el tipo es COMMISSION y hay operation_id, marcar comisiones como PAID automáticamente
-  if (params.type === "COMMISSION" && params.operation_id) {
-    try {
-      const { markCommissionsAsPaidIfLedgerExists } = await import("./mark-commission-paid")
-      await markCommissionsAsPaidIfLedgerExists(supabase, params.operation_id)
-    } catch (error) {
-      // No fallar si hay error al marcar comisiones, solo loguear
-      console.error("Error marking commissions as paid:", error)
-    }
   }
 
   return { id: data.id }
@@ -183,7 +171,7 @@ export async function getAccountBalance(
       // - EXPENSE disminuye
       if (m.type === "INCOME" || m.type === "FX_GAIN") {
         return sum + amount
-      } else if (m.type === "EXPENSE" || m.type === "FX_LOSS" || m.type === "COMMISSION" || m.type === "OPERATOR_PAYMENT") {
+      } else if (m.type === "EXPENSE" || m.type === "FX_LOSS" || m.type === "OPERATOR_PAYMENT") {
         return sum - amount
       }
       return sum
@@ -661,7 +649,7 @@ export async function getAccountBalancesBatch(
       // - EXPENSE disminuye
       if (m.type === "INCOME" || m.type === "FX_GAIN") {
         return sum + amount
-      } else if (m.type === "EXPENSE" || m.type === "FX_LOSS" || m.type === "COMMISSION" || m.type === "OPERATOR_PAYMENT") {
+      } else if (m.type === "EXPENSE" || m.type === "FX_LOSS" || m.type === "OPERATOR_PAYMENT") {
         return sum - amount
       }
       return sum
@@ -672,4 +660,3 @@ export async function getAccountBalancesBatch(
 
   return balancesMap
 }
-

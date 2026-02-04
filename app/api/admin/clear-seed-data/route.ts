@@ -34,16 +34,7 @@ export async function POST(request: Request) {
     deletedCounts.alerts = (alertsDeleted?.length || 0) + (alertsDeleted2?.length || 0)
     console.log(`✓ Alertas eliminadas: ${deletedCounts.alerts}`)
 
-    // 2. Eliminar commission_records
-    const { data: commissionsDeleted } = await (supabase
-      .from("commission_records") as any)
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000") // Truco para eliminar todo
-      .select("id")
-    deletedCounts.commission_records = commissionsDeleted?.length || 0
-    console.log(`✓ Comisiones eliminadas: ${deletedCounts.commission_records}`)
-
-    // 3. Eliminar pagos
+    // 2. Eliminar pagos
     const { data: paymentsDeleted } = await (supabase
       .from("payments") as any)
       .delete()
@@ -140,7 +131,6 @@ export async function POST(request: Request) {
     // - agencies (configuración)
     // - trello_configs (configuración)
     // - financial_accounts (configuración)
-    // - destination_requirements (configuración)
     // - whatsapp_templates (configuración)
     // - documents de leads (datos de Trello)
 
@@ -156,7 +146,6 @@ export async function POST(request: Request) {
         "agencies", 
         "trello_configs",
         "financial_accounts",
-        "destination_requirements",
         "whatsapp_templates",
         "documents de leads"
       ]
@@ -166,4 +155,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Error al eliminar datos: " + error.message }, { status: 500 })
   }
 }
-

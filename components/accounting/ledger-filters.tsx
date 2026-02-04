@@ -92,7 +92,6 @@ export function LedgerFilters({ agencies, onFiltersChange }: LedgerFiltersProps)
               <SelectItem value="EXPENSE">Gasto</SelectItem>
               <SelectItem value="FX_GAIN">Ganancia FX</SelectItem>
               <SelectItem value="FX_LOSS">Pérdida FX</SelectItem>
-              <SelectItem value="COMMISSION">Comisión</SelectItem>
               <SelectItem value="OPERATOR_PAYMENT">Pago Operador</SelectItem>
             </SelectContent>
           </Select>
@@ -120,4 +119,3 @@ export function LedgerFilters({ agencies, onFiltersChange }: LedgerFiltersProps)
     </div>
   )
 }
-

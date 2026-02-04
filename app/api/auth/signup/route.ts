@@ -237,6 +237,9 @@ export async function POST(request: Request) {
       .insert({
         agency_id: agencyData.id,
         brand_name: agencyName,
+        app_name: agencyName,
+        email_from_name: agencyName,
+        palette_id: "vibook",
         // Los demás campos tienen defaults en la tabla
       })
 

@@ -154,7 +154,6 @@ export async function POST(request: Request) {
     const methodMap: Record<string, "CASH" | "BANK" | "MP" | "USD" | "OTHER"> = {
       SALE: "CASH",
       OPERATOR_PAYMENT: "BANK",
-      COMMISSION: "CASH",
     }
     const method = methodMap[category] || "CASH"
 

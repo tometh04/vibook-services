@@ -376,36 +376,6 @@ export async function getOperationsTravelingThisWeek(user: User): Promise<any[]>
 }
 
 /**
- * Obtiene comisiones del vendedor actual
- */
-export async function getMyCommissions(user: User, from?: string, to?: string): Promise<any> {
-  const supabase = await createServerClient()
-  
-  const today = new Date()
-  const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]
-  const defaultTo = today.toISOString().split("T")[0]
-
-  // Obtener operaciones del vendedor
-  const { data: operations } = await (supabase.from("operations") as any)
-    .select("id, sale_amount_total, margin_amount, commission_amount, commission_paid")
-    .eq("seller_id", user.id)
-    .gte("created_at", from || defaultFrom)
-    .lte("created_at", to || defaultTo)
-
-  const totalCommission = (operations || []).reduce((sum: number, op: any) => sum + (op.commission_amount || 0), 0)
-  const paidCommission = (operations || []).filter((op: any) => op.commission_paid).reduce((sum: number, op: any) => sum + (op.commission_amount || 0), 0)
-  const pendingCommission = totalCommission - paidCommission
-
-  return {
-    period: `${from || defaultFrom} a ${to || defaultTo}`,
-    totalCommission,
-    paidCommission,
-    pendingCommission,
-    operationsCount: (operations || []).length,
-  }
-}
-
-/**
  * Obtiene un resumen de salud financiera general
  */
 export async function getFinancialHealth(user: User): Promise<any> {
@@ -476,36 +446,6 @@ function identifyRisks(overdueIncome: number, overdueExpense: number, pendingExp
   if (overdueExpense > 0) risks.push(`Pagos vencidos a operadores: $${overdueExpense.toLocaleString('es-AR')}`)
   if (pendingExpense > 100000) risks.push(`Alto monto pendiente a operadores: $${pendingExpense.toLocaleString('es-AR')}`)
   return risks
-}
-
-/**
- * Obtiene operaciones donde se compartió comisión
- */
-export async function getSharedCommissions(user: User, from?: string, to?: string): Promise<any[]> {
-  const supabase = await createServerClient()
-  
-  const today = new Date()
-  const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]
-
-  // Buscar operaciones con múltiples comisiones (si existe la tabla de split)
-  const { data: operations } = await (supabase.from("operations") as any)
-    .select(`
-      id, file_code, destination, sale_amount_total, commission_amount,
-      users:seller_id(name)
-    `)
-    .gte("created_at", from || defaultFrom)
-    .gt("commission_amount", 0)
-    .order("created_at", { ascending: false })
-    .limit(50)
-
-  return (operations || []).map((op: any) => ({
-    id: op.id,
-    fileCode: op.file_code,
-    destination: op.destination,
-    saleAmount: op.sale_amount_total,
-    commissionAmount: op.commission_amount,
-    seller: op.users?.name || "Sin vendedor",
-  }))
 }
 
 /**
@@ -707,4 +647,3 @@ export async function getMonthSummary(user: User, agencyId?: string): Promise<an
     avgMarginPercent: totalSales > 0 ? (totalMargin / totalSales) * 100 : 0,
   }
 }
-

@@ -124,7 +124,6 @@ export function UsersSettings() {
     email: "",
     role: "SELLER",
     agencies: [] as string[],
-    default_commission_percentage: 10,
   })
 
   // Cargar usuarios y agencias
@@ -186,7 +185,6 @@ export function UsersSettings() {
           email: "",
           role: "SELLER",
           agencies: [],
-          default_commission_percentage: 10,
         })
         loadData()
       } else {
@@ -416,25 +414,6 @@ export function UsersSettings() {
                       </Select>
                     </div>
 
-                    {newUser.role === "SELLER" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="commission">% Comisión por defecto</Label>
-                        <Input
-                          id="commission"
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={newUser.default_commission_percentage}
-                          onChange={(e) =>
-                            setNewUser({
-                              ...newUser,
-                              default_commission_percentage: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                        />
-                      </div>
-                    )}
-
                     <div className="space-y-2">
                       <Label>Agencias *</Label>
                       <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
@@ -662,7 +641,7 @@ export function UsersSettings() {
                   {role === "SELLER" && (
                     <>
                       <p>✓ Solo sus leads y operaciones</p>
-                      <p>✓ Ver sus comisiones</p>
+                      <p>✓ Ver sus métricas</p>
                       <p>✗ Sin acceso a caja ni config</p>
                     </>
                   )}

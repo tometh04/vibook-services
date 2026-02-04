@@ -45,15 +45,46 @@ export async function GET(request: Request) {
         branding: {
           agency_id: agencyId,
           app_name: 'Vibook Gestión',
+          logo_url: null,
+          logo_dark_url: null,
+          favicon_url: null,
+          palette_id: 'vibook',
           primary_color: '#6366f1',
           secondary_color: '#8b5cf6',
           accent_color: '#f59e0b',
           email_from_name: 'Vibook Gestión',
+          email_from_address: null,
+          support_email: null,
+          support_phone: null,
+          support_whatsapp: null,
+          website_url: null,
+          instagram_url: null,
+          facebook_url: null,
+          company_name: null,
+          company_tax_id: null,
+          company_address_line1: null,
+          company_address_line2: null,
+          company_city: null,
+          company_state: null,
+          company_postal_code: null,
+          company_country: null,
+          company_phone: null,
+          company_email: null,
         }
       })
     }
 
-    return NextResponse.json({ branding })
+    const normalizedBranding = {
+      ...branding,
+      app_name: (branding as any).app_name || (branding as any).brand_name || 'Vibook Gestión',
+      email_from_name: (branding as any).email_from_name || (branding as any).brand_name || 'Vibook Gestión',
+      palette_id: (branding as any).palette_id || 'vibook',
+      instagram_url: (branding as any).instagram_url || (branding as any).social_instagram || null,
+      facebook_url: (branding as any).facebook_url || (branding as any).social_facebook || null,
+      support_whatsapp: (branding as any).support_whatsapp || (branding as any).social_whatsapp || null,
+    }
+
+    return NextResponse.json({ branding: normalizedBranding })
   } catch (error) {
     console.error('Error in GET /api/settings/branding:', error)
     return NextResponse.json({ error: 'Error al obtener branding' }, { status: 500 })
@@ -104,13 +135,19 @@ export async function PUT(request: Request) {
 
     // Usar upsert para insertar o actualizar
     // @ts-ignore - tenant_branding no está en los tipos aún, pero existe en la BD
+    const payload = {
+      agency_id,
+      ...brandingData,
+      brand_name: brandingData.app_name || brandingData.brand_name || undefined,
+      social_instagram: brandingData.instagram_url || brandingData.social_instagram || undefined,
+      social_facebook: brandingData.facebook_url || brandingData.social_facebook || undefined,
+      social_whatsapp: brandingData.support_whatsapp || brandingData.social_whatsapp || undefined,
+      updated_at: new Date().toISOString(),
+    }
+
     const { data, error } = await supabase
       .from('tenant_branding')
-      .upsert({
-        agency_id,
-        ...brandingData,
-        updated_at: new Date().toISOString(),
-      }, {
+      .upsert(payload, {
         onConflict: 'agency_id'
       })
       .select()

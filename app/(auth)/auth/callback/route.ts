@@ -123,6 +123,9 @@ export async function GET(request: Request) {
               .insert({
                 agency_id: agencyData.id,
                 brand_name: `${userName}'s Agency`,
+                app_name: `${userName}'s Agency`,
+                email_from_name: `${userName}'s Agency`,
+                palette_id: "vibook",
               })
             if (brandingError) console.error("⚠️ Error creating branding:", brandingError)
           } catch (err) {

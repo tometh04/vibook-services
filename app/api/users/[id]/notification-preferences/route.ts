@@ -34,7 +34,6 @@ export async function GET(
         upcoming_trip: true,
         missing_documents: true,
         new_lead: true,
-        commission_generated: true,
       }
     })
   } catch (error: any) {
@@ -86,4 +85,3 @@ export async function PUT(
     return NextResponse.json({ success: true })
   }
 }
-

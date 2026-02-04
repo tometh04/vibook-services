@@ -29,7 +29,6 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
 import { EditOperationDialog } from "./edit-operation-dialog"
-import { OperationRequirementsSection } from "./operation-requirements-section"
 import { useRouter } from "next/navigation"
 
 const statusLabels: Record<string, string> = {
@@ -314,11 +313,6 @@ export function OperationDetailClient({
             </Card>
           </div>
 
-          {/* Requisitos del destino */}
-          <OperationRequirementsSection 
-            destination={operation.destination} 
-            departureDate={operation.departure_date || undefined}
-          />
         </TabsContent>
 
         <TabsContent value="customers" className="space-y-4">
@@ -394,7 +388,6 @@ export function OperationDetailClient({
             saleAmount={operation.sale_amount_total || 0}
             operatorCost={operation.operator_cost || 0}
             currency={operation.currency || "USD"}
-            commissionPercent={10}
           />
         </TabsContent>
 
@@ -493,4 +486,3 @@ export function OperationDetailClient({
     </div>
   )
 }
-

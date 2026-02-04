@@ -21,7 +21,6 @@ export type AuditAction =
   | "CREATE_CASH_MOVEMENT"
   | "UPDATE_CASH_MOVEMENT"
   | "DELETE_CASH_MOVEMENT"
-  | "PAY_COMMISSION"
   | "UPDATE_SETTINGS"
   | "INVITE_USER"
   | "UPDATE_USER_ROLE"
@@ -92,4 +91,3 @@ export function getRequestMetadata(request: Request): {
     user_agent: userAgent || undefined,
   }
 }
-

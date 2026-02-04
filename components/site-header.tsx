@@ -31,7 +31,6 @@ const getPageTitle = (pathname: string): string => {
     "/calendar": "Calendario",
     "/reports": "Reportes",
     "/my/balance": "Mi Balance",
-    "/my/commissions": "Mis Comisiones",
     "/settings": "Configuración",
     "/settings/billing": "Suscripción",
     "/tools/cerebro": "Cerebro",

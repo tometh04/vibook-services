@@ -16,7 +16,6 @@ export type Module =
   | "accounting"
   | "alerts"
   | "reports"
-  | "commissions"
   | "settings"
   | "documents"
 
@@ -47,7 +46,6 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     accounting: { read: true, write: true, delete: true, export: true },
     alerts: { read: true, write: true, delete: true, export: true },
     reports: { read: true, write: true, delete: true, export: true },
-    commissions: { read: true, write: true, delete: true, export: true },
     settings: { read: true, write: true, delete: true, export: true },
     documents: { read: true, write: true, delete: true, export: true },
   },
@@ -61,7 +59,6 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     accounting: { read: true, write: true, delete: false, export: true },
     alerts: { read: true, write: true, delete: true, export: true },
     reports: { read: true, write: true, delete: false, export: true },
-    commissions: { read: true, write: true, delete: false, export: true },
     settings: { read: true, write: false, delete: false, export: false }, // No puede modificar settings
     documents: { read: true, write: true, delete: false, export: true },
   },
@@ -75,7 +72,6 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     accounting: { read: true, write: true, delete: false, export: true },
     alerts: { read: true, write: true, delete: false, export: false }, // Solo alertas contables
     reports: { read: true, write: false, delete: false, export: true }, // Solo reportes financieros
-    commissions: { read: true, write: false, delete: false, export: true }, // Solo lectura
     settings: { read: false, write: false, delete: false, export: false }, // No ve settings
     documents: { read: false, write: false, delete: false, export: false }, // No ve documentos
   },
@@ -89,7 +85,6 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     accounting: { read: false, write: false, delete: false, export: false }, // No ve contabilidad
     alerts: { read: true, write: true, delete: false, export: false, ownDataOnly: true }, // Solo sus alertas
     reports: { read: true, write: false, delete: false, export: true, ownDataOnly: true }, // Solo reportes propios
-    commissions: { read: true, write: false, delete: false, export: true, ownDataOnly: true }, // Solo sus comisiones
     settings: { read: false, write: false, delete: false, export: false }, // No ve settings
     documents: { read: true, write: true, delete: false, export: false, ownDataOnly: true }, // Solo documentos de sus operaciones
   },
@@ -103,7 +98,6 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     accounting: { read: true, write: false, delete: false, export: false },
     alerts: { read: true, write: false, delete: false, export: false },
     reports: { read: true, write: false, delete: false, export: true },
-    commissions: { read: true, write: false, delete: false, export: false },
     settings: { read: false, write: false, delete: false, export: false },
     documents: { read: true, write: false, delete: false, export: false },
   },
@@ -152,12 +146,12 @@ export function getAccessibleModules(role: UserRole): Module[] {
 export function shouldShowInSidebar(role: UserRole, module: Module): boolean {
   // CONTABLE no ve dashboard, leads, customers
   if (role === "CONTABLE") {
-    return ["operations", "operators", "cash", "accounting", "alerts", "reports", "commissions"].includes(module)
+    return ["operations", "operators", "cash", "accounting", "alerts", "reports"].includes(module)
   }
 
   // SELLER no ve operators, cash, accounting, settings
   if (role === "SELLER") {
-    return ["dashboard", "leads", "operations", "customers", "alerts", "reports", "commissions", "documents"].includes(module)
+    return ["dashboard", "leads", "operations", "customers", "alerts", "reports", "documents"].includes(module)
   }
 
   // VIEWER ve todo excepto settings
@@ -182,4 +176,3 @@ export function usePermissions(role: UserRole) {
     canAccess: (module: Module) => canAccessModule(role, module),
   }
 }
-

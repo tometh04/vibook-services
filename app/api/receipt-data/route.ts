@@ -86,6 +86,35 @@ export async function GET(request: NextRequest) {
     const agencyCity = agency?.city || "Rosario"
     const agencyName = agency?.name || "Lozada Viajes"
 
+    // Obtener branding para el recibo
+    const { data: branding } = await (supabase
+      .from("tenant_branding") as any)
+      .select(`
+        app_name,
+        brand_name,
+        logo_url,
+        logo_dark_url,
+        primary_color,
+        secondary_color,
+        accent_color,
+        company_name,
+        company_tax_id,
+        company_address_line1,
+        company_address_line2,
+        company_city,
+        company_state,
+        company_postal_code,
+        company_country,
+        company_phone,
+        company_email
+      `)
+      .eq("agency_id", agency?.id || "")
+      .maybeSingle()
+
+    const appName = branding?.app_name || branding?.brand_name || agencyName
+    const companyName = branding?.company_name || appName
+    const receiptCity = branding?.company_city || agencyCity
+
     // Generar número de recibo
     const receiptNumber = `1000-${paymentId.replace(/-/g, "").slice(-8).toUpperCase()}`
 
@@ -109,8 +138,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       receiptNumber,
       fechaFormateada,
-      agencyCity,
-      agencyName,
+      agencyCity: receiptCity,
+      agencyName: appName,
       customerName,
       customerAddress,
       customerCity,
@@ -122,6 +151,26 @@ export async function GET(request: NextRequest) {
       totalPagado,
       saldoRestante,
       destination: payment.operations?.destination || "",
+      branding: {
+        appName,
+        logoUrl: branding?.logo_url || null,
+        logoDarkUrl: branding?.logo_dark_url || null,
+        primaryColor: branding?.primary_color || "#2563EB",
+        secondaryColor: branding?.secondary_color || "#0EA5E9",
+        accentColor: branding?.accent_color || "#22D3EE",
+      },
+      company: {
+        name: companyName,
+        taxId: branding?.company_tax_id || null,
+        addressLine1: branding?.company_address_line1 || null,
+        addressLine2: branding?.company_address_line2 || null,
+        city: branding?.company_city || null,
+        state: branding?.company_state || null,
+        postalCode: branding?.company_postal_code || null,
+        country: branding?.company_country || null,
+        phone: branding?.company_phone || null,
+        email: branding?.company_email || null,
+      },
     })
   } catch (error: any) {
     console.error("Error fetching receipt data:", error)

@@ -216,54 +216,106 @@ export function OperationPaymentsSection({
       const margin = 15
       let y = 0
 
-      // ========== HEADER LOZADA ==========
-      // Fondo dorado izquierdo
-      doc.setFillColor(194, 156, 95) // Color dorado
-      doc.rect(0, 0, pageWidth * 0.55, 35, "F")
-      
-      // Flecha blanca
-      doc.setFillColor(255, 255, 255)
-      doc.triangle(pageWidth * 0.45, 0, pageWidth * 0.55, 17.5, pageWidth * 0.45, 35, "F")
-      
-      // Fondo dorado derecho (más oscuro)
-      doc.setFillColor(184, 142, 74)
-      doc.rect(pageWidth * 0.55, 0, pageWidth * 0.45, 35, "F")
-      
-      // Logo LOZADA Viajes (texto)
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(22)
-      doc.setFont("helvetica", "bold")
-      doc.text("LOZADA", 15, 18)
-      doc.setFontSize(16)
-      doc.setFont("helvetica", "italic")
-      doc.text("Viajes", 62, 22)
-      
-      // Datos derecha del header
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(7)
-      doc.setFont("helvetica", "normal")
-      
-      // Recuadro "Documento no valido como factura X"
-      doc.setDrawColor(255, 255, 255)
-      doc.setLineWidth(0.3)
-      doc.rect(pageWidth - 45, 3, 40, 12)
-      doc.setFontSize(6)
-      doc.text("Documento no", pageWidth - 43, 7)
-      doc.text("valido como", pageWidth - 43, 10)
-      doc.text("factura", pageWidth - 43, 13)
-      doc.setFontSize(16)
-      doc.setFont("helvetica", "bold")
-      doc.text("X", pageWidth - 12, 12)
-      
-      // Info de contacto
-      doc.setFontSize(7)
-      doc.setFont("helvetica", "normal")
-      doc.text(`N° Legajo: 18181`, pageWidth - 45, 20)
-      doc.text(`+5493412753942`, pageWidth - 45, 24)
-      doc.text(`rosario.ventas@lozadaviajes.com`, pageWidth - 45, 28)
-      doc.text(`Corrientes 631 (Piso 1) Rosario, Santa Fe`, pageWidth - 45, 32)
+      const branding = data.branding || {}
+      const company = data.company || {}
 
-      y = 45
+      const hexToRgb = (hex: string) => {
+        const normalized = hex?.replace("#", "")
+        if (!normalized || normalized.length !== 6) return null
+        const r = parseInt(normalized.slice(0, 2), 16)
+        const g = parseInt(normalized.slice(2, 4), 16)
+        const b = parseInt(normalized.slice(4, 6), 16)
+        return { r, g, b }
+      }
+
+      const loadImageAsDataUrl = async (url: string) => {
+        try {
+          const res = await fetch(url)
+          if (!res.ok) return null
+          const blob = await res.blob()
+          return await new Promise<string | null>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.onerror = () => resolve(null)
+            reader.readAsDataURL(blob)
+          })
+        } catch {
+          return null
+        }
+      }
+
+      const primaryColor = branding.primaryColor || "#2563EB"
+      const accentColor = branding.accentColor || "#22D3EE"
+      const primaryRgb = hexToRgb(primaryColor) || { r: 37, g: 99, b: 235 }
+      const accentRgb = hexToRgb(accentColor) || { r: 34, g: 211, b: 238 }
+
+      const headerHeight = 28
+      doc.setFillColor(primaryRgb.r, primaryRgb.g, primaryRgb.b)
+      doc.rect(0, 0, pageWidth, headerHeight, "F")
+      doc.setFillColor(accentRgb.r, accentRgb.g, accentRgb.b)
+      doc.rect(0, headerHeight - 3, pageWidth, 3, "F")
+
+      let logoDataUrl: string | null = null
+      if (branding.logoUrl) {
+        logoDataUrl = await loadImageAsDataUrl(branding.logoUrl)
+      }
+
+      doc.setTextColor(255, 255, 255)
+      if (logoDataUrl) {
+        const format = logoDataUrl.startsWith("data:image/jpeg") || logoDataUrl.startsWith("data:image/jpg")
+          ? "JPEG"
+          : "PNG"
+        doc.addImage(logoDataUrl, format, margin, 5, 18, 18)
+      } else {
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(14)
+        doc.text(branding.appName || data.agencyName || "Vibook", margin, 17)
+      }
+
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(12)
+      doc.text("RECIBO", pageWidth - margin, 12, { align: "right" })
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.text(`No ${data.receiptNumber}`, pageWidth - margin, 18, { align: "right" })
+
+      y = headerHeight + 10
+
+      doc.setTextColor(0, 0, 0)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(11)
+      doc.text(company.name || branding.appName || data.agencyName || "Agencia", margin, y)
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      let infoY = y + 5
+      if (company.taxId) {
+        doc.text(`CUIT: ${company.taxId}`, margin, infoY)
+        infoY += 4
+      }
+      const addressLine = [company.addressLine1, company.addressLine2].filter(Boolean).join(" ")
+      if (addressLine) {
+        doc.text(addressLine, margin, infoY)
+        infoY += 4
+      }
+      const cityLine = [company.city, company.state].filter(Boolean).join(", ")
+      const postalLine = company.postalCode ? `CP ${company.postalCode}` : ""
+      const locationLine = [cityLine, postalLine, company.country].filter(Boolean).join(" - ")
+      if (locationLine) {
+        doc.text(locationLine, margin, infoY)
+        infoY += 4
+      }
+      const contactLine = [company.phone, company.email].filter(Boolean).join(" | ")
+      if (contactLine) {
+        doc.text(contactLine, margin, infoY)
+        infoY += 4
+      }
+
+      doc.setFontSize(9)
+      doc.setFont("helvetica", "normal")
+      doc.text(`${data.agencyCity} ${data.fechaFormateada}`, pageWidth - margin, y, { align: "right" })
+
+      y = Math.max(infoY + 4, y + 14)
 
       // ========== FECHA Y NUMERO RECIBO ==========
       doc.setTextColor(0, 0, 0)
@@ -399,9 +451,31 @@ export function OperationPaymentsSection({
       doc.setFontSize(7)
       doc.setFont("helvetica", "italic")
       doc.setTextColor(128, 128, 128)
-      
-      doc.text("LOZADA VIAJES - Corrientes 631 (Piso 1 Oficina F) Rosario, Santa Fe", pageWidth / 2, footerY - 3, { align: "center" })
-      doc.text("Este recibo es valido como comprobante de pago. No valido como factura.", pageWidth / 2, footerY + 1, { align: "center" })
+
+      const footerMain = [
+        company.name || branding.appName || data.agencyName || "Vibook",
+        company.addressLine1,
+        company.addressLine2,
+        company.city,
+        company.state,
+      ]
+        .filter(Boolean)
+        .join(" - ")
+
+      const footerContact = [company.phone, company.email].filter(Boolean).join(" | ")
+
+      if (footerMain) {
+        doc.text(footerMain, pageWidth / 2, footerY - 5, { align: "center" })
+      }
+      if (footerContact) {
+        doc.text(footerContact, pageWidth / 2, footerY - 1, { align: "center" })
+      }
+      doc.text(
+        "Este recibo es valido como comprobante de pago. No valido como factura.",
+        pageWidth / 2,
+        footerY + 3,
+        { align: "center" }
+      )
 
       // Descargar el PDF
       doc.save(`recibo-${data.receiptNumber}.pdf`)
@@ -998,4 +1072,3 @@ export function OperationPaymentsSection({
     </>
   )
 }
-

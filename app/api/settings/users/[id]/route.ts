@@ -27,7 +27,7 @@ export async function PATCH(
     const supabase = await createServerClient()
 
     // Campos permitidos para actualizar
-    const allowedFields = ["is_active", "role", "name", "default_commission_percentage"]
+    const allowedFields = ["is_active", "role", "name"]
     const updateData: Record<string, any> = {}
 
     for (const field of allowedFields) {
@@ -187,4 +187,3 @@ export async function DELETE(
     return NextResponse.json({ error: error.message || "Error al eliminar usuario" }, { status: 500 })
   }
 }
-

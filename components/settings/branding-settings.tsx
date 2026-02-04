@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Loader2, Palette, Image as ImageIcon, Mail, Phone, Globe, Instagram, Facebook } from "lucide-react"
+import { Loader2, Palette, Image as ImageIcon, Mail, Phone, Globe, Instagram, Facebook, UploadCloud, Building2, MapPin } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -35,6 +35,7 @@ const brandingSchema = z.object({
   logo_url: z.string().url("URL inválida").optional().or(z.literal("")),
   logo_dark_url: z.string().url("URL inválida").optional().or(z.literal("")),
   favicon_url: z.string().url("URL inválida").optional().or(z.literal("")),
+  palette_id: z.string().min(1, "Selecciona una paleta"),
   primary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Color HEX inválido"),
   secondary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Color HEX inválido"),
   accent_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Color HEX inválido"),
@@ -46,6 +47,16 @@ const brandingSchema = z.object({
   website_url: z.string().url("URL inválida").optional().or(z.literal("")),
   instagram_url: z.string().url("URL inválida").optional().or(z.literal("")),
   facebook_url: z.string().url("URL inválida").optional().or(z.literal("")),
+  company_name: z.string().optional().or(z.literal("")),
+  company_tax_id: z.string().optional().or(z.literal("")),
+  company_address_line1: z.string().optional().or(z.literal("")),
+  company_address_line2: z.string().optional().or(z.literal("")),
+  company_city: z.string().optional().or(z.literal("")),
+  company_state: z.string().optional().or(z.literal("")),
+  company_postal_code: z.string().optional().or(z.literal("")),
+  company_country: z.string().optional().or(z.literal("")),
+  company_phone: z.string().optional().or(z.literal("")),
+  company_email: z.string().email("Email inválido").optional().or(z.literal("")),
 })
 
 type BrandingFormData = z.infer<typeof brandingSchema>
@@ -60,6 +71,49 @@ interface BrandingSettingsProps {
   defaultAgencyId: string | null
 }
 
+const PALETTES = [
+  {
+    id: "vibook",
+    name: "Vibook Blue",
+    description: "Elegante, confiable y moderna",
+    primary: "#2563EB",
+    secondary: "#0EA5E9",
+    accent: "#22D3EE",
+  },
+  {
+    id: "sunset",
+    name: "Sunset",
+    description: "Energía cálida para ventas",
+    primary: "#F97316",
+    secondary: "#EF4444",
+    accent: "#F59E0B",
+  },
+  {
+    id: "forest",
+    name: "Forest",
+    description: "Natural, estable y calmado",
+    primary: "#16A34A",
+    secondary: "#22C55E",
+    accent: "#84CC16",
+  },
+  {
+    id: "royal",
+    name: "Royal",
+    description: "Premium y sofisticado",
+    primary: "#6366F1",
+    secondary: "#8B5CF6",
+    accent: "#EC4899",
+  },
+  {
+    id: "slate",
+    name: "Slate",
+    description: "Minimalista y profesional",
+    primary: "#0F172A",
+    secondary: "#334155",
+    accent: "#38BDF8",
+  },
+] as const
+
 export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettingsProps) {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>(defaultAgencyId || "")
   const [isLoading, setIsLoading] = useState(false)
@@ -72,6 +126,7 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
       logo_url: "",
       logo_dark_url: "",
       favicon_url: "",
+      palette_id: "vibook",
       primary_color: "#6366f1",
       secondary_color: "#8b5cf6",
       accent_color: "#f59e0b",
@@ -83,6 +138,16 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
       website_url: "",
       instagram_url: "",
       facebook_url: "",
+      company_name: "",
+      company_tax_id: "",
+      company_address_line1: "",
+      company_address_line2: "",
+      company_city: "",
+      company_state: "",
+      company_postal_code: "",
+      company_country: "",
+      company_phone: "",
+      company_email: "",
     },
   })
 
@@ -103,6 +168,7 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
           logo_url: branding.logo_url || "",
           logo_dark_url: branding.logo_dark_url || "",
           favicon_url: branding.favicon_url || "",
+          palette_id: branding.palette_id || "vibook",
           primary_color: branding.primary_color || "#6366f1",
           secondary_color: branding.secondary_color || "#8b5cf6",
           accent_color: branding.accent_color || "#f59e0b",
@@ -114,6 +180,16 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
           website_url: branding.website_url || "",
           instagram_url: branding.instagram_url || "",
           facebook_url: branding.facebook_url || "",
+          company_name: branding.company_name || "",
+          company_tax_id: branding.company_tax_id || "",
+          company_address_line1: branding.company_address_line1 || "",
+          company_address_line2: branding.company_address_line2 || "",
+          company_city: branding.company_city || "",
+          company_state: branding.company_state || "",
+          company_postal_code: branding.company_postal_code || "",
+          company_country: branding.company_country || "",
+          company_phone: branding.company_phone || "",
+          company_email: branding.company_email || "",
         })
       } catch (error) {
         console.error("Error loading branding:", error)
@@ -151,6 +227,16 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
           website_url: data.website_url || null,
           instagram_url: data.instagram_url || null,
           facebook_url: data.facebook_url || null,
+          company_name: data.company_name || null,
+          company_tax_id: data.company_tax_id || null,
+          company_address_line1: data.company_address_line1 || null,
+          company_address_line2: data.company_address_line2 || null,
+          company_city: data.company_city || null,
+          company_state: data.company_state || null,
+          company_postal_code: data.company_postal_code || null,
+          company_country: data.company_country || null,
+          company_phone: data.company_phone || null,
+          company_email: data.company_email || null,
         }),
       })
 
@@ -169,6 +255,61 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
   }
 
   const watchedColors = form.watch(["primary_color", "secondary_color", "accent_color"])
+  const watchedPalette = form.watch("palette_id")
+
+  const handlePaletteSelect = (paletteId: string) => {
+    const palette = PALETTES.find((p) => p.id === paletteId)
+    if (!palette) return
+    form.setValue("palette_id", palette.id, { shouldDirty: true })
+    form.setValue("primary_color", palette.primary, { shouldDirty: true })
+    form.setValue("secondary_color", palette.secondary, { shouldDirty: true })
+    form.setValue("accent_color", palette.accent, { shouldDirty: true })
+  }
+
+  const handleColorChange = (field: "primary_color" | "secondary_color" | "accent_color", value: string) => {
+    form.setValue(field, value, { shouldDirty: true })
+    if (form.getValues("palette_id") !== "custom") {
+      form.setValue("palette_id", "custom", { shouldDirty: true })
+    }
+  }
+
+  const [uploading, setUploading] = useState<{ logo: boolean; logo_dark: boolean; favicon: boolean }>({
+    logo: false,
+    logo_dark: false,
+    favicon: false,
+  })
+
+  const uploadBrandingAsset = async (file: File, type: "logo" | "logo_dark" | "favicon") => {
+    if (!selectedAgencyId) return
+    setUploading((prev) => ({ ...prev, [type]: true }))
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("type", type)
+      formData.append("agency_id", selectedAgencyId)
+
+      const response = await fetch("/api/settings/branding/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Error al subir archivo")
+      }
+
+      const { url } = await response.json()
+      if (type === "logo") form.setValue("logo_url", url, { shouldDirty: true })
+      if (type === "logo_dark") form.setValue("logo_dark_url", url, { shouldDirty: true })
+      if (type === "favicon") form.setValue("favicon_url", url, { shouldDirty: true })
+
+      toast.success("Archivo subido correctamente")
+    } catch (error: any) {
+      toast.error(error.message || "Error al subir archivo")
+    } finally {
+      setUploading((prev) => ({ ...prev, [type]: false }))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -209,9 +350,9 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                 <Tabs defaultValue="general" className="w-full">
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="colors">Colores</TabsTrigger>
-                    <TabsTrigger value="email">Email</TabsTrigger>
-                    <TabsTrigger value="social">Redes Sociales</TabsTrigger>
+                    <TabsTrigger value="palette">Paletas</TabsTrigger>
+                    <TabsTrigger value="contact">Contacto</TabsTrigger>
+                    <TabsTrigger value="receipts">Recibos</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="general" className="space-y-4 mt-4">
@@ -242,11 +383,38 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                           <FormItem>
                             <FormLabel className="flex items-center gap-2">
                               <ImageIcon className="h-4 w-4" />
-                              URL del Logo (Claro)
+                              Logo (Claro)
                             </FormLabel>
-                            <FormControl>
-                              <Input placeholder="https://..." {...field} />
-                            </FormControl>
+                            <div className="space-y-2">
+                              <FormControl>
+                                <Input placeholder="https://..." {...field} />
+                              </FormControl>
+                              <div className="flex items-center gap-3">
+                                {field.value ? (
+                                  <img
+                                    src={field.value}
+                                    alt="Logo claro"
+                                    className="h-10 w-10 rounded bg-muted object-contain"
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded border bg-muted/40" />
+                                )}
+                                <label className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted cursor-pointer">
+                                  <UploadCloud className="h-4 w-4" />
+                                  Subir archivo
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0]
+                                      if (file) uploadBrandingAsset(file, "logo")
+                                    }}
+                                  />
+                                </label>
+                                {uploading.logo && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                              </div>
+                            </div>
                             <FormDescription>
                               Logo para modo claro (recomendado: 40x40px)
                             </FormDescription>
@@ -262,11 +430,38 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                           <FormItem>
                             <FormLabel className="flex items-center gap-2">
                               <ImageIcon className="h-4 w-4" />
-                              URL del Logo (Oscuro)
+                              Logo (Oscuro)
                             </FormLabel>
-                            <FormControl>
-                              <Input placeholder="https://..." {...field} />
-                            </FormControl>
+                            <div className="space-y-2">
+                              <FormControl>
+                                <Input placeholder="https://..." {...field} />
+                              </FormControl>
+                              <div className="flex items-center gap-3">
+                                {field.value ? (
+                                  <img
+                                    src={field.value}
+                                    alt="Logo oscuro"
+                                    className="h-10 w-10 rounded bg-muted object-contain"
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded border bg-muted/40" />
+                                )}
+                                <label className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted cursor-pointer">
+                                  <UploadCloud className="h-4 w-4" />
+                                  Subir archivo
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0]
+                                      if (file) uploadBrandingAsset(file, "logo_dark")
+                                    }}
+                                  />
+                                </label>
+                                {uploading.logo_dark && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                              </div>
+                            </div>
                             <FormDescription>
                               Logo para modo oscuro (opcional)
                             </FormDescription>
@@ -281,10 +476,37 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                       name="favicon_url"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>URL del Favicon</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://..." {...field} />
-                          </FormControl>
+                          <FormLabel>Favicon</FormLabel>
+                          <div className="space-y-2">
+                            <FormControl>
+                              <Input placeholder="https://..." {...field} />
+                            </FormControl>
+                            <div className="flex items-center gap-3">
+                              {field.value ? (
+                                <img
+                                  src={field.value}
+                                  alt="Favicon"
+                                  className="h-8 w-8 rounded bg-muted object-contain"
+                                />
+                              ) : (
+                                <div className="h-8 w-8 rounded border bg-muted/40" />
+                              )}
+                              <label className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted cursor-pointer">
+                                <UploadCloud className="h-4 w-4" />
+                                Subir archivo
+                                <input
+                                  type="file"
+                                  accept="image/png,image/x-icon,image/svg+xml"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) uploadBrandingAsset(file, "favicon")
+                                  }}
+                                />
+                              </label>
+                              {uploading.favicon && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                            </div>
+                          </div>
                           <FormDescription>
                             Icono que aparece en la pestaña del navegador (recomendado: 32x32px)
                           </FormDescription>
@@ -294,7 +516,48 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                     />
                   </TabsContent>
 
-                  <TabsContent value="colors" className="space-y-4 mt-4">
+                  <TabsContent value="palette" className="space-y-4 mt-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {PALETTES.map((palette) => (
+                        <button
+                          type="button"
+                          key={palette.id}
+                          onClick={() => handlePaletteSelect(palette.id)}
+                          className={`rounded-xl border p-4 text-left transition ${
+                            watchedPalette === palette.id ? "border-primary shadow-sm" : "hover:border-muted-foreground/40"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-semibold">{palette.name}</p>
+                              <p className="text-xs text-muted-foreground">{palette.description}</p>
+                            </div>
+                            {watchedPalette === palette.id && (
+                              <span className="text-xs font-medium text-primary">Seleccionada</span>
+                            )}
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <span className="h-6 w-6 rounded-full" style={{ backgroundColor: palette.primary }} />
+                            <span className="h-6 w-6 rounded-full" style={{ backgroundColor: palette.secondary }} />
+                            <span className="h-6 w-6 rounded-full" style={{ backgroundColor: palette.accent }} />
+                          </div>
+                        </button>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => form.setValue("palette_id", "custom", { shouldDirty: true })}
+                        className={`rounded-xl border p-4 text-left transition ${
+                          watchedPalette === "custom" ? "border-primary shadow-sm" : "hover:border-muted-foreground/40"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold">Personalizado</p>
+                        <p className="text-xs text-muted-foreground">Ajustá los colores manualmente</p>
+                      </button>
+                    </div>
+
+                    <Separator />
+
                     <div className="grid gap-4 md:grid-cols-3">
                       <FormField
                         control={form.control}
@@ -304,12 +567,17 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                             <FormLabel>Color Primario</FormLabel>
                             <div className="flex gap-2">
                               <FormControl>
-                                <Input type="color" {...field} className="w-12 h-10 p-1 cursor-pointer" />
+                                <Input
+                                  type="color"
+                                  value={field.value}
+                                  onChange={(e) => handleColorChange("primary_color", e.target.value)}
+                                  className="w-12 h-10 p-1 cursor-pointer"
+                                />
                               </FormControl>
-                              <Input 
-                                value={field.value} 
-                                onChange={field.onChange}
-                                placeholder="#6366f1"
+                              <Input
+                                value={field.value}
+                                onChange={(e) => handleColorChange("primary_color", e.target.value)}
+                                placeholder="#2563EB"
                                 className="flex-1"
                               />
                             </div>
@@ -326,12 +594,17 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                             <FormLabel>Color Secundario</FormLabel>
                             <div className="flex gap-2">
                               <FormControl>
-                                <Input type="color" {...field} className="w-12 h-10 p-1 cursor-pointer" />
+                                <Input
+                                  type="color"
+                                  value={field.value}
+                                  onChange={(e) => handleColorChange("secondary_color", e.target.value)}
+                                  className="w-12 h-10 p-1 cursor-pointer"
+                                />
                               </FormControl>
-                              <Input 
-                                value={field.value} 
-                                onChange={field.onChange}
-                                placeholder="#8b5cf6"
+                              <Input
+                                value={field.value}
+                                onChange={(e) => handleColorChange("secondary_color", e.target.value)}
+                                placeholder="#0EA5E9"
                                 className="flex-1"
                               />
                             </div>
@@ -348,12 +621,17 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                             <FormLabel>Color de Acento</FormLabel>
                             <div className="flex gap-2">
                               <FormControl>
-                                <Input type="color" {...field} className="w-12 h-10 p-1 cursor-pointer" />
+                                <Input
+                                  type="color"
+                                  value={field.value}
+                                  onChange={(e) => handleColorChange("accent_color", e.target.value)}
+                                  className="w-12 h-10 p-1 cursor-pointer"
+                                />
                               </FormControl>
-                              <Input 
-                                value={field.value} 
-                                onChange={field.onChange}
-                                placeholder="#f59e0b"
+                              <Input
+                                value={field.value}
+                                onChange={(e) => handleColorChange("accent_color", e.target.value)}
+                                placeholder="#22D3EE"
                                 className="flex-1"
                               />
                             </div>
@@ -363,23 +641,22 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                       />
                     </div>
 
-                    {/* Preview de colores */}
                     <div className="p-4 rounded-lg border bg-muted/50">
                       <Label className="mb-2 block">Vista Previa</Label>
                       <div className="flex gap-4 items-center">
-                        <div 
+                        <div
                           className="w-16 h-16 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
                           style={{ backgroundColor: watchedColors[0] }}
                         >
                           Primario
                         </div>
-                        <div 
+                        <div
                           className="w-16 h-16 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
                           style={{ backgroundColor: watchedColors[1] }}
                         >
                           Secundario
                         </div>
-                        <div 
+                        <div
                           className="w-16 h-16 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
                           style={{ backgroundColor: watchedColors[2] }}
                         >
@@ -389,7 +666,7 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="email" className="space-y-4 mt-4">
+                  <TabsContent value="contact" className="space-y-4 mt-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <FormField
                         control={form.control}
@@ -480,9 +757,9 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                         )}
                       />
                     </div>
-                  </TabsContent>
 
-                  <TabsContent value="social" className="space-y-4 mt-4">
+                    <Separator />
+
                     <FormField
                       control={form.control}
                       name="website_url"
@@ -529,6 +806,164 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                             </FormLabel>
                             <FormControl>
                               <Input placeholder="https://facebook.com/miagencia" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="receipts" className="space-y-4 mt-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="company_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4" />
+                              Razón Social
+                            </FormLabel>
+                            <FormControl>
+                              <Input placeholder="Agencia de Viajes SRL" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="company_tax_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>CUIT / Tax ID</FormLabel>
+                            <FormControl>
+                              <Input placeholder="30-12345678-9" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <FormField
+                      control={form.control}
+                      name="company_address_line1"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            Dirección
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="Av. Libertador 1234" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="company_address_line2"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dirección (opcional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Piso, oficina, etc." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="company_city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Ciudad</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Buenos Aires" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="company_state"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Provincia / Estado</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Buenos Aires" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="company_postal_code"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Código Postal</FormLabel>
+                            <FormControl>
+                              <Input placeholder="C1428" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="company_country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>País</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Argentina" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="company_phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teléfono Comercial</FormLabel>
+                            <FormControl>
+                              <Input placeholder="+54 11 1234-5678" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="company_email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email Comercial</FormLabel>
+                            <FormControl>
+                              <Input type="email" placeholder="admin@miagencia.com" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

@@ -91,7 +91,7 @@ export async function GET(request: Request) {
           const amount = parseFloat(movement.amount_ars_equivalent || "0")
           if (movement.type === "INCOME" || movement.type === "FX_GAIN") {
             runningBalance += amount
-          } else if (movement.type === "EXPENSE" || movement.type === "FX_LOSS" || movement.type === "COMMISSION" || movement.type === "OPERATOR_PAYMENT") {
+          } else if (movement.type === "EXPENSE" || movement.type === "FX_LOSS" || movement.type === "OPERATOR_PAYMENT") {
             runningBalance -= amount
           }
         }
@@ -124,4 +124,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Error interno" }, { status: 500 })
   }
 }
-

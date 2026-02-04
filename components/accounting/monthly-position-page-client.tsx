@@ -646,7 +646,7 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Gastos Administrativos, Comercialización, Comisiones, Gastos Financieros
+                  Gastos Administrativos, Comercialización y Gastos Financieros
                 </div>
               </div>
               <div className="pt-2 border-t">
@@ -773,4 +773,3 @@ export function MonthlyPositionPageClient({ agencies, userRole }: MonthlyPositio
     </div>
   )
 }
-

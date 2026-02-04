@@ -319,21 +319,6 @@ export async function PATCH(
       }
     }
 
-    // Si el status cambió a CONFIRMED o CLOSED, calcular comisiones automáticamente
-    if (body.status === "CONFIRMED" || body.status === "CLOSED") {
-      try {
-        const { calculateCommission, createOrUpdateCommissionRecords } = await import("@/lib/commissions/calculate")
-        const commissionData = await calculateCommission(op)
-        
-        if (commissionData.totalCommission > 0) {
-          await createOrUpdateCommissionRecords(op, commissionData)
-          console.log(`✅ Comisión calculada para operación ${operationId}: $${commissionData.totalCommission}`)
-        }
-      } catch (error) {
-        console.error("Error calculating commission:", error)
-      }
-    }
-
     // Invalidar caché del dashboard (los KPIs cambian al editar una operación)
     revalidateTag(CACHE_TAGS.DASHBOARD)
 
@@ -467,17 +452,7 @@ export async function DELETE(
       console.error("Error deleting alerts:", error)
     }
 
-    // 7. Eliminar comisiones (commission_records)
-    try {
-      await (supabase.from("commission_records") as any)
-        .delete()
-        .eq("operation_id", operationId)
-      console.log(`  ✓ Comisiones (commission_records) eliminadas`)
-    } catch (error) {
-      console.error("Error deleting commission_records:", error)
-    }
-
-    // 8. Eliminar documentos (el storage se limpia con policies)
+    // 7. Eliminar documentos (el storage se limpia con policies)
     try {
       await supabase.from("documents").delete().eq("operation_id", operationId)
       console.log(`  ✓ Documentos eliminados`)

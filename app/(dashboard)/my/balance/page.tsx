@@ -35,53 +35,6 @@ export default async function MyBalancePage() {
 
   const supabase = await createServerClient()
 
-  // Obtener comisiones del vendedor
-  const { data: commissions } = await supabase
-    .from("commission_records")
-    .select(
-      `
-      *,
-      operations:operation_id(
-        id,
-        file_code,
-        destination,
-        departure_date,
-        sale_amount_total,
-        sale_currency,
-        margin_amount
-      )
-    `
-    )
-    .eq("seller_id", user.id)
-    .order("created_at", { ascending: false })
-
-  // Calcular totales (separados por moneda)
-  const commissionsARS: number[] = []
-  const commissionsUSD: number[] = []
-  
-  for (const c of (commissions || []) as any[]) {
-    const currency = c.operations?.sale_currency || "ARS"
-    if (currency === "USD") {
-      commissionsUSD.push(c.amount || 0)
-    } else {
-      commissionsARS.push(c.amount || 0)
-    }
-  }
-  
-  const totalCommissionsARS = commissionsARS.reduce((sum, amt) => sum + amt, 0)
-  const totalCommissionsUSD = commissionsUSD.reduce((sum, amt) => sum + amt, 0)
-  const totalCommissions = totalCommissionsARS + totalCommissionsUSD // Para display, asumimos ARS por defecto
-  
-  const paidCommissionsARS = ((commissions || []) as any[])
-    .filter((c: any) => c.status === "PAID" && (c.operations?.sale_currency || "ARS") === "ARS")
-    .reduce((sum, c: any) => sum + (c.amount || 0), 0)
-  const paidCommissionsUSD = ((commissions || []) as any[])
-    .filter((c: any) => c.status === "PAID" && c.operations?.sale_currency === "USD")
-    .reduce((sum, c: any) => sum + (c.amount || 0), 0)
-  const paidCommissions = paidCommissionsARS + paidCommissionsUSD
-  
-  const pendingCommissions = totalCommissions - paidCommissions
-
   // Obtener leads asignados
   const { data: leads } = await supabase
     .from("leads")
@@ -123,144 +76,66 @@ export default async function MyBalancePage() {
     overduePayments = payments || []
   }
 
+  const operationsCount = operations?.length || 0
+  const leadsCount = leads?.length || 0
+  const overdueCount = overduePayments.length
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Mi Balance</h1>
-        <p className="text-muted-foreground">Resumen de comisiones y operaciones</p>
+        <p className="text-muted-foreground">Resumen de operaciones y actividad</p>
       </div>
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Comisiones</CardTitle>
+            <CardTitle className="text-sm font-medium">Operaciones Recientes</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {totalCommissionsUSD > 0 
-                ? `${formatCurrency(totalCommissionsARS, "ARS")} + ${formatCurrency(totalCommissionsUSD, "USD")}`
-                : formatCurrency(totalCommissions, "ARS")
-              }
-            </div>
+            <div className="text-2xl font-bold">{operationsCount}</div>
             <p className="text-xs text-muted-foreground">
-              {commissions?.length || 0} registros
+              Últimas 10 operaciones
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pagadas</CardTitle>
+            <CardTitle className="text-sm font-medium">Leads Asignados</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {paidCommissionsUSD > 0
-                ? `${formatCurrency(paidCommissionsARS, "ARS")} + ${formatCurrency(paidCommissionsUSD, "USD")}`
-                : formatCurrency(paidCommissions, "ARS")
-              }
-            </div>
+            <div className="text-2xl font-bold text-green-600">{leadsCount}</div>
             <p className="text-xs text-muted-foreground">
-              {commissions?.filter((c: any) => c.status === "PAID").length || 0} pagadas
+              Últimos 10 leads
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+            <CardTitle className="text-sm font-medium">Vencimientos</CardTitle>
             <Calendar className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {formatCurrency(pendingCommissions, "ARS")}
-            </div>
+            <div className="text-2xl font-bold text-yellow-600">{overdueCount}</div>
             <p className="text-xs text-muted-foreground">
-              {commissions?.filter((c: any) => c.status === "PENDING").length || 0} pendientes
+              Pagos vencidos
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="commissions" className="w-full">
+      <Tabs defaultValue="operations" className="w-full">
         <TabsList>
-          <TabsTrigger value="commissions">Comisiones</TabsTrigger>
           <TabsTrigger value="operations">Operaciones</TabsTrigger>
           <TabsTrigger value="leads">Leads</TabsTrigger>
           <TabsTrigger value="overdue">Vencimientos</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="commissions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mis Comisiones</CardTitle>
-              <CardDescription>Historial de comisiones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Operación</TableHead>
-                      <TableHead>Destino</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead className="text-right">%</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha Calculada</TableHead>
-                      <TableHead>Fecha Pagada</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commissions && commissions.length > 0 ? (
-                      commissions.map((commission: any) => (
-                        <TableRow key={commission.id}>
-                          <TableCell className="font-medium">
-                            {commission.operations?.file_code || "-"}
-                          </TableCell>
-                          <TableCell>{commission.operations?.destination || "-"}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(commission.amount, commission.operations?.sale_currency || "ARS")}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {commission.percentage ? `${commission.percentage}%` : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={commission.status === "PAID" ? "default" : "secondary"}
-                            >
-                              {commission.status === "PAID" ? "Pagada" : "Pendiente"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(commission.date_calculated), "dd/MM/yyyy", {
-                              locale: es,
-                            })}
-                          </TableCell>
-                          <TableCell>
-                            {commission.date_paid
-                              ? format(new Date(commission.date_paid), "dd/MM/yyyy", {
-                                  locale: es,
-                                })
-                              : "-"}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground">
-                          No hay comisiones registradas
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="operations" className="space-y-4">
           <Card>
@@ -418,4 +293,3 @@ export default async function MyBalancePage() {
     </div>
   )
 }
-

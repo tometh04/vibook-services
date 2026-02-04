@@ -481,7 +481,7 @@ export async function markPaymentAsPaid({
       )
     }
   } else {
-    // GASTOS: usar cuenta de RESULTADO > GASTOS > "4.3.03" - Comisiones de Vendedores (o genérico)
+    // GASTOS: usar cuenta de RESULTADO > GASTOS > "4.3.01" (o genérico)
     const { data: gastosChart } = await (supabase.from("chart_of_accounts") as any)
       .select("id")
       .eq("account_code", "4.3.01") // Gastos Administrativos como default
