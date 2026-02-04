@@ -19,7 +19,8 @@ export function applyRoleFilters<T>(
   module: Module,
   agencyIds?: string[]
 ): any {
-  let query = supabase.from(table) as any
+  // Cast para permitir tablas dinámicas sin romper tipos estrictos
+  let query = (supabase as any).from(table)
 
   // Si el rol solo puede ver sus propios datos, filtrar por user_id
   if (isOwnDataOnly(userRole, module)) {
