@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test"
 
 const baseURL = process.env.E2E_BASE_URL || "http://localhost:3044"
 const useWebServer = baseURL.includes("localhost") || baseURL.includes("127.0.0.1")
+const browserChannel = process.env.E2E_BROWSER_CHANNEL
 
 export default defineConfig({
   testDir: "./e2e",
@@ -29,7 +30,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { browserName: "chromium" },
+      use: {
+        browserName: "chromium",
+        ...(browserChannel ? { channel: browserChannel } : {}),
+      },
     },
   ],
 })
