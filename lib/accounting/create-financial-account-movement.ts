@@ -63,40 +63,30 @@ export async function createFinancialAccountMovement({
     }
   }
 
-  // Calcular exchange rate si es necesario para registrar el equivalente en ARS en el ledger
-  // ARS: requiere tipo de cambio para convertir a USD y validar balances
-  // USD: también requiere tipo de cambio para calcular amount_ars_equivalent
+  // Calcular exchange rate cuando hace falta para conversiones entre monedas
+  // Regla: Solo exigir tipo de cambio cuando la moneda del movimiento es ARS,
+  // o cuando la moneda del movimiento NO coincide con la moneda de la cuenta.
   let exchangeRate: number | null = null
-  
+
   if (currency === "ARS") {
     // Para ARS, el tipo de cambio es obligatorio (para convertir a USD)
     exchangeRate = providedExchangeRate ?? null
     if (!exchangeRate || exchangeRate <= 0) {
-      // Si no viene proporcionado, intentar buscarlo (pero debería venir del frontend)
+      // Si no viene proporcionado, intentar buscarlo
       const rateDate = datePaid ? new Date(datePaid) : new Date()
       exchangeRate = await getExchangeRate(supabase, rateDate)
-      
       if (!exchangeRate) {
-        const { getLatestExchangeRate } = await import("@/lib/accounting/exchange-rates")
         exchangeRate = await getLatestExchangeRate(supabase)
       }
-      
       if (!exchangeRate || exchangeRate <= 0) {
         throw new Error("El tipo de cambio es obligatorio para movimientos en ARS")
       }
     }
-  } else if (currency === "USD") {
-    // Para USD, necesitamos tipo de cambio para calcular equivalente en ARS
+  } else if (currency === "USD" && accountCurrency === "ARS") {
+    // USD hacia cuenta ARS: se requiere tipo de cambio explícito
     exchangeRate = providedExchangeRate ?? null
     if (!exchangeRate || exchangeRate <= 0) {
-      const rateDate = datePaid ? new Date(datePaid) : new Date()
-      exchangeRate = await getExchangeRate(supabase, rateDate)
-      if (!exchangeRate) {
-        exchangeRate = await getLatestExchangeRate(supabase)
-      }
-      if (!exchangeRate || exchangeRate <= 0) {
-        throw new Error("El tipo de cambio es obligatorio para convertir USD a ARS")
-      }
+      throw new Error("El tipo de cambio es obligatorio para convertir USD a ARS")
     }
   }
 

@@ -43,11 +43,6 @@ export async function createLedgerMovement(
   params: CreateLedgerMovementParams,
   supabase: SupabaseClient<Database>
 ): Promise<{ id: string }> {
-  // Validar que si currency = USD, exchange_rate debe estar presente
-  if (params.currency === "USD" && !params.exchange_rate) {
-    throw new Error("exchange_rate es requerido cuando currency = USD")
-  }
-
   // Validar que amount_ars_equivalent esté presente
   if (!params.amount_ars_equivalent) {
     throw new Error("amount_ars_equivalent es requerido")
@@ -269,24 +264,24 @@ export async function validateAccountBalanceForExpense(
 }
 
 /**
- * Calcular ARS equivalent automáticamente
- * Si currency = ARS, amount_ars_equivalent = amount_original
- * Si currency = USD, amount_ars_equivalent = amount_original * exchange_rate
+ * Calcular equivalente en USD (base del sistema)
+ * Si currency = ARS, amount_ars_equivalent = amount_original / exchange_rate
+ * Si currency = USD, amount_ars_equivalent = amount_original
  */
 export function calculateARSEquivalent(
   amount: number,
   currency: "ARS" | "USD",
   exchangeRate?: number | null
 ): number {
-  if (currency === "ARS") {
+  if (currency === "USD") {
     return amount
   }
 
-  if (currency === "USD") {
+  if (currency === "ARS") {
     if (!exchangeRate) {
-      throw new Error("exchange_rate es requerido para convertir USD a ARS")
+      throw new Error("exchange_rate es requerido para convertir ARS a USD")
     }
-    return amount * exchangeRate
+    return amount / exchangeRate
   }
 
   throw new Error(`Moneda no soportada: ${currency}`)
