@@ -278,13 +278,13 @@ export default function PaywallPage() {
                   key={plan.id}
                   className={`relative flex h-full flex-col border ${
                     isPopular
-                      ? "border-blue-500/50 bg-gradient-to-b from-blue-50/70 to-white shadow-[0_25px_60px_-30px_rgba(37,99,235,0.55)]"
+                      ? "border-primary/40 bg-gradient-to-b from-primary/10 to-white shadow-[0_25px_60px_-30px_rgba(37,99,235,0.35)]"
                       : "border-slate-200 bg-white shadow-[0_20px_50px_-35px_rgba(15,23,42,0.25)]"
                   }`}
                 >
                   {isPopular && (
                     <div className="absolute -top-4 left-6 z-20">
-                      <Badge className="border border-blue-200 bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-lg">
+                      <Badge className="border border-primary/30 bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-lg">
                         Mas popular
                       </Badge>
                     </div>
@@ -370,11 +370,7 @@ export default function PaywallPage() {
 
                   <CardFooter className="pt-4">
                     <Button
-                      className={`h-11 w-full text-sm font-semibold ${
-                        isPopular
-                          ? "bg-blue-600 text-white hover:bg-blue-700"
-                          : "border border-slate-300 text-slate-700 hover:bg-slate-50"
-                      } ${usingFallbackPlans ? "cursor-not-allowed opacity-70" : ""}`}
+                      className={`h-11 w-full text-sm font-semibold ${usingFallbackPlans ? "cursor-not-allowed opacity-70" : ""}`}
                       variant={isPopular ? "default" : "outline"}
                       onClick={() => handleUpgrade(plan.id)}
                       disabled={loading || usingFallbackPlans}
