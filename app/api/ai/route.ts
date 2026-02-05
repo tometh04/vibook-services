@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import OpenAI from "openai"
 import { createServerClient } from "@/lib/supabase/server"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 
 // Esquema REAL de la base de datos - Actualizado 2025-01-28
 const DATABASE_SCHEMA = `
@@ -147,6 +148,12 @@ REGLAS CRÍTICAS:
 ESQUEMA:
 ${DATABASE_SCHEMA}
 
+REGLAS DE TENANCIA (OBLIGATORIAS):
+- Si el usuario NO es SUPER_ADMIN, SIEMPRE filtra por agencia usando el placeholder: agency_id = ANY({{agency_ids}})
+- Para la tabla agencies (no tiene agency_id), usa: id = ANY({{agency_ids}})
+- Si consultas user_agencies, filtra por user_id = {{user_id}}
+- NUNCA hardcodees IDs reales: usa {{agency_ids}} y {{user_id}} siempre
+
 EJEMPLOS DE QUERIES CORRECTAS:
 
 -- Viajes próximos (usa departure_date O checkin_date)
@@ -169,11 +176,11 @@ JOIN operators o ON o.id = op.operator_id
 WHERE op.status IN ('PENDING', 'OVERDUE')
 ORDER BY op.due_date ASC LIMIT 10
 
--- Balance de cuentas financieras
+-- Cuánto hay en caja (cash_boxes)
 SELECT name, currency, current_balance
-FROM financial_accounts
-WHERE is_active = true
-ORDER BY current_balance DESC
+FROM cash_boxes
+WHERE is_active = true AND agency_id = ANY({{agency_ids}})
+ORDER BY currency, name
 
 -- Ventas del mes
 SELECT COUNT(*) as cantidad, COALESCE(SUM(sale_amount_total), 0) as total
@@ -201,9 +208,10 @@ ORDER BY rp.amount DESC
 SELECT c.first_name, c.last_name, o.file_code, o.sale_amount_total, 
   COALESCE(SUM(p.amount), 0) as pagado
 FROM operations o
-JOIN customers c ON c.id = o.customer_id
+JOIN operation_customers oc ON oc.operation_id = o.id AND oc.role = 'MAIN'
+JOIN customers c ON c.id = oc.customer_id
 LEFT JOIN payments p ON p.operation_id = o.id AND p.direction = 'INCOME' AND p.status = 'PAID'
-WHERE o.status NOT IN ('CANCELLED')
+WHERE o.status NOT IN ('CANCELLED') AND o.agency_id = ANY({{agency_ids}})
 GROUP BY c.id, c.first_name, c.last_name, o.id, o.file_code, o.sale_amount_total
 HAVING o.sale_amount_total > COALESCE(SUM(p.amount), 0)
 LIMIT 20
@@ -214,8 +222,65 @@ SI UNA QUERY FALLA:
 - NUNCA muestres el error técnico
 `
 
+const TENANT_TABLES = [
+  "agencies",
+  "user_agencies",
+  "operators",
+  "customers",
+  "leads",
+  "operations",
+  "operation_customers",
+  "operation_passengers",
+  "payments",
+  "operator_payments",
+  "financial_accounts",
+  "cash_boxes",
+  "cash_movements",
+  "ledger_movements",
+  "recurring_payments",
+  "recurring_payment_categories",
+  "quotations",
+  "quotation_items",
+  "whatsapp_messages",
+  "documents",
+  "invoices",
+  "alerts",
+  "notes",
+  "subscriptions",
+  "usage_metrics",
+  "tenant_branding",
+  "customer_settings",
+  "operation_settings",
+  "financial_settings",
+]
+
+const containsTenantTable = (query: string) => {
+  const normalized = query.toLowerCase()
+  return TENANT_TABLES.some((table) => normalized.includes(` ${table} `) || normalized.includes(` ${table}\n`) || normalized.includes(` ${table},`) || normalized.includes(` ${table}\t`))
+}
+
+const buildAgencyArrayLiteral = (agencyIds: string[]) => {
+  const values = agencyIds.map((id) => `'${id}'::uuid`).join(",")
+  return `ARRAY[${values}]::uuid[]`
+}
+
+const applyQueryContext = (query: string, agencyIds: string[], userId: string) => {
+  let resolved = query
+  if (resolved.includes("{{agency_ids}}")) {
+    resolved = resolved.replaceAll("{{agency_ids}}", buildAgencyArrayLiteral(agencyIds))
+  }
+  if (resolved.includes("{{user_id}}")) {
+    resolved = resolved.replaceAll("{{user_id}}", `'${userId}'::uuid`)
+  }
+  return resolved
+}
+
 // Ejecutar consulta SQL de forma segura
-async function executeQuery(supabase: any, query: string): Promise<{ success: boolean; data?: any; error?: string }> {
+async function executeQuery(
+  supabase: any,
+  query: string,
+  context: { agencyIds: string[]; userId: string; isSuperAdmin: boolean }
+): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const cleanedQuery = query.trim()
     const normalizedQuery = cleanedQuery.toUpperCase()
@@ -223,10 +288,28 @@ async function executeQuery(supabase: any, query: string): Promise<{ success: bo
     if (!normalizedQuery.startsWith("SELECT")) {
       return { success: false, error: "Solo SELECT permitido" }
     }
+
+    if (!context.isSuperAdmin) {
+      if (context.agencyIds.length === 0) {
+        return { success: false, error: "Usuario sin agencias asignadas" }
+      }
+
+      if (containsTenantTable(cleanedQuery)) {
+        const hasAgencyPlaceholder = cleanedQuery.includes("{{agency_ids}}")
+        const hasUserPlaceholder = cleanedQuery.includes("{{user_id}}")
+        if (!hasAgencyPlaceholder && !hasUserPlaceholder) {
+          return { success: false, error: "Falta filtro de agencias (usa {{agency_ids}} / {{user_id}})" }
+        }
+      }
+    }
+
+    const resolvedQuery = context.isSuperAdmin
+      ? cleanedQuery
+      : applyQueryContext(cleanedQuery, context.agencyIds, context.userId)
     
-    console.log("[Cerebro] Query:", cleanedQuery.substring(0, 200))
+    console.log("[Cerebro] Query:", resolvedQuery.substring(0, 200))
     
-    const { data, error } = await supabase.rpc('execute_readonly_query', { query_text: cleanedQuery })
+    const { data, error } = await supabase.rpc('execute_readonly_query', { query_text: resolvedQuery })
     
     if (error) {
       console.error("[Cerebro] Query error:", error.message)
@@ -266,9 +349,11 @@ export async function POST(request: Request) {
 
     const openai = new OpenAI({ apiKey: openaiKey })
     const supabase = await createServerClient()
+    const isSuperAdmin = user.role === "SUPER_ADMIN"
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
     const today = new Date().toISOString().split('T')[0]
-    const userContext = `Fecha: ${today} | Usuario: ${user.name || user.email}`
+    const userContext = `Fecha: ${today} | Usuario: ${user.name || user.email} | Rol: ${user.role} | user_id: ${user.id} | agency_ids: ${agencyIds.join(", ") || "SIN_AGENCIAS"}`
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -315,7 +400,11 @@ export async function POST(request: Request) {
         if (toolCall.function.name === "execute_query") {
           try {
             const args = JSON.parse(toolCall.function.arguments)
-            const result = await executeQuery(supabase, args.query)
+            const result = await executeQuery(supabase, args.query, {
+              agencyIds,
+              userId: user.id,
+              isSuperAdmin,
+            })
             
             if (result.success) {
               toolResults.push({
