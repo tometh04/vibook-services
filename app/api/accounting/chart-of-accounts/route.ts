@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { canPerformAction } from "@/lib/permissions-api"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 
 export async function GET(request: Request) {
   try {
@@ -11,12 +12,25 @@ export async function GET(request: Request) {
     
     const category = searchParams.get("category") // ACTIVO, PASIVO, PATRIMONIO_NETO, RESULTADO
     const includeInactive = searchParams.get("includeInactive") === "true"
+    const agencyIdParam = searchParams.get("agencyId")
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({ accounts: [], flat: [] })
+    }
 
     let query = supabase
       .from("chart_of_accounts")
       .select("*")
       .order("display_order", { ascending: true })
       .order("account_code", { ascending: true })
+
+    if (agencyIdParam) {
+      query = query.eq("agency_id", agencyIdParam)
+    } else if (user.role !== "SUPER_ADMIN") {
+      query = query.in("agency_id", agencyIds)
+    }
 
     if (category && category !== "ALL") {
       query = query.eq("category", category)
@@ -77,9 +91,11 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createServerClient()
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
     const body = await request.json()
 
     const {
+      agency_id,
       account_code,
       account_name,
       category,
@@ -96,8 +112,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "account_code, account_name y category son requeridos" }, { status: 400 })
     }
 
+    let resolvedAgencyId = agency_id
+    if (!resolvedAgencyId) {
+      if (user.role === "SUPER_ADMIN") {
+        return NextResponse.json({ error: "agency_id es requerido" }, { status: 400 })
+      }
+      if (agencyIds.length === 1) {
+        resolvedAgencyId = agencyIds[0]
+      } else {
+        return NextResponse.json({ error: "Debe seleccionar una agencia" }, { status: 400 })
+      }
+    }
+
+    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(resolvedAgencyId)) {
+      return NextResponse.json({ error: "No tiene permiso para esta agencia" }, { status: 403 })
+    }
+
     const { data, error } = await (supabase.from("chart_of_accounts") as any)
       .insert({
+        agency_id: resolvedAgencyId,
         account_code,
         account_name,
         category,
@@ -125,4 +158,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error al crear cuenta" }, { status: 500 })
   }
 }
-

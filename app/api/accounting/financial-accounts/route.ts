@@ -166,10 +166,11 @@ export async function POST(request: Request) {
       const accountCode = typeToAccountCodeMap[type]
       
       if (accountCode) {
-        // Buscar el chart_account_id por código
+        // Buscar el chart_account_id por código (aislado por agencia)
         const { data: chartAccount, error: chartError } = await (supabase.from("chart_of_accounts") as any)
           .select("id, account_code, account_name, is_active")
           .eq("account_code", accountCode)
+          .eq("agency_id", resolvedAgencyId)
           .eq("is_active", true)
           .maybeSingle()
 
@@ -177,12 +178,52 @@ export async function POST(request: Request) {
           finalChartAccountId = chartAccount.id
           console.log(`✅ Asignado automáticamente chart_account_id ${accountCode} (${chartAccount.account_name}) para tipo ${type}`)
         } else {
-          return NextResponse.json(
-            { 
-              error: `No se encontró una cuenta del plan de cuentas con código ${accountCode} para el tipo ${type}. Por favor, especifique chart_account_id manualmente.` 
-            },
-            { status: 400 }
-          )
+          // Intentar auto-crear el plan de cuentas mínimo si no existe
+          const defaultChartAccounts: Record<string, { name: string; category: string; subcategory?: string; account_type?: string; display_order: number }> = {
+            "1.1.01": { name: "Caja", category: "ACTIVO", subcategory: "CORRIENTE", account_type: "CAJA", display_order: 10 },
+            "1.1.02": { name: "Bancos", category: "ACTIVO", subcategory: "CORRIENTE", account_type: "BANCO", display_order: 20 },
+            "1.1.03": { name: "Cuentas por Cobrar", category: "ACTIVO", subcategory: "CORRIENTE", account_type: "CUENTAS_POR_COBRAR", display_order: 30 },
+            "1.1.04": { name: "Mercado Pago", category: "ACTIVO", subcategory: "CORRIENTE", account_type: "PLATAFORMAS_PAGO", display_order: 40 },
+            "1.1.05": { name: "Otros Activos", category: "ACTIVO", subcategory: "NO_CORRIENTE", account_type: "OTROS", display_order: 50 },
+            "2.1.01": { name: "Cuentas por Pagar", category: "PASIVO", subcategory: "CORRIENTE", account_type: "CUENTAS_POR_PAGAR", display_order: 60 },
+            "4.1.01": { name: "Ingresos por Ventas", category: "RESULTADO", subcategory: "INGRESOS", account_type: "INGRESOS", display_order: 70 },
+            "4.2.01": { name: "Costos de Ventas", category: "RESULTADO", subcategory: "COSTOS", account_type: "COSTOS", display_order: 80 },
+            "4.3.01": { name: "Gastos Administrativos", category: "RESULTADO", subcategory: "GASTOS", account_type: "GASTOS", display_order: 90 },
+          }
+
+          const defaults = defaultChartAccounts[accountCode]
+          if (defaults) {
+            const { data: createdChart, error: createError } = await (supabase.from("chart_of_accounts") as any)
+              .insert({
+                agency_id: resolvedAgencyId,
+                account_code: accountCode,
+                account_name: defaults.name,
+                category: defaults.category,
+                subcategory: defaults.subcategory || null,
+                account_type: defaults.account_type || null,
+                level: 3,
+                is_movement_account: true,
+                display_order: defaults.display_order,
+                is_active: true,
+                created_by: user.id,
+              })
+              .select("id, account_code, account_name, is_active")
+              .single()
+
+            if (!createError && createdChart) {
+              finalChartAccountId = createdChart.id
+              console.log(`✅ Plan de cuentas creado automáticamente ${accountCode} (${createdChart.account_name}) para tipo ${type}`)
+            }
+          }
+
+          if (!finalChartAccountId) {
+            return NextResponse.json(
+              { 
+                error: `No se encontró una cuenta del plan de cuentas con código ${accountCode} para el tipo ${type}. Por favor, ejecute la migración de plan de cuentas o especifique chart_account_id manualmente.` 
+              },
+              { status: 400 }
+            )
+          }
         }
       } else {
         return NextResponse.json(
@@ -198,6 +239,7 @@ export async function POST(request: Request) {
     const { data: chartAccount, error: chartError } = await (supabase.from("chart_of_accounts") as any)
       .select("id, account_code, account_name, category, is_active")
       .eq("id", finalChartAccountId)
+      .eq("agency_id", resolvedAgencyId)
       .single()
 
     if (chartError || !chartAccount) {

@@ -484,6 +484,7 @@ export async function POST(request: Request) {
       const { data: accountsReceivableChart } = await (supabase.from("chart_of_accounts") as any)
         .select("id")
         .eq("account_code", "1.1.03")
+        .eq("agency_id", agency_id)
         .eq("is_active", true)
         .maybeSingle()
 
@@ -502,6 +503,7 @@ export async function POST(request: Request) {
               name: "Cuentas por Cobrar",
               type: "ASSETS",
               currency: finalSaleCurrency,
+              agency_id: agency_id,
               chart_account_id: accountsReceivableChart.id,
               initial_balance: 0,
               is_active: true,
@@ -563,6 +565,7 @@ export async function POST(request: Request) {
         const { data: accountsPayableChart } = await (supabase.from("chart_of_accounts") as any)
           .select("id")
           .eq("account_code", "2.1.01")
+          .eq("agency_id", agency_id)
           .eq("is_active", true)
           .maybeSingle()
 
@@ -580,6 +583,7 @@ export async function POST(request: Request) {
                 name: "Cuentas por Pagar",
                 type: "ASSETS", // Usar ASSETS como tipo válido - el chart_account_id determina si es activo/pasivo
                 currency: finalOperatorCostCurrency,
+                agency_id: agency_id,
                 chart_account_id: accountsPayableChart.id,
                 initial_balance: 0,
                 is_active: true,

@@ -77,6 +77,11 @@ export async function markPaymentAsPaid({
     operation = paymentData.operations || null
   }
 
+  const operationAgencyId = operation?.agency_id || null
+  const withAgencyFilter = (query: any) => {
+    return operationAgencyId ? query.eq("agency_id", operationAgencyId) : query
+  }
+
   // Declarar paymentsTable aquí para poder usarlo más abajo
   const paymentsTable = supabase.from("payments") as any
 
@@ -87,11 +92,11 @@ export async function markPaymentAsPaid({
     // Obtener cuenta por defecto según dirección y tipo
     if (paymentData.direction === "INCOME") {
       // INGRESOS: buscar cuenta de Ventas de Viajes (4.1.01)
-      const { data: ingresosChart } = await (supabase.from("chart_of_accounts") as any)
+      const { data: ingresosChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
         .select("id")
         .eq("account_code", "4.1.01")
         .eq("is_active", true)
-        .maybeSingle()
+        .maybeSingle())
       
       if (ingresosChart) {
         const { data: ingresosAccount } = await (supabase.from("financial_accounts") as any)
@@ -103,11 +108,11 @@ export async function markPaymentAsPaid({
       }
     } else if (paymentData.payer_type === "OPERATOR") {
       // PAGOS A OPERADORES: buscar cuenta de Costos (4.2.01)
-      const { data: costosChart } = await (supabase.from("chart_of_accounts") as any)
+      const { data: costosChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
         .select("id")
         .eq("account_code", "4.2.01")
         .eq("is_active", true)
-        .maybeSingle()
+        .maybeSingle())
       
       if (costosChart) {
         const { data: costosAccount } = await (supabase.from("financial_accounts") as any)
@@ -119,11 +124,11 @@ export async function markPaymentAsPaid({
       }
     } else {
       // OTROS EGRESOS: buscar cuenta de Gastos (4.3.01)
-      const { data: gastosChart } = await (supabase.from("chart_of_accounts") as any)
+      const { data: gastosChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
         .select("id")
         .eq("account_code", "4.3.01")
         .eq("is_active", true)
-        .maybeSingle()
+        .maybeSingle())
       
       if (gastosChart) {
         const { data: gastosAccount } = await (supabase.from("financial_accounts") as any)
@@ -251,11 +256,11 @@ export async function markPaymentAsPaid({
   //    o "Cuentas por Pagar" (PASIVO) si es EXPENSE
   if (paymentData.direction === "INCOME") {
     // Reducir "Cuentas por Cobrar" (ACTIVO) - el cliente pagó
-    const { data: accountsReceivableChart } = await (supabase.from("chart_of_accounts") as any)
-      .select("id")
-      .eq("account_code", "1.1.03")
-      .eq("is_active", true)
-      .maybeSingle()
+      const { data: accountsReceivableChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
+        .select("id")
+        .eq("account_code", "1.1.03")
+        .eq("is_active", true)
+        .maybeSingle())
     
     if (accountsReceivableChart) {
       const { data: accountsReceivableAccount } = await (supabase.from("financial_accounts") as any)
@@ -324,11 +329,11 @@ export async function markPaymentAsPaid({
     }
   } else if (paymentData.payer_type === "OPERATOR") {
     // Reducir "Cuentas por Pagar" (PASIVO) - pagaste al operador
-    const { data: accountsPayableChart } = await (supabase.from("chart_of_accounts") as any)
+    const { data: accountsPayableChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
       .select("id")
       .eq("account_code", "2.1.01")
       .eq("is_active", true)
-      .maybeSingle()
+      .maybeSingle())
     
     if (accountsPayableChart) {
       const { data: accountsPayableAccount } = await (supabase.from("financial_accounts") as any)
@@ -399,11 +404,11 @@ export async function markPaymentAsPaid({
   
   if (paymentData.direction === "INCOME") {
     // INGRESOS: usar cuenta de RESULTADO > INGRESOS > "4.1.01" - Ventas de Viajes
-    const { data: ingresosChart } = await (supabase.from("chart_of_accounts") as any)
-      .select("id")
-      .eq("account_code", "4.1.01")
-      .eq("is_active", true)
-      .maybeSingle()
+      const { data: ingresosChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
+        .select("id")
+        .eq("account_code", "4.1.01")
+        .eq("is_active", true)
+        .maybeSingle())
     
     if (ingresosChart) {
       // Buscar o crear financial_account vinculada a esta cuenta del plan
@@ -441,11 +446,11 @@ export async function markPaymentAsPaid({
     }
   } else if (paymentData.payer_type === "OPERATOR") {
     // COSTOS: usar cuenta de RESULTADO > COSTOS > "4.2.01" - Costo de Operadores
-    const { data: costosChart } = await (supabase.from("chart_of_accounts") as any)
-      .select("id")
-      .eq("account_code", "4.2.01")
-      .eq("is_active", true)
-      .maybeSingle()
+      const { data: costosChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
+        .select("id")
+        .eq("account_code", "4.2.01")
+        .eq("is_active", true)
+        .maybeSingle())
     
     if (costosChart) {
       let costosFinancialAccount = await (supabase.from("financial_accounts") as any)
@@ -482,11 +487,11 @@ export async function markPaymentAsPaid({
     }
   } else {
     // GASTOS: usar cuenta de RESULTADO > GASTOS > "4.3.01" (o genérico)
-    const { data: gastosChart } = await (supabase.from("chart_of_accounts") as any)
-      .select("id")
-      .eq("account_code", "4.3.01") // Gastos Administrativos como default
-      .eq("is_active", true)
-      .maybeSingle()
+      const { data: gastosChart } = await withAgencyFilter((supabase.from("chart_of_accounts") as any)
+        .select("id")
+        .eq("account_code", "4.3.01") // Gastos Administrativos como default
+        .eq("is_active", true)
+        .maybeSingle())
     
     if (gastosChart) {
       let gastosFinancialAccount = await (supabase.from("financial_accounts") as any)
