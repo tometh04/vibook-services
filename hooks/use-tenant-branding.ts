@@ -202,6 +202,7 @@ export function useBrandingColors(branding: TenantBranding) {
     if (typeof document === 'undefined') return
 
     const root = document.documentElement
+    let sidebarObserver: MutationObserver | null = null
 
     const hexToHsl = (hex: string): { h: number; s: number; l: number } | null => {
       const normalized = hex.replace('#', '')
@@ -234,6 +235,17 @@ export function useBrandingColors(branding: TenantBranding) {
       const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
       return luminance > 0.6 ? '222.2 84% 4.9%' : '0 0% 100%'
     }
+
+    const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+    const setLightness = (hsl: { h: number; s: number; l: number }, lightness: number) => ({
+      h: hsl.h,
+      s: clamp(hsl.s, 8, 90),
+      l: clamp(lightness, 6, 96),
+    })
+
+    const getForegroundForHsl = (hsl: { h: number; s: number; l: number }) =>
+      hsl.l > 60 ? '222.2 84% 4.9%' : '0 0% 100%'
 
     const primaryHsl = hexToHsl(branding.primary_color)
     const secondaryHsl = hexToHsl(branding.secondary_color)
@@ -278,6 +290,42 @@ export function useBrandingColors(branding: TenantBranding) {
       root.style.setProperty('--chart-6', `${darkerAccent.h} ${darkerAccent.s}% ${darkerAccent.l}%`)
     }
 
+    const applySidebarTokens = () => {
+      const base = primaryHsl || secondaryHsl || accentHsl
+      if (!base) return
+
+      const secondaryBase = secondaryHsl || base
+      const isDark = root.classList.contains('dark')
+
+      if (isDark) {
+        const sidebarBackground = setLightness(base, 12)
+        const sidebarAccent = setLightness(base, 20)
+        const sidebarBorder = setLightness(base, 22)
+
+        root.style.setProperty('--sidebar-background', `${sidebarBackground.h} ${sidebarBackground.s}% ${sidebarBackground.l}%`)
+        root.style.setProperty('--sidebar-foreground', '0 0% 98%')
+        root.style.setProperty('--sidebar-accent', `${sidebarAccent.h} ${sidebarAccent.s}% ${sidebarAccent.l}%`)
+        root.style.setProperty('--sidebar-accent-foreground', '0 0% 98%')
+        root.style.setProperty('--sidebar-border', `${sidebarBorder.h} ${sidebarBorder.s}% ${sidebarBorder.l}%`)
+        root.style.setProperty('--sidebar-ring', `${base.h} ${base.s}% ${base.l}%`)
+      } else {
+        const sidebarBackground = setLightness(secondaryBase, 97)
+        const sidebarAccent = setLightness(base, 90)
+        const sidebarBorder = setLightness(base, 86)
+
+        root.style.setProperty('--sidebar-background', `${sidebarBackground.h} ${sidebarBackground.s}% ${sidebarBackground.l}%`)
+        root.style.setProperty('--sidebar-foreground', getForegroundForHsl(sidebarBackground))
+        root.style.setProperty('--sidebar-accent', `${sidebarAccent.h} ${sidebarAccent.s}% ${sidebarAccent.l}%`)
+        root.style.setProperty('--sidebar-accent-foreground', getForegroundForHsl(sidebarAccent))
+        root.style.setProperty('--sidebar-border', `${sidebarBorder.h} ${sidebarBorder.s}% ${sidebarBorder.l}%`)
+        root.style.setProperty('--sidebar-ring', `${base.h} ${base.s}% ${base.l}%`)
+      }
+    }
+
+    applySidebarTokens()
+    sidebarObserver = new MutationObserver(() => applySidebarTokens())
+    sidebarObserver.observe(root, { attributes: true, attributeFilter: ['class'] })
+
     // Aplicar colores como variables de marca
     root.style.setProperty('--brand-primary', branding.primary_color)
     root.style.setProperty('--brand-secondary', branding.secondary_color)
@@ -285,6 +333,7 @@ export function useBrandingColors(branding: TenantBranding) {
 
     // Limpiar al desmontar
     return () => {
+      if (sidebarObserver) sidebarObserver.disconnect()
       root.style.removeProperty('--brand-primary')
       root.style.removeProperty('--brand-secondary')
       root.style.removeProperty('--brand-accent')
@@ -292,6 +341,12 @@ export function useBrandingColors(branding: TenantBranding) {
       root.style.removeProperty('--primary-foreground')
       root.style.removeProperty('--sidebar-primary')
       root.style.removeProperty('--sidebar-primary-foreground')
+      root.style.removeProperty('--sidebar-background')
+      root.style.removeProperty('--sidebar-foreground')
+      root.style.removeProperty('--sidebar-accent')
+      root.style.removeProperty('--sidebar-accent-foreground')
+      root.style.removeProperty('--sidebar-border')
+      root.style.removeProperty('--sidebar-ring')
       root.style.removeProperty('--ring')
       root.style.removeProperty('--chart-1')
       root.style.removeProperty('--chart-2')
