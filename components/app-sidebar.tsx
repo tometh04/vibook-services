@@ -37,7 +37,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { useTenantBranding, useBrandingColors } from "@/hooks/use-tenant-branding"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface NavSubSubItem {
@@ -196,12 +195,8 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   agencyId?: string
 }
 
-export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarProps) {
+export function AppSidebar({ userRole, user, ...props }: AppSidebarProps) {
   const pathname = usePathname()
-  const { branding, isLoading: brandingLoading } = useTenantBranding(agencyId)
-  
-  // Aplicar colores del branding como variables CSS
-  useBrandingColors(branding)
 
   // Filtrar navegación según permisos
   const navigation = allNavigation

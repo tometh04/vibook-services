@@ -239,6 +239,12 @@ export function useBrandingColors(branding: TenantBranding) {
     const secondaryHsl = hexToHsl(branding.secondary_color)
     const accentHsl = hexToHsl(branding.accent_color)
 
+    const adjustLightness = (hsl: { h: number; s: number; l: number }, delta: number) => ({
+      h: hsl.h,
+      s: hsl.s,
+      l: Math.min(96, Math.max(8, hsl.l + delta)),
+    })
+
     if (primaryHsl) {
       const hslValue = `${primaryHsl.h} ${primaryHsl.s}% ${primaryHsl.l}%`
       root.style.setProperty('--primary', hslValue)
@@ -255,6 +261,21 @@ export function useBrandingColors(branding: TenantBranding) {
 
     if (accentHsl) {
       root.style.setProperty('--chart-3', `${accentHsl.h} ${accentHsl.s}% ${accentHsl.l}%`)
+    }
+
+    if (primaryHsl) {
+      const darkerPrimary = adjustLightness(primaryHsl, -14)
+      root.style.setProperty('--chart-4', `${darkerPrimary.h} ${darkerPrimary.s}% ${darkerPrimary.l}%`)
+    }
+
+    if (secondaryHsl) {
+      const darkerSecondary = adjustLightness(secondaryHsl, -12)
+      root.style.setProperty('--chart-5', `${darkerSecondary.h} ${darkerSecondary.s}% ${darkerSecondary.l}%`)
+    }
+
+    if (accentHsl) {
+      const darkerAccent = adjustLightness(accentHsl, -10)
+      root.style.setProperty('--chart-6', `${darkerAccent.h} ${darkerAccent.s}% ${darkerAccent.l}%`)
     }
 
     // Aplicar colores como variables de marca
@@ -275,6 +296,9 @@ export function useBrandingColors(branding: TenantBranding) {
       root.style.removeProperty('--chart-1')
       root.style.removeProperty('--chart-2')
       root.style.removeProperty('--chart-3')
+      root.style.removeProperty('--chart-4')
+      root.style.removeProperty('--chart-5')
+      root.style.removeProperty('--chart-6')
     }
   }, [branding.primary_color, branding.secondary_color, branding.accent_color])
 }

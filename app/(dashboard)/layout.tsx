@@ -8,6 +8,7 @@ import {
 import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
+import { BrandingProvider } from "@/components/branding-provider"
 
 export default async function DashboardLayout({
   children,
@@ -125,6 +126,7 @@ export default async function DashboardLayout({
         } as React.CSSProperties
       }
     >
+      <BrandingProvider agencyId={activeAgencyId} />
       <AppSidebar 
         variant="sidebar" 
         collapsible="icon"

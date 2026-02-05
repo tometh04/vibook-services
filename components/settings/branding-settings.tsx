@@ -74,43 +74,43 @@ interface BrandingSettingsProps {
 const PALETTES = [
   {
     id: "vibook",
-    name: "Vibook Blue",
-    description: "Elegante, confiable y moderna",
-    primary: "#2563EB",
-    secondary: "#0EA5E9",
-    accent: "#22D3EE",
+    name: "Slack",
+    description: "Comunicacion moderna y colaborativa",
+    primary: "#4A154B",
+    secondary: "#36C5F0",
+    accent: "#2EB67D",
   },
   {
-    id: "sunset",
-    name: "Sunset",
-    description: "Energía cálida para ventas",
-    primary: "#F97316",
-    secondary: "#EF4444",
-    accent: "#F59E0B",
+    id: "trello",
+    name: "Trello",
+    description: "Enfoque, claridad y orden visual",
+    primary: "#0079BF",
+    secondary: "#026AA7",
+    accent: "#5AAC44",
   },
   {
-    id: "forest",
-    name: "Forest",
-    description: "Natural, estable y calmado",
-    primary: "#16A34A",
-    secondary: "#22C55E",
-    accent: "#84CC16",
+    id: "linear",
+    name: "Linear",
+    description: "Producto premium y moderno",
+    primary: "#5E6AD2",
+    secondary: "#7B61FF",
+    accent: "#00C4CC",
   },
   {
-    id: "royal",
-    name: "Royal",
-    description: "Premium y sofisticado",
-    primary: "#6366F1",
-    secondary: "#8B5CF6",
-    accent: "#EC4899",
+    id: "github",
+    name: "GitHub",
+    description: "Solidez y confiabilidad profesional",
+    primary: "#24292F",
+    secondary: "#0969DA",
+    accent: "#2DA44E",
   },
   {
-    id: "slate",
-    name: "Slate",
-    description: "Minimalista y profesional",
-    primary: "#0F172A",
-    secondary: "#334155",
-    accent: "#38BDF8",
+    id: "asana",
+    name: "Asana",
+    description: "Energia clara para equipos en movimiento",
+    primary: "#F06A6A",
+    secondary: "#FF9A7B",
+    accent: "#FFC857",
   },
 ] as const
 
@@ -246,6 +246,10 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
       }
 
       toast.success("Branding guardado correctamente")
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("branding:updated", { detail: { agencyId: selectedAgencyId } }))
+      }
     } catch (error: any) {
       console.error("Error saving branding:", error)
       toast.error(error.message || "Error al guardar branding")
