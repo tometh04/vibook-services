@@ -155,14 +155,14 @@ export async function DELETE(
         return NextResponse.json({ error: "No se puede transferir a la misma cuenta" }, { status: 400 })
       }
 
-      // Calcular exchange rate si es necesario
+      // Calcular exchange rate solo si la moneda es ARS (para obtener equivalente en USD)
       let exchangeRate: number | null = null
-      if (account.currency === "USD") {
+      if (account.currency === "ARS") {
         exchangeRate = await getExchangeRate(supabase, new Date())
         if (!exchangeRate) {
           exchangeRate = await getLatestExchangeRate(supabase)
         }
-        if (!exchangeRate) {
+        if (!exchangeRate || exchangeRate <= 0) {
           exchangeRate = 1000 // Fallback
         }
       }
@@ -182,7 +182,7 @@ export async function DELETE(
           concept: `Transferencia de saldo al eliminar cuenta - Transferido a ${destinationAccount.name}`,
           currency: account.currency as "ARS" | "USD",
           amount_original: Math.abs(currentBalance),
-          exchange_rate: exchangeRate,
+          exchange_rate: account.currency === "ARS" ? exchangeRate : null,
           amount_ars_equivalent: amountARS,
           method: "BANK",
           account_id: accountId,
@@ -204,7 +204,7 @@ export async function DELETE(
           concept: `Transferencia de saldo desde cuenta eliminada - ${account.name}`,
           currency: account.currency as "ARS" | "USD",
           amount_original: Math.abs(currentBalance),
-          exchange_rate: exchangeRate,
+          exchange_rate: account.currency === "ARS" ? exchangeRate : null,
           amount_ars_equivalent: amountARS,
           method: "BANK",
           account_id: transferToAccountId,

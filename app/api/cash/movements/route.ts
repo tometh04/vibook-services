@@ -104,9 +104,8 @@ export async function POST(request: Request) {
       supabase
     )
 
-    // Calcular ARS equivalent
-    // ARS: necesita tipo de cambio (para convertir a USD)
-    // USD: también necesita tipo de cambio para calcular equivalente en ARS
+    // Calcular equivalente en USD (base del sistema)
+    // ARS: necesita tipo de cambio para convertir a USD
     let exchangeRate: number | null = null
     if (currency === "ARS") {
       // Para ARS, el tipo de cambio es obligatorio (viene del frontend o se busca)
@@ -122,13 +121,6 @@ export async function POST(request: Request) {
           { error: "El tipo de cambio es obligatorio para movimientos en ARS" },
           { status: 400 }
         )
-      }
-    } else if (currency === "USD") {
-      // Para USD usamos la última tasa disponible para calcular ARS equivalente
-      exchangeRate = await getLatestExchangeRate(supabase)
-      if (!exchangeRate) {
-        console.warn("⚠️ No se encontró tipo de cambio; usando 1 para ARS equivalente")
-        exchangeRate = 1
       }
     }
     
@@ -166,7 +158,7 @@ export async function POST(request: Request) {
         concept: category,
         currency: currency as "ARS" | "USD",
         amount_original: Number(amount),
-        exchange_rate: exchangeRate, // Guardar exchange_rate para ARS y USD
+        exchange_rate: currency === "ARS" ? exchangeRate : null,
         amount_ars_equivalent: amountARS,
         method,
         account_id: accountId,

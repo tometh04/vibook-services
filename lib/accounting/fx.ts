@@ -37,25 +37,31 @@ export async function calculateAndRecordFX(
     return { fxType: null, fxAmount: 0 }
   }
 
-  // Calcular ARS equivalentes
-  const saleArsEquivalent = saleCurrency === "ARS" 
-    ? saleAmount 
-    : saleAmount * (saleExchangeRate || 1)
+  const fallbackRate = (await getLatestExchangeRate(supabase)) || 1000
+  const saleRate = saleCurrency === "ARS" ? (saleExchangeRate || fallbackRate) : null
+  const paymentRate = paymentCurrency === "ARS" ? (paymentExchangeRate || fallbackRate) : null
 
-  const paymentArsEquivalent = paymentCurrency === "ARS"
+  // Calcular equivalentes en USD (base del sistema)
+  const saleUsdEquivalent = saleCurrency === "USD"
+    ? saleAmount
+    : saleAmount / (saleRate || fallbackRate)
+
+  const paymentUsdEquivalent = paymentCurrency === "USD"
     ? paymentAmount
-    : paymentAmount * (paymentExchangeRate || 1)
+    : paymentAmount / (paymentRate || fallbackRate)
 
   // Calcular diferencia
-  const difference = saleArsEquivalent - paymentArsEquivalent
+  const difference = saleUsdEquivalent - paymentUsdEquivalent
 
-  // Si la diferencia es muy pequeña (< 1 ARS), ignorar
-  if (Math.abs(difference) < 1) {
+  // Si la diferencia es muy pequeña (< 0.01 USD), ignorar
+  if (Math.abs(difference) < 0.01) {
     return { fxType: null, fxAmount: 0 }
   }
 
   const fxType: "FX_GAIN" | "FX_LOSS" = difference > 0 ? "FX_GAIN" : "FX_LOSS"
-  const fxAmount = Math.abs(difference)
+  const fxAmountUsd = Math.abs(difference)
+  const fxRateForArs = saleCurrency === "ARS" ? (saleRate || fallbackRate) : (paymentRate || fallbackRate)
+  const fxAmountArs = fxAmountUsd * fxRateForArs
 
   // Obtener cuenta por defecto para FX
   const defaultAccountId = await getOrCreateDefaultAccount("CASH", "ARS", userId, supabase)
@@ -67,21 +73,21 @@ export async function calculateAndRecordFX(
       type: fxType,
       concept: `Diferencia de cambio: ${saleCurrency} → ${paymentCurrency}`,
       currency: "ARS",
-      amount_original: fxAmount,
-      exchange_rate: null,
-      amount_ars_equivalent: fxAmount,
+      amount_original: fxAmountArs,
+      exchange_rate: fxRateForArs,
+      amount_ars_equivalent: fxAmountUsd,
       method: "OTHER",
       account_id: defaultAccountId,
       seller_id: null,
       operator_id: null,
       receipt_number: null,
-      notes: `Venta: ${saleAmount} ${saleCurrency} (ARS: ${saleArsEquivalent.toFixed(2)}), Pago: ${paymentAmount} ${paymentCurrency} (ARS: ${paymentArsEquivalent.toFixed(2)})`,
+      notes: `Venta: ${saleAmount} ${saleCurrency} (USD: ${saleUsdEquivalent.toFixed(2)}), Pago: ${paymentAmount} ${paymentCurrency} (USD: ${paymentUsdEquivalent.toFixed(2)})`,
       created_by: userId,
     },
     supabase
   )
 
-  return { fxType, fxAmount }
+  return { fxType, fxAmount: fxAmountUsd }
 }
 
 /**
@@ -92,7 +98,7 @@ async function getOperationExchangeRate(
   operationId: string,
   currency: "ARS" | "USD"
 ): Promise<number | null> {
-  if (currency === "ARS") {
+  if (currency === "USD") {
     return null // No hay conversión necesaria
   }
 
@@ -179,32 +185,24 @@ export async function autoCalculateFXForPayment(
     .filter((p: any) => p.currency === paymentCurrency)
     .reduce((sum: number, p: any) => sum + parseFloat(p.amount || "0"), 0)
 
-  // Calcular ARS equivalentes
-  const saleArsEquivalent = operation.sale_currency === "ARS"
+  const fallbackRate = (await getLatestExchangeRate(supabase)) || 1000
+  const saleRate = operation.sale_currency === "ARS" ? (saleExchangeRate || fallbackRate) : null
+  const paymentRate = paymentCurrency === "ARS" ? (paymentExchangeRate || fallbackRate) : null
+
+  // Calcular equivalentes en USD (base del sistema)
+  const saleUsdEquivalent = operation.sale_currency === "USD"
     ? operation.sale_amount_total
-    : operation.sale_amount_total * (saleExchangeRate || 1000) // Fallback a 1000 si no hay rate
+    : operation.sale_amount_total / (saleRate || fallbackRate)
 
-  // Para el pago, usar el exchange rate proporcionado o buscar uno
-  let effectivePaymentRate = paymentExchangeRate
-  if (!effectivePaymentRate && paymentCurrency === "USD") {
-    const latestPayment = (allPayments || []).find((p: any) => p.currency === paymentCurrency && p.date_paid)
-    if (latestPayment) {
-      effectivePaymentRate = await getExchangeRate(supabase, latestPayment.date_paid)
-    }
-    if (!effectivePaymentRate) {
-      effectivePaymentRate = await getLatestExchangeRate(supabase) || 1000
-    }
-  }
-
-  const totalPaidArsEquivalent = paymentCurrency === "ARS"
+  const totalPaidUsdEquivalent = paymentCurrency === "USD"
     ? totalPaidInPaymentCurrency
-    : totalPaidInPaymentCurrency * (effectivePaymentRate || 1000)
+    : totalPaidInPaymentCurrency / (paymentRate || fallbackRate)
 
   // Calcular diferencia
-  const difference = saleArsEquivalent - totalPaidArsEquivalent
+  const difference = saleUsdEquivalent - totalPaidUsdEquivalent
 
-  // Si la diferencia es muy pequeña (< 1 ARS), ignorar
-  if (Math.abs(difference) < 1) {
+  // Si la diferencia es muy pequeña (< 0.01 USD), ignorar
+  if (Math.abs(difference) < 0.01) {
     return { fxType: null, fxAmount: 0 }
   }
 
@@ -237,7 +235,9 @@ export async function autoCalculateFXForPayment(
   }
 
   const fxType: "FX_GAIN" | "FX_LOSS" = difference > 0 ? "FX_GAIN" : "FX_LOSS"
-  const fxAmount = Math.abs(difference)
+  const fxAmountUsd = Math.abs(difference)
+  const fxRateForArs = operation.sale_currency === "ARS" ? (saleRate || fallbackRate) : (paymentRate || fallbackRate)
+  const fxAmountArs = fxAmountUsd * fxRateForArs
 
   // Obtener cuenta por defecto para FX
   const defaultAccountId = await getOrCreateDefaultAccount("CASH", "ARS", userId, supabase)
@@ -249,20 +249,19 @@ export async function autoCalculateFXForPayment(
       type: fxType,
       concept: `Diferencia de cambio: Venta ${operation.sale_amount_total} ${operation.sale_currency} vs Pagos ${totalPaidInPaymentCurrency.toFixed(2)} ${paymentCurrency}`,
       currency: "ARS",
-      amount_original: fxAmount,
-      exchange_rate: null,
-      amount_ars_equivalent: fxAmount,
+      amount_original: fxAmountArs,
+      exchange_rate: fxRateForArs,
+      amount_ars_equivalent: fxAmountUsd,
       method: "OTHER",
       account_id: defaultAccountId,
       seller_id: null,
       operator_id: null,
       receipt_number: null,
-      notes: `Venta: ${operation.sale_amount_total} ${operation.sale_currency} (ARS: ${saleArsEquivalent.toFixed(2)}), Pagos acumulados: ${totalPaidInPaymentCurrency.toFixed(2)} ${paymentCurrency} (ARS: ${totalPaidArsEquivalent.toFixed(2)})`,
+      notes: `Venta: ${operation.sale_amount_total} ${operation.sale_currency} (USD: ${saleUsdEquivalent.toFixed(2)}), Pagos acumulados: ${totalPaidInPaymentCurrency.toFixed(2)} ${paymentCurrency} (USD: ${totalPaidUsdEquivalent.toFixed(2)})`,
       created_by: userId,
     },
     supabase
   )
 
-  return { fxType, fxAmount }
+  return { fxType, fxAmount: fxAmountUsd }
 }
-

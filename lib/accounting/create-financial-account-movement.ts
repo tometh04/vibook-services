@@ -141,7 +141,7 @@ export async function createFinancialAccountMovement({
         : `Egreso en ${currency}${operationId ? ` - Operación ${operationId.slice(0, 8)}` : ""}`,
       currency,
       amount_original: amount,
-      exchange_rate: currency === "USD" ? exchangeRate : null,
+      exchange_rate: currency === "ARS" || currency !== accountCurrency ? exchangeRate : null,
       amount_ars_equivalent: amountARS,
       method: ledgerMethod,
       account_id: accountId,

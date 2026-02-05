@@ -344,9 +344,9 @@ export async function markPaymentAsPaid({
         .maybeSingle()
       
       if (accountsPayableAccount) {
-        // Calcular exchange rate si es USD
+        // Calcular exchange rate solo si la moneda es ARS (para convertir a USD base)
         let exchangeRate: number | null = null
-        if (paymentData.currency === "USD") {
+        if (paymentData.currency === "ARS") {
           // Proteger contra datePaid undefined/null
           const dateForRate = datePaid ? new Date(datePaid) : new Date()
           if (isNaN(dateForRate.getTime())) {
@@ -360,7 +360,7 @@ export async function markPaymentAsPaid({
             exchangeRate = await getLatestExchangeRate(supabase)
           }
           if (!exchangeRate) {
-            console.warn(`No exchange rate found for USD payment ${paymentId}`)
+            console.warn(`No exchange rate found for ARS payment ${paymentId}`)
             exchangeRate = 1000 // Fallback temporal
           }
         }
@@ -528,11 +528,11 @@ export async function markPaymentAsPaid({
     }
   }
 
-  // Calcular ARS equivalent
-  // Si currency = ARS, amount_ars_equivalent = amount_original
-  // Si currency = USD, necesitamos exchange_rate de la tabla
+  // Calcular equivalente en USD (base del sistema)
+  // Si currency = ARS, necesitamos exchange_rate de la tabla
+  // Si currency = USD, no hace falta exchange_rate
   let exchangeRate: number | null = null
-  if (paymentData.currency === "USD") {
+  if (paymentData.currency === "ARS") {
     const rateDate = datePaid ? new Date(datePaid) : new Date()
     exchangeRate = await getExchangeRate(supabase, rateDate)
     
@@ -640,7 +640,7 @@ export async function markPaymentAsPaid({
               parseFloat(paymentData.amount),
               paymentData.currency as "ARS" | "USD",
               supabase,
-              paymentData.currency === "USD" ? exchangeRate : null
+              paymentData.currency === "ARS" ? exchangeRate : null
             )
           } catch (error: any) {
             throw new Error(error.message || "Error validando saldo de cuenta")
@@ -718,7 +718,7 @@ export async function markPaymentAsPaid({
         paymentData.operation_id,
         paymentData.currency as "ARS" | "USD",
         parseFloat(paymentData.amount),
-        paymentData.currency === "USD" ? exchangeRate : null,
+        paymentData.currency === "ARS" ? exchangeRate : null,
         userId
       )
       

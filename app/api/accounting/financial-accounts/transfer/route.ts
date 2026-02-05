@@ -182,23 +182,24 @@ export async function POST(request: Request) {
     }
 
     // Calcular amount_ars_equivalent para ambos movimientos
-    // Para USD: amount_ars_equivalent = amount_original (sin conversión, el sistema trabaja en USD)
-    // Para ARS: amount_ars_equivalent = amount_original (ARS ya es el equivalente)
-    let amountARSFrom: number
-    let amountARSTo: number
+    // Base del sistema: USD
+    // Para USD: amount_ars_equivalent = amount_original
+    // Para ARS: amount_ars_equivalent = amount_original / exchange_rate
+    let amountUsdFrom: number
+    let amountUsdTo: number
     
     if (fromAccount.currency === "ARS") {
-      amountARSFrom = calculateARSEquivalent(amountInFromCurrency, "ARS", finalExchangeRate)
+      amountUsdFrom = calculateARSEquivalent(amountInFromCurrency, "ARS", finalExchangeRate)
     } else {
       // Para USD, amount_ars_equivalent = amount_original (sin conversión)
-      amountARSFrom = amountInFromCurrency
+      amountUsdFrom = amountInFromCurrency
     }
     
     if (toAccount.currency === "ARS") {
-      amountARSTo = calculateARSEquivalent(amountInToCurrency, "ARS", finalExchangeRate)
+      amountUsdTo = calculateARSEquivalent(amountInToCurrency, "ARS", finalExchangeRate)
     } else {
       // Para USD, amount_ars_equivalent = amount_original (sin conversión)
-      amountARSTo = amountInToCurrency
+      amountUsdTo = amountInToCurrency
     }
 
     // Crear movimiento de salida en cuenta origen (EXPENSE)
@@ -211,7 +212,7 @@ export async function POST(request: Request) {
         currency: fromAccount.currency as "ARS" | "USD",
         amount_original: amountInFromCurrency,
         exchange_rate: fromAccount.currency === "ARS" ? finalExchangeRate : null, // Solo guardar exchange_rate para ARS
-        amount_ars_equivalent: amountARSFrom,
+        amount_ars_equivalent: amountUsdFrom,
         method: "BANK",
         account_id: from_account_id,
         seller_id: null,
@@ -233,7 +234,7 @@ export async function POST(request: Request) {
         currency: toAccount.currency as "ARS" | "USD",
         amount_original: amountInToCurrency,
         exchange_rate: toAccount.currency === "ARS" ? finalExchangeRate : null, // Solo guardar exchange_rate para ARS
-        amount_ars_equivalent: amountARSTo,
+        amount_ars_equivalent: amountUsdTo,
         method: "BANK",
         account_id: to_account_id,
         seller_id: null,
@@ -247,17 +248,21 @@ export async function POST(request: Request) {
 
     // Si hay transferencia entre monedas diferentes, registrar diferencia de cambio (FX_GAIN/FX_LOSS)
     if (fromAccount.currency !== toAccount.currency && finalExchangeRate) {
-      // Calcular el valor teórico en ARS de ambos montos
-      const fromAmountARS = calculateARSEquivalent(amountInFromCurrency, fromAccount.currency as "ARS" | "USD", finalExchangeRate)
-      const toAmountARS = calculateARSEquivalent(amountInToCurrency, toAccount.currency as "ARS" | "USD", finalExchangeRate)
+      // Calcular el valor teórico en USD (base) de ambos montos
+      const fromAmountUsd = calculateARSEquivalent(amountInFromCurrency, fromAccount.currency as "ARS" | "USD", finalExchangeRate)
+      const toAmountUsd = calculateARSEquivalent(amountInToCurrency, toAccount.currency as "ARS" | "USD", finalExchangeRate)
       
-      // La diferencia de cambio es la diferencia entre lo que salió y lo que entró (en ARS)
-      const fxDifference = fromAmountARS - toAmountARS
+      // La diferencia de cambio es la diferencia entre lo que salió y lo que entró (en USD)
+      const fxDifferenceUsd = fromAmountUsd - toAmountUsd
       
-      if (Math.abs(fxDifference) > 0.01) { // Solo registrar si la diferencia es significativa (> 1 centavo)
+      if (Math.abs(fxDifferenceUsd) > 0.01) { // Solo registrar si la diferencia es significativa (> 1 centavo)
         // Determinar si es ganancia o pérdida cambiaria
-        const fxType = fxDifference > 0 ? "FX_LOSS" : "FX_GAIN" // Si salió más de lo que entró, es pérdida
-        const fxAmount = Math.abs(fxDifference)
+        const fxType = fxDifferenceUsd > 0 ? "FX_LOSS" : "FX_GAIN" // Si salió más de lo que entró, es pérdida
+        const fxAmountUsd = Math.abs(fxDifferenceUsd)
+        const fxAmountOriginal =
+          fromAccount.currency === "ARS"
+            ? fxAmountUsd * (finalExchangeRate || 1)
+            : fxAmountUsd
         
         // Registrar la diferencia de cambio en la cuenta origen
         // Si es FX_LOSS, aumenta el pasivo o disminuye el activo
@@ -269,21 +274,21 @@ export async function POST(request: Request) {
             type: fxType,
             concept: `Diferencia de cambio en transferencia a ${toAccount.name}`,
             currency: fromAccount.currency as "ARS" | "USD",
-            amount_original: fxAmount / (fromAccount.currency === "USD" ? finalExchangeRate : 1),
+            amount_original: fxAmountOriginal,
             exchange_rate: fromAccount.currency === "ARS" ? finalExchangeRate : null, // Solo guardar exchange_rate para ARS
-            amount_ars_equivalent: fxAmount,
+            amount_ars_equivalent: fxAmountUsd,
             method: "BANK",
             account_id: from_account_id,
             seller_id: null,
             operator_id: null,
             receipt_number: reference || null,
-            notes: `Diferencia de cambio: ${fxDifference > 0 ? "Pérdida" : "Ganancia"} de ${fxAmount.toFixed(2)} ARS en transferencia entre ${fromAccount.currency} y ${toAccount.currency}`,
+            notes: `Diferencia de cambio: ${fxDifferenceUsd > 0 ? "Pérdida" : "Ganancia"} de ${fxAmountUsd.toFixed(2)} USD en transferencia entre ${fromAccount.currency} y ${toAccount.currency}`,
             created_by: user.id,
           },
           supabase
         )
         
-        console.log(`📊 Registrada diferencia de cambio: ${fxType} de ${fxAmount.toFixed(2)} ARS`)
+        console.log(`📊 Registrada diferencia de cambio: ${fxType} de ${fxAmountUsd.toFixed(2)} USD`)
       }
     }
 

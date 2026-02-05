@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { getAccountBalance, getAccountBalancesBatch } from "@/lib/accounting/ledger"
+import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 /**
  * GET /api/accounting/monthly-position
@@ -43,6 +44,16 @@ export async function GET(request: Request) {
     // Calcular fecha de corte (último día del mes)
     const lastDay = new Date(year, month, 0).getDate()
     const dateTo = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+
+    // Tipo de cambio de referencia para convertir ARS -> USD (base del sistema)
+    let fxRate = await getExchangeRate(supabase, new Date(dateTo))
+    if (!fxRate) {
+      fxRate = await getLatestExchangeRate(supabase)
+    }
+    if (!fxRate || fxRate <= 0) {
+      console.warn(`[MonthlyPosition] No se encontró tipo de cambio válido. Usando fallback 1000.`)
+      fxRate = 1000
+    }
 
     // OPTIMIZACIÓN: Ejecutar queries en paralelo - ambas son independientes
     let financialAccountsQuery = supabase
@@ -183,10 +194,12 @@ export async function GET(request: Request) {
     for (const account of financialAccountsArrayForBalance) {
       try {
         const balance = balancesMap.get(account.id) ?? 0
+        const balanceUsd = account.currency === "ARS" ? balance / fxRate : balance
         const chartAccount = account.chart_of_accounts
         if (chartAccount) {
           const key = `${chartAccount.category}_${chartAccount.subcategory || "NONE"}`
-          balances[key] = (balances[key] || 0) + balance
+          // balances siempre en USD (base del sistema)
+          balances[key] = (balances[key] || 0) + balanceUsd
           
           // Separar por moneda - usar movimientos ya obtenidos arriba
           if (!balancesByCurrency[key]) {
@@ -264,7 +277,7 @@ export async function GET(request: Request) {
             }
           }
           
-          console.log(`[MonthlyPosition] Cuenta ${account.name} (${chartAccount.account_code}, ${chartAccount.category}): balance=${balance}, key=${key}, ARS=${balancesByCurrency[key].ars}, USD=${balancesByCurrency[key].usd}, agency=${account.agency_id || "null"}`)
+          console.log(`[MonthlyPosition] Cuenta ${account.name} (${chartAccount.account_code}, ${chartAccount.category}): balance=${balance}, balanceUsd=${balanceUsd}, key=${key}, ARS=${balancesByCurrency[key].ars}, USD=${balancesByCurrency[key].usd}, agency=${account.agency_id || "null"}`)
         } else {
           console.warn(`[MonthlyPosition] Cuenta ${account.id} (${account.name}) no tiene chart_of_accounts vinculado`)
         }
@@ -363,8 +376,10 @@ export async function GET(request: Request) {
         balancesByCurrency["PASIVO_CORRIENTE"].ars += pendingARS
         balancesByCurrency["PASIVO_CORRIENTE"].usd += pendingUSD
         
-        // También agregar al balance total (aproximado)
-        balances["PASIVO_CORRIENTE"] = (balances["PASIVO_CORRIENTE"] || 0) + pendingARS + (pendingUSD * 1000)
+        // También agregar al balance total en USD (base)
+        const pendingUsdFromArs = pendingARS > 0 ? pendingARS / fxRate : 0
+        const pendingTotalUsd = pendingUSD + pendingUsdFromArs
+        balances["PASIVO_CORRIENTE"] = (balances["PASIVO_CORRIENTE"] || 0) + pendingTotalUsd
         
         console.log(`[MonthlyPosition] Pagos pendientes (recurrentes + operator_payments + payments): ARS=${pendingARS}, USD=${pendingUSD}`)
       }
@@ -531,8 +546,8 @@ export async function GET(request: Request) {
     
     console.log(`[MonthlyPosition] Resumen: ${movimientosConChartAccount} movimientos con chart_account, ${movimientosSinChartAccount} sin chart_account`)
     
-    // Para compatibilidad, sumar todo en ARS (usando amount_ars_equivalent)
-    // Pero también devolver desglose por moneda
+    // Base del sistema: USD (amount_ars_equivalent ya está en USD)
+    // Se mantiene el desglose por moneda para depuración / vista mixta
     let ingresos = 0
     let costos = 0
     let gastos = 0
@@ -540,18 +555,18 @@ export async function GET(request: Request) {
     for (const movement of monthMovementsArray) {
       const chartAccount = (movement.financial_accounts as any)?.chart_of_accounts
       if (chartAccount?.category === "RESULTADO") {
-        const amountARS = parseFloat(movement.amount_ars_equivalent || "0")
+        const amountUsd = parseFloat(movement.amount_ars_equivalent || "0")
         if (chartAccount.subcategory === "INGRESOS" && movement.type === "INCOME") {
-          ingresos += amountARS
+          ingresos += amountUsd
         } else if (chartAccount.subcategory === "COSTOS" && (movement.type === "EXPENSE" || movement.type === "OPERATOR_PAYMENT")) {
-          costos += amountARS
+          costos += amountUsd
         } else if (chartAccount.subcategory === "GASTOS" && movement.type === "EXPENSE") {
-          gastos += amountARS
+          gastos += amountUsd
         }
       }
     }
     
-    console.log(`[MonthlyPosition] Resultados del mes (ARS): ingresos=${ingresos}, costos=${costos}, gastos=${gastos}`)
+    console.log(`[MonthlyPosition] Resultados del mes (USD): ingresos=${ingresos}, costos=${costos}, gastos=${gastos}`)
     console.log(`[MonthlyPosition] Resultados del mes (desglose): ingresos ARS=${ingresosARS}, USD=${ingresosUSD}, costos ARS=${costosARS}, USD=${costosUSD}`)
 
     // Estructurar respuesta

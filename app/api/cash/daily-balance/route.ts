@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
+import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 
 export async function GET(request: Request) {
   try {
@@ -48,11 +49,23 @@ export async function GET(request: Request) {
       .in("account_id", accountIds)
       .lte("created_at", `${dateTo}T23:59:59`)
 
-    // Crear mapa de cuenta -> balance inicial
+    // Tipo de cambio de referencia para convertir ARS -> USD (base del sistema)
+    let fxRate = await getExchangeRate(supabase, new Date(dateFrom))
+    if (!fxRate) {
+      fxRate = await getLatestExchangeRate(supabase)
+    }
+    if (!fxRate || fxRate <= 0) {
+      console.warn(`[DailyBalance] No se encontró tipo de cambio válido. Usando fallback 1000.`)
+      fxRate = 1000
+    }
+
+    // Crear mapa de cuenta -> balance inicial (en USD base)
     const accountsMap = new Map<string, { initialBalance: number }>()
     for (const account of accounts) {
+      const initialBalance = parseFloat(account.initial_balance || "0")
+      const initialBalanceUsd = account.currency === "ARS" ? initialBalance / fxRate : initialBalance
       accountsMap.set(account.id, {
-        initialBalance: parseFloat(account.initial_balance || "0"),
+        initialBalance: initialBalanceUsd,
       })
     }
 
