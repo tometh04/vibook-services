@@ -61,19 +61,19 @@ export function SiteHeader() {
 
   return (
     <>
-      <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b border-border bg-background transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+      <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b border-[hsl(var(--header-border))] bg-[hsl(var(--header-background))] text-[hsl(var(--header-foreground))] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
         <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-          <SidebarTrigger className="-ml-1 text-foreground" />
+          <SidebarTrigger className="-ml-1 text-[hsl(var(--header-foreground))]" />
           <Separator
             orientation="vertical"
-            className="mx-2 data-[orientation=vertical]:h-4 bg-border"
+            className="mx-2 data-[orientation=vertical]:h-4 bg-[hsl(var(--header-border))]"
           />
-          <h1 className="text-base font-medium text-foreground">{title}</h1>
+          <h1 className="text-base font-medium text-[hsl(var(--header-foreground))]">{title}</h1>
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 text-[hsl(var(--header-foreground))]"
               onClick={() => setCommandMenuOpen(true)}
               title="Buscar (⌘K o Ctrl+K)"
             >

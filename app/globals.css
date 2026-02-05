@@ -59,6 +59,11 @@
     --sidebar-accent-foreground: 240 6% 10%;
     --sidebar-border: 214 32% 91%;
     --sidebar-ring: 217 91% 50%;
+
+    /* Header - Tema claro */
+    --header-background: 0 0% 100%;
+    --header-foreground: 222.2 84% 4.9%;
+    --header-border: 214 32% 91%;
   }
 
   .dark {
@@ -114,6 +119,11 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 222 14% 22%;  /* Bordes más visibles */
     --sidebar-ring: 214 90% 60%;
+
+    /* Header - Tema oscuro */
+    --header-background: 222 18% 12%;
+    --header-foreground: 210 40% 98%;
+    --header-border: 222 14% 22%;
   }
 }
 
@@ -153,4 +163,9 @@
 
 .animate-pulse-glow {
   animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Ocultar selector de tema cuando la paleta lo bloquea */
+html[data-theme-locked="true"] .theme-toggle {
+  display: none !important;
 }

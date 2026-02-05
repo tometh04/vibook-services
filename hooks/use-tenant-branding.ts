@@ -301,6 +301,8 @@ export function useBrandingColors(branding: TenantBranding) {
         const sidebarBackground = setLightness(base, 12)
         const sidebarAccent = setLightness(base, 20)
         const sidebarBorder = setLightness(base, 22)
+        const headerBackground = setLightness(base, 14)
+        const headerBorder = setLightness(base, 22)
 
         root.style.setProperty('--sidebar-background', `${sidebarBackground.h} ${sidebarBackground.s}% ${sidebarBackground.l}%`)
         root.style.setProperty('--sidebar-foreground', '0 0% 98%')
@@ -308,10 +310,16 @@ export function useBrandingColors(branding: TenantBranding) {
         root.style.setProperty('--sidebar-accent-foreground', '0 0% 98%')
         root.style.setProperty('--sidebar-border', `${sidebarBorder.h} ${sidebarBorder.s}% ${sidebarBorder.l}%`)
         root.style.setProperty('--sidebar-ring', `${base.h} ${base.s}% ${base.l}%`)
+
+        root.style.setProperty('--header-background', `${headerBackground.h} ${headerBackground.s}% ${headerBackground.l}%`)
+        root.style.setProperty('--header-foreground', '0 0% 98%')
+        root.style.setProperty('--header-border', `${headerBorder.h} ${headerBorder.s}% ${headerBorder.l}%`)
       } else {
         const sidebarBackground = setLightness(secondaryBase, 97)
         const sidebarAccent = setLightness(base, 90)
         const sidebarBorder = setLightness(base, 86)
+        const headerBackground = setLightness(secondaryBase, 98)
+        const headerBorder = setLightness(base, 88)
 
         root.style.setProperty('--sidebar-background', `${sidebarBackground.h} ${sidebarBackground.s}% ${sidebarBackground.l}%`)
         root.style.setProperty('--sidebar-foreground', getForegroundForHsl(sidebarBackground))
@@ -319,6 +327,10 @@ export function useBrandingColors(branding: TenantBranding) {
         root.style.setProperty('--sidebar-accent-foreground', getForegroundForHsl(sidebarAccent))
         root.style.setProperty('--sidebar-border', `${sidebarBorder.h} ${sidebarBorder.s}% ${sidebarBorder.l}%`)
         root.style.setProperty('--sidebar-ring', `${base.h} ${base.s}% ${base.l}%`)
+
+        root.style.setProperty('--header-background', `${headerBackground.h} ${headerBackground.s}% ${headerBackground.l}%`)
+        root.style.setProperty('--header-foreground', getForegroundForHsl(headerBackground))
+        root.style.setProperty('--header-border', `${headerBorder.h} ${headerBorder.s}% ${headerBorder.l}%`)
       }
     }
 

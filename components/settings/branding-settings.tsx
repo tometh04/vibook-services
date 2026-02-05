@@ -74,8 +74,8 @@ interface BrandingSettingsProps {
 const PALETTES = [
   {
     id: "vibook",
-    name: "Slack",
-    description: "Comunicacion moderna y colaborativa",
+    name: "Por defecto",
+    description: "Paleta base del sistema (única con tema claro/oscuro)",
     primary: "#4A154B",
     secondary: "#36C5F0",
     accent: "#2EB67D",
@@ -258,7 +258,6 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
     }
   }
 
-  const watchedColors = form.watch(["primary_color", "secondary_color", "accent_color"])
   const watchedPalette = form.watch("palette_id")
 
   const handlePaletteSelect = (paletteId: string) => {
@@ -270,12 +269,7 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
     form.setValue("accent_color", palette.accent, { shouldDirty: true })
   }
 
-  const handleColorChange = (field: "primary_color" | "secondary_color" | "accent_color", value: string) => {
-    form.setValue(field, value, { shouldDirty: true })
-    if (form.getValues("palette_id") !== "custom") {
-      form.setValue("palette_id", "custom", { shouldDirty: true })
-    }
-  }
+  // Sin personalización manual: los colores vienen de la paleta seleccionada
 
   const [uploading, setUploading] = useState<{ logo: boolean; logo_dark: boolean; favicon: boolean }>({
     logo: false,
@@ -547,126 +541,6 @@ export function BrandingSettings({ agencies, defaultAgencyId }: BrandingSettings
                           </div>
                         </button>
                       ))}
-
-                      <button
-                        type="button"
-                        onClick={() => form.setValue("palette_id", "custom", { shouldDirty: true })}
-                        className={`rounded-xl border p-4 text-left transition ${
-                          watchedPalette === "custom" ? "border-primary shadow-sm" : "hover:border-muted-foreground/40"
-                        }`}
-                      >
-                        <p className="text-sm font-semibold">Personalizado</p>
-                        <p className="text-xs text-muted-foreground">Ajustá los colores manualmente</p>
-                      </button>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <FormField
-                        control={form.control}
-                        name="primary_color"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Color Primario</FormLabel>
-                            <div className="flex gap-2">
-                              <FormControl>
-                                <Input
-                                  type="color"
-                                  value={field.value}
-                                  onChange={(e) => handleColorChange("primary_color", e.target.value)}
-                                  className="w-12 h-10 p-1 cursor-pointer"
-                                />
-                              </FormControl>
-                              <Input
-                                value={field.value}
-                                onChange={(e) => handleColorChange("primary_color", e.target.value)}
-                                placeholder="#2563EB"
-                                className="flex-1"
-                              />
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="secondary_color"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Color Secundario</FormLabel>
-                            <div className="flex gap-2">
-                              <FormControl>
-                                <Input
-                                  type="color"
-                                  value={field.value}
-                                  onChange={(e) => handleColorChange("secondary_color", e.target.value)}
-                                  className="w-12 h-10 p-1 cursor-pointer"
-                                />
-                              </FormControl>
-                              <Input
-                                value={field.value}
-                                onChange={(e) => handleColorChange("secondary_color", e.target.value)}
-                                placeholder="#0EA5E9"
-                                className="flex-1"
-                              />
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="accent_color"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Color de Acento</FormLabel>
-                            <div className="flex gap-2">
-                              <FormControl>
-                                <Input
-                                  type="color"
-                                  value={field.value}
-                                  onChange={(e) => handleColorChange("accent_color", e.target.value)}
-                                  className="w-12 h-10 p-1 cursor-pointer"
-                                />
-                              </FormControl>
-                              <Input
-                                value={field.value}
-                                onChange={(e) => handleColorChange("accent_color", e.target.value)}
-                                placeholder="#22D3EE"
-                                className="flex-1"
-                              />
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="p-4 rounded-lg border bg-muted/50">
-                      <Label className="mb-2 block">Vista Previa</Label>
-                      <div className="flex gap-4 items-center">
-                        <div
-                          className="w-16 h-16 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
-                          style={{ backgroundColor: watchedColors[0] }}
-                        >
-                          Primario
-                        </div>
-                        <div
-                          className="w-16 h-16 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
-                          style={{ backgroundColor: watchedColors[1] }}
-                        >
-                          Secundario
-                        </div>
-                        <div
-                          className="w-16 h-16 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
-                          style={{ backgroundColor: watchedColors[2] }}
-                        >
-                          Acento
-                        </div>
-                      </div>
                     </div>
                   </TabsContent>
 
