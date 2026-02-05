@@ -36,26 +36,11 @@ test.describe("Branding Settings E2E", () => {
     await fileInputs.nth(2).setInputFiles("e2e/fixtures/favicon.png")
     await expect(page.getByText("Archivo subido correctamente")).toBeVisible()
 
-    // Palette tab
+    // Palette tab (sin personalización manual)
     await page.getByRole("tab", { name: "Paletas" }).click()
-    await page.getByRole("button", { name: /Sunset/i }).click()
-    await expect(page.locator('input[type="color"]').nth(0)).toHaveValue("#f97316")
-    await expect(page.locator('input[type="color"]').nth(1)).toHaveValue("#ef4444")
-    await expect(page.locator('input[type="color"]').nth(2)).toHaveValue("#f59e0b")
-
-    // Custom colors
-    const setColor = async (index: number, value: string) => {
-      const input = page.locator('input[type="color"]').nth(index)
-      await input.evaluate((el, val) => {
-        const inputEl = el as HTMLInputElement
-        inputEl.value = val as string
-        inputEl.dispatchEvent(new Event("input", { bubbles: true }))
-        inputEl.dispatchEvent(new Event("change", { bubbles: true }))
-      }, value)
-    }
-    await setColor(0, "#112233")
-    await setColor(1, "#445566")
-    await setColor(2, "#778899")
+    await page.getByRole("button", { name: /Trello/i }).click()
+    await expect(page.getByText("Seleccionada")).toBeVisible()
+    await expect(page.locator('input[type="color"]')).toHaveCount(0)
 
     // Contact tab
     await page.getByRole("tab", { name: "Contacto" }).click()
@@ -91,9 +76,7 @@ test.describe("Branding Settings E2E", () => {
     await expect(page.getByLabel("Nombre de la Aplicación")).toHaveValue(appName)
 
     await page.getByRole("tab", { name: "Paletas" }).click()
-    await expect(page.locator('input[type="color"]').nth(0)).toHaveValue("#112233")
-    await expect(page.locator('input[type="color"]').nth(1)).toHaveValue("#445566")
-    await expect(page.locator('input[type="color"]').nth(2)).toHaveValue("#778899")
+    await expect(page.getByText("Seleccionada")).toBeVisible()
 
     await page.getByRole("tab", { name: "Contacto" }).click()
     await expect(page.getByLabel("Nombre del Remitente")).toHaveValue(senderName)
