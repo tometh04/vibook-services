@@ -38,6 +38,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useTenantBranding } from "@/hooks/use-tenant-branding"
 
 interface NavSubSubItem {
   title: string
@@ -195,8 +196,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   agencyId?: string
 }
 
-export function AppSidebar({ userRole, user, ...props }: AppSidebarProps) {
+export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarProps) {
   const pathname = usePathname()
+  const { branding, isLoading: brandingLoading } = useTenantBranding(agencyId)
 
   // Filtrar navegación según permisos
   const navigation = allNavigation
