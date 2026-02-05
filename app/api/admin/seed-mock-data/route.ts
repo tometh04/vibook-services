@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
+import { requireAdminTools } from "@/lib/admin-tools"
 
 /**
  * API route to seed mock data
@@ -9,9 +10,8 @@ export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
 
-    if (user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-    }
+    const guard = requireAdminTools(user, request)
+    if (guard) return guard
 
     // Import and execute the seed script
     // Note: This is a simplified version. In production, you might want to
@@ -48,4 +48,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Error al ejecutar seed" }, { status: 500 })
   }
 }
-

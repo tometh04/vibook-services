@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { requireAdminTools } from "@/lib/admin-tools"
 
 // POST - Eliminar seed data (NO elimina leads de Trello ni datos reales)
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
-    
-    // Solo SUPER_ADMIN puede ejecutar esto
-    if (user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Solo el administrador puede ejecutar esta acción" }, { status: 403 })
-    }
+    const guard = requireAdminTools(user, request)
+    if (guard) return guard
 
     const supabase = await createServerClient()
     const deletedCounts: Record<string, number> = {}

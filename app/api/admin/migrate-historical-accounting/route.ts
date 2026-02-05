@@ -10,18 +10,14 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createSaleIVA, createPurchaseIVA } from "@/lib/accounting/iva"
 import { createOperatorPayment, calculateDueDate } from "@/lib/accounting/operator-payments"
+import { requireAdminTools } from "@/lib/admin-tools"
 
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
 
-    // Solo SUPER_ADMIN puede ejecutar esta migración
-    if (user.role !== "SUPER_ADMIN") {
-      return NextResponse.json(
-        { error: "No tienes permiso para ejecutar esta migración" },
-        { status: 403 }
-      )
-    }
+    const guard = requireAdminTools(user, request)
+    if (guard) return guard
 
     const supabase = await createServerClient()
 
@@ -148,4 +144,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

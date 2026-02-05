@@ -196,7 +196,8 @@ export async function POST(request: Request) {
         })
         .eq("id", (existingSubscription as any).id)
     } else {
-      // Crear suscripción pendiente
+      // Crear suscripción inicial
+      // Regla: si NO hay trial disponible, status debe ser UNPAID (bloquea acceso hasta confirmación MP)
       await (supabase
         .from("subscriptions") as any)
         .insert({
@@ -204,7 +205,7 @@ export async function POST(request: Request) {
           plan_id: planId,
           mp_preapproval_id: preapproval.id,
           mp_status: preapproval.status,
-          status: hasUsedTrial || isUpgrade ? 'ACTIVE' : 'TRIAL',
+          status: hasUsedTrial || isUpgrade ? 'UNPAID' : 'TRIAL',
           current_period_start: new Date().toISOString(),
           current_period_end: startDate.toISOString(),
           trial_start: hasUsedTrial || isUpgrade ? null : new Date().toISOString(),

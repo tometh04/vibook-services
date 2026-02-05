@@ -2,9 +2,15 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { getCurrentUser } from "@/lib/auth"
+import { requireAdminTools } from "@/lib/admin-tools"
 
 export async function POST(req: Request) {
   try {
+    const { user } = await getCurrentUser()
+    const guard = requireAdminTools(user, req)
+    if (guard) return guard
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
@@ -107,6 +113,10 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
+    const { user } = await getCurrentUser()
+    const guard = requireAdminTools(user, new Request("http://local"))
+    if (guard) return guard
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
