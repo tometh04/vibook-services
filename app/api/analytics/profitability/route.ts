@@ -14,6 +14,10 @@ export async function GET(request: Request) {
     const months = parseInt(searchParams.get("months") || "6")
     const agencyId = searchParams.get("agencyId")
 
+    // Fecha de inicio (N meses atrás)
+    const startDate = startOfMonth(subMonths(new Date(), months - 1))
+    const endDate = endOfMonth(new Date())
+
     // Obtener agencias del usuario
     const { data: userAgencies } = await supabase
       .from("user_agencies")
@@ -22,9 +26,28 @@ export async function GET(request: Request) {
 
     const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
-    // Fecha de inicio (N meses atrás)
-    const startDate = startOfMonth(subMonths(new Date(), months - 1))
-    const endDate = endOfMonth(new Date())
+    // Seguridad multi-tenant: si no hay agencias asignadas y no es SUPER_ADMIN, no devolver datos
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      console.warn("[profitability] Usuario sin agencias asignadas, devolviendo vacío")
+      return NextResponse.json({
+        success: true,
+        period: {
+          start: format(startDate, "yyyy-MM-dd"),
+          end: format(endDate, "yyyy-MM-dd"),
+          months,
+        },
+        totals: {
+          totalSales: 0,
+          totalCost: 0,
+          totalMargin: 0,
+          totalOperations: 0,
+          avgMarginPercentage: 0,
+        },
+        byDestination: [],
+        topProfitable: [],
+        topVolume: [],
+      })
+    }
 
     // Query base
     let query = (supabase.from("operations") as any)

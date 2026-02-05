@@ -87,7 +87,7 @@ export async function GET(request: Request) {
         .single()
 
       if (!agencyError && agencyData) {
-        // Crear usuario como SUPER_ADMIN
+        // Crear usuario como ADMIN (el SUPER_ADMIN es solo admin@vibook.ai)
         // @ts-ignore - TypeScript no tiene los tipos de Supabase generados
         const { data: userData, error: userError } = await (supabaseAdmin
           .from("users") as any)
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
             auth_id: authUser.id,
             name: userName,
             email: userEmail,
-            role: "SUPER_ADMIN",
+            role: "ADMIN",
             is_active: true,
           })
           .select()

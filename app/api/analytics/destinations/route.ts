@@ -26,6 +26,12 @@ export async function GET(request: Request) {
 
       const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
+      // Seguridad multi-tenant: si no hay agencias asignadas y no es SUPER_ADMIN, no devolver datos
+      if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+        console.warn("[destinations] Usuario sin agencias asignadas, devolviendo vacío")
+        return NextResponse.json({ destinations: [] })
+      }
+
       let query = supabase.from("operations").select("destination, sale_amount_total, margin_amount, currency, sale_currency, departure_date, created_at").neq("status", "CANCELLED")
 
       // Apply role-based filtering

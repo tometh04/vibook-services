@@ -24,6 +24,15 @@ export async function GET(request: Request) {
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
+    // Seguridad multi-tenant: si no hay agencias asignadas y no es SUPER_ADMIN, no devolver datos
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      console.warn("[PendingBalances] Usuario sin agencias asignadas, devolviendo vacío")
+      return NextResponse.json({
+        accountsReceivable: 0,
+        accountsPayable: 0,
+      })
+    }
+
     // ============================================
     // 1. CALCULAR DEUDORES POR VENTAS (Cuentas por Cobrar)
     // ============================================

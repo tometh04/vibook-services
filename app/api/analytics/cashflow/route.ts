@@ -25,6 +25,12 @@ export async function GET(request: Request) {
 
     const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
+    // Seguridad multi-tenant: si no hay agencias asignadas y no es SUPER_ADMIN, no devolver datos
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      console.warn("[cashflow] Usuario sin agencias asignadas, devolviendo vacío")
+      return NextResponse.json({ cashflow: [] })
+    }
+
     // Validate date format if provided
     if (dateFrom && !/^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) {
       console.error("Invalid dateFrom format:", dateFrom)
@@ -93,6 +99,9 @@ export async function GET(request: Request) {
 
       if (agencyOperationIds.length > 0) {
         query = query.in("operation_id", agencyOperationIds)
+      } else {
+        // Sin operaciones para estas agencias => no hay flujo
+        return NextResponse.json({ cashflow: [] })
       }
     }
 

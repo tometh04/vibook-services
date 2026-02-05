@@ -26,6 +26,18 @@ export async function GET(request: Request) {
 
       const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
+      // Seguridad multi-tenant: si no hay agencias asignadas y no es SUPER_ADMIN, no devolver datos
+      if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+        console.warn("[sales] Usuario sin agencias asignadas, devolviendo valores en cero")
+        return NextResponse.json({
+          totalSales: 0,
+          totalMargin: 0,
+          totalCost: 0,
+          operationsCount: 0,
+          avgMarginPercent: 0,
+        })
+      }
+
       let query = supabase.from("operations").select("sale_amount_total, margin_amount, operator_cost, currency, created_at, departure_date").neq("status", "CANCELLED")
 
       // Apply role-based filtering
@@ -120,4 +132,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message || "Error al obtener datos de ventas" }, { status: 500 })
   }
 }
-
