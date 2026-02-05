@@ -147,16 +147,16 @@ export async function GET(request: Request) {
     console.log(`[MonthlyPosition] Procesando ${financialAccountsArrayForBalance.length} cuentas financieras con chart_account_id`)
     
     // Obtener balances en batch (2 queries en lugar de N*2)
-    const accountIds = financialAccountsArrayForBalance.map((acc: any) => acc.id)
+    const accountIdsForBalance = financialAccountsArrayForBalance.map((acc: any) => acc.id)
     let balancesMap = new Map<string, number>()
     
-    if (accountIds.length > 0) {
+    if (accountIdsForBalance.length > 0) {
       try {
-        balancesMap = await getAccountBalancesBatch(accountIds, supabase)
+        balancesMap = await getAccountBalancesBatch(accountIdsForBalance, supabase)
       } catch (error) {
         console.error("Error calculating balances in batch:", error)
         // Fallback: calcular balances individualmente si falla el batch
-        for (const accountId of accountIds) {
+        for (const accountId of accountIdsForBalance) {
           try {
             const balance = await getAccountBalance(accountId, supabase)
             balancesMap.set(accountId, balance)
