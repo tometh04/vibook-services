@@ -145,6 +145,10 @@ export async function POST(request: Request) {
     // Crear Preapproval dinámicamente usando la API de Mercado Pago
     // Esto evita problemas de autorización de dominio
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vibook.ai'
+    const backUrl = new URL('/api/billing/preapproval-callback', appUrl)
+    backUrl.searchParams.set('agency_id', agencyId)
+    backUrl.searchParams.set('plan_id', planId)
+    backUrl.searchParams.set('source', 'checkout')
     const { createPreApproval } = await import('@/lib/mercadopago/client')
     
     // Si ya usó trial o es upgrade durante trial, cobrar inmediatamente (sin trial)
@@ -178,7 +182,7 @@ export async function POST(request: Request) {
         is_upgrade: isUpgrade || false,
         has_used_trial: hasUsedTrial
       }),
-      back_url: `${appUrl}/api/billing/preapproval-callback`
+      back_url: backUrl.toString()
     })
 
     // Guardar preapproval_id en la suscripción (si existe) o crear una nueva

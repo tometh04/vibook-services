@@ -18,6 +18,7 @@ export default function PaywallPage() {
   const [hasUsedTrial, setHasUsedTrial] = useState(false)
   const [trialDays, setTrialDays] = useState(7)
   const [usingFallbackPlans, setUsingFallbackPlans] = useState(false)
+  const [verifying, setVerifying] = useState(false)
   const { subscription, loading: subscriptionLoading } = useSubscription()
 
   useEffect(() => {
@@ -94,6 +95,32 @@ export default function PaywallPage() {
     } catch (error) {
       console.error('Error creating checkout session:', error)
       alert(error instanceof Error ? error.message : 'Error al crear la sesión de pago. Por favor intenta nuevamente.')
+    }
+  }
+
+  const handleVerifyPayment = async () => {
+    setVerifying(true)
+    try {
+      const response = await fetch('/api/billing/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await response.json()
+      if (data.success) {
+        alert(data.message || 'Pago verificado correctamente')
+        if (data.newStatus === 'ACTIVE' || data.mpStatus === 'authorized') {
+          router.push('/dashboard')
+        } else {
+          window.location.reload()
+        }
+      } else {
+        alert(data.error || data.message || 'Error al verificar el pago')
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error)
+      alert('Error al verificar el pago. Por favor intenta nuevamente.')
+    } finally {
+      setVerifying(false)
     }
   }
 
@@ -404,6 +431,25 @@ export default function PaywallPage() {
                 ? 'Podes cancelar en cualquier momento desde la configuracion de tu cuenta.'
                 : 'Despues de la prueba, se cobrara automaticamente segun el plan elegido. Podes cancelar en cualquier momento.'}
             </p>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-medium text-slate-900">¿Mercado Pago no te redirigio?</p>
+                <p>Si ya confirmaste el pago, revisa el estado aca mismo.</p>
+              </div>
+              <Button onClick={handleVerifyPayment} disabled={verifying} className="h-10">
+                {verifying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  'Verificar pago'
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
