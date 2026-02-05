@@ -161,7 +161,7 @@ export async function GET(request: Request) {
       planId = (planData as any).id
     }
 
-    // Mapear estado de Mercado Pago a nuestro estado
+    // Mapear estado de Mercado Pago a nuestro estado base
     const mpStatus = preapproval.status as string
     let subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'TRIAL'
     
@@ -232,7 +232,17 @@ export async function GET(request: Request) {
 
     // Si es upgrade durante trial o ya usó trial, NO crear trial - pago inmediato
     if (isUpgrade || hasUsedTrial) {
-      subscriptionData.status = 'ACTIVE'
+      // Si MP no autorizó aún, mantener UNPAID (bloquea acceso)
+      if (subscriptionStatus === 'ACTIVE') {
+        subscriptionData.status = 'ACTIVE'
+      } else if (subscriptionStatus === 'CANCELED') {
+        subscriptionData.status = 'CANCELED'
+      } else if (subscriptionStatus === 'SUSPENDED') {
+        subscriptionData.status = 'SUSPENDED'
+      } else {
+        subscriptionData.status = 'UNPAID'
+      }
+
       subscriptionData.trial_start = null
       subscriptionData.trial_end = null
       // Calcular período desde ahora (30 días)
@@ -249,7 +259,13 @@ export async function GET(request: Request) {
       const trialDays = trialConfig ? parseInt(trialConfig.value) : 7 // Default 7 días
 
       // Trial usando configuración
-      subscriptionData.status = 'TRIAL'
+      if (subscriptionStatus === 'CANCELED') {
+        subscriptionData.status = 'CANCELED'
+      } else if (subscriptionStatus === 'SUSPENDED') {
+        subscriptionData.status = 'SUSPENDED'
+      } else {
+        subscriptionData.status = 'TRIAL'
+      }
       subscriptionData.trial_start = new Date().toISOString()
       subscriptionData.trial_end = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
       
@@ -311,21 +327,30 @@ export async function GET(request: Request) {
     // Registrar evento usando el resultado de la inserción/actualización
     const subscriptionId = subscriptionResult?.id || (existingSubscription as any)?.id
     
-    await (supabaseAdmin
+    const { data: existingEvent } = await (supabaseAdmin
       .from("billing_events") as any)
-      .insert({
-        agency_id: agencyId,
-        subscription_id: subscriptionId || null,
-        event_type: 'SUBSCRIPTION_CREATED',
-        mp_notification_id: preapprovalId,
-        metadata: { 
-          status: mpStatus, 
-          mp_data: preapproval,
-          user_id: userId,
-          plan_id: planId,
-          subscription_status: subscriptionStatus
-        }
-      })
+      .select("id")
+      .eq("event_type", "SUBSCRIPTION_CREATED")
+      .eq("mp_notification_id", preapprovalId)
+      .maybeSingle()
+
+    if (!existingEvent) {
+      await (supabaseAdmin
+        .from("billing_events") as any)
+        .insert({
+          agency_id: agencyId,
+          subscription_id: subscriptionId || null,
+          event_type: 'SUBSCRIPTION_CREATED',
+          mp_notification_id: preapprovalId,
+          metadata: { 
+            status: mpStatus, 
+            mp_data: preapproval,
+            user_id: userId,
+            plan_id: planId,
+            subscription_status: subscriptionStatus
+          }
+        })
+    }
     
     console.log('[Preapproval Callback] Evento registrado:', {
       agencyId,

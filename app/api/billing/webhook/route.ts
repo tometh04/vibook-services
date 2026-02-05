@@ -229,7 +229,19 @@ async function handlePaymentNotification(paymentId: string) {
   try {
     // Aquí deberías obtener el pago de Mercado Pago para ver el external_reference
     // Por simplicidad, lo registramos como evento
-    const { error } = await (getSupabaseAdmin()
+    const admin = getSupabaseAdmin()
+    const { data: existing } = await (admin
+      .from("billing_events") as any)
+      .select("id")
+      .eq("event_type", "PAYMENT_SUCCEEDED")
+      .eq("mp_payment_id", paymentId)
+      .maybeSingle()
+
+    if (existing) {
+      return
+    }
+
+    const { error } = await (admin
       .from("billing_events") as any)
       .insert({
         event_type: "PAYMENT_SUCCEEDED",
@@ -261,15 +273,25 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     } catch (mpError: any) {
       console.log('⚠️ Preapproval no encontrado en Mercado Pago (puede ser prueba):', mpError.message)
       // Si no existe, solo registrar el evento sin datos del preapproval
-      await (getSupabaseAdmin()
+      const admin = getSupabaseAdmin()
+      const { data: existing } = await (admin
         .from("billing_events") as any)
-        .insert({
-          event_type: "PREAPPROVAL_NOT_FOUND",
-          mp_notification_id: preapprovalId,
-          metadata: { error: mpError.message, type: 'preapproval' }
-        }).catch((err: any) => {
-          console.error('Error insertando evento:', err)
-        })
+        .select("id")
+        .eq("event_type", "PREAPPROVAL_NOT_FOUND")
+        .eq("mp_notification_id", preapprovalId)
+        .maybeSingle()
+
+      if (!existing) {
+        await (admin
+          .from("billing_events") as any)
+          .insert({
+            event_type: "PREAPPROVAL_NOT_FOUND",
+            mp_notification_id: preapprovalId,
+            metadata: { error: mpError.message, type: 'preapproval' }
+          }).catch((err: any) => {
+            console.error('Error insertando evento:', err)
+          })
+      }
       return // Salir sin error
     }
 
@@ -384,30 +406,50 @@ async function handlePreApprovalNotification(preapprovalId: string) {
           eventType = 'SUBSCRIPTION_UPDATED'
       }
 
-      await (getSupabaseAdmin()
+      const admin = getSupabaseAdmin()
+      const { data: existing } = await (admin
         .from("billing_events") as any)
-        .insert({
-          agency_id: subData.agency_id,
-          subscription_id: subData.id,
-          event_type: eventType,
-          mp_notification_id: preapprovalId,
-          metadata: { status: mpStatus, mp_data: preapproval }
-        }).catch((err: any) => {
-          console.error('Error insertando billing_event:', err)
-        })
+        .select("id")
+        .eq("event_type", eventType)
+        .eq("mp_notification_id", preapprovalId)
+        .maybeSingle()
+
+      if (!existing) {
+        await (admin
+          .from("billing_events") as any)
+          .insert({
+            agency_id: subData.agency_id,
+            subscription_id: subData.id,
+            event_type: eventType,
+            mp_notification_id: preapprovalId,
+            metadata: { status: mpStatus, mp_data: preapproval }
+          }).catch((err: any) => {
+            console.error('Error insertando billing_event:', err)
+          })
+      }
     } else {
       // Si no existe, registrar el evento
       console.log('⚠️ Suscripción no encontrada para preapproval:', preapprovalId)
       
-      await (getSupabaseAdmin()
+      const admin = getSupabaseAdmin()
+      const { data: existing } = await (admin
         .from("billing_events") as any)
-        .insert({
-          event_type: "SUBSCRIPTION_CREATED",
-          mp_notification_id: preapprovalId,
-          metadata: { status: mpStatus, mp_data: preapproval }
-        }).catch((err: any) => {
-          console.error('Error insertando billing_event:', err)
-        })
+        .select("id")
+        .eq("event_type", "SUBSCRIPTION_CREATED")
+        .eq("mp_notification_id", preapprovalId)
+        .maybeSingle()
+
+      if (!existing) {
+        await (admin
+          .from("billing_events") as any)
+          .insert({
+            event_type: "SUBSCRIPTION_CREATED",
+            mp_notification_id: preapprovalId,
+            metadata: { status: mpStatus, mp_data: preapproval }
+          }).catch((err: any) => {
+            console.error('Error insertando billing_event:', err)
+          })
+      }
     }
   } catch (error: any) {
     console.error("Error procesando preapproval notification:", error)
