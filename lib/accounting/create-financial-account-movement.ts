@@ -63,9 +63,9 @@ export async function createFinancialAccountMovement({
     }
   }
 
-  // Calcular exchange rate si es necesario
-  // USD: NO necesita tipo de cambio (el sistema trabaja en USD)
-  // ARS: SÍ necesita tipo de cambio (para convertir a USD)
+  // Calcular exchange rate si es necesario para registrar el equivalente en ARS en el ledger
+  // ARS: requiere tipo de cambio para convertir a USD y validar balances
+  // USD: también requiere tipo de cambio para calcular amount_ars_equivalent
   let exchangeRate: number | null = null
   
   if (currency === "ARS") {
@@ -85,8 +85,20 @@ export async function createFinancialAccountMovement({
         throw new Error("El tipo de cambio es obligatorio para movimientos en ARS")
       }
     }
+  } else if (currency === "USD") {
+    // Para USD, necesitamos tipo de cambio para calcular equivalente en ARS
+    exchangeRate = providedExchangeRate ?? null
+    if (!exchangeRate || exchangeRate <= 0) {
+      const rateDate = datePaid ? new Date(datePaid) : new Date()
+      exchangeRate = await getExchangeRate(supabase, rateDate)
+      if (!exchangeRate) {
+        exchangeRate = await getLatestExchangeRate(supabase)
+      }
+      if (!exchangeRate || exchangeRate <= 0) {
+        throw new Error("El tipo de cambio es obligatorio para convertir USD a ARS")
+      }
+    }
   }
-  // Para USD, exchangeRate = null (no se necesita tipo de cambio)
 
   // Validar saldo suficiente antes de permitir un egreso
   if (direction === "EXPENSE") {
