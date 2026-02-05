@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test"
 
 const baseURL = process.env.E2E_BASE_URL || "http://localhost:3044"
+const useWebServer = baseURL.includes("localhost") || baseURL.includes("127.0.0.1")
 
 export default defineConfig({
   testDir: "./e2e",
@@ -17,12 +18,14 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  webServer: {
-    command: "npx next dev -p 3044 -H 127.0.0.1",
-    port: 3044,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
+  webServer: useWebServer
+    ? {
+        command: "npx next dev -p 3044 -H 127.0.0.1",
+        port: 3044,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+      }
+    : undefined,
   projects: [
     {
       name: "chromium",
