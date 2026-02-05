@@ -9,7 +9,7 @@ import {
   getAgencyAfipConfig,
   formatDate,
 } from "@/lib/afip/afip-client"
-import { TipoComprobante, TipoDocumento, TipoIVA, IVA_PORCENTAJES } from "@/lib/afip/types"
+import { TipoComprobante, TipoDocumento, TipoIVA, IVA_PORCENTAJES, CondicionIVA } from "@/lib/afip/types"
 
 export const dynamic = 'force-dynamic'
 
@@ -100,9 +100,9 @@ export async function POST(
 
     const receptorCondicionIvaRaw = invoice.receptor_condicion_iva
     const receptorCondicionIva =
-      typeof receptorCondicionIvaRaw === "number"
+      (typeof receptorCondicionIvaRaw === "number"
         ? receptorCondicionIvaRaw
-        : Number(receptorCondicionIvaRaw) || 5
+        : Number(receptorCondicionIvaRaw) || 5) as CondicionIVA
 
     // Crear request para AFIP
     const afipRequest = {
