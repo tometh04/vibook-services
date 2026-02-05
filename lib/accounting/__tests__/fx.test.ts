@@ -2,11 +2,18 @@ import { calculateAndRecordFX } from "../fx"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabase/types"
 import * as ledger from "../ledger"
+import * as exchangeRates from "../exchange-rates"
 
 // Mock ledger functions
 jest.mock("../ledger", () => ({
   createLedgerMovement: jest.fn(),
   getOrCreateDefaultAccount: jest.fn(),
+}))
+
+// Mock exchange rates
+jest.mock("../exchange-rates", () => ({
+  getLatestExchangeRate: jest.fn(),
+  getExchangeRate: jest.fn(),
 }))
 
 const createMockSupabase = () => {
@@ -20,6 +27,8 @@ describe("FX Service", () => {
     jest.clearAllMocks()
     ;(ledger.getOrCreateDefaultAccount as jest.Mock).mockResolvedValue("account-id-123")
     ;(ledger.createLedgerMovement as jest.Mock).mockResolvedValue({ id: "movement-id-123" })
+    ;(exchangeRates.getLatestExchangeRate as jest.Mock).mockResolvedValue(1000)
+    ;(exchangeRates.getExchangeRate as jest.Mock).mockResolvedValue(1000)
   })
 
   describe("calculateAndRecordFX", () => {
@@ -46,8 +55,8 @@ describe("FX Service", () => {
     it("should calculate FX_GAIN when sale in USD and payment in ARS with better rate", async () => {
       const mockSupabase = createMockSupabase()
 
-      // Sale: 100 USD at 1000 ARS/USD = 100,000 ARS
-      // Payment: 90,000 ARS (better for us = gain)
+      // Sale: 100 USD
+      // Payment: 90,000 ARS at 1000 ARS/USD = 90 USD (gain 10 USD)
       const result = await calculateAndRecordFX(
         mockSupabase,
         "op-123",
@@ -61,15 +70,15 @@ describe("FX Service", () => {
       )
 
       expect(result.fxType).toBe("FX_GAIN")
-      expect(result.fxAmount).toBeCloseTo(10000, 2)
+      expect(result.fxAmount).toBeCloseTo(10, 2)
       expect(ledger.createLedgerMovement).toHaveBeenCalled()
     })
 
     it("should calculate FX_LOSS when sale in USD and payment in ARS with worse rate", async () => {
       const mockSupabase = createMockSupabase()
 
-      // Sale: 100 USD at 1000 ARS/USD = 100,000 ARS
-      // Payment: 110,000 ARS (worse for us = loss)
+      // Sale: 100 USD
+      // Payment: 110,000 ARS at 1000 ARS/USD = 110 USD (loss 10 USD)
       const result = await calculateAndRecordFX(
         mockSupabase,
         "op-123",
@@ -83,15 +92,15 @@ describe("FX Service", () => {
       )
 
       expect(result.fxType).toBe("FX_LOSS")
-      expect(result.fxAmount).toBeCloseTo(10000, 2)
+      expect(result.fxAmount).toBeCloseTo(10, 2)
       expect(ledger.createLedgerMovement).toHaveBeenCalled()
     })
 
-    it("should ignore very small differences (< 1 ARS)", async () => {
+    it("should ignore very small differences (< 0.01 USD)", async () => {
       const mockSupabase = createMockSupabase()
 
-      // Sale: 100 USD at 1000 ARS/USD = 100,000 ARS
-      // Payment: 100,000.50 ARS (difference < 1 ARS)
+      // Sale: 100 USD
+      // Payment: 100,000.50 ARS at 1000 ARS/USD = 100.0005 USD (difference < 0.01 USD)
       const result = await calculateAndRecordFX(
         mockSupabase,
         "op-123",
@@ -112,8 +121,8 @@ describe("FX Service", () => {
     it("should handle sale in ARS and payment in USD", async () => {
       const mockSupabase = createMockSupabase()
 
-      // Sale: 100,000 ARS
-      // Payment: 90 USD at 1000 ARS/USD = 90,000 ARS (gain)
+      // Sale: 100,000 ARS = 100 USD
+      // Payment: 90 USD (gain 10 USD)
       const result = await calculateAndRecordFX(
         mockSupabase,
         "op-123",
@@ -127,14 +136,14 @@ describe("FX Service", () => {
       )
 
       expect(result.fxType).toBe("FX_GAIN")
-      expect(result.fxAmount).toBeCloseTo(10000, 2)
+      expect(result.fxAmount).toBeCloseTo(10, 2)
     })
 
     it("should use default exchange rate of 1 if not provided for USD", async () => {
       const mockSupabase = createMockSupabase()
 
-      // Sale: 100 USD (no exchange rate provided, should use 1)
-      // Payment: 50,000 ARS
+      // Sale: 100 USD
+      // Payment: 50,000 ARS at 1000 ARS/USD = 50 USD (gain 50 USD)
       const result = await calculateAndRecordFX(
         mockSupabase,
         "op-123",
@@ -147,11 +156,8 @@ describe("FX Service", () => {
         "user-123"
       )
 
-      // With exchange rate = 1, 100 USD = 100 ARS
-      // Payment = 50,000 ARS, so loss = 49,900 ARS
-      expect(result.fxType).toBe("FX_LOSS")
-      expect(result.fxAmount).toBeCloseTo(49900, 2)
+      expect(result.fxType).toBe("FX_GAIN")
+      expect(result.fxAmount).toBeCloseTo(50, 2)
     })
   })
 })
-

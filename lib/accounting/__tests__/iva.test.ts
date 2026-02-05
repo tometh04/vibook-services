@@ -25,15 +25,15 @@ const createMockSupabase = () => {
 describe("IVA Service", () => {
   describe("calculateSaleIVA", () => {
     it("should calculate IVA correctly for a sale", () => {
-      const result = calculateSaleIVA(1210) // 1000 neto + 210 IVA
-      expect(result.net_amount).toBeCloseTo(1000, 2)
-      expect(result.iva_amount).toBeCloseTo(210, 2)
+      const result = calculateSaleIVA(1210) // IVA sobre margen (1210) -> IVA 254.10, neto 955.90
+      expect(result.net_amount).toBeCloseTo(955.9, 2)
+      expect(result.iva_amount).toBeCloseTo(254.1, 2)
     })
 
     it("should handle decimal amounts correctly", () => {
       const result = calculateSaleIVA(1210.5)
-      expect(result.net_amount).toBeCloseTo(1000.41, 2)
-      expect(result.iva_amount).toBeCloseTo(210.09, 2)
+      expect(result.net_amount).toBeCloseTo(956.3, 2)
+      expect(result.iva_amount).toBeCloseTo(254.21, 2)
     })
 
     it("should round to 2 decimal places", () => {
@@ -182,4 +182,3 @@ describe("IVA Service", () => {
     })
   })
 })
-
