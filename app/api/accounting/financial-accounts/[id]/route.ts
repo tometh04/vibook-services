@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { getAccountBalance, createLedgerMovement, calculateARSEquivalent } from "@/lib/accounting/ledger"
 import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 import { canPerformAction } from "@/lib/permissions-api"
@@ -33,6 +34,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 })
     }
 
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    if (user.role !== "SUPER_ADMIN" && (!account.agency_id || !agencyIds.includes(account.agency_id))) {
+      return NextResponse.json({ error: "No tiene acceso a esta cuenta" }, { status: 403 })
+    }
+
     // Calcular el balance actual
     let currentBalance: number
     try {
@@ -43,9 +49,15 @@ export async function DELETE(
     }
 
     // Verificar cuántas cuentas financieras activas quedan
-    const { data: allActiveAccounts, error: accountsCountError } = await (supabase.from("financial_accounts") as any)
+    let activeAccountsQuery = (supabase.from("financial_accounts") as any)
       .select("id")
       .eq("is_active", true)
+
+    if (user.role !== "SUPER_ADMIN") {
+      activeAccountsQuery = activeAccountsQuery.in("agency_id", agencyIds)
+    }
+
+    const { data: allActiveAccounts, error: accountsCountError } = await activeAccountsQuery
     
     const activeAccountsCount = (allActiveAccounts || []).length
 
@@ -124,6 +136,10 @@ export async function DELETE(
 
       if (destError || !destinationAccount) {
         return NextResponse.json({ error: "Cuenta de destino no encontrada o inactiva" }, { status: 404 })
+      }
+
+      if (user.role !== "SUPER_ADMIN" && (!destinationAccount.agency_id || !agencyIds.includes(destinationAccount.agency_id))) {
+        return NextResponse.json({ error: "No tiene acceso a la cuenta de destino" }, { status: 403 })
       }
 
       // Verificar que las monedas coincidan

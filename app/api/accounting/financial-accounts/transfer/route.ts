@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { canPerformAction } from "@/lib/permissions-api"
 import { createLedgerMovement, calculateARSEquivalent, validateAccountBalanceForExpense, getAccountBalance } from "@/lib/accounting/ledger"
 import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
@@ -66,6 +67,16 @@ export async function POST(request: Request) {
 
     if (!fromAccount || !toAccount) {
       return NextResponse.json({ error: "Cuentas no encontradas" }, { status: 404 })
+    }
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    if (user.role !== "SUPER_ADMIN") {
+      if (!fromAccount.agency_id || !agencyIds.includes(fromAccount.agency_id)) {
+        return NextResponse.json({ error: "No tiene acceso a la cuenta origen" }, { status: 403 })
+      }
+      if (!toAccount.agency_id || !agencyIds.includes(toAccount.agency_id)) {
+        return NextResponse.json({ error: "No tiene acceso a la cuenta destino" }, { status: 403 })
+      }
     }
 
     // Verificar que las cuentas estén activas

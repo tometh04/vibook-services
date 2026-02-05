@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { revalidateTag, CACHE_TAGS } from "@/lib/cache"
 
 // Forzar ruta dinámica (usa cookies para autenticación)
@@ -10,9 +11,17 @@ export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+    const { searchParams } = new URL(request.url)
+    const agencyId = searchParams.get("agencyId")
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({ operators: [] })
+    }
 
     // Get all operators with their operations and payments
-    const { data, error } = await supabase
+    let query = supabase
       .from("operators")
       .select(
         `
@@ -36,6 +45,20 @@ export async function GET(request: Request) {
       `,
       )
       .order("name")
+
+    if (user.role !== "SUPER_ADMIN") {
+      // Restringir por agencias del usuario
+      query = query.in("agency_id", agencyIds)
+    }
+
+    if (agencyId && agencyId !== "ALL") {
+      if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(agencyId)) {
+        return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
+      }
+      query = query.eq("agency_id", agencyId)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error("Error fetching operators:", error)
@@ -96,11 +119,29 @@ export async function POST(request: Request) {
     const supabase = await createServerClient()
     const body = await request.json()
 
-    const { name, contact_name, contact_email, contact_phone, credit_limit } = body
+    const { name, contact_name, contact_email, contact_phone, credit_limit, agency_id } = body
 
     // Validations
     if (!name) {
       return NextResponse.json({ error: "El nombre es requerido" }, { status: 400 })
+    }
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    let resolvedAgencyId = agency_id
+    if (!resolvedAgencyId) {
+      if (user.role === "SUPER_ADMIN") {
+        return NextResponse.json({ error: "agency_id es requerido" }, { status: 400 })
+      }
+      if (agencyIds.length === 1) {
+        resolvedAgencyId = agencyIds[0]
+      } else {
+        return NextResponse.json({ error: "Debe seleccionar una agencia" }, { status: 400 })
+      }
+    }
+
+    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(resolvedAgencyId)) {
+      return NextResponse.json({ error: "No tiene permiso para esta agencia" }, { status: 403 })
     }
 
     // Create operator
@@ -112,6 +153,7 @@ export async function POST(request: Request) {
         contact_email: contact_email || null,
         contact_phone: contact_phone || null,
         credit_limit: credit_limit || null,
+        agency_id: resolvedAgencyId,
       })
       .select()
       .single()
@@ -130,4 +172,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Error al crear operador" }, { status: 500 })
   }
 }
-

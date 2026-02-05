@@ -22,6 +22,11 @@ export default async function DashboardLayout({
     name: ua.agencies?.name || "Sin nombre",
   }))
 
+  if (agencies.length === 0) {
+    // Seguridad: sin agencia asignada, no permitir acceso al dashboard
+    redirect('/login?error=no_agency')
+  }
+
   // Usar cliente admin para evitar problemas de RLS
   const supabaseAdmin = createAdminSupabaseClient()
   

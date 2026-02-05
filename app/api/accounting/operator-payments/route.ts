@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { getOverdueOperatorPayments, updateOverduePayments } from "@/lib/accounting/operator-payments"
 
 export async function GET(request: Request) {
@@ -20,6 +21,37 @@ export async function GET(request: Request) {
     // Update overdue payments first
     await updateOverduePayments(supabase)
 
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({ payments: [] })
+    }
+
+    let allowedAgencyIds = agencyIds
+    if (agencyId && agencyId !== "ALL") {
+      if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(agencyId)) {
+        return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
+      }
+      allowedAgencyIds = [agencyId]
+    }
+
+    const { data: operationsForAgency } = await supabase
+      .from("operations")
+      .select("id, seller_id")
+      .in("agency_id", allowedAgencyIds)
+
+    let operationIds = (operationsForAgency || []).map((op: any) => op.id)
+
+    if (user.role === "SELLER") {
+      operationIds = (operationsForAgency || [])
+        .filter((op: any) => op.seller_id === user.id)
+        .map((op: any) => op.id)
+    }
+
+    if (operationIds.length === 0) {
+      return NextResponse.json({ payments: [] })
+    }
+
     // Build query
     let query = (supabase.from("operator_payments") as any)
       .select(
@@ -29,6 +61,7 @@ export async function GET(request: Request) {
         operators:operator_id (id, name, contact_email)
       `
       )
+      .in("operation_id", operationIds)
       .order("due_date", { ascending: true })
 
     if (operatorId) {
@@ -57,19 +90,9 @@ export async function GET(request: Request) {
 
     console.log("[OperatorPayments API] Total payments found:", payments?.length || 0)
 
-    // Filtrar por agencia si se especifica
-    let filteredPayments = payments || []
-    if (agencyId && agencyId !== "ALL") {
-      filteredPayments = filteredPayments.filter((p: any) => {
-        const operation = p.operations
-        return operation && operation.agency_id === agencyId
-      })
-    }
-
-    return NextResponse.json({ payments: filteredPayments })
+    return NextResponse.json({ payments: payments || [] })
   } catch (error) {
     console.error("Error in GET /api/accounting/operator-payments:", error)
     return NextResponse.json({ error: "Error al obtener pagos a operadores" }, { status: 500 })
   }
 }
-

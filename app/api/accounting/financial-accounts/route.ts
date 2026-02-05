@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { getAccountBalance, isAccountingOnlyAccount, getAccountBalancesBatch, filterAccountingOnlyAccountsBatch } from "@/lib/accounting/ledger"
 import { canPerformAction } from "@/lib/permissions-api"
 
@@ -10,9 +11,16 @@ export async function GET(request: Request) {
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
     const excludeAccountingOnly = searchParams.get("excludeAccountingOnly") === "true"
+    const agencyId = searchParams.get("agencyId")
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({ accounts: [] })
+    }
 
     // Get all financial accounts with agency info
-    const { data: accounts, error: accountsError } = await (supabase.from("financial_accounts") as any)
+    let accountsQuery = (supabase.from("financial_accounts") as any)
       .select(`
         *,
         agencies:agency_id(id, name)
@@ -20,6 +28,19 @@ export async function GET(request: Request) {
       .order("agency_id", { ascending: true })
       .order("type", { ascending: true })
       .order("currency", { ascending: true })
+
+    if (user.role !== "SUPER_ADMIN") {
+      accountsQuery = accountsQuery.in("agency_id", agencyIds)
+    }
+
+    if (agencyId && agencyId !== "ALL") {
+      if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(agencyId)) {
+        return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
+      }
+      accountsQuery = accountsQuery.eq("agency_id", agencyId)
+    }
+
+    const { data: accounts, error: accountsError } = await accountsQuery
 
     if (accountsError) {
       console.error("Error fetching financial accounts:", accountsError)
@@ -103,8 +124,26 @@ export async function POST(request: Request) {
       chart_account_id, // OBLIGATORIO según especificaciones
     } = body
 
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    let resolvedAgencyId = agency_id
+    if (!resolvedAgencyId) {
+      if (user.role === "SUPER_ADMIN") {
+        return NextResponse.json({ error: "agency_id es requerido" }, { status: 400 })
+      }
+      if (agencyIds.length === 1) {
+        resolvedAgencyId = agencyIds[0]
+      } else {
+        return NextResponse.json({ error: "Debe seleccionar una agencia" }, { status: 400 })
+      }
+    }
+
+    if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(resolvedAgencyId)) {
+      return NextResponse.json({ error: "No tiene permiso para esta agencia" }, { status: 403 })
+    }
+
     // Validar campos requeridos
-    if (!name || !type || !currency || !agency_id) {
+    if (!name || !type || !currency || !resolvedAgencyId) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
@@ -195,7 +234,7 @@ export async function POST(request: Request) {
       name,
       type,
       currency,
-      agency_id,
+      agency_id: resolvedAgencyId,
       initial_balance: Number(initial_balance) || 0,
       chart_account_id: finalChartAccountId, // Asignado automáticamente o proporcionado
       notes: notes || null,
@@ -229,4 +268,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Error al crear cuenta" }, { status: 500 })
   }
 }
-

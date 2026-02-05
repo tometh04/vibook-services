@@ -134,7 +134,27 @@ export async function GET(request: Request) {
     let accountsPayableTotal = 0
 
     try {
-      // Obtener todos los pagos pendientes a operadores
+      // Obtener todos los pagos pendientes a operadores SOLO de las operaciones filtradas
+      const { data: operationsForAgency } = await supabase
+        .from("operations")
+        .select("id, agency_id")
+        .in("agency_id", agencyIds)
+
+      let operationIds = (operationsForAgency || []).map((op: any) => op.id)
+
+      if (agencyId && agencyId !== "ALL") {
+        operationIds = (operationsForAgency || [])
+          .filter((op: any) => op.agency_id === agencyId)
+          .map((op: any) => op.id)
+      }
+
+      if (operationIds.length === 0) {
+        return NextResponse.json({
+          accountsReceivable: Math.max(0, accountsReceivableTotal),
+          accountsPayable: 0,
+        })
+      }
+
       const { data: operatorPayments, error: operatorPaymentsError } = await (supabase.from("operator_payments") as any)
         .select(`
           id,
@@ -142,21 +162,15 @@ export async function GET(request: Request) {
           paid_amount,
           currency,
           status,
-          operations:operation_id (id, agency_id)
+          operation_id
         `)
         .in("status", ["PENDING", "OVERDUE"])
+        .in("operation_id", operationIds)
 
       if (operatorPaymentsError) {
         console.error("[PendingBalances] Error obteniendo pagos a operadores:", operatorPaymentsError)
       } else if (operatorPayments && operatorPayments.length > 0) {
-        // Filtrar por agencia si se especifica
         let filteredPayments = operatorPayments
-        if (agencyId && agencyId !== "ALL") {
-          filteredPayments = filteredPayments.filter((p: any) => {
-            const operation = p.operations
-            return operation && operation.agency_id === agencyId
-          })
-        }
 
         // Obtener tasa de cambio más reciente como fallback
         const latestExchangeRate = await getLatestExchangeRate(supabase) || 1000

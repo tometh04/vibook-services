@@ -98,6 +98,12 @@ export async function POST(
       Importe: Math.round(values.Importe * 100) / 100,
     }))
 
+    const receptorCondicionIvaRaw = invoice.receptor_condicion_iva
+    const receptorCondicionIva =
+      typeof receptorCondicionIvaRaw === "number"
+        ? receptorCondicionIvaRaw
+        : Number(receptorCondicionIvaRaw) || 5
+
     // Crear request para AFIP
     const afipRequest = {
       CbteTipo: invoice.cbte_tipo as TipoComprobante,
@@ -105,6 +111,7 @@ export async function POST(
       Concepto: invoice.concepto as 1 | 2 | 3,
       DocTipo: invoice.receptor_doc_tipo as TipoDocumento,
       DocNro: parseInt(invoice.receptor_doc_nro.replace(/\D/g, ''), 10),
+      CondicionIVAReceptorId: receptorCondicionIva,
       CbteFch: formatDate(new Date()),
       ImpTotal: invoice.imp_total,
       ImpTotConc: invoice.imp_tot_conc || 0,

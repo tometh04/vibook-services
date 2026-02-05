@@ -172,6 +172,7 @@ export async function createInvoice(
       Concepto: request.Concepto,
       DocTipo: request.DocTipo,
       DocNro: request.DocNro,
+      CondicionIVAReceptorId: request.CondicionIVAReceptorId,
       CbteFch: cbteFch,
       ImpTotal: request.ImpTotal,
       // Factura C: ImpNeto = total, ImpTotConc = 0, ImpIVA = 0 (no discrimina IVA)

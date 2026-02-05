@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { getAccountBalance, getAccountBalancesBatch } from "@/lib/accounting/ledger"
 
 /**
@@ -16,6 +17,21 @@ export async function GET(request: Request) {
     const year = parseInt(searchParams.get("year") || new Date().getFullYear().toString())
     const month = parseInt(searchParams.get("month") || (new Date().getMonth() + 1).toString())
     const agencyId = searchParams.get("agencyId") || "ALL"
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({
+        year,
+        month,
+        dateTo: "",
+        activo: { corriente: 0, no_corriente: 0, total: 0 },
+        pasivo: { corriente: 0, no_corriente: 0, total: 0 },
+        patrimonio_neto: { total: 0 },
+        resultado: { ingresos: 0, costos: 0, gastos: 0, total: 0 },
+        accounts: [],
+      })
+    }
 
     console.log(`[MonthlyPosition API] Request received: year=${year}, month=${month}, agencyId=${agencyId}`)
 
@@ -45,9 +61,16 @@ export async function GET(request: Request) {
       .eq("is_active", true)
       .not("chart_account_id", "is", null) // Solo cuentas vinculadas al plan de cuentas
 
+    if (user.role !== "SUPER_ADMIN") {
+      financialAccountsQuery = financialAccountsQuery.in("agency_id", agencyIds)
+    }
+
     if (agencyId !== "ALL") {
-      // Filtrar por agencia, pero también incluir cuentas sin agency_id (cuentas globales como "Cuentas por Pagar")
-      financialAccountsQuery = financialAccountsQuery.or(`agency_id.eq.${agencyId},agency_id.is.null`)
+      // Filtrar por agencia específica
+      if (user.role !== "SUPER_ADMIN" && !agencyIds.includes(agencyId)) {
+        return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
+      }
+      financialAccountsQuery = financialAccountsQuery.eq("agency_id", agencyId)
     }
 
     const [
@@ -88,28 +111,24 @@ export async function GET(request: Request) {
       `)
       .lte("created_at", `${dateTo}T23:59:59`)
 
-    if (agencyId !== "ALL") {
-      // Filtrar por agencia a través de las cuentas financieras
-      const financialAccountsArray = (financialAccounts || []) as any[]
-      const accountIds = financialAccountsArray
-        .filter((fa: any) => fa.agency_id === agencyId)
-        .map((fa: any) => fa.id)
-      
-      if (accountIds.length > 0) {
-        ledgerQuery = ledgerQuery.in("account_id", accountIds)
-      } else {
-        // Si no hay cuentas, retornar estructura vacía
-        return NextResponse.json({
-          year,
-          month,
-          dateTo,
-          activo: { corriente: 0, no_corriente: 0, total: 0 },
-          pasivo: { corriente: 0, no_corriente: 0, total: 0 },
-          patrimonio_neto: { total: 0 },
-          resultado: { ingresos: 0, costos: 0, gastos: 0, total: 0 },
-          accounts: []
-        })
-      }
+    // Filtrar movimientos por las cuentas disponibles (ya filtradas por agencia)
+    const financialAccountsArray = (financialAccounts || []) as any[]
+    const accountIds = financialAccountsArray.map((fa: any) => fa.id)
+
+    if (accountIds.length > 0) {
+      ledgerQuery = ledgerQuery.in("account_id", accountIds)
+    } else {
+      // Si no hay cuentas, retornar estructura vacía
+      return NextResponse.json({
+        year,
+        month,
+        dateTo,
+        activo: { corriente: 0, no_corriente: 0, total: 0 },
+        pasivo: { corriente: 0, no_corriente: 0, total: 0 },
+        patrimonio_neto: { total: 0 },
+        resultado: { ingresos: 0, costos: 0, gastos: 0, total: 0 },
+        accounts: []
+      })
     }
 
     const { data: movements, error: movementsError } = await ledgerQuery
@@ -594,4 +613,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message || "Error al obtener posición contable" }, { status: 500 })
   }
 }
-

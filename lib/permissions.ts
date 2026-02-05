@@ -59,7 +59,7 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     accounting: { read: true, write: true, delete: false, export: true },
     alerts: { read: true, write: true, delete: true, export: true },
     reports: { read: true, write: true, delete: false, export: true },
-    settings: { read: true, write: false, delete: false, export: false }, // No puede modificar settings
+    settings: { read: true, write: true, delete: true, export: true }, // ADMIN puede gestionar settings
     documents: { read: true, write: true, delete: false, export: true },
   },
   CONTABLE: {

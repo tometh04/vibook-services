@@ -69,6 +69,7 @@ export interface CreateInvoiceRequest {
   // Datos del receptor
   DocTipo: TipoDocumento
   DocNro: number // Número de documento (CUIT sin guiones)
+  CondicionIVAReceptorId?: CondicionIVA // Condición IVA del receptor (requerida por AFIP)
   
   // Datos del comprobante
   CbteFch?: string // Fecha del comprobante (YYYYMMDD) - opcional, por defecto hoy

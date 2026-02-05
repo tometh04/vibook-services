@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 
 export async function GET(request: Request) {
   try {
@@ -15,13 +16,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Faltan parámetros dateFrom y dateTo" }, { status: 400 })
     }
 
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length === 0) {
+      return NextResponse.json({ dailyBalances: [] })
+    }
+
     // OPTIMIZACIÓN: Obtener todas las cuentas y movimientos en 2 queries en lugar de N*D queries
     // (N = número de cuentas, D = número de días)
     
     // Query 1: Obtener todas las cuentas financieras
-    const { data: accounts } = await (supabase.from("financial_accounts") as any)
+    let accountsQuery = (supabase.from("financial_accounts") as any)
       .select("*")
       .in("type", ["CASH_ARS", "CASH_USD", "SAVINGS_ARS", "SAVINGS_USD", "CHECKING_ARS", "CHECKING_USD"])
+
+    if (user.role !== "SUPER_ADMIN") {
+      accountsQuery = accountsQuery.in("agency_id", agencyIds)
+    }
+
+    const { data: accounts } = await accountsQuery
 
     if (!accounts || accounts.length === 0) {
       return NextResponse.json({ dailyBalances: [] })

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,8 +20,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Operador no encontrado" }, { status: 404 })
     }
 
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    if (user.role !== "SUPER_ADMIN" && (!operator.agency_id || !agencyIds.includes(operator.agency_id))) {
+      return NextResponse.json({ error: "No tiene acceso a este operador" }, { status: 403 })
+    }
+
     // Get all operations for this operator
-    const { data: operations, error: operationsError } = await supabase
+    let operationsQuery = supabase
       .from("operations")
       .select(
         `
@@ -40,6 +46,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       )
       .eq("operator_id", operatorId)
       .order("created_at", { ascending: false })
+
+    if (user.role !== "SUPER_ADMIN") {
+      operationsQuery = operationsQuery.in("agency_id", agencyIds)
+    }
+
+    const { data: operations, error: operationsError } = await operationsQuery
 
     if (operationsError) {
       console.error("Error fetching operations:", operationsError)
@@ -101,6 +113,21 @@ export async function PATCH(
     }
 
     // Update operator
+    const { data: existingOperator, error: existingOperatorError } = await (supabase
+      .from("operators") as any)
+      .select("id, agency_id")
+      .eq("id", operatorId)
+      .single()
+
+    if (existingOperatorError || !existingOperator) {
+      return NextResponse.json({ error: "Operador no encontrado" }, { status: 404 })
+    }
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    if (user.role !== "SUPER_ADMIN" && (!existingOperator.agency_id || !agencyIds.includes(existingOperator.agency_id))) {
+      return NextResponse.json({ error: "No tiene acceso a este operador" }, { status: 403 })
+    }
+
     const { data: operator, error: updateError } = await (supabase
       .from("operators") as any)
       .update({
@@ -135,6 +162,21 @@ export async function DELETE(
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const { id: operatorId } = await params
+
+    const { data: existingOperator, error: existingOperatorError } = await (supabase
+      .from("operators") as any)
+      .select("id, agency_id")
+      .eq("id", operatorId)
+      .single()
+
+    if (existingOperatorError || !existingOperator) {
+      return NextResponse.json({ error: "Operador no encontrado" }, { status: 404 })
+    }
+
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    if (user.role !== "SUPER_ADMIN" && (!existingOperator.agency_id || !agencyIds.includes(existingOperator.agency_id))) {
+      return NextResponse.json({ error: "No tiene acceso a este operador" }, { status: 403 })
+    }
 
     // Check if operator has operations
     const { data: operations, error: checkError } = await supabase
@@ -172,4 +214,3 @@ export async function DELETE(
     return NextResponse.json({ error: "Error al eliminar operador" }, { status: 500 })
   }
 }
-
