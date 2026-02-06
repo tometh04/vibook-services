@@ -220,6 +220,10 @@ export function BulkPaymentDialog({
     return totalToPay / rate
   }, [totalToPay, selectedCurrency, paymentCurrency, exchangeRate])
 
+  const accountsForCurrency = useMemo(() => {
+    return financialAccounts.filter(acc => acc.currency === paymentCurrency)
+  }, [financialAccounts, paymentCurrency])
+
   // Validaciรณn por paso
   const canProceed = () => {
     switch (step) {
@@ -233,7 +237,7 @@ export function BulkPaymentDialog({
         if (selectedCurrency !== paymentCurrency && (!exchangeRate || parseFloat(exchangeRate) <= 0)) {
           return false
         }
-        return !!paymentDate && !!accountId
+        return !!paymentDate && !!accountId && accountsForCurrency.length > 0
       default:
         return false
     }
@@ -499,15 +503,18 @@ export function BulkPaymentDialog({
                   <SelectValue placeholder="Seleccionar cuenta" />
                 </SelectTrigger>
                 <SelectContent>
-                  {financialAccounts
-                    .filter(acc => acc.currency === paymentCurrency)
-                    .map((account) => (
+                  {accountsForCurrency.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.name} ({account.currency})
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
+              {accountsForCurrency.length === 0 && (
+                <p className="text-sm text-destructive">
+                  No tenés cuentas financieras en {paymentCurrency}. Creá una en Caja &gt; Cuentas Financieras.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

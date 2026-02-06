@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic'
 export default async function SettingsPage() {
   const { user } = await getCurrentUser()
   const supabase = await createServerClient()
+  const adminToolsEnabled = process.env.ADMIN_TOOLS_ENABLED === "true"
   
   // Cargar agencias disponibles
   let agencies: Array<{ id: string; name: string }> = []
@@ -60,7 +61,7 @@ export default async function SettingsPage() {
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
           <TabsTrigger value="afip">AFIP</TabsTrigger>
-          {user.role === "SUPER_ADMIN" && <TabsTrigger value="seed">Seed Data</TabsTrigger>}
+          {user.role === "SUPER_ADMIN" && adminToolsEnabled && <TabsTrigger value="seed">Seed Data</TabsTrigger>}
         </TabsList>
         <TabsContent value="users">
           <UsersSettings />
@@ -77,7 +78,7 @@ export default async function SettingsPage() {
         <TabsContent value="afip">
           <AfipSettings agencies={agencies} defaultAgencyId={firstAgencyId} />
         </TabsContent>
-        {user.role === "SUPER_ADMIN" && (
+        {user.role === "SUPER_ADMIN" && adminToolsEnabled && (
           <TabsContent value="seed" className="space-y-4">
             <SeedMockData />
             <MigrateHistoricalAccounting />

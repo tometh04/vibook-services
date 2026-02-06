@@ -5,6 +5,7 @@ import { generateFileCode } from "@/lib/accounting/file-code"
 import { transferLeadToOperation, getOrCreateDefaultAccount, createLedgerMovement, calculateARSEquivalent } from "@/lib/accounting/ledger"
 import { createSaleIVA, createPurchaseIVA } from "@/lib/accounting/iva"
 import { createOperatorPayment, calculateDueDate } from "@/lib/accounting/operator-payments"
+import { getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
 import { canPerformAction } from "@/lib/permissions-api"
 import { revalidateTag, CACHE_TAGS } from "@/lib/cache"
 import { generateMessagesFromAlerts } from "@/lib/whatsapp/alert-messages"
@@ -207,6 +208,73 @@ export async function POST(request: Request) {
     } else {
       // Sin operadores: permitir operaciones sin operador (costo = 0)
       totalOperatorCost = 0
+    }
+
+    // Validar límite de crédito por operador (si aplica)
+    if (operatorsList.length > 0) {
+      const operatorIds = operatorsList.map(op => op.operator_id)
+      const { data: operatorRows } = await (supabase.from("operators") as any)
+        .select("id, name, credit_limit")
+        .in("id", operatorIds)
+
+      const operatorMap = new Map<string, { name: string; credit_limit: number | null }>()
+      ;(operatorRows || []).forEach((op: any) => {
+        operatorMap.set(op.id, { name: op.name, credit_limit: op.credit_limit })
+      })
+
+      const { data: pendingPayments } = await (supabase.from("operator_payments") as any)
+        .select("operator_id, amount, currency, status")
+        .in("operator_id", operatorIds)
+        .in("status", ["PENDING", "OVERDUE"])
+
+      const needsRate =
+        operatorsList.some(op => op.cost_currency === "ARS") ||
+        (pendingPayments || []).some((p: any) => p.currency === "ARS")
+
+      let latestRate: number | null = null
+      if (needsRate) {
+        const rateValue = await getLatestExchangeRate(supabase)
+        latestRate = rateValue ? Number(rateValue) : null
+        if (!latestRate || latestRate <= 0) {
+          return NextResponse.json(
+            { error: "No hay tipo de cambio cargado para convertir ARS a USD. Cargalo en Configuración Financiera." },
+            { status: 400 }
+          )
+        }
+      }
+
+      const pendingUsdByOperator = new Map<string, number>()
+      ;(pendingPayments || []).forEach((p: any) => {
+        const amount = Number(p.amount || 0)
+        const amountUsd = p.currency === "USD" ? amount : amount / (latestRate || 1)
+        pendingUsdByOperator.set(
+          p.operator_id,
+          (pendingUsdByOperator.get(p.operator_id) || 0) + amountUsd
+        )
+      })
+
+      for (const op of operatorsList) {
+        const info = operatorMap.get(op.operator_id)
+        const limit = info?.credit_limit
+        if (!limit || limit <= 0) continue
+        const pendingUsd = pendingUsdByOperator.get(op.operator_id) || 0
+        const costUsd = op.cost_currency === "USD" ? op.cost : op.cost / (latestRate || 1)
+        const projectedUsd = pendingUsd + costUsd
+
+        if (projectedUsd > limit) {
+          return NextResponse.json(
+            {
+              error: `El operador ${info?.name || "seleccionado"} supera el límite de crédito. Disponible: USD ${(limit - pendingUsd).toFixed(2)}.`,
+              creditLimitExceeded: true,
+              operator_id: op.operator_id,
+              limit,
+              pending_usd: pendingUsd,
+              projected_usd: projectedUsd,
+            },
+            { status: 409 }
+          )
+        }
+      }
     }
 
     // Validaciones de fechas (solo cuando departure_date está presente)

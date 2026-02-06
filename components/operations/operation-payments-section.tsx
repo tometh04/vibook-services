@@ -535,6 +535,8 @@ export function OperationPaymentsSection({
   const watchCurrency = form.watch("currency")
   const watchAmount = form.watch("amount")
   const watchExchangeRate = form.watch("exchange_rate")
+  const availableAccounts = financialAccounts.filter(acc => acc.currency === watchCurrency)
+  const hasAvailableAccounts = availableAccounts.length > 0
 
   // Calcular equivalente en USD
   const calculatedUSD = watchCurrency === "ARS" && watchAmount > 0 && watchExchangeRate && watchExchangeRate > 0
@@ -1019,9 +1021,7 @@ export function OperationPaymentsSection({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {financialAccounts
-                          .filter(acc => acc.currency === form.watch("currency"))
-                          .map((account) => {
+                        {availableAccounts.map((account) => {
                             const balance = account.current_balance || account.initial_balance || 0
                             return (
                               <SelectItem key={account.id} value={account.id}>
@@ -1031,6 +1031,11 @@ export function OperationPaymentsSection({
                           })}
                       </SelectContent>
                     </Select>
+                    {!hasAvailableAccounts && (
+                      <p className="text-sm text-destructive mt-2">
+                        No tenés cuentas financieras en {watchCurrency}. Creá una en Caja &gt; Cuentas Financieras.
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1054,7 +1059,7 @@ export function OperationPaymentsSection({
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || !hasAvailableAccounts}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
