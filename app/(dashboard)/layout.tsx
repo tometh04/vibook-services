@@ -1,4 +1,4 @@
-import { getCurrentUser, getUserAgencies } from "@/lib/auth"
+import { ensureUserAgencyLink, getCurrentUser, getUserAgencies } from "@/lib/auth"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -15,7 +15,8 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user } = await getCurrentUser()
+  const { user, session } = await getCurrentUser()
+  await ensureUserAgencyLink(user, session.user)
   const userAgencies = await getUserAgencies(user.id)
 
   const agencies = (userAgencies || []).map((ua: any) => ({
@@ -30,50 +31,37 @@ export default async function DashboardLayout({
 
   // Usar cliente admin para evitar problemas de RLS
   const supabaseAdmin = createAdminSupabaseClient()
-  
-  // Buscar la agencia con suscripción activa, o usar la primera disponible
-  let activeAgencyId = undefined
+
+  // Seleccionar suscripción consistente con el API /subscription
+  let activeAgencyId = agencies.length > 0 ? agencies[0].id : undefined
   if (agencies.length > 0) {
-    // Buscar agencia con suscripción ACTIVE o TRIAL - UNA SOLA QUERY para todas las agencias
     const agencyIds = agencies.map((a: any) => a.id)
-    const { data: activeSubscriptions } = await (supabaseAdmin
-      .from("subscriptions") as any)
-      .select("agency_id, status, plan:subscription_plans(name)")
-      .in("agency_id", agencyIds)
-      .in("status", ["ACTIVE", "TRIAL"])
-      .limit(1)
-      .maybeSingle()
-
-    if (activeSubscriptions) {
-      activeAgencyId = activeSubscriptions.agency_id
-    } else {
-      // Si no encontró ninguna con ACTIVE/TRIAL, usar la primera
-      activeAgencyId = agencies[0].id
-    }
-  }
-
-  // Verificar estado de suscripción y bloquear acceso si no tiene plan de pago activo
-  if (activeAgencyId) {
-    // Obtener todas las suscripciones y tomar la más reciente o la que esté ACTIVE/TRIAL
     const { data: subscriptions, error: subError } = await (supabaseAdmin
       .from("subscriptions") as any)
       .select(`
         id,
+        agency_id,
         status,
         mp_preapproval_id,
         created_at,
         trial_end,
         plan:subscription_plans(name)
       `)
-      .eq("agency_id", activeAgencyId)
+      .in("agency_id", agencyIds)
       .order("created_at", { ascending: false })
-    
-    // Tomar la suscripción más relevante: ACTIVE > TRIAL > más reciente
-    let subscription = null
-    if (subscriptions && subscriptions.length > 0) {
-      subscription = subscriptions.find((s: any) => s.status === 'ACTIVE') 
-        || subscriptions.find((s: any) => s.status === 'TRIAL')
-        || subscriptions[0] // La más reciente
+
+    const now = new Date()
+    const testerSubscription = subscriptions?.find((s: any) => s.plan?.name === 'TESTER') || null
+    const activeSubscription = subscriptions?.find((s: any) => s.status === 'ACTIVE') || null
+    const trialSubscription = subscriptions?.find((s: any) => {
+      if (s.status !== 'TRIAL') return false
+      if (!s.trial_end) return true
+      return new Date(s.trial_end) >= now
+    }) || null
+
+    const subscription = testerSubscription || activeSubscription || trialSubscription || (subscriptions?.[0] ?? null)
+    if (subscription?.agency_id) {
+      activeAgencyId = subscription.agency_id
     }
 
     // Log para debugging
@@ -93,30 +81,17 @@ export default async function DashboardLayout({
     if (subscription) {
       const status = subscription.status as string
       const planName = subscription.plan?.name as string
-      
-      // REGLA PRINCIPAL: Contenido SIEMPRE bloqueado EXCEPTO si:
-      // 1. Prueba Gratuita (TRIAL)
-      // 2. Usuario "Tester" (plan TESTER)
-      // 3. Ha pagado una suscripción (ACTIVE)
-      
-      // PERMITIR acceso solo si:
-      // - Plan es TESTER (acceso completo sin pago)
-      // - Status es ACTIVE (ha pagado)
-      // - Status es TRIAL (prueba gratuita)
       const trialEndRaw = subscription.trial_end as string | null | undefined
       const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null
       const trialActive = status === 'TRIAL' && (!trialEndDate || trialEndDate >= new Date())
 
       if (planName === 'TESTER' || status === 'ACTIVE' || trialActive) {
         console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida:', { status, planName })
-        // Continuar al dashboard
       } else {
-        // Cualquier otro estado (CANCELED, SUSPENDED, PAST_DUE, UNPAID, FREE sin pago, etc.) = bloqueado
         console.log('[Dashboard Layout] Bloqueando acceso - estado inválido:', { status, planName })
         redirect('/paywall')
       }
     } else {
-      // Si no tiene suscripción, redirigir al paywall
       console.log('[Dashboard Layout] Bloqueando acceso - no hay suscripción')
       redirect('/paywall')
     }

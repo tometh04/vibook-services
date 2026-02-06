@@ -19,7 +19,7 @@ export default function PaywallPage() {
   const [trialDays, setTrialDays] = useState(7)
   const [usingFallbackPlans, setUsingFallbackPlans] = useState(false)
   const [verifying, setVerifying] = useState(false)
-  const { subscription, loading: subscriptionLoading } = useSubscription()
+  const { subscription, loading: subscriptionLoading, isActive, isTrial } = useSubscription()
 
   useEffect(() => {
     async function fetchPlans() {
@@ -211,12 +211,10 @@ export default function PaywallPage() {
 
   // Si ya tiene una suscripción activa, redirigir al dashboard
   useEffect(() => {
-    if (!subscriptionLoading && subscription) {
-      if (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL') {
-        router.push('/dashboard')
-      }
+    if (!subscriptionLoading && (isActive || isTrial)) {
+      router.replace('/dashboard')
     }
-  }, [subscription, subscriptionLoading, router])
+  }, [isActive, isTrial, subscriptionLoading, router])
 
   if (loading || subscriptionLoading) {
     return (

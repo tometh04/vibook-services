@@ -107,12 +107,24 @@ export async function POST(request: Request) {
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
     // Invitar usuario con Supabase Auth (envía email automáticamente)
+    const defaultAgencyId = (userAgencies as any)?.agency_id as string | undefined
+    const normalizedAgencies = Array.isArray(agencies) && agencies.length > 0
+      ? agencies
+      : (defaultAgencyId ? [defaultAgencyId] : [])
+
+    if (normalizedAgencies.length === 0) {
+      return NextResponse.json({ 
+        error: "No se pudo determinar la agencia del invitador. Por favor, seleccioná una agencia antes de invitar." 
+      }, { status: 400 })
+    }
+
     const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${origin}/auth/accept-invite`,
       data: {
         name,
         role,
         invited_by: user.email,
+        agency_id: normalizedAgencies[0],
       },
     })
 
@@ -175,10 +187,10 @@ export async function POST(request: Request) {
     }
 
     // Vincular agencias
-    if (agencies && agencies.length > 0) {
+    if (normalizedAgencies.length > 0) {
       const userAgenciesTable = supabase.from("user_agencies") as any
       const { error: agenciesError } = await userAgenciesTable.insert(
-        agencies.map((agencyId: string) => ({
+        normalizedAgencies.map((agencyId: string) => ({
           user_id: (userData as any).id,
           agency_id: agencyId,
         }))

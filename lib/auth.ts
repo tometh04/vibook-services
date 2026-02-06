@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Database } from '@/lib/supabase/types'
 
@@ -34,12 +35,84 @@ export async function getUserAgencies(userId: string): Promise<Array<{ agency_id
     .select('agency_id, agencies(*)')
     .eq('user_id', userId)
 
-  if (error) {
-    console.error('Error fetching user agencies:', error)
-    return []
+  if (error || !data || data.length === 0) {
+    if (error) {
+      console.error('Error fetching user agencies:', error)
+    }
+    try {
+      const supabaseAdmin = createAdminSupabaseClient()
+      const { data: adminData, error: adminError } = await (supabaseAdmin
+        .from('user_agencies') as any)
+        .select('agency_id, agencies(*)')
+        .eq('user_id', userId)
+      if (adminError) {
+        console.error('Error fetching user agencies (admin):', adminError)
+        return []
+      }
+      return (adminData || []) as Array<{ agency_id: string; agencies: { name: string; city: string; timezone: string } | null }>
+    } catch (adminFallbackError) {
+      console.error('Error in admin fallback for user agencies:', adminFallbackError)
+      return []
+    }
   }
 
-  return (data || []) as Array<{ agency_id: string; agencies: { name: string; city: string; timezone: string } | null }>
+  return data as Array<{ agency_id: string; agencies: { name: string; city: string; timezone: string } | null }>
+}
+
+export async function ensureUserAgencyLink(user: User, authUser: any): Promise<void> {
+  try {
+    const supabaseAdmin = createAdminSupabaseClient()
+    const { data: existing } = await (supabaseAdmin
+      .from('user_agencies') as any)
+      .select('agency_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+
+    if (existing?.agency_id) {
+      return
+    }
+
+    let agencyId = authUser?.user_metadata?.agency_id as string | undefined
+
+    if (!agencyId) {
+      const invitedBy = authUser?.user_metadata?.invited_by as string | undefined
+      if (invitedBy) {
+        const { data: inviter } = await (supabaseAdmin
+          .from('users') as any)
+          .select('id')
+          .eq('email', invitedBy)
+          .maybeSingle()
+
+        if (inviter?.id) {
+          const { data: inviterAgency } = await (supabaseAdmin
+            .from('user_agencies') as any)
+            .select('agency_id')
+            .eq('user_id', inviter.id)
+            .limit(1)
+            .maybeSingle()
+          agencyId = inviterAgency?.agency_id
+        }
+      }
+    }
+
+    if (!agencyId) {
+      return
+    }
+
+    const { error: insertError } = await (supabaseAdmin
+      .from('user_agencies') as any)
+      .insert({
+        user_id: user.id,
+        agency_id: agencyId,
+      })
+
+    if (insertError) {
+      console.error('Error auto-linking user to agency:', insertError)
+    }
+  } catch (error) {
+    console.error('Error ensuring user agency link:', error)
+  }
 }
 
 // Helper functions para verificación de roles
