@@ -37,31 +37,52 @@ export default async function DashboardPage() {
     agencies = data || []
   }
 
-  // Get sellers
-  let sellersQuery = supabase.from("users").select("id, name").in("role", ["SELLER", "ADMIN", "SUPER_ADMIN"]).eq("is_active", true)
-
+  // Get sellers (filtrar por agencias del usuario cuando no es SUPER_ADMIN)
   const userRole = user.role as string
-  if (userRole === "SELLER") {
-    sellersQuery = sellersQuery.eq("id", user.id)
-  }
+  let sellers: Array<{ id: string; name: string }> = []
 
-  const { data: sellers } = await sellersQuery
+  if (userRole === "SUPER_ADMIN") {
+    const { data: sellersData } = await supabase
+      .from("users")
+      .select("id, name")
+      .in("role", ["SELLER", "ADMIN", "SUPER_ADMIN"])
+      .eq("is_active", true)
+    sellers = (sellersData || []) as Array<{ id: string; name: string }>
+  } else if (userRole === "SELLER") {
+    sellers = [{ id: user.id, name: user.name }]
+  } else if (agencies.length > 0) {
+    const agencyIds = agencies.map((a) => a.id)
+    const { data: agencyUsers } = await supabase
+      .from("user_agencies")
+      .select("user_id")
+      .in("agency_id", agencyIds)
+
+    const sellerIds = Array.from(new Set((agencyUsers || []).map((ua: any) => ua.user_id)))
+    if (sellerIds.length > 0) {
+      const { data: sellersData } = await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", sellerIds)
+        .in("role", ["SELLER", "ADMIN"])
+        .eq("is_active", true)
+      sellers = (sellersData || []) as Array<{ id: string; name: string }>
+    }
+  }
 
   const dates = getDefaultDateRange()
 
   const defaultFilters: DashboardFiltersState = {
     dateFrom: dates.dateFrom,
     dateTo: dates.dateTo,
-    agencyId: "ALL",
+    agencyId: user.role === "SUPER_ADMIN" ? "ALL" : (agencies[0]?.id || "ALL"),
     sellerId: "ALL",
   }
 
   return (
     <DashboardPageClient
       agencies={agencies}
-      sellers={(sellers || []).map((s: any) => ({ id: s.id, name: s.name }))}
+      sellers={sellers.map((s: any) => ({ id: s.id, name: s.name }))}
       defaultFilters={defaultFilters}
     />
   )
 }
-

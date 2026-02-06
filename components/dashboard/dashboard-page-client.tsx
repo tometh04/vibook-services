@@ -107,6 +107,24 @@ export function DashboardPageClient({
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
+    // Resetear estados para evitar mostrar datos anteriores en sesiones nuevas
+    setKpis({
+      totalSales: 0,
+      totalMargin: 0,
+      operationsCount: 0,
+      avgMarginPercent: 0,
+      pendingCustomerPayments: 0,
+      pendingOperatorPayments: 0,
+    })
+    setPreviousKpis({
+      totalSales: 0,
+      totalMargin: 0,
+      operationsCount: 0,
+    })
+    setSellersData([])
+    setDestinationsData([])
+    setDestinationsAllData([])
+    setCashflowData([])
     try {
       const params = new URLSearchParams()
       params.set("dateFrom", filters.dateFrom)
@@ -183,6 +201,23 @@ export function DashboardPageClient({
       setCashflowData(cashflowData.cashflow || [])
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
+      setKpis({
+        totalSales: 0,
+        totalMargin: 0,
+        operationsCount: 0,
+        avgMarginPercent: 0,
+        pendingCustomerPayments: 0,
+        pendingOperatorPayments: 0,
+      })
+      setPreviousKpis({
+        totalSales: 0,
+        totalMargin: 0,
+        operationsCount: 0,
+      })
+      setSellersData([])
+      setDestinationsData([])
+      setDestinationsAllData([])
+      setCashflowData([])
     } finally {
       setLoading(false)
     }
