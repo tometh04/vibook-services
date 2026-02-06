@@ -18,9 +18,20 @@ import {
 export function ThemeToggleSidebar() {
   const { setTheme, theme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
+  const [themeLocked, setThemeLocked] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
+  }, [])
+
+  React.useEffect(() => {
+    const updateLock = () => {
+      if (typeof document === "undefined") return
+      setThemeLocked(document.documentElement.dataset.themeLocked === "true")
+    }
+    updateLock()
+    window.addEventListener("branding:updated", updateLock)
+    return () => window.removeEventListener("branding:updated", updateLock)
   }, [])
 
   if (!mounted) {
@@ -31,6 +42,21 @@ export function ThemeToggleSidebar() {
             <SidebarMenuButton size="lg" disabled>
               <Sun className="h-4 w-4" />
               <span>Cargando tema</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </div>
+    )
+  }
+
+  if (themeLocked) {
+    return (
+      <div className="theme-toggle">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" disabled>
+              <Sun className="h-4 w-4" />
+              <span>Tema fijo</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

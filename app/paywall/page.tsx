@@ -297,6 +297,15 @@ export default function PaywallPage() {
             {plans.map((plan) => {
               const price = plan.price_monthly
               const isPopular = plan.name === 'PRO'
+              const optionalFeatures = [
+                { key: 'cerebro', label: 'Cerebro (Asistente IA)', enabled: plan.features.cerebro },
+                { key: 'emilia', label: 'Emilia (Asistente IA)', enabled: plan.features.emilia },
+                { key: 'whatsapp', label: 'WhatsApp', enabled: plan.features.whatsapp },
+                { key: 'reports', label: 'Reportes avanzados', enabled: plan.features.reports },
+                { key: 'marketing_ads', label: 'Marketing y Ads', enabled: plan.features.marketing_ads },
+              ]
+              const availableFeatures = optionalFeatures.filter((feature) => feature.enabled)
+              const missingFeatures = optionalFeatures.filter((feature) => !feature.enabled)
 
               return (
                 <Card
@@ -321,8 +330,10 @@ export default function PaywallPage() {
                       {plan.description}
                     </CardDescription>
                     <div className="pt-4">
-                      <div className="flex items-end gap-2">
-                        <span className="text-4xl font-semibold text-slate-900">{formatPrice(price)}</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-semibold leading-none text-slate-900">
+                          {formatPrice(price)}
+                        </span>
                         {price !== null && price > 0 && (
                           <span className="text-sm text-slate-500">/mes</span>
                         )}
@@ -340,62 +351,31 @@ export default function PaywallPage() {
                         <Check className="mt-0.5 h-4 w-4 text-emerald-500" />
                         {formatLimit(plan.max_operations_per_month)} operaciones/mes
                       </div>
-                      <div className="flex items-start gap-3">
-                        {plan.features.cerebro ? (
+                      {availableFeatures.map((feature) => (
+                        <div key={feature.key} className="flex items-start gap-3">
                           <Check className="mt-0.5 h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <span className="mt-0.5 h-4 w-4 text-slate-300">—</span>
-                        )}
-                        <span className={plan.features.cerebro ? "text-slate-600" : "text-slate-400"}>
-                          Cerebro (Asistente IA)
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        {plan.features.emilia ? (
-                          <Check className="mt-0.5 h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <span className="mt-0.5 h-4 w-4 text-slate-300">—</span>
-                        )}
-                        <span className={plan.features.emilia ? "text-slate-600" : "text-slate-400"}>
-                          Emilia (Asistente IA)
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        {plan.features.whatsapp ? (
-                          <Check className="mt-0.5 h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <span className="mt-0.5 h-4 w-4 text-slate-300">—</span>
-                        )}
-                        <span className={plan.features.whatsapp ? "text-slate-600" : "text-slate-400"}>
-                          WhatsApp
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        {plan.features.reports ? (
-                          <Check className="mt-0.5 h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <span className="mt-0.5 h-4 w-4 text-slate-300">—</span>
-                        )}
-                        <span className={plan.features.reports ? "text-slate-600" : "text-slate-400"}>
-                          Reportes avanzados
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        {plan.features.marketing_ads ? (
-                          <Check className="mt-0.5 h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <span className="mt-0.5 h-4 w-4 text-slate-300">—</span>
-                        )}
-                        <span className={plan.features.marketing_ads ? "text-slate-600" : "text-slate-400"}>
-                          Marketing y Ads
-                        </span>
-                      </div>
+                          <span className="text-slate-600">{feature.label}</span>
+                        </div>
+                      ))}
+                      {missingFeatures.length > 0 && (
+                        <div className="space-y-2.5 pt-2 text-slate-400">
+                          <div className="border-t border-slate-200/70 pt-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                            No incluido
+                          </div>
+                          {missingFeatures.map((feature) => (
+                            <div key={feature.key} className="flex items-start gap-3">
+                              <span className="mt-0.5 h-4 w-4 text-slate-300">—</span>
+                              <span>{feature.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
 
                   <CardFooter className="pt-4">
                     <Button
-                      className={`h-11 w-full text-sm font-semibold ${usingFallbackPlans ? "cursor-not-allowed opacity-70" : ""}`}
+                      className={`h-11 w-full text-sm font-semibold transition active:scale-[0.98] ${usingFallbackPlans ? "cursor-not-allowed opacity-70" : ""}`}
                       variant={isPopular ? "default" : "outline"}
                       onClick={() => handleUpgrade(plan.id)}
                       disabled={loading || usingFallbackPlans}

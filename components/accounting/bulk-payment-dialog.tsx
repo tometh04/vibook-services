@@ -77,18 +77,18 @@ export function BulkPaymentDialog({
   // Estado del wizard (4 pasos)
   const [step, setStep] = useState(1)
   
-  // Paso 1: Selecciรณn de operador
+  // Paso 1: Selección de operador
   const [selectedOperatorId, setSelectedOperatorId] = useState<string>("")
   
-  // Paso 2: Selecciรณn de moneda
+  // Paso 2: Selección de moneda
   const [selectedCurrency, setSelectedCurrency] = useState<"ARS" | "USD">("USD")
   
-  // Paso 3: Deudas pendientes y selecciรณn
+  // Paso 3: Deudas pendientes y selección
   const [pendingDebts, setPendingDebts] = useState<PendingDebt[]>([])
   const [selectedDebts, setSelectedDebts] = useState<SelectedDebt[]>([])
   const [loadingDebts, setLoadingDebts] = useState(false)
   
-  // Paso 4: Informaciรณn del pago
+  // Paso 4: Información del pago
   const [paymentCurrency, setPaymentCurrency] = useState<"ARS" | "USD">("USD")
   const [exchangeRate, setExchangeRate] = useState<string>("")
   const [receiptNumber, setReceiptNumber] = useState<string>("")
@@ -173,7 +173,7 @@ export function BulkPaymentDialog({
     }
   }, [open])
 
-  // Toggle selecciรณn de deuda
+  // Toggle selección de deuda
   const toggleDebtSelection = (debt: PendingDebt) => {
     const isSelected = selectedDebts.some(d => d.id === debt.id)
     if (isSelected) {
@@ -224,7 +224,7 @@ export function BulkPaymentDialog({
     return financialAccounts.filter(acc => acc.currency === paymentCurrency)
   }, [financialAccounts, paymentCurrency])
 
-  // Validaciรณn por paso
+  // Validación por paso
   const canProceed = () => {
     switch (step) {
       case 1:
@@ -324,12 +324,12 @@ export function BulkPaymentDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">USD (Dรณlares)</SelectItem>
+                  <SelectItem value="USD">USD (Dólares)</SelectItem>
                   <SelectItem value="ARS">ARS (Pesos Argentinos)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">
-                Se mostrarรกn solo las deudas en la moneda seleccionada
+                Se mostrarán solo las deudas en la moneda seleccionada
               </p>
             </div>
           </div>
@@ -361,7 +361,7 @@ export function BulkPaymentDialog({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[50px]"></TableHead>
-                      <TableHead>Operaciรณn</TableHead>
+                      <TableHead>Operación</TableHead>
                       <TableHead className="text-right">Pendiente</TableHead>
                       <TableHead className="text-right">A Pagar</TableHead>
                       <TableHead>Venc.</TableHead>
@@ -484,7 +484,7 @@ export function BulkPaymentDialog({
               </div>
 
               <div className="space-y-2">
-                <Label>Nยฐ Comprobante</Label>
+                <Label>Nro. Comprobante</Label>
                 <Input
                   placeholder="Opcional"
                   value={receiptNumber}
@@ -555,9 +555,9 @@ export function BulkPaymentDialog({
                 )}
               </div>
 
-              {/* Desglose por operaciรณn */}
+              {/* Desglose por operación */}
               <div className="pt-3 border-t">
-                <p className="text-xs text-muted-foreground mb-2">Desglose por operaciรณn:</p>
+                <p className="text-xs text-muted-foreground mb-2">Desglose por operación:</p>
                 <div className="space-y-1 max-h-[120px] overflow-y-auto">
                   {selectedDebts.map(debt => (
                     <div key={debt.id} className="flex justify-between text-xs">
@@ -588,7 +588,7 @@ export function BulkPaymentDialog({
               step === 1 ? "Seleccionar Operador" :
               step === 2 ? "Seleccionar Moneda" :
               step === 3 ? "Seleccionar Deudas" :
-              "Informaciรณn del Pago"
+              "Información del Pago"
             }
           </DialogDescription>
         </DialogHeader>

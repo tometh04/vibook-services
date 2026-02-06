@@ -68,7 +68,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ movements: filteredMovements })
   } catch (error) {
     console.error("Error in GET /api/accounting/ledger:", error)
-    return NextResponse.json({ error: "Error al obtener movimientos del ledger" }, { status: 500 })
+    return NextResponse.json({ error: "Error al obtener movimientos contables" }, { status: 500 })
   }
 }
-

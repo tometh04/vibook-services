@@ -21,7 +21,7 @@ export function LedgerPageClient({ agencies }: LedgerPageClientProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Libro Mayor (Ledger)</h1>
+        <h1 className="text-3xl font-bold">Libro Mayor</h1>
         <p className="text-muted-foreground">
           Vista completa de todos los movimientos contables del sistema
         </p>
@@ -40,7 +40,7 @@ export function LedgerPageClient({ agencies }: LedgerPageClientProps) {
       <Card>
         <CardHeader>
           <CardTitle>Movimientos</CardTitle>
-          <CardDescription>Lista completa de movimientos del ledger</CardDescription>
+          <CardDescription>Lista completa de movimientos contables</CardDescription>
         </CardHeader>
         <CardContent>
           <LedgerTable filters={filters} />
@@ -49,4 +49,3 @@ export function LedgerPageClient({ agencies }: LedgerPageClientProps) {
     </div>
   )
 }
-

@@ -15,10 +15,21 @@ import {
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
+  const [themeLocked, setThemeLocked] = React.useState(false)
 
   // Evitar hidration mismatch
   React.useEffect(() => {
     setMounted(true)
+  }, [])
+
+  React.useEffect(() => {
+    const updateLock = () => {
+      if (typeof document === "undefined") return
+      setThemeLocked(document.documentElement.dataset.themeLocked === "true")
+    }
+    updateLock()
+    window.addEventListener("branding:updated", updateLock)
+    return () => window.removeEventListener("branding:updated", updateLock)
   }, [])
 
   if (!mounted) {
@@ -27,6 +38,17 @@ export function ThemeToggle() {
         <Button variant="outline" size="icon" disabled>
           <Sun className="h-[1.2rem] w-[1.2rem]" />
           <span className="sr-only">Cargando tema</span>
+        </Button>
+      </div>
+    )
+  }
+
+  if (themeLocked) {
+    return (
+      <div className="theme-toggle">
+        <Button variant="outline" size="icon" disabled title="Tema fijo por paleta">
+          <Sun className="h-[1.2rem] w-[1.2rem]" />
+          <span className="sr-only">Tema fijo</span>
         </Button>
       </div>
     )
