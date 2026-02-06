@@ -62,6 +62,7 @@ export default async function DashboardLayout({
         status,
         mp_preapproval_id,
         created_at,
+        trial_end,
         plan:subscription_plans(name)
       `)
       .eq("agency_id", activeAgencyId)
@@ -102,7 +103,11 @@ export default async function DashboardLayout({
       // - Plan es TESTER (acceso completo sin pago)
       // - Status es ACTIVE (ha pagado)
       // - Status es TRIAL (prueba gratuita)
-      if (planName === 'TESTER' || status === 'ACTIVE' || status === 'TRIAL') {
+      const trialEndRaw = subscription.trial_end as string | null | undefined
+      const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null
+      const trialActive = status === 'TRIAL' && (!trialEndDate || trialEndDate >= new Date())
+
+      if (planName === 'TESTER' || status === 'ACTIVE' || trialActive) {
         console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida:', { status, planName })
         // Continuar al dashboard
       } else {

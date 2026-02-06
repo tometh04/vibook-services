@@ -187,17 +187,22 @@ export async function POST(request: Request) {
 
     // Guardar preapproval_id en la suscripción (si existe) o crear una nueva
     if (existingSubscription) {
+      const existingStatus = (existingSubscription as any).status as string | undefined
+      const keepStatus = existingStatus === 'TRIAL' || existingStatus === 'ACTIVE'
       await (supabase
         .from("subscriptions") as any)
         .update({
           mp_preapproval_id: preapproval.id,
           mp_status: preapproval.status,
+          // IMPORTANTE: no activar trial acá. Esperar confirmación MP (callback/webhook).
+          // Mantener en UNPAID hasta que MP confirme, salvo que ya esté ACTIVE/TRIAL.
+          status: keepStatus ? existingStatus : 'UNPAID',
           updated_at: new Date().toISOString()
         })
         .eq("id", (existingSubscription as any).id)
     } else {
-      // Crear suscripción inicial
-      // Regla: si NO hay trial disponible, status debe ser UNPAID (bloquea acceso hasta confirmación MP)
+      // Crear suscripción inicial en estado bloqueado.
+      // Regla: NUNCA habilitar acceso desde checkout sin confirmación MP.
       await (supabase
         .from("subscriptions") as any)
         .insert({
@@ -205,9 +210,10 @@ export async function POST(request: Request) {
           plan_id: planId,
           mp_preapproval_id: preapproval.id,
           mp_status: preapproval.status,
-          status: hasUsedTrial || isUpgrade ? 'UNPAID' : 'TRIAL',
+          status: 'UNPAID',
           current_period_start: new Date().toISOString(),
           current_period_end: startDate.toISOString(),
+          // Guardamos las fechas de trial, pero NO activamos hasta callback confirmado.
           trial_start: hasUsedTrial || isUpgrade ? null : new Date().toISOString(),
           trial_end: hasUsedTrial || isUpgrade ? null : startDate.toISOString(),
           billing_cycle: 'MONTHLY'

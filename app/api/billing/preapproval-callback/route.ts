@@ -163,7 +163,7 @@ export async function GET(request: Request) {
 
     // Mapear estado de Mercado Pago a nuestro estado base
     const mpStatus = preapproval.status as string
-    let subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'TRIAL'
+    let subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'UNPAID'
     
     if (mpStatus === 'cancelled') {
       subscriptionStatus = 'CANCELED'
@@ -172,7 +172,7 @@ export async function GET(request: Request) {
     } else if (mpStatus === 'authorized') {
       subscriptionStatus = 'ACTIVE'
     } else if (mpStatus === 'pending') {
-      subscriptionStatus = 'TRIAL'
+      subscriptionStatus = 'UNPAID'
     }
 
     // Verificar si ya existe una suscripción
@@ -258,22 +258,29 @@ export async function GET(request: Request) {
 
       const trialDays = trialConfig ? parseInt(trialConfig.value) : 7 // Default 7 días
 
-      // Trial usando configuración
+      // Trial usando configuración:
+      // SOLO activar trial cuando MP confirmó (authorized). Si está pending, mantener UNPAID.
       if (subscriptionStatus === 'CANCELED') {
         subscriptionData.status = 'CANCELED'
       } else if (subscriptionStatus === 'SUSPENDED') {
         subscriptionData.status = 'SUSPENDED'
-      } else {
+      } else if (subscriptionStatus === 'ACTIVE') {
+        // MP confirmó el preapproval: habilitar TRIAL
         subscriptionData.status = 'TRIAL'
+        subscriptionData.trial_start = new Date().toISOString()
+        subscriptionData.trial_end = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
+        
+        // IMPORTANTE: Marcar que la agencia ya usó el trial SOLO cuando se activó
+        await (supabaseAdmin
+          .from("agencies") as any)
+          .update({ has_used_trial: true })
+          .eq("id", agencyId)
+      } else {
+        // pending u otros estados: seguir bloqueado
+        subscriptionData.status = 'UNPAID'
+        subscriptionData.trial_start = null
+        subscriptionData.trial_end = null
       }
-      subscriptionData.trial_start = new Date().toISOString()
-      subscriptionData.trial_end = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
-      
-      // IMPORTANTE: Marcar que la agencia ya usó el trial
-      await (supabaseAdmin
-        .from("agencies") as any)
-        .update({ has_used_trial: true })
-        .eq("id", agencyId)
     }
 
     let subscriptionResult: any

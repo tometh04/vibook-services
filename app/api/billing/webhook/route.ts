@@ -298,7 +298,7 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     // Buscar la suscripción por preapproval_id
     const { data: subscription, error } = await (getSupabaseAdmin()
       .from("subscriptions") as any)
-      .select("id, agency_id")
+      .select("id, agency_id, status, trial_end")
       .eq("mp_preapproval_id", preapprovalId)
       .maybeSingle()
 
@@ -317,7 +317,11 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     } else if (mpStatus === 'paused') {
       status = 'SUSPENDED'
     } else if (mpStatus === 'authorized') {
-      status = 'ACTIVE'
+      // Si tiene trial vigente, mantener TRIAL aun cuando MP autoriza
+      const trialEndRaw = (subscription as any)?.trial_end as string | null | undefined
+      const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null
+      const hasTrial = (subscription as any)?.status === 'TRIAL' && (!trialEndDate || trialEndDate >= new Date())
+      status = hasTrial ? 'TRIAL' : 'ACTIVE'
       // Resetear intentos de pago cuando hay pago exitoso
       if (subscription) {
         const subData = subscription as any
