@@ -86,7 +86,7 @@ export async function createFinancialAccountMovement({
     // USD hacia cuenta ARS: se requiere tipo de cambio explícito
     exchangeRate = providedExchangeRate ?? null
     if (!exchangeRate || exchangeRate <= 0) {
-      throw new Error("El tipo de cambio es obligatorio para convertir USD a ARS")
+      throw new Error("La cuenta es ARS y el pago es USD. Seleccioná una cuenta en USD o ingresá un tipo de cambio.")
     }
   }
 
