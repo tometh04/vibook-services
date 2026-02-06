@@ -63,8 +63,19 @@ export function useSubscription() {
     error,
     agencyId, // Exponer el agencyId para usarlo en filtros
     // Helpers
-    isActive: subscription?.status === "ACTIVE" || (subscription?.status === "TRIAL" && subscription?.plan?.name !== "FREE"),
-    isTrial: subscription?.status === "TRIAL" && subscription?.plan?.name !== "FREE",
+    isActive: (() => {
+      if (!subscription) return false
+      if (subscription.status === "ACTIVE") return true
+      if (subscription.status !== "TRIAL" || subscription.plan?.name === "FREE") return false
+      if (!subscription.trial_end) return true
+      return new Date(subscription.trial_end) >= new Date()
+    })(),
+    isTrial: (() => {
+      if (!subscription) return false
+      if (subscription.status !== "TRIAL" || subscription.plan?.name === "FREE") return false
+      if (!subscription.trial_end) return true
+      return new Date(subscription.trial_end) >= new Date()
+    })(),
     planName: subscription?.plan?.name || "FREE",
     canUseFeature: (feature: string) => {
       // REGLA PRINCIPAL: Contenido SIEMPRE bloqueado EXCEPTO si:
@@ -84,7 +95,10 @@ export function useSubscription() {
       }
       
       // Si está en TRIAL o ACTIVE, verificar la feature específica del plan
-      if (subscription.status === "TRIAL" || subscription.status === "ACTIVE") {
+      const trialEnd = subscription.trial_end ? new Date(subscription.trial_end) : null
+      const trialActive = subscription.status === "TRIAL" && (!trialEnd || trialEnd >= new Date())
+
+      if (subscription.status === "ACTIVE" || trialActive) {
         // Asegurarse de que features es un objeto
         let features = subscription.plan.features
         if (typeof features === 'string') {

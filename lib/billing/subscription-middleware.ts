@@ -66,6 +66,7 @@ export async function verifySubscriptionAccess(
       .select(`
         id,
         status,
+        trial_end,
         plan:subscription_plans(name, display_name)
       `)
       .in("agency_id", agencyIds)
@@ -107,8 +108,12 @@ export async function verifySubscriptionAccess(
       }
     }
 
-    // Solo permitir si está ACTIVE o TRIAL
-    if (status === 'ACTIVE' || status === 'TRIAL') {
+    // Solo permitir si está ACTIVE o TRIAL (con trial vigente)
+    const trialEndRaw = subscription.trial_end as string | null | undefined
+    const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null
+    const trialActive = status === 'TRIAL' && (!trialEndDate || trialEndDate >= new Date())
+
+    if (status === 'ACTIVE' || trialActive) {
       return {
         hasAccess: true,
         subscription: {
