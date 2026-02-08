@@ -63,6 +63,15 @@ const addDays = (days) => {
 
 const exchangeRateUSDToARS = 1100
 
+const normalizeRows = (rows, keys) =>
+  rows.map((row) => {
+    const normalized = {}
+    for (const key of keys) {
+      normalized[key] = row[key] ?? null
+    }
+    return normalized
+  })
+
 const getUserAndAgency = async () => {
   const params = new URLSearchParams({
     select: "id,email,name,role",
@@ -96,9 +105,20 @@ const getChartAccountId = async (accountCode, agencyId) => {
     is_active: "eq.true",
   })
   const accounts = await request(`chart_of_accounts?${params.toString()}`)
-  if (!accounts.length) return null
-  const agencySpecific = accounts.find((acc) => acc.agency_id === agencyId)
-  return (agencySpecific || accounts[0]).id
+  if (accounts.length) {
+    const agencySpecific = accounts.find((acc) => acc.agency_id === agencyId)
+    return (agencySpecific || accounts[0]).id
+  }
+
+  const fallbackParams = new URLSearchParams({
+    select: "id",
+    agency_id: `eq.${agencyId}`,
+    is_active: "eq.true",
+    order: "created_at.asc",
+    limit: "1",
+  })
+  const fallback = await request(`chart_of_accounts?${fallbackParams.toString()}`)
+  return fallback.length ? fallback[0].id : null
 }
 
 const ensureFinancialAccount = async ({
@@ -127,6 +147,7 @@ const ensureFinancialAccount = async ({
       chart_account_id: chartAccountId,
       created_by: createdBy,
       initial_balance: initialBalance,
+      current_balance: initialBalance,
       is_active: true,
       notes: `Seed ${seedTag}`,
     },
@@ -340,7 +361,7 @@ const main = async () => {
           contact_phone: "+54 9 11 6000-6000",
           contact_email: "seed.lead1@vibook.ai",
           destination: "Bariloche",
-          region: "Patagonia",
+          region: "ARGENTINA",
           status: "NEW",
           assigned_seller_id: user.id,
           notes: `Seed ${seedTag}`,
@@ -351,7 +372,7 @@ const main = async () => {
           contact_phone: "+54 9 11 7000-7000",
           contact_email: "seed.lead2@vibook.ai",
           destination: "Cancún",
-          region: "Caribe",
+          region: "CARIBE",
           status: "IN_PROGRESS",
           assigned_seller_id: user.id,
           notes: `Seed ${seedTag}`,
@@ -362,7 +383,7 @@ const main = async () => {
           contact_phone: "+54 9 11 8000-8000",
           contact_email: "seed.lead3@vibook.ai",
           destination: "Madrid",
-          region: "Europa",
+          region: "EUROPA",
           status: "QUOTED",
           assigned_seller_id: user.id,
           notes: `Seed ${seedTag}`,
@@ -446,6 +467,7 @@ const main = async () => {
       method: params.method,
       operation_id: params.operationId || null,
       operator_id: params.operatorId || null,
+      seller_id: user.id,
       created_by: user.id,
       notes: `Seed ${seedTag}`,
     })
@@ -475,7 +497,6 @@ const main = async () => {
         operation_id: op.id,
         operator_id: op.operator_id,
         amount: cost,
-        paid_amount: cost,
         currency: "USD",
         due_date: addDays(-12),
         status: "PAID",
@@ -562,7 +583,6 @@ const main = async () => {
         operation_id: op.id,
         operator_id: op.operator_id,
         amount: cost,
-        paid_amount: Math.round(cost * 0.4),
         currency: "USD",
         due_date: addDays(5),
         status: "PENDING",
@@ -635,7 +655,6 @@ const main = async () => {
         operation_id: op.id,
         operator_id: op.operator_id,
         amount: cost,
-        paid_amount: 0,
         currency: "USD",
         due_date: addDays(12),
         status: "PENDING",
@@ -693,7 +712,6 @@ const main = async () => {
         operation_id: op.id,
         operator_id: op.operator_id,
         amount: cost,
-        paid_amount: 0,
         currency: "USD",
         due_date: addDays(15),
         status: "PENDING",
@@ -713,42 +731,113 @@ const main = async () => {
   }
 
   if (paymentsToInsert.length) {
+    const paymentKeys = [
+      "operation_id",
+      "payer_type",
+      "direction",
+      "method",
+      "amount",
+      "currency",
+      "amount_usd",
+      "exchange_rate",
+      "date_due",
+      "date_paid",
+      "status",
+      "reference",
+      "account_id",
+    ]
     await request("payments", {
       method: "POST",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify(paymentsToInsert),
+      body: JSON.stringify(normalizeRows(paymentsToInsert, paymentKeys)),
     })
   }
 
   if (operatorPaymentsToInsert.length) {
+    const operatorPaymentKeys = [
+      "operation_id",
+      "operator_id",
+      "amount",
+      "currency",
+      "due_date",
+      "status",
+      "ledger_movement_id",
+      "notes",
+    ]
     await request("operator_payments", {
       method: "POST",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify(operatorPaymentsToInsert),
+      body: JSON.stringify(normalizeRows(operatorPaymentsToInsert, operatorPaymentKeys)),
     })
   }
 
   if (cashMovementsToInsert.length) {
+    const cashMovementKeys = [
+      "agency_id",
+      "operation_id",
+      "user_id",
+      "type",
+      "category",
+      "amount",
+      "currency",
+      "movement_date",
+      "notes",
+      "is_touristic",
+      "cash_box_id",
+      "account_id",
+      "ledger_movement_id",
+    ]
     await request("cash_movements", {
       method: "POST",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify(cashMovementsToInsert),
+      body: JSON.stringify(normalizeRows(cashMovementsToInsert, cashMovementKeys)),
     })
   }
 
   if (ledgerMovementsToInsert.length) {
+    const ledgerKeys = [
+      "agency_id",
+      "operation_id",
+      "lead_id",
+      "type",
+      "concept",
+      "notes",
+      "currency",
+      "amount_original",
+      "exchange_rate",
+      "amount_ars_equivalent",
+      "method",
+      "account_id",
+      "seller_id",
+      "operator_id",
+      "receipt_number",
+      "created_by",
+    ]
     await request("ledger_movements", {
       method: "POST",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify(ledgerMovementsToInsert),
+      body: JSON.stringify(normalizeRows(ledgerMovementsToInsert, ledgerKeys)),
     })
   }
 
   if (alertsToInsert.length) {
+    const alertKeys = [
+      "agency_id",
+      "operation_id",
+      "customer_id",
+      "user_id",
+      "payment_id",
+      "type",
+      "description",
+      "date_due",
+      "status",
+      "priority",
+      "snoozed_until",
+    ]
     await request("alerts", {
       method: "POST",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify(alertsToInsert),
+      body: JSON.stringify(normalizeRows(alertsToInsert, alertKeys)),
     })
   }
 
