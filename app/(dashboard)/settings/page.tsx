@@ -80,7 +80,7 @@ export default async function SettingsPage() {
         </TabsContent>
         {user.role === "SUPER_ADMIN" && (
           <TabsContent value="seed" className="space-y-4">
-            <SeedMockData enabled={adminToolsEnabled} />
+            <SeedMockData />
             <MigrateHistoricalAccounting />
           </TabsContent>
         )}
