@@ -295,7 +295,14 @@ export function useBrandingColors(branding: TenantBranding) {
       if (!base) return
 
       const secondaryBase = secondaryHsl || base
+      const accentBase = accentHsl || base
       const isDark = root.classList.contains('dark')
+
+      if (accentBase) {
+        const accentSurface = isDark ? setLightness(accentBase, 26) : setLightness(accentBase, 92)
+        root.style.setProperty('--accent', `${accentSurface.h} ${accentSurface.s}% ${accentSurface.l}%`)
+        root.style.setProperty('--accent-foreground', getForegroundForHsl(accentSurface))
+      }
 
       if (isDark) {
         const sidebarBackground = setLightness(base, 12)
@@ -359,6 +366,8 @@ export function useBrandingColors(branding: TenantBranding) {
       root.style.removeProperty('--sidebar-accent-foreground')
       root.style.removeProperty('--sidebar-border')
       root.style.removeProperty('--sidebar-ring')
+      root.style.removeProperty('--accent')
+      root.style.removeProperty('--accent-foreground')
       root.style.removeProperty('--ring')
       root.style.removeProperty('--chart-1')
       root.style.removeProperty('--chart-2')

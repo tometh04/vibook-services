@@ -33,6 +33,10 @@
     /* Muted */
     --muted: 210 20% 96%;
     --muted-foreground: 215 16% 47%;
+
+    /* Accent */
+    --accent: 210 20% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
     
     /* Borders & Inputs */
     --border: 214 32% 91%;
@@ -96,6 +100,10 @@
     /* Muted - Mejor contraste */
     --muted: 222 14% 16%;          /* Superficie secundaria */
     --muted-foreground: 215 20% 70%; /* Texto muted más visible */
+
+    /* Accent */
+    --accent: 222 14% 17%;
+    --accent-foreground: 210 40% 98%;
     
     /* Borders - Más visibles */
     --border: 222 14% 22%;         /* Bordes más visibles */
