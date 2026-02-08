@@ -68,31 +68,44 @@ export async function seedUserDemoData(params: { email: string; seedTag?: string
     return { skipped: true, message: "Seed demo ya existe para esta agencia." }
   }
 
-  await supabase
-    .rpc("create_default_chart_of_accounts_for_agency", {
-      p_agency_id: agencyId,
-      p_created_by: user.id,
-    })
-    .catch(() => null)
-
   const { data: chartAccounts } = await supabase
     .from("chart_of_accounts")
     .select("id,agency_id,account_code")
     .eq("account_code", "1.1.01")
     .eq("is_active", true)
 
-  const chartAccountId =
+  let chartAccountId =
     chartAccounts?.find((acc) => acc.agency_id === agencyId)?.id ||
     chartAccounts?.[0]?.id ||
-    (await supabase
-      .from("chart_of_accounts")
-      .select("id")
-      .eq("agency_id", agencyId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .then((res) => res.data?.[0]?.id)) ||
     null
+
+  if (!chartAccountId) {
+    const { data: fallbackAccount, error: fallbackError } = await supabase
+      .from("chart_of_accounts")
+      .insert({
+        agency_id: agencyId,
+        account_code: "1.1.01",
+        account_name: "Caja",
+        category: "ACTIVO",
+        subcategory: "CORRIENTE",
+        account_type: "CAJA",
+        level: 3,
+        is_movement_account: true,
+        display_order: 10,
+        description: "Caja en efectivo (seed)",
+        is_active: true,
+        created_by: user.id,
+      })
+      .select("id")
+      .single()
+
+    if (fallbackError) throw fallbackError
+    chartAccountId = fallbackAccount?.id || null
+  }
+
+  if (!chartAccountId) {
+    throw new Error("No se pudo obtener un chart_of_accounts para la agencia.")
+  }
 
   const ensureFinancialAccount = async ({
     name,
