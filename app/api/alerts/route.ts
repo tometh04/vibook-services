@@ -22,6 +22,11 @@ export async function GET(request: Request) {
       .select(
         `
         *,
+        users:user_id(
+          id,
+          name,
+          email
+        ),
         operations:operation_id(
           id,
           destination,
@@ -63,7 +68,7 @@ export async function GET(request: Request) {
       const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
 
       if (agencyIds.length > 0 && user.role !== "SUPER_ADMIN") {
-        // Filter alerts by operations in user's agencies
+        // Incluir alertas por operaciones de la agencia y alertas internas con agency_id directo
         const { data: operations } = await supabase
           .from("operations")
           .select("id")
@@ -72,9 +77,11 @@ export async function GET(request: Request) {
         const operationIds = (operations || []).map((op: any) => op.id)
 
         if (operationIds.length > 0) {
-          query = query.in("operation_id", operationIds)
+          query = query.or(
+            `operation_id.in.(${operationIds.join(",")}),agency_id.in.(${agencyIds.join(",")})`,
+          )
         } else {
-          return NextResponse.json({ alerts: [] })
+          query = query.in("agency_id", agencyIds)
         }
       }
     }
@@ -97,7 +104,7 @@ export async function GET(request: Request) {
     }
 
     if (agencyId && agencyId !== "ALL") {
-      // Filter by agency through operations
+      // Filter by agency through operations + agency_id directo
       let operationsQuery = supabase
         .from("operations")
         .select("id")
@@ -112,9 +119,11 @@ export async function GET(request: Request) {
       const agencyOperationIds = (agencyOperations || []).map((op: any) => op.id)
 
       if (agencyOperationIds.length > 0) {
-        query = query.in("operation_id", agencyOperationIds)
+        query = query.or(
+          `operation_id.in.(${agencyOperationIds.join(",")}),agency_id.eq.${agencyId}`,
+        )
       } else {
-        return NextResponse.json({ alerts: [] })
+        query = query.eq("agency_id", agencyId)
       }
     } else if (sellerId && sellerId !== "ALL") {
       // Filter by seller through operations
@@ -208,3 +217,58 @@ export async function GET(request: Request) {
   }
 }
 
+export async function POST(request: Request) {
+  try {
+    const { user } = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
+    if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
+      return NextResponse.json({ error: "Sin permisos para crear mensajes internos" }, { status: 403 })
+    }
+
+    const supabase = await createServerClient()
+    const body = await request.json()
+    const { agencyId, recipientId, message, priority } = body || {}
+
+    if (!agencyId || !recipientId || !message) {
+      return NextResponse.json({ error: "Faltan datos obligatorios" }, { status: 400 })
+    }
+
+    if (user.role !== "SUPER_ADMIN") {
+      const { data: userAgencies } = await supabase
+        .from("user_agencies")
+        .select("agency_id")
+        .eq("user_id", user.id)
+
+      const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+
+      if (!agencyIds.includes(agencyId)) {
+        return NextResponse.json({ error: "Agencia inválida" }, { status: 403 })
+      }
+    }
+
+    const today = new Date().toISOString().split("T")[0]
+
+    const { error } = await (supabase.from("alerts") as any).insert({
+      agency_id: agencyId,
+      user_id: recipientId,
+      type: "GENERIC",
+      description: message,
+      date_due: today,
+      status: "PENDING",
+      priority: priority || null,
+    })
+
+    if (error) {
+      console.error("[POST /api/alerts] Error creando mensaje interno:", error)
+      return NextResponse.json({ error: "No se pudo crear el mensaje" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error("[POST /api/alerts] Fatal error:", error)
+    return NextResponse.json({ error: "No se pudo crear el mensaje" }, { status: 500 })
+  }
+}

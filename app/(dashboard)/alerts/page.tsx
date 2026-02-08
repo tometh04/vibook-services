@@ -37,18 +37,49 @@ export default async function AlertsPage() {
   // Get user agencies
   const { data: userAgencies } = await supabase
     .from("user_agencies")
-    .select("agency_id")
+    .select("agency_id, agencies(id, name)")
     .eq("user_id", user.id)
 
   let agencies: Array<{ id: string; name: string }> = []
+  let agencyIds: string[] = []
 
   if (user.role === "SUPER_ADMIN") {
     const { data } = await supabase.from("agencies").select("id, name").order("name")
     agencies = data || []
+    agencyIds = agencies.map((agency) => agency.id)
   } else if (userAgencies && userAgencies.length > 0) {
-    const agencyIds = userAgencies.map((ua: any) => ua.agency_id)
-    const { data } = await supabase.from("agencies").select("id, name").in("id", agencyIds)
-    agencies = data || []
+    agencies = (userAgencies || [])
+      .map((ua: any) => ua.agencies)
+      .filter(Boolean)
+    agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id).filter(Boolean)
+  }
+
+  // Load users for internal messages
+  let users: Array<{
+    id: string
+    name: string
+    email: string
+    role: string
+    agency_id: string
+    agency_name?: string | null
+  }> = []
+
+  if (agencyIds.length > 0) {
+    const { data: agencyUsers } = await supabase
+      .from("user_agencies")
+      .select("agency_id, users(id, name, email, role), agencies(id, name)")
+      .in("agency_id", agencyIds)
+
+    users = (agencyUsers || [])
+      .map((ua: any) => ({
+        id: ua.users?.id,
+        name: ua.users?.name || ua.users?.email || "Usuario",
+        email: ua.users?.email || "",
+        role: ua.users?.role || "USER",
+        agency_id: ua.agency_id,
+        agency_name: ua.agencies?.name || null,
+      }))
+      .filter((u: any) => Boolean(u.id))
   }
 
   const dates = getDefaultDateRange()
@@ -61,6 +92,12 @@ export default async function AlertsPage() {
     agencyId: "ALL",
   }
 
-  return <AlertsPageClient agencies={agencies} defaultFilters={defaultFilters} />
+  return (
+    <AlertsPageClient
+      agencies={agencies}
+      users={users}
+      userRole={user.role}
+      defaultFilters={defaultFilters}
+    />
+  )
 }
-

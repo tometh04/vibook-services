@@ -48,6 +48,11 @@ export interface Alert {
     first_name: string
     last_name: string
   } | null
+  users?: {
+    id: string
+    name: string
+    email: string
+  } | null
   whatsapp_messages?: Array<{
     id: string
     message: string
@@ -72,7 +77,7 @@ const typeLabels: Record<string, string> = {
   OPERATOR_DUE: "Pago Operador",
   UPCOMING_TRIP: "✈️ Viaje",
   MISSING_DOC: "Documento Faltante",
-  GENERIC: "Genérico",
+  GENERIC: "Mensaje interno",
   PAYMENT_REMINDER_7D: "Pago (7 días)",
   PAYMENT_REMINDER_3D: "Pago (3 días)",
   PAYMENT_REMINDER_TODAY: "Pago (Hoy)",
@@ -132,6 +137,11 @@ export function AlertsTable({
             {alert.operations && (
               <p className="text-xs text-muted-foreground">
                 {alert.operations.destination} - {alert.operations.agencies?.name || "Sin agencia"}
+              </p>
+            )}
+            {alert.users && (
+              <p className="text-xs text-muted-foreground">
+                Para: {alert.users.name || alert.users.email}
               </p>
             )}
           </div>
@@ -249,4 +259,3 @@ export function AlertsTable({
     </div>
   )
 }
-

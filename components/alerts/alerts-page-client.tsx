@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { AlertsTable, Alert } from "./alerts-table"
 import { AlertsFilters, AlertsFiltersState } from "./alerts-filters"
 import { Button } from "@/components/ui/button"
+import { InternalMessageDialog } from "@/components/alerts/internal-message-dialog"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -16,13 +17,23 @@ import Link from "next/link"
 
 interface AlertsPageClientProps {
   agencies: Array<{ id: string; name: string }>
+  users: Array<{
+    id: string
+    name: string
+    email: string
+    role: string
+    agency_id: string
+    agency_name?: string | null
+  }>
+  userRole: string
   defaultFilters: AlertsFiltersState
 }
 
-export function AlertsPageClient({ agencies, defaultFilters }: AlertsPageClientProps) {
+export function AlertsPageClient({ agencies, users, userRole, defaultFilters }: AlertsPageClientProps) {
   const [filters, setFilters] = useState(defaultFilters)
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(false)
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false)
 
   const fetchAlerts = useCallback(async () => {
     setLoading(true)
@@ -90,6 +101,8 @@ export function AlertsPageClient({ agencies, defaultFilters }: AlertsPageClientP
     [fetchAlerts],
   )
 
+  const canCreateInternalMessage = ["ADMIN", "SUPER_ADMIN"].includes(userRole)
+
   return (
     <div className="space-y-6">
       <Breadcrumb>
@@ -106,18 +119,24 @@ export function AlertsPageClient({ agencies, defaultFilters }: AlertsPageClientP
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div>
-        <h1 className="text-3xl font-bold">Alertas</h1>
-        <p className="text-muted-foreground">Gestiona alertas y recordatorios importantes</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Alertas</h1>
+          <p className="text-muted-foreground">Gestiona alertas y recordatorios importantes</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {canCreateInternalMessage && (
+            <Button onClick={() => setIsMessageDialogOpen(true)}>
+              Nuevo mensaje interno
+            </Button>
+          )}
+          <Button variant="outline" onClick={fetchAlerts} disabled={loading}>
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       <AlertsFilters agencies={agencies} value={filters} defaultValue={defaultFilters} onChange={setFilters} />
-
-      <div className="flex justify-end">
-        <Button onClick={fetchAlerts} disabled={loading}>
-          Actualizar
-        </Button>
-      </div>
 
       <AlertsTable
         alerts={alerts}
@@ -126,7 +145,16 @@ export function AlertsPageClient({ agencies, defaultFilters }: AlertsPageClientP
         onIgnore={handleIgnore}
         emptyMessage="No hay alertas con los filtros seleccionados"
       />
+
+      {canCreateInternalMessage && (
+        <InternalMessageDialog
+          open={isMessageDialogOpen}
+          onOpenChange={setIsMessageDialogOpen}
+          agencies={agencies}
+          users={users}
+          onCreated={fetchAlerts}
+        />
+      )}
     </div>
   )
 }
-

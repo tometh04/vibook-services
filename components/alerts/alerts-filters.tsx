@@ -33,7 +33,7 @@ const typeOptions = [
   { value: "OPERATOR_DUE", label: "Pago Operador" },
   { value: "UPCOMING_TRIP", label: "Viaje Próximo" },
   { value: "MISSING_DOC", label: "Documento Faltante" },
-  { value: "GENERIC", label: "Genérico" },
+  { value: "GENERIC", label: "Mensaje interno" },
 ]
 
 const statusOptions = [
@@ -135,4 +135,3 @@ export function AlertsFilters({ agencies, value, defaultValue, onChange }: Alert
     </div>
   )
 }
-
