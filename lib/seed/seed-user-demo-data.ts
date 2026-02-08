@@ -777,7 +777,7 @@ export async function seedUserDemoData(params: { email: string; seedTag?: string
     ]
     const { error } = await supabase
       .from("payments")
-      .insert(normalizeRows(paymentsToInsert, paymentKeys))
+      .insert(normalizeRows(paymentsToInsert, paymentKeys) as any)
 
     if (error) throw error
   }
@@ -795,7 +795,7 @@ export async function seedUserDemoData(params: { email: string; seedTag?: string
     ]
     const { error } = await supabase
       .from("operator_payments")
-      .insert(normalizeRows(operatorPaymentsToInsert, operatorPaymentKeys))
+      .insert(normalizeRows(operatorPaymentsToInsert, operatorPaymentKeys) as any)
 
     if (error) throw error
   }
@@ -818,7 +818,7 @@ export async function seedUserDemoData(params: { email: string; seedTag?: string
     ]
     const { error } = await supabase
       .from("cash_movements")
-      .insert(normalizeRows(cashMovementsToInsert, cashMovementKeys))
+      .insert(normalizeRows(cashMovementsToInsert, cashMovementKeys) as any)
 
     if (error) throw error
   }
@@ -844,7 +844,7 @@ export async function seedUserDemoData(params: { email: string; seedTag?: string
     ]
     const { error } = await supabase
       .from("ledger_movements")
-      .insert(normalizeRows(ledgerMovementsToInsert, ledgerKeys))
+      .insert(normalizeRows(ledgerMovementsToInsert, ledgerKeys) as any)
 
     if (error) throw error
   }
@@ -865,7 +865,7 @@ export async function seedUserDemoData(params: { email: string; seedTag?: string
     ]
     const { error } = await supabase
       .from("alerts")
-      .insert(normalizeRows(alertsToInsert, alertKeys))
+      .insert(normalizeRows(alertsToInsert, alertKeys) as any)
 
     if (error) throw error
   }
