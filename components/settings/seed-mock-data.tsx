@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2 } from "lucide-react"
+import { Loader2, AlertTriangle } from "lucide-react"
 
-export function SeedMockData() {
+export function SeedMockData({ enabled = true }: { enabled?: boolean }) {
   const [loading, setLoading] = useState(false)
   const [userLoading, setUserLoading] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null)
@@ -112,6 +112,15 @@ export function SeedMockData() {
             </p>
           </div>
 
+          {!enabled && (
+            <Alert variant="destructive">
+              <AlertDescription className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Herramientas admin desactivadas. Activá `ADMIN_TOOLS_ENABLED=true` para ejecutar el seed.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {userResult && (
             <Alert variant={userResult.success ? "default" : "destructive"}>
               <AlertDescription>
@@ -134,15 +143,15 @@ export function SeedMockData() {
             />
           </div>
 
-          <Button onClick={handleUserSeed} disabled={userLoading}>
+          <Button onClick={handleUserSeed} disabled={userLoading || !enabled}>
             {userLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Ejecutando seed...
               </>
-            ) : (
-              "Cargar seed para este usuario"
-            )}
+          ) : (
+            "Cargar seed para este usuario"
+          )}
           </Button>
         </div>
 
@@ -169,7 +178,7 @@ export function SeedMockData() {
           </ul>
         </div>
 
-        <Button onClick={handleSeed} disabled={loading} className="w-full">
+        <Button onClick={handleSeed} disabled={loading || !enabled} className="w-full">
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

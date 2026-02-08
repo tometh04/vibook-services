@@ -61,7 +61,7 @@ export default async function SettingsPage() {
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
           <TabsTrigger value="afip">AFIP</TabsTrigger>
-          {user.role === "SUPER_ADMIN" && adminToolsEnabled && <TabsTrigger value="seed">Seed Data</TabsTrigger>}
+          {user.role === "SUPER_ADMIN" && <TabsTrigger value="seed">Seed Data</TabsTrigger>}
         </TabsList>
         <TabsContent value="users">
           <UsersSettings />
@@ -78,9 +78,9 @@ export default async function SettingsPage() {
         <TabsContent value="afip">
           <AfipSettings agencies={agencies} defaultAgencyId={firstAgencyId} />
         </TabsContent>
-        {user.role === "SUPER_ADMIN" && adminToolsEnabled && (
+        {user.role === "SUPER_ADMIN" && (
           <TabsContent value="seed" className="space-y-4">
-            <SeedMockData />
+            <SeedMockData enabled={adminToolsEnabled} />
             <MigrateHistoricalAccounting />
           </TabsContent>
         )}
