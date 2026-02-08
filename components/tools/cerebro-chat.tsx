@@ -173,8 +173,8 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {/* Logo/Icon */}
           <div className="relative mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/25">
-              <Zap className="h-10 w-10 text-white" />
+            <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
+              <Zap className="h-10 w-10 text-primary-foreground" />
             </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 border-4 border-background" />
           </div>
@@ -193,9 +193,9 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
               <button
                 key={idx}
                 onClick={() => sendMessage(action.query)}
-                className="group flex flex-col items-start p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-orange-500/50 transition-all duration-200 text-left"
+                className="group flex flex-col items-start p-4 rounded-xl border border-border bg-card hover:bg-accent hover:border-primary/40 transition-all duration-200 text-left"
               >
-                <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500 mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <action.icon className="h-5 w-5" />
                 </div>
                 <span className="font-medium text-sm mb-1">{action.title}</span>
@@ -214,14 +214,14 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isLoading}
-                className="min-h-[56px] max-h-[120px] pr-14 resize-none rounded-xl border-2 focus:border-orange-500 transition-colors"
+                className="min-h-[56px] max-h-[120px] pr-14 resize-none rounded-xl border-2 focus:border-primary transition-colors"
                 rows={1}
               />
               <Button
                 onClick={() => sendMessage(input)}
                 disabled={isLoading || !input.trim()}
                 size="icon"
-                className="absolute right-2 bottom-2 h-10 w-10 rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25 disabled:opacity-50 disabled:shadow-none"
+                className="absolute right-2 bottom-2 h-10 w-10 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -245,15 +245,15 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
                   )}
                 >
                   {msg.role === "assistant" && (
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shrink-0 shadow-sm">
-                      <Zap className="h-4 w-4 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
+                      <Zap className="h-4 w-4 text-primary-foreground" />
                     </div>
                   )}
                   <div
                     className={cn(
                       "rounded-2xl px-4 py-3 max-w-[80%]",
                       msg.role === "user"
-                        ? "bg-orange-500 text-white rounded-br-md"
+                        ? "bg-primary text-primary-foreground rounded-br-md"
                         : "bg-muted rounded-bl-md"
                     )}
                   >
@@ -268,12 +268,12 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
               ))}
               {isLoading && (
                 <div className="flex gap-4 justify-start">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shrink-0 shadow-sm">
-                    <Zap className="h-4 w-4 text-white" />
+                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
+                    <Zap className="h-4 w-4 text-primary-foreground" />
                   </div>
                   <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
                       <span className="text-sm text-muted-foreground">Analizando...</span>
                     </div>
                   </div>
@@ -292,14 +292,14 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isLoading}
-                className="min-h-[56px] max-h-[120px] pr-14 resize-none rounded-xl border-2 focus:border-orange-500 transition-colors"
+                className="min-h-[56px] max-h-[120px] pr-14 resize-none rounded-xl border-2 focus:border-primary transition-colors"
                 rows={1}
               />
               <Button
                 onClick={() => sendMessage(input)}
                 disabled={isLoading || !input.trim()}
                 size="icon"
-                className="absolute right-2 bottom-2 h-10 w-10 rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25 disabled:opacity-50 disabled:shadow-none"
+                className="absolute right-2 bottom-2 h-10 w-10 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 disabled:opacity-50 disabled:shadow-none"
               >
                 <Send className="h-4 w-4" />
               </Button>

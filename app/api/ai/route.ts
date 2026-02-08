@@ -303,9 +303,10 @@ async function executeQuery(
       }
     }
 
-    const resolvedQuery = context.isSuperAdmin
-      ? cleanedQuery
-      : applyQueryContext(cleanedQuery, context.agencyIds, context.userId)
+    const needsContext = cleanedQuery.includes("{{agency_ids}}") || cleanedQuery.includes("{{user_id}}")
+    const resolvedQuery = needsContext
+      ? applyQueryContext(cleanedQuery, context.agencyIds, context.userId)
+      : cleanedQuery
     
     console.log("[Cerebro] Query:", resolvedQuery.substring(0, 200))
     
