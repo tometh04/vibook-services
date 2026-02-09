@@ -246,7 +246,7 @@ export function MessagesPageClient({
           {(userRole === "SUPER_ADMIN" || userRole === "ADMIN") && (
             <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
               <Settings className="h-4 w-4 mr-2" />
-              Templates
+              Plantillas
             </Button>
           )}
         </div>
@@ -362,4 +362,3 @@ export function MessagesPageClient({
     </div>
   )
 }
-

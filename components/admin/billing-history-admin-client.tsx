@@ -87,11 +87,11 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            Billing
+            Facturación
           </div>
           <h1 className="mt-3 text-3xl font-semibold text-foreground">Historial de pagos</h1>
           <p className="mt-1 text-muted-foreground">
-            Eventos, renovaciones y notificaciones de billing del sistema.
+            Eventos, renovaciones y notificaciones de facturación del sistema.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -131,7 +131,7 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
 
       <Card className="border-border/60 bg-card/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
         <CardHeader>
-          <CardTitle>Eventos de billing</CardTitle>
+          <CardTitle>Eventos de facturación</CardTitle>
           <CardDescription>
             {filteredEvents.length} eventos encontrados
           </CardDescription>

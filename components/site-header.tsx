@@ -38,10 +38,10 @@ const getPageTitle = (pathname: string): string => {
     "/admin": "Admin",
     "/admin/users": "Admin · Usuarios",
     "/admin/subscriptions": "Admin · Suscripciones",
-    "/admin/stats": "Admin · Estadisticas",
+    "/admin/stats": "Admin · Estadísticas",
     "/admin/security": "Admin · Seguridad",
-    "/admin/settings": "Admin · Configuracion",
-    "/admin/billing-history": "Admin · Billing",
+    "/admin/settings": "Admin · Configuración",
+    "/admin/billing-history": "Admin · Facturación",
   }
 
   // Buscar coincidencia exacta o parcial

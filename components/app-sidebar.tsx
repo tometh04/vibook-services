@@ -147,7 +147,8 @@ const allNavigation: NavItem[] = [
     icon: BookOpen,
     items: [
       { title: "Calendario", url: "/calendar" },
-      { title: "Templates", url: "/resources/templates" },
+      { title: "Plantillas", url: "/resources/templates" },
+      { title: "Ayuda", url: "/ayuda" },
     ],
   },
   // Documentos - Colapsable

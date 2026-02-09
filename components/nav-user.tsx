@@ -105,15 +105,15 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconUserCircle />
-                Account
+                Cuenta
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconCreditCard />
-                Billing
+                Suscripción
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconNotification />
-                Notifications
+                Notificaciones
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

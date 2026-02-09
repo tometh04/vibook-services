@@ -23,6 +23,7 @@ import { FlightResultCard } from "./flight-result-card"
 import { HotelResultCard } from "./hotel-result-card"
 import { generateClientId } from "@/lib/emilia/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { trackOnboardingEvent } from "@/lib/onboarding/client"
 
 interface Message {
     id: string
@@ -253,6 +254,8 @@ export function EmiliaChat({ conversationId, userId, userName, onConversationUpd
             }
 
             const data = await response.json()
+
+            trackOnboardingEvent("used_emilia")
 
             // Construir mensaje del asistente
             const assistantContent: MessageContent = {

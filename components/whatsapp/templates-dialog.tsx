@@ -125,7 +125,7 @@ export function TemplatesDialog({ open, onOpenChange, templates, onRefresh }: Te
       })
 
       if (response.ok) {
-        toast.success("Template actualizado")
+        toast.success("Plantilla actualizada")
         cancelEdit()
         onRefresh?.()
       } else {
@@ -145,7 +145,7 @@ export function TemplatesDialog({ open, onOpenChange, templates, onRefresh }: Te
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_active: !isActive }),
       })
-      toast.success(isActive ? "Template desactivado" : "Template activado")
+      toast.success(isActive ? "Plantilla desactivada" : "Plantilla activada")
       onRefresh?.()
     } catch (error) {
       toast.error("Error al actualizar")
@@ -193,7 +193,7 @@ export function TemplatesDialog({ open, onOpenChange, templates, onRefresh }: Te
       })
 
       if (response.ok) {
-        toast.success("Template creado")
+        toast.success("Plantilla creada")
         setShowNewForm(false)
         setNewTemplate({
           name: "",
@@ -226,7 +226,7 @@ export function TemplatesDialog({ open, onOpenChange, templates, onRefresh }: Te
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Code className="h-5 w-5" />
-            Templates de Mensajes
+            Plantillas de Mensajes
           </DialogTitle>
           <DialogDescription>
             Configura los templates de mensajes automáticos para WhatsApp
@@ -266,12 +266,12 @@ export function TemplatesDialog({ open, onOpenChange, templates, onRefresh }: Te
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              Cargar Templates por Defecto
+              Cargar Plantillas por Defecto
             </Button>
           )}
           <Button onClick={() => setShowNewForm(!showNewForm)} variant={showNewForm ? "secondary" : "default"}>
             <Plus className="h-4 w-4 mr-2" />
-            {showNewForm ? "Cancelar" : "Nuevo Template"}
+            {showNewForm ? "Cancelar" : "Nueva plantilla"}
           </Button>
         </div>
 
@@ -349,13 +349,13 @@ export function TemplatesDialog({ open, onOpenChange, templates, onRefresh }: Te
               </div>
               <Button onClick={createTemplate} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                Crear Template
+                Crear plantilla
               </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Templates por categoría */}
+        {/* Plantillas por categoría */}
         {hasTemplates ? (
           <Accordion type="multiple" defaultValue={["PAYMENT", "TRIP", "BIRTHDAY"]}>
             {groupedTemplates
@@ -488,7 +488,7 @@ export function TemplatesDialog({ open, onOpenChange, templates, onRefresh }: Te
             <div className="text-muted-foreground">
               <p className="text-lg font-medium mb-2">No hay templates configurados</p>
               <p className="text-sm mb-4">
-                Hacé clic en &quot;Cargar Templates por Defecto&quot; para comenzar con templates pre-configurados,
+                Hacé clic en &quot;Cargar Plantillas por Defecto&quot; para comenzar con plantillas pre-configuradas,
                 o creá uno nuevo manualmente.
               </p>
             </div>

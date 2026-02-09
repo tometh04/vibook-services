@@ -168,7 +168,7 @@ export function TemplatesPageClient() {
       }
 
       toast({
-        title: "Template creado",
+        title: "Plantilla creada",
         description: "El template se creó correctamente",
       })
       
@@ -197,7 +197,7 @@ export function TemplatesPageClient() {
       }
 
       toast({
-        title: "Template eliminado",
+        title: "Plantilla eliminada",
         description: "El template se eliminó correctamente",
       })
       
@@ -224,7 +224,7 @@ export function TemplatesPageClient() {
       }
 
       toast({
-        title: "Template actualizado",
+        title: "Plantilla actualizada",
         description: "El template se estableció como predeterminado",
       })
       
@@ -288,20 +288,20 @@ export function TemplatesPageClient() {
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbPage>Templates PDF</BreadcrumbPage>
+          <BreadcrumbPage>Plantillas PDF</BreadcrumbPage>
         </BreadcrumbList>
       </Breadcrumb>
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Templates PDF</h1>
+          <h1 className="text-3xl font-bold">Plantillas PDF</h1>
           <p className="text-muted-foreground">
-            Gestiona los templates para generar documentos PDF
+            Gestiona las plantillas para generar documentos PDF
           </p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Nuevo Template
+          Nueva plantilla
         </Button>
       </div>
 
@@ -313,7 +313,7 @@ export function TemplatesPageClient() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar templates..."
+                  placeholder="Buscar plantillas..."
                   className="pl-10"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -436,7 +436,7 @@ export function TemplatesPageClient() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nuevo Template PDF</DialogTitle>
+            <DialogTitle>Nueva plantilla PDF</DialogTitle>
             <DialogDescription>
               Crea un nuevo template para generar documentos PDF
             </DialogDescription>
@@ -528,7 +528,7 @@ export function TemplatesPageClient() {
                       onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm">Template por defecto</span>
+                    <span className="text-sm">Plantilla por defecto</span>
                   </label>
                 </div>
               </div>
@@ -630,7 +630,7 @@ export function TemplatesPageClient() {
             </Button>
             <Button onClick={createTemplate} disabled={saving || !formData.name || !formData.html_content}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Crear Template
+              Crear plantilla
             </Button>
           </DialogFooter>
         </DialogContent>

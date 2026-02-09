@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { trackOnboardingEvent } from "@/lib/onboarding/client"
 
 interface Message {
   id: string
@@ -127,6 +128,8 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
       }
 
       const data = await response.json()
+
+      trackOnboardingEvent("used_cerebro")
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,

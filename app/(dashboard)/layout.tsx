@@ -9,6 +9,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
 import { BrandingProvider } from "@/components/branding-provider"
+import { OnboardingGuard } from "@/components/onboarding/onboarding-guard"
+import { OnboardingTracker } from "@/components/onboarding/onboarding-tracker"
 
 export default async function DashboardLayout({
   children,
@@ -120,6 +122,8 @@ export default async function DashboardLayout({
       />
       <SidebarInset className="min-w-0">
         <SiteHeader />
+        <OnboardingTracker />
+        <OnboardingGuard />
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-background">
             {children}

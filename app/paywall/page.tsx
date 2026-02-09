@@ -291,7 +291,7 @@ export default function PaywallPage() {
 
           {usingFallbackPlans && (
             <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Billing no configurado en este entorno. Se muestran planes de ejemplo para el layout.
+              Facturación no configurada en este entorno. Se muestran planes de ejemplo para el layout.
             </div>
           )}
 
@@ -400,7 +400,7 @@ export default function PaywallPage() {
                             Cargando...
                           </>
                         ) : (
-                          usingFallbackPlans ? 'Configurar Billing' : 'Comenzar Prueba Gratis'
+                          usingFallbackPlans ? 'Configurar facturación' : 'Comenzar Prueba Gratis'
                         )}
                       </Button>
                     )}
