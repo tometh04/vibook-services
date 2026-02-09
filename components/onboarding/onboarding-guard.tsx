@@ -26,6 +26,7 @@ interface OnboardingProgress {
   completedCount: number
   totalCount: number
   planName: string | null
+  mode?: "AUTO" | "FORCE_ON" | "FORCE_OFF"
 }
 
 function isAllowedPath(pathname: string, allowedPrefixes: string[]) {
