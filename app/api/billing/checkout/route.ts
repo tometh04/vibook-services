@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { createPreference } from "@/lib/mercadopago/client"
 
 export const runtime = 'nodejs'
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     }
     
     const supabase = await createServerClient()
+    const supabaseAdmin = createAdminSupabaseClient()
     const body = await request.json()
     const { planId, isUpgradeDuringTrial } = body
 
@@ -200,7 +202,7 @@ export async function POST(request: Request) {
     if (existingSubscription) {
       const existingStatus = (existingSubscription as any).status as string | undefined
       const keepStatus = existingStatus === 'TRIAL' || existingStatus === 'ACTIVE'
-      await (supabase
+      const { error: updateError } = await (supabaseAdmin
         .from("subscriptions") as any)
         .update({
           mp_preapproval_id: preapproval.id,
@@ -211,10 +213,18 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString()
         })
         .eq("id", (existingSubscription as any).id)
+
+      if (updateError) {
+        console.error("Error updating subscription:", updateError)
+        return NextResponse.json(
+          { error: "Error al actualizar suscripción. Intenta nuevamente." },
+          { status: 500 }
+        )
+      }
     } else {
       // Crear suscripción inicial en estado bloqueado.
       // Regla: NUNCA habilitar acceso desde checkout sin confirmación MP.
-      await (supabase
+      const { error: insertError } = await (supabaseAdmin
         .from("subscriptions") as any)
         .insert({
           agency_id: agencyId,
@@ -229,6 +239,14 @@ export async function POST(request: Request) {
           trial_end: hasUsedTrial || isUpgrade ? null : startDate.toISOString(),
           billing_cycle: 'MONTHLY'
         })
+
+      if (insertError) {
+        console.error("Error creating subscription:", insertError)
+        return NextResponse.json(
+          { error: "Error al crear suscripción. Intenta nuevamente." },
+          { status: 500 }
+        )
+      }
     }
 
     // Retornar la URL de checkout del preapproval
