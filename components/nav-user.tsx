@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation"
 import {
   IconCreditCard,
   IconDotsVertical,
+  IconHelpCircle,
   IconLogout,
-  IconNotification,
   IconUserCircle,
 } from "@tabler/icons-react"
 import { supabase } from "@/lib/supabase/client"
@@ -103,17 +103,17 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push("/settings")}>
                 <IconUserCircle />
                 Cuenta
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push("/settings/billing")}>
                 <IconCreditCard />
                 Suscripción
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconNotification />
-                Notificaciones
+              <DropdownMenuItem onSelect={() => router.push("/ayuda")}>
+                <IconHelpCircle />
+                Ayuda
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
