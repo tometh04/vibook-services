@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { cancelPreApproval, updatePreApproval } from "@/lib/mercadopago/client"
 
 export const runtime = 'nodejs'
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+    const supabaseAdmin = createAdminSupabaseClient()
     const body = await request.json()
     const { action } = body // 'cancel' o 'pause'
 
@@ -40,13 +42,21 @@ export async function POST(request: Request) {
 
     // Obtener la suscripción
     // subscriptions table no está en tipos generados todavía
-    const { data: subscription, error: subscriptionError } = await (supabase
+    const { data: subscription, error: subscriptionError } = await (supabaseAdmin
       .from("subscriptions") as any)
       .select("id, mp_preapproval_id, status")
       .eq("agency_id", agencyId)
       .maybeSingle()
 
-    if (subscriptionError || !subscription) {
+    if (subscriptionError) {
+      console.error("Error buscando suscripción:", subscriptionError)
+      return NextResponse.json(
+        { error: "Error al buscar la suscripción" },
+        { status: 500 }
+      )
+    }
+
+    if (!subscription) {
       return NextResponse.json(
         { error: "No se encontró una suscripción activa" },
         { status: 404 }
@@ -67,22 +77,39 @@ export async function POST(request: Request) {
 
     if (action === 'cancel') {
       // Cancelar preapproval en Mercado Pago
-      await cancelPreApproval(subData.mp_preapproval_id)
+      try {
+        await cancelPreApproval(subData.mp_preapproval_id)
+      } catch (error: any) {
+        console.error("Error cancelando preapproval en MP:", error)
+        return NextResponse.json(
+          { error: "Mercado Pago no pudo cancelar la suscripción. Intenta nuevamente." },
+          { status: 502 }
+        )
+      }
 
       // Actualizar suscripción
       // subscriptions table no está en tipos generados todavía
-      await (supabase
+      const { error: updateError } = await (supabaseAdmin
         .from("subscriptions") as any)
         .update({
           status: 'CANCELED',
+          mp_status: 'cancelled',
           canceled_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq("id", subData.id)
 
+      if (updateError) {
+        console.error("Error actualizando suscripción:", updateError)
+        return NextResponse.json(
+          { error: "Error al actualizar la suscripción" },
+          { status: 500 }
+        )
+      }
+
       // Registrar evento
       // billing_events table no está en tipos generados todavía
-      await (supabase
+      const { error: eventError } = await (supabaseAdmin
         .from("billing_events") as any)
         .insert({
           agency_id: agencyId,
@@ -91,25 +118,46 @@ export async function POST(request: Request) {
           mp_notification_id: subData.mp_preapproval_id
         })
 
+      if (eventError) {
+        console.error("Error registrando billing_event:", eventError)
+      }
+
       return NextResponse.json({ 
         success: true,
         message: "Suscripción cancelada exitosamente"
       })
     } else if (action === 'pause') {
       // Pausar preapproval en Mercado Pago
-      await updatePreApproval(subData.mp_preapproval_id, {
-        status: 'paused'
-      })
+      try {
+        await updatePreApproval(subData.mp_preapproval_id, {
+          status: 'paused'
+        })
+      } catch (error: any) {
+        console.error("Error pausando preapproval en MP:", error)
+        return NextResponse.json(
+          { error: "Mercado Pago no pudo pausar la suscripción. Intenta nuevamente." },
+          { status: 502 }
+        )
+      }
 
       // Actualizar suscripción
       // subscriptions table no está en tipos generados todavía
-      await (supabase
+      const { error: updateError } = await (supabaseAdmin
         .from("subscriptions") as any)
         .update({
           status: 'SUSPENDED',
+          mp_status: 'paused',
           updated_at: new Date().toISOString()
         })
         .eq("id", subData.id)
+
+      if (updateError) {
+        console.error("Error actualizando suscripción:", updateError)
+        return NextResponse.json(
+          { error: "Error al actualizar la suscripción" },
+          { status: 500 }
+        )
+      }
 
       return NextResponse.json({ 
         success: true,
