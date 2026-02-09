@@ -28,6 +28,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -1163,7 +1164,7 @@ export function OperationPaymentsSection({
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <FormLabel>Tipo de cuenta</FormLabel>
+                      <Label>Tipo de cuenta</Label>
                       <Select
                         value={newAccountType}
                         onValueChange={(value) => {
@@ -1187,7 +1188,7 @@ export function OperationPaymentsSection({
                     </div>
 
                     <div className="space-y-2">
-                      <FormLabel>Nombre</FormLabel>
+                      <Label>Nombre</Label>
                       <Input
                         value={newAccountName}
                         onChange={(event) => setNewAccountName(event.target.value)}
