@@ -156,7 +156,7 @@ export async function POST(request: Request) {
     const planFeaturesByAgency = new Map<string, Record<string, boolean>>()
     const now = new Date()
 
-    for (const [agencyId, subs] of subsByAgency.entries()) {
+    subsByAgency.forEach((subs, agencyId) => {
       const subscription =
         subs.find((s: any) => s.plan?.name === "TESTER") ||
         subs.find((s: any) => s.status === "ACTIVE") ||
@@ -182,7 +182,7 @@ export async function POST(request: Request) {
       }
 
       planFeaturesByAgency.set(agencyId, planFeatures)
-    }
+    })
 
     const eventsByPair = new Map<string, Set<string>>()
     for (const event of events) {
