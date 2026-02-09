@@ -375,6 +375,7 @@ export function OperationDetailClient({
         <TabsContent value="payments" className="space-y-4">
           <OperationPaymentsSection
             operationId={operation.id}
+            agencyId={operation.agency_id}
             payments={payments || []}
             currency={operation.currency}
             saleAmount={operation.sale_amount_total}

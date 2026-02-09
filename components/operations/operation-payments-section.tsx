@@ -88,6 +88,7 @@ const paymentMethods = [
 
 interface OperationPaymentsSectionProps {
   operationId: string
+  agencyId?: string
   payments: any[]
   currency: string
   saleAmount: number
@@ -96,6 +97,7 @@ interface OperationPaymentsSectionProps {
 
 export function OperationPaymentsSection({
   operationId,
+  agencyId,
   payments,
   currency,
   saleAmount,
@@ -593,6 +595,7 @@ export function OperationPaymentsSection({
           type: newAccountType,
           currency: watchCurrency,
           initial_balance: 0,
+          agency_id: agencyId,
         }),
       })
 
