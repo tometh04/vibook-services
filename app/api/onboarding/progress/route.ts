@@ -79,7 +79,11 @@ export async function GET() {
     const [leadsRes, operationsRes, paymentsRes, eventsRes] = await Promise.all([
       admin.from("leads").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
       admin.from("operations").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
-      admin.from("payments").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
+      // payments no tiene agency_id; contamos operaciones con al menos un pago
+      admin
+        .from("operations")
+        .select("id, payments!inner(id)", { count: "exact", head: true })
+        .eq("agency_id", agencyId),
       (admin.from("onboarding_events") as any)
         .select("event_type")
         .eq("user_id", user.id)
