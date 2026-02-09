@@ -77,10 +77,22 @@ interface UsersAdminClientProps {
   stats: Stats
 }
 
+interface OnboardingStatusInfo {
+  status: "COMPLETED" | "SKIPPED" | "IN_PROGRESS" | "NOT_AVAILABLE"
+  mode: "AUTO" | "FORCE_ON" | "FORCE_OFF"
+  currentStepTitle: string | null
+  currentStepId: string | null
+  completedCount: number
+  totalCount: number
+}
+
 export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [plans, setPlans] = useState<Array<{ id: string; name: string; display_name: string }>>([])
   const [updating, setUpdating] = useState<string | null>(null)
+  const [onboardingStatuses, setOnboardingStatuses] = useState<Record<string, OnboardingStatusInfo>>({})
+  const [loadingOnboarding, setLoadingOnboarding] = useState(false)
+  const [updatingOnboarding, setUpdatingOnboarding] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchPlans() {
@@ -96,6 +108,50 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
     }
     fetchPlans()
   }, [])
+
+  const buildOnboardingKey = (userId?: string, agencyId?: string) => {
+    if (!userId || !agencyId) return null
+    return `${userId}:${agencyId}`
+  }
+
+  const handleOnboardingModeChange = async (userId: string, agencyId: string, mode: OnboardingStatusInfo["mode"]) => {
+    const key = buildOnboardingKey(userId, agencyId)
+    if (!key) return
+
+    setUpdatingOnboarding(key)
+    try {
+      const response = await fetch("/api/admin/onboarding/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, agency_id: agencyId, mode }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "Error al actualizar onboarding")
+      }
+
+      setOnboardingStatuses((prev) => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || {
+            status: "IN_PROGRESS",
+            currentStepTitle: null,
+            currentStepId: null,
+            completedCount: 0,
+            totalCount: 0,
+            mode: "AUTO",
+          }),
+          mode,
+        },
+      }))
+      toast.success("Onboarding actualizado")
+    } catch (error: any) {
+      toast.error(error.message || "Error al actualizar onboarding")
+    } finally {
+      setUpdatingOnboarding(null)
+    }
+  }
 
   const handlePlanChange = async (subscriptionId: string | null, agencyId: string, newPlanId: string) => {
     if (!subscriptionId) {
@@ -185,6 +241,42 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
       user.role.toLowerCase().includes(search)
     )
   })
+
+  useEffect(() => {
+    const pairs = filteredUsers
+      .map((user) => {
+        const agencyId = user.user_agencies?.[0]?.agency_id
+        if (!agencyId) return null
+        return { user_id: user.id, agency_id: agencyId }
+      })
+      .filter(Boolean) as Array<{ user_id: string; agency_id: string }>
+
+    if (pairs.length === 0) return
+
+    let ignore = false
+    setLoadingOnboarding(true)
+
+    fetch("/api/admin/onboarding/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pairs }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (ignore) return
+        setOnboardingStatuses(data.statuses || {})
+      })
+      .catch((error) => {
+        console.error("Error fetching onboarding status:", error)
+      })
+      .finally(() => {
+        if (!ignore) setLoadingOnboarding(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [filteredUsers])
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { label: string; className: string }> = {
@@ -313,6 +405,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                   <TableHead>Plan</TableHead>
                   <TableHead>Asignar Plan</TableHead>
                   <TableHead>Estado Suscripcion</TableHead>
+                  <TableHead>Onboarding</TableHead>
                   <TableHead>Cambiar Estado</TableHead>
                   <TableHead>Periodo de Prueba</TableHead>
                   <TableHead>Fecha Registro</TableHead>
@@ -321,7 +414,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground">
                       No se encontraron usuarios
                     </TableCell>
                   </TableRow>
@@ -416,6 +509,70 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
                               Sin suscripcion
                             </Badge>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const key = buildOnboardingKey(user.id, agency?.id)
+                            const info = key ? onboardingStatuses[key] : undefined
+                            const mode = info?.mode || "AUTO"
+                            const status = info?.status
+                            const isLoading = loadingOnboarding && !info
+                            const statusLabel = (() => {
+                              if (mode === "FORCE_OFF") return "Oculto (admin)"
+                              if (status === "COMPLETED") return "Completado"
+                              if (status === "SKIPPED") return "Skipeado"
+                              if (status === "NOT_AVAILABLE") return "Sin pasos"
+                              return "En progreso"
+                            })()
+
+                            const statusTone = (() => {
+                              if (mode === "FORCE_OFF") return "border border-slate-400/40 bg-slate-500/10 text-slate-600 dark:text-slate-300"
+                              if (status === "COMPLETED") return "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+                              if (status === "SKIPPED") return "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                              if (status === "NOT_AVAILABLE") return "border border-border text-muted-foreground"
+                              return "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300"
+                            })()
+
+                            return agency ? (
+                              <div className="space-y-2 min-w-[180px]">
+                                {isLoading ? (
+                                  <span className="text-xs text-muted-foreground">Cargando...</span>
+                                ) : (
+                                  <>
+                                    <Badge variant="outline" className={statusTone}>
+                                      {statusLabel}
+                                    </Badge>
+                                    {info?.currentStepTitle && mode !== "FORCE_OFF" && status !== "COMPLETED" && (
+                                      <div className="text-xs text-muted-foreground">
+                                        Paso: {info.currentStepTitle}
+                                      </div>
+                                    )}
+                                    {mode === "FORCE_OFF" && info?.currentStepTitle && (
+                                      <div className="text-xs text-muted-foreground">
+                                        Paso actual: {info.currentStepTitle}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                                <Select
+                                  value={mode}
+                                  onValueChange={(value) => handleOnboardingModeChange(user.id, agency.id, value as OnboardingStatusInfo["mode"])}
+                                  disabled={updatingOnboarding === key}
+                                >
+                                  <SelectTrigger className="w-[160px] bg-background">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="AUTO">Automático</SelectItem>
+                                    <SelectItem value="FORCE_ON">Forzar mostrar</SelectItem>
+                                    <SelectItem value="FORCE_OFF">Ocultar</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
                           {subscription ? (

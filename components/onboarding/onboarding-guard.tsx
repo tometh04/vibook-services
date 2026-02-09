@@ -77,7 +77,12 @@ export function OnboardingGuard({ variant = "floating" }: OnboardingGuardProps) 
     return Math.round((progress.completedCount / progress.totalCount) * 100)
   }, [progress])
 
-  if (loading || skipRequested || !progress?.active || !progress.currentStep) return null
+  const isCompleted = Boolean(progress && progress.totalCount > 0 && progress.completedCount === progress.totalCount)
+  const showCompleted = progress?.mode === "FORCE_ON" && !progress.currentStep && isCompleted
+
+  if (loading || skipRequested || (!progress?.active && !showCompleted) || (!progress?.currentStep && !showCompleted)) {
+    return null
+  }
 
   const current = progress.currentStep
 
@@ -118,23 +123,37 @@ export function OnboardingGuard({ variant = "floating" }: OnboardingGuardProps) 
             Completá cada paso para desbloquear el sistema.
           </p>
 
-          <div className="mt-3 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/30 p-2">
-            <p className="text-[10px] uppercase tracking-wide text-sidebar-foreground/60">
-              Paso actual
-            </p>
-            <p className="mt-1 text-xs font-semibold">{current.title}</p>
-            <p className="mt-1 text-[11px] text-sidebar-foreground/70 line-clamp-2">
-              {current.description}
-            </p>
-            <Button
-              size="sm"
-              className="mt-2 h-7 w-full text-xs bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
-              onClick={() => router.push(current.actionPath)}
-            >
-              {current.actionLabel}
-              <ArrowRight className="ml-2 h-3.5 w-3.5" />
-            </Button>
-          </div>
+          {showCompleted ? (
+            <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2">
+              <p className="text-[10px] uppercase tracking-wide text-emerald-700/70">
+                Completado
+              </p>
+              <p className="mt-1 text-xs font-semibold text-emerald-700">
+                Onboarding finalizado
+              </p>
+              <p className="mt-1 text-[11px] text-emerald-700/70">
+                El usuario ya recorrió todos los pasos.
+              </p>
+            </div>
+          ) : current ? (
+            <div className="mt-3 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/30 p-2">
+              <p className="text-[10px] uppercase tracking-wide text-sidebar-foreground/60">
+                Paso actual
+              </p>
+              <p className="mt-1 text-xs font-semibold">{current.title}</p>
+              <p className="mt-1 text-[11px] text-sidebar-foreground/70 line-clamp-2">
+                {current.description}
+              </p>
+              <Button
+                size="sm"
+                className="mt-2 h-7 w-full text-xs bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+                onClick={() => router.push(current.actionPath)}
+              >
+                {current.actionLabel}
+                <ArrowRight className="ml-2 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : null}
 
           <div className="mt-3 space-y-1 text-[11px]">
             {progress.steps.map((step) => (
@@ -179,21 +198,35 @@ export function OnboardingGuard({ variant = "floating" }: OnboardingGuardProps) 
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg border border-border/70 bg-muted/40 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Paso actual
-            </p>
-            <p className="text-sm font-semibold mt-1">{current.title}</p>
-            <p className="text-xs text-muted-foreground mt-1">{current.description}</p>
-            <Button
-              size="sm"
-              className="mt-3 w-full"
-              onClick={() => router.push(current.actionPath)}
-            >
-              {current.actionLabel}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
+          {showCompleted ? (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
+              <p className="text-xs uppercase tracking-wide text-emerald-700/70">
+                Completado
+              </p>
+              <p className="text-sm font-semibold mt-1 text-emerald-700">
+                Onboarding finalizado
+              </p>
+              <p className="text-xs text-emerald-700/70 mt-1">
+                El usuario ya completó todos los pasos.
+              </p>
+            </div>
+          ) : current ? (
+            <div className="rounded-lg border border-border/70 bg-muted/40 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Paso actual
+              </p>
+              <p className="text-sm font-semibold mt-1">{current.title}</p>
+              <p className="text-xs text-muted-foreground mt-1">{current.description}</p>
+              <Button
+                size="sm"
+                className="mt-3 w-full"
+                onClick={() => router.push(current.actionPath)}
+              >
+                {current.actionLabel}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             {progress.steps.map((step) => (

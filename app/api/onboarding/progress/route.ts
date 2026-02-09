@@ -76,7 +76,7 @@ export async function GET() {
     }
 
     // Counts principales
-    const [leadsRes, operationsRes, paymentsRes, eventsRes] = await Promise.all([
+    const [leadsRes, operationsRes, paymentsRes, eventsRes, controlRes] = await Promise.all([
       admin.from("leads").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
       admin.from("operations").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
       // payments no tiene agency_id; contamos operaciones con al menos un pago
@@ -88,6 +88,11 @@ export async function GET() {
         .select("event_type")
         .eq("user_id", user.id)
         .eq("agency_id", agencyId),
+      (admin.from("onboarding_controls") as any)
+        .select("mode")
+        .eq("user_id", user.id)
+        .eq("agency_id", agencyId)
+        .maybeSingle(),
     ])
 
     const leadsCount = leadsRes?.count || 0
@@ -114,7 +119,8 @@ export async function GET() {
       emilia: events.has("used_emilia"),
     }
 
-    const skipped = events.has("skipped_onboarding")
+    const mode = (controlRes?.data as any)?.mode || "AUTO"
+    const skipped = mode !== "FORCE_ON" && events.has("skipped_onboarding")
 
     const steps = ONBOARDING_STEPS.filter((step) => {
       if (!step.feature) return true
@@ -127,14 +133,24 @@ export async function GET() {
     const currentStep = skipped ? null : steps.find((s) => !s.completed) || null
     const completedCount = steps.filter((s) => s.completed).length
 
+    const forceOn = mode === "FORCE_ON"
+    const forceOff = mode === "FORCE_OFF"
+
+    const active = forceOff
+      ? false
+      : forceOn
+        ? steps.length > 0
+        : (!skipped && Boolean(currentStep))
+
     return NextResponse.json({
-      active: !skipped && Boolean(currentStep),
+      active,
       steps,
       currentStep,
       completedCount,
       totalCount: steps.length,
       planName: subscription?.plan?.name || null,
       skipped,
+      mode,
     })
   } catch (error: any) {
     console.error("Error in GET /api/onboarding/progress:", error)
