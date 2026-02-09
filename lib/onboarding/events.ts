@@ -3,6 +3,7 @@ export const ONBOARDING_EVENT_TYPES = {
   visited_reports: "visited_reports",
   used_cerebro: "used_cerebro",
   used_emilia: "used_emilia",
+  skipped_onboarding: "skipped_onboarding",
 } as const
 
 export type OnboardingEventType = typeof ONBOARDING_EVENT_TYPES[keyof typeof ONBOARDING_EVENT_TYPES]

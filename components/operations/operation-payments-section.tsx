@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -109,6 +109,10 @@ export function OperationPaymentsSection({
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null)
   const [sendingReceiptId, setSendingReceiptId] = useState<string | null>(null)
   const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string; current_balance?: number; initial_balance?: number }>>([])
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false)
+  const [creatingAccount, setCreatingAccount] = useState(false)
+  const [newAccountName, setNewAccountName] = useState("")
+  const [newAccountType, setNewAccountType] = useState("")
 
   // Pagos pendientes (los auto-generados que nunca se pagaron)
   const pendingPayments = payments.filter(p => p.status === "PENDING")
@@ -537,6 +541,87 @@ export function OperationPaymentsSection({
   const watchExchangeRate = form.watch("exchange_rate")
   const availableAccounts = financialAccounts.filter(acc => acc.currency === watchCurrency)
   const hasAvailableAccounts = availableAccounts.length > 0
+
+  const accountTypeOptions = useMemo(() => {
+    if (watchCurrency === "USD") {
+      return [
+        { value: "CASH_USD", label: "Caja efectivo USD" },
+        { value: "CHECKING_USD", label: "Cuenta corriente USD" },
+        { value: "SAVINGS_USD", label: "Caja de ahorro USD" },
+      ]
+    }
+    return [
+      { value: "CASH_ARS", label: "Caja efectivo ARS" },
+      { value: "CHECKING_ARS", label: "Cuenta corriente ARS" },
+      { value: "SAVINGS_ARS", label: "Caja de ahorro ARS" },
+    ]
+  }, [watchCurrency])
+
+  const accountTypeLabels = useMemo(() => {
+    return accountTypeOptions.reduce<Record<string, string>>((acc, option) => {
+      acc[option.value] = option.label
+      return acc
+    }, {})
+  }, [accountTypeOptions])
+
+  useEffect(() => {
+    if (!accountDialogOpen) return
+    const defaultType = accountTypeOptions[0]?.value ?? ""
+    setNewAccountType(defaultType)
+    setNewAccountName(accountTypeLabels[defaultType] || "")
+  }, [accountDialogOpen, accountTypeOptions, accountTypeLabels])
+
+  const handleCreateAccount = async () => {
+    if (!newAccountType) {
+      toast.error("Seleccioná el tipo de cuenta")
+      return
+    }
+
+    const name = newAccountName.trim()
+    if (!name) {
+      toast.error("El nombre de la cuenta es requerido")
+      return
+    }
+
+    setCreatingAccount(true)
+    try {
+      const response = await fetch("/api/accounting/financial-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          type: newAccountType,
+          currency: watchCurrency,
+          initial_balance: 0,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Error al crear cuenta financiera")
+      }
+
+      const data = await response.json()
+      if (data?.account?.id) {
+        setFinancialAccounts((prev) => {
+          if (prev.some((acc) => acc.id === data.account.id)) {
+            return prev
+          }
+          return [...prev, data.account]
+        })
+        form.setValue("account_id", data.account.id, { shouldValidate: true })
+      }
+
+      window.dispatchEvent(new CustomEvent("refresh-financial-accounts"))
+      toast.success("Cuenta financiera creada")
+      setAccountDialogOpen(false)
+    } catch (error: any) {
+      console.error("Error creating financial account:", error)
+      toast.error(error?.message || "Error al crear cuenta financiera")
+    } finally {
+      setCreatingAccount(false)
+    }
+  }
 
   // Calcular equivalente en USD
   const calculatedUSD = watchCurrency === "ARS" && watchAmount > 0 && watchExchangeRate && watchExchangeRate > 0
@@ -1011,35 +1096,120 @@ export function OperationPaymentsSection({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cuenta Financiera *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar cuenta" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableAccounts.map((account) => {
-                            const balance = account.current_balance || account.initial_balance || 0
-                            return (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.name} ({account.currency}) - {account.currency} {Number(balance).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                              </SelectItem>
-                            )
-                          })}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar cuenta" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableAccounts.map((account) => {
+                              const balance = account.current_balance || account.initial_balance || 0
+                              return (
+                                <SelectItem key={account.id} value={account.id}>
+                                  {account.name} ({account.currency}) - {account.currency} {Number(balance).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                                </SelectItem>
+                              )
+                            })}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        title="Crear cuenta financiera"
+                        onClick={() => setAccountDialogOpen(true)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                     {!hasAvailableAccounts && (
-                      <p className="text-sm text-destructive mt-2">
-                        No tenés cuentas financieras en {watchCurrency}. Creá una en Caja &gt; Cuentas Financieras.
-                      </p>
+                      <div className="mt-2 rounded-lg border border-dashed border-destructive/40 bg-destructive/5 p-3">
+                        <p className="text-sm text-destructive">
+                          No tenés cuentas financieras en {watchCurrency}. Podés crear una ahora mismo desde acá.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => setAccountDialogOpen(true)}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Crear cuenta en {watchCurrency}
+                        </Button>
+                      </div>
                     )}
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Crear cuenta financiera</DialogTitle>
+                    <DialogDescription>
+                      Necesitás una cuenta en {watchCurrency} para registrar el pago.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <FormLabel>Tipo de cuenta</FormLabel>
+                      <Select
+                        value={newAccountType}
+                        onValueChange={(value) => {
+                          setNewAccountType(value)
+                          if (!newAccountName.trim()) {
+                            setNewAccountName(accountTypeLabels[value] || "")
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccioná un tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accountTypeOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <FormLabel>Nombre</FormLabel>
+                      <Input
+                        value={newAccountName}
+                        onChange={(event) => setNewAccountName(event.target.value)}
+                        placeholder="Ej: Caja principal"
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setAccountDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="button" onClick={handleCreateAccount} disabled={creatingAccount}>
+                      {creatingAccount ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creando...
+                        </>
+                      ) : (
+                        "Crear cuenta"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <FormField
                 control={form.control}

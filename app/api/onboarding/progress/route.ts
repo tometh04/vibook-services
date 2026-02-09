@@ -110,6 +110,8 @@ export async function GET() {
       emilia: events.has("used_emilia"),
     }
 
+    const skipped = events.has("skipped_onboarding")
+
     const steps = ONBOARDING_STEPS.filter((step) => {
       if (!step.feature) return true
       return planFeatures?.[step.feature] === true
@@ -118,16 +120,17 @@ export async function GET() {
       completed: completionMap[step.id] === true,
     }))
 
-    const currentStep = steps.find((s) => !s.completed) || null
+    const currentStep = skipped ? null : steps.find((s) => !s.completed) || null
     const completedCount = steps.filter((s) => s.completed).length
 
     return NextResponse.json({
-      active: Boolean(currentStep),
+      active: !skipped && Boolean(currentStep),
       steps,
       currentStep,
       completedCount,
       totalCount: steps.length,
       planName: subscription?.plan?.name || null,
+      skipped,
     })
   } catch (error: any) {
     console.error("Error in GET /api/onboarding/progress:", error)

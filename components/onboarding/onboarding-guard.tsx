@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { trackOnboardingEvent } from "@/lib/onboarding/client"
 
 interface OnboardingStep {
   id: string
@@ -34,8 +36,10 @@ function isAllowedPath(pathname: string, allowedPrefixes: string[]) {
 export function OnboardingGuard() {
   const router = useRouter()
   const pathname = usePathname()
+  const isMobile = useIsMobile()
   const [progress, setProgress] = useState<OnboardingProgress | null>(null)
   const [loading, setLoading] = useState(true)
+  const [skipRequested, setSkipRequested] = useState(false)
 
   const refresh = async () => {
     try {
@@ -60,28 +64,48 @@ export function OnboardingGuard() {
   }, [])
 
   useEffect(() => {
-    if (loading || !progress?.active || !progress.currentStep || !pathname) return
+    if (loading || skipRequested || !progress?.active || !progress.currentStep || !pathname) return
     if (!isAllowedPath(pathname, progress.currentStep.allowedPrefixes)) {
       router.push(progress.currentStep.actionPath)
     }
-  }, [loading, progress, pathname, router])
+  }, [loading, skipRequested, progress, pathname, router])
 
   const completionPercent = useMemo(() => {
     if (!progress || progress.totalCount === 0) return 0
     return Math.round((progress.completedCount / progress.totalCount) * 100)
   }, [progress])
 
-  if (loading || !progress?.active || !progress.currentStep) return null
+  if (loading || skipRequested || !progress?.active || !progress.currentStep) return null
 
   const current = progress.currentStep
+  const shouldDockLeft = !isMobile && current.id === "payment" && Boolean(pathname?.startsWith("/operations"))
+
+  const handleSkip = async () => {
+    setSkipRequested(true)
+    setProgress((prev) => (prev ? { ...prev, active: false, currentStep: null } : prev))
+    await trackOnboardingEvent("skipped_onboarding")
+  }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[90vw]">
+    <div
+      className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[90vw]"
+      style={shouldDockLeft ? { left: "calc(var(--sidebar-width) + 1.5rem)", right: "auto" } : undefined}
+    >
       <Card className="border border-primary/20 bg-background/95 shadow-xl backdrop-blur">
         <CardHeader className="space-y-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Onboarding guiado</CardTitle>
-            <Badge variant="outline">{completionPercent}%</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{completionPercent}%</Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={handleSkip}
+              >
+                Saltar
+              </Button>
+            </div>
           </div>
           <Progress value={completionPercent} className="h-2" />
           <p className="text-xs text-muted-foreground">
