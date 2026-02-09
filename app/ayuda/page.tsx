@@ -1,12 +1,13 @@
 import Link from "next/link"
 import Image from "next/image"
+import fs from "fs"
+import path from "path"
 import {
   ArrowLeft,
   BookOpen,
   LayoutList,
   LifeBuoy,
   MessageCircle,
-  Sparkles,
   CheckCircle2,
   Target,
   Compass,
@@ -26,7 +27,6 @@ interface ScreenshotPin {
 interface ScreenshotBlock {
   title: string
   src?: string
-  hint?: string
   pins?: ScreenshotPin[]
 }
 
@@ -99,7 +99,7 @@ const sections: HelpSection[] = [
     links: [{ label: "Ir al CRM", href: "/sales/leads" }],
     screenshot: {
       title: "CRM en acción",
-      hint: "Subí la captura en public/help/crm-leads.png",
+      src: "/help/crm-leads.png",
       pins: [
         { x: 18, y: 26, label: "Estados del pipeline" },
         { x: 72, y: 22, label: "Acciones rápidas" },
@@ -144,7 +144,7 @@ const sections: HelpSection[] = [
     links: [{ label: "Ir a Operaciones", href: "/operations" }],
     screenshot: {
       title: "Vista de operaciones",
-      hint: "Subí la captura en public/help/operations.png",
+      src: "/help/operations.png",
       pins: [
         { x: 12, y: 20, label: "Filtros operativos" },
         { x: 86, y: 18, label: "Nueva operación" },
@@ -193,7 +193,7 @@ const sections: HelpSection[] = [
     ],
     screenshot: {
       title: "Resumen financiero",
-      hint: "Subí la captura en public/help/cash-summary.png",
+      src: "/help/cash-summary.png",
       pins: [
         { x: 18, y: 24, label: "Indicadores clave" },
         { x: 74, y: 24, label: "Saldo total" },
@@ -260,7 +260,7 @@ const sections: HelpSection[] = [
     links: [{ label: "Abrir Reportes", href: "/reports" }],
     screenshot: {
       title: "Reportes clave",
-      hint: "Subí la captura en public/help/reports.png",
+      src: "/help/reports.png",
       pins: [
         { x: 20, y: 24, label: "Filtros y períodos" },
         { x: 50, y: 40, label: "KPIs principales" },
@@ -308,7 +308,7 @@ const sections: HelpSection[] = [
     links: [{ label: "Ir al Calendario", href: "/calendar" }],
     screenshot: {
       title: "Calendario operativo",
-      hint: "Subí la captura en public/help/calendar.png",
+      src: "/help/calendar.png",
       pins: [
         { x: 20, y: 20, label: "Vista mensual" },
         { x: 72, y: 22, label: "Filtros rápidos" },
@@ -354,7 +354,7 @@ const sections: HelpSection[] = [
     plan: "Pro",
     screenshot: {
       title: "Cerebro en acción",
-      hint: "Subí la captura en public/help/cerebro.png",
+      src: "/help/cerebro.png",
       pins: [
         { x: 24, y: 26, label: "Acciones sugeridas" },
         { x: 52, y: 80, label: "Entrada de consulta" },
@@ -381,7 +381,7 @@ const sections: HelpSection[] = [
     plan: "Pro",
     screenshot: {
       title: "Búsqueda con Emilia",
-      hint: "Subí la captura en public/help/emilia.png",
+      src: "/help/emilia.png",
       pins: [
         { x: 30, y: 30, label: "Conversación" },
         { x: 65, y: 68, label: "Resultados" },
@@ -447,16 +447,15 @@ const sections: HelpSection[] = [
   },
 ]
 
+function hasPublicImage(src?: string) {
+  if (!src) return false
+  const clean = src.startsWith("/") ? src.slice(1) : src
+  return fs.existsSync(path.join(process.cwd(), "public", clean))
+}
+
 function AnnotatedScreenshot({ screenshot }: { screenshot: ScreenshotBlock }) {
-  if (!screenshot.src) {
-    return (
-      <div className="rounded-xl border border-dashed border-border/70 bg-muted/40 p-5 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">{screenshot.title}</p>
-        <p className="mt-2">
-          Sumá una captura para esta sección. {screenshot.hint || ""}
-        </p>
-      </div>
-    )
+  if (!screenshot.src || !hasPublicImage(screenshot.src)) {
+    return null
   }
 
   return (
@@ -634,19 +633,6 @@ export default function AyudaPage() {
             </section>
           ))}
 
-          <Card className="border-border/60 bg-card/70">
-            <CardContent className="p-6 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Sugerencias finales
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Si querés una guía con capturas reales y flechas, subí las imágenes en
-                <span className="font-medium text-foreground"> public/help/</span> usando los nombres sugeridos en cada sección.
-                Nosotros dejamos todo listo para que se vean con anotaciones automáticas.
-              </p>
-            </CardContent>
-          </Card>
         </main>
       </div>
     </div>
