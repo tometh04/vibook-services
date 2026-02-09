@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { generateMessagesFromAlerts } from "@/lib/whatsapp/alert-messages"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 /**
  * Genera mensajes de WhatsApp para todas las operaciones existentes
@@ -11,6 +12,14 @@ export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "whatsapp")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a WhatsApp" },
+        { status: 403 }
+      )
+    }
 
     // Verificar permiso
     if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
@@ -255,4 +264,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error al generar mensajes" }, { status: 500 })
   }
 }
-

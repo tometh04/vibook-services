@@ -20,6 +20,8 @@ export default function PaywallPage() {
   const [usingFallbackPlans, setUsingFallbackPlans] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const { subscription, loading: subscriptionLoading, isActive, isTrial } = useSubscription()
+  const enterpriseWhatsappUrl =
+    "https://wa.me/5493417417442?text=" + encodeURIComponent("Hola! Quiero el plan Enterprise de Vibook.")
 
   useEffect(() => {
     async function fetchPlans() {
@@ -297,6 +299,7 @@ export default function PaywallPage() {
             {plans.map((plan) => {
               const price = plan.price_monthly
               const isPopular = plan.name === 'PRO'
+              const isEnterprise = plan.name === 'ENTERPRISE'
               const optionalFeatures = [
                 { key: 'cerebro', label: 'Cerebro (Asistente IA)', enabled: plan.features.cerebro },
                 { key: 'emilia', label: 'Emilia (Asistente IA)', enabled: plan.features.emilia },
@@ -332,9 +335,9 @@ export default function PaywallPage() {
                     <div className="pt-4">
                       <div className="flex items-baseline gap-2">
                         <span className="text-4xl font-semibold leading-none text-slate-900">
-                          {formatPrice(price)}
+                          {isEnterprise ? "Contactanos" : formatPrice(price)}
                         </span>
-                        {price !== null && price > 0 && (
+                        {!isEnterprise && price !== null && price > 0 && (
                           <span className="text-sm text-slate-500">/mes</span>
                         )}
                       </div>
@@ -374,21 +377,33 @@ export default function PaywallPage() {
                   </CardContent>
 
                   <CardFooter className="pt-4">
-                    <Button
-                      className={`h-11 w-full text-sm font-semibold transition active:scale-[0.98] ${usingFallbackPlans ? "cursor-not-allowed opacity-70" : ""}`}
-                      variant={isPopular ? "default" : "outline"}
-                      onClick={() => handleUpgrade(plan.id)}
-                      disabled={loading || usingFallbackPlans}
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Cargando...
-                        </>
-                      ) : (
-                        usingFallbackPlans ? 'Configurar Billing' : 'Comenzar Prueba Gratis'
-                      )}
-                    </Button>
+                    {isEnterprise ? (
+                      <Button
+                        className="h-11 w-full text-sm font-semibold"
+                        variant={isPopular ? "default" : "outline"}
+                        asChild
+                      >
+                        <a href={enterpriseWhatsappUrl} target="_blank" rel="noreferrer">
+                          Hablar por WhatsApp
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        className={`h-11 w-full text-sm font-semibold transition active:scale-[0.98] ${usingFallbackPlans ? "cursor-not-allowed opacity-70" : ""}`}
+                        variant={isPopular ? "default" : "outline"}
+                        onClick={() => handleUpgrade(plan.id)}
+                        disabled={loading || usingFallbackPlans}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Cargando...
+                          </>
+                        ) : (
+                          usingFallbackPlans ? 'Configurar Billing' : 'Comenzar Prueba Gratis'
+                        )}
+                      </Button>
+                    )}
                   </CardFooter>
                 </Card>
               )

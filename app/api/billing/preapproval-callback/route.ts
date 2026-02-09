@@ -128,16 +128,20 @@ export async function GET(request: Request) {
       const amount = preapproval.auto_recurring?.transaction_amount
       let planName = 'STARTER' // Default
       
-      // Precios actualizados: Starter $79k, Pro $129k, Business $399k
-      if (amount === 79000) {
+      // Precios actuales: Starter $79.990, Pro $99.990
+      if (amount === 79990) {
         planName = 'STARTER'
-      } else if (amount === 129000) {
+      } else if (amount === 99990) {
         planName = 'PRO'
-      } else if (amount === 399000) {
-        planName = 'BUSINESS'
       } else {
         // Fallback para precios antiguos (por compatibilidad)
-        if (amount === 15000) {
+        if (amount === 399000) {
+          planName = 'BUSINESS'
+        } else if (amount === 79000) {
+          planName = 'STARTER'
+        } else if (amount === 129000) {
+          planName = 'PRO'
+        } else if (amount === 15000) {
           planName = 'STARTER'
         } else if (amount === 50000) {
           planName = 'PRO'
@@ -161,7 +165,7 @@ export async function GET(request: Request) {
       planId = (planData as any).id
     }
 
-    // Mapear estado de Mercado Pago a nuestro estado base
+    // Mapear estado de Mercado Pago a nuestro estado base (NO activar acceso aquí)
     const mpStatus = preapproval.status as string
     let subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'UNPAID'
     
@@ -170,7 +174,8 @@ export async function GET(request: Request) {
     } else if (mpStatus === 'paused') {
       subscriptionStatus = 'SUSPENDED'
     } else if (mpStatus === 'authorized') {
-      subscriptionStatus = 'ACTIVE'
+      // Autorizado por MP, pero la activación real se hace vía webhook
+      subscriptionStatus = 'UNPAID'
     } else if (mpStatus === 'pending') {
       subscriptionStatus = 'UNPAID'
     }
@@ -230,19 +235,17 @@ export async function GET(request: Request) {
 
     hasUsedTrial = hasUsedTrial || agencyData?.has_used_trial || false
 
-    // Si es upgrade durante trial o ya usó trial, NO crear trial - pago inmediato
-    if (isUpgrade || hasUsedTrial) {
-      // Si MP no autorizó aún, mantener UNPAID (bloquea acceso)
-      if (subscriptionStatus === 'ACTIVE') {
-        subscriptionData.status = 'ACTIVE'
-      } else if (subscriptionStatus === 'CANCELED') {
-        subscriptionData.status = 'CANCELED'
-      } else if (subscriptionStatus === 'SUSPENDED') {
-        subscriptionData.status = 'SUSPENDED'
-      } else {
-        subscriptionData.status = 'UNPAID'
-      }
+    // Definir status final (webhook es la fuente de activación)
+    const existingStatus = (existingSubscription as any)?.status as typeof subscriptionStatus | undefined
+    const shouldKeepStatus = existingStatus === 'ACTIVE' || existingStatus === 'TRIAL'
+    const finalStatus = shouldKeepStatus
+      ? existingStatus!
+      : (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' ? subscriptionStatus : 'UNPAID')
 
+    subscriptionData.status = finalStatus
+
+    // Configurar trial (sin activarlo)
+    if (isUpgrade || hasUsedTrial) {
       subscriptionData.trial_start = null
       subscriptionData.trial_end = null
       // Calcular período desde ahora (30 días)
@@ -258,29 +261,11 @@ export async function GET(request: Request) {
 
       const trialDays = trialConfig ? parseInt(trialConfig.value) : 7 // Default 7 días
 
-      // Trial usando configuración:
-      // SOLO activar trial cuando MP confirmó (authorized). Si está pending, mantener UNPAID.
-      if (subscriptionStatus === 'CANCELED') {
-        subscriptionData.status = 'CANCELED'
-      } else if (subscriptionStatus === 'SUSPENDED') {
-        subscriptionData.status = 'SUSPENDED'
-      } else if (subscriptionStatus === 'ACTIVE') {
-        // MP confirmó el preapproval: habilitar TRIAL
-        subscriptionData.status = 'TRIAL'
-        subscriptionData.trial_start = new Date().toISOString()
-        subscriptionData.trial_end = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
-        
-        // IMPORTANTE: Marcar que la agencia ya usó el trial SOLO cuando se activó
-        await (supabaseAdmin
-          .from("agencies") as any)
-          .update({ has_used_trial: true })
-          .eq("id", agencyId)
-      } else {
-        // pending u otros estados: seguir bloqueado
-        subscriptionData.status = 'UNPAID'
-        subscriptionData.trial_start = null
-        subscriptionData.trial_end = null
-      }
+      // Mantener trial preparado para cuando el webhook confirme
+      const existingTrialStart = (existingSubscription as any)?.trial_start as string | null | undefined
+      const existingTrialEnd = (existingSubscription as any)?.trial_end as string | null | undefined
+      subscriptionData.trial_start = existingTrialStart || new Date().toISOString()
+      subscriptionData.trial_end = existingTrialEnd || new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString()
     }
 
     let subscriptionResult: any
@@ -304,7 +289,7 @@ export async function GET(request: Request) {
         subscriptionId: existingSubData.id,
         agencyId,
         planId,
-        status: subscriptionStatus,
+        status: finalStatus,
         mp_preapproval_id: preapprovalId
       })
     } else {
@@ -326,7 +311,7 @@ export async function GET(request: Request) {
         subscriptionId: subscriptionResult.id,
         agencyId,
         planId,
-        status: subscriptionStatus,
+        status: finalStatus,
         mp_preapproval_id: preapprovalId
       })
     }
@@ -354,7 +339,7 @@ export async function GET(request: Request) {
             mp_data: preapproval,
             user_id: userId,
             plan_id: planId,
-            subscription_status: subscriptionStatus
+            subscription_status: finalStatus
           }
         })
     }
@@ -363,18 +348,18 @@ export async function GET(request: Request) {
       agencyId,
       subscriptionId,
       preapprovalId,
-      status: subscriptionStatus
+      status: finalStatus
     })
 
-    // Redirigir al dashboard en lugar de billing (el usuario ya pagó, debe tener acceso)
+    // Redirigir al paywall mientras se espera confirmación por webhook
     // Si el usuario no está autenticado, redirigir a login primero
     try {
       const { user } = await getCurrentUser()
-      // Usuario autenticado, redirigir al dashboard
-      return NextResponse.redirect(new URL(`/dashboard?payment_success=true&preapproval_id=${preapprovalId}`, request.url))
+      // Usuario autenticado, redirigir al paywall (se auto-redirect si ya está activo)
+      return NextResponse.redirect(new URL(`/paywall?payment_pending=true&preapproval_id=${preapprovalId}`, request.url))
     } catch {
       // Usuario no autenticado, redirigir a login con mensaje
-      return NextResponse.redirect(new URL(`/login?payment_success=true&preapproval_id=${preapprovalId}`, request.url))
+      return NextResponse.redirect(new URL(`/login?payment_pending=true&preapproval_id=${preapprovalId}`, request.url))
     }
   } catch (error: any) {
     console.error('Error en preapproval callback:', error)

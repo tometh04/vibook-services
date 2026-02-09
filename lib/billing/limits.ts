@@ -238,14 +238,27 @@ export async function checkFeatureAccess(
     }
 
     const plan = subscription.plan
-    const features = plan.features || {}
-
-    // Durante el período de prueba (TRIAL) o si está ACTIVE, permitir acceso a todas las features
-    // Esto respeta los cambios manuales del admin
-    if (subscriptionStatus === 'TRIAL' || subscriptionStatus === 'ACTIVE') {
-      return { hasAccess: true }
+    let features: Record<string, boolean> = {}
+    if (typeof plan.features === "string") {
+      try {
+        features = JSON.parse(plan.features) as Record<string, boolean>
+      } catch (e) {
+        console.error("[checkFeatureAccess] Error parsing features:", e)
+        features = {}
+      }
+    } else {
+      features = (plan.features || {}) as Record<string, boolean>
     }
 
+    // Durante el período de prueba (TRIAL) permitir acceso completo si sigue vigente
+    if (subscriptionStatus === 'TRIAL') {
+      const trialEndRaw = subscription.trial_end as string | null | undefined
+      const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null
+      const trialActive = !trialEndDate || trialEndDate >= new Date()
+      return { hasAccess: trialActive, message: trialActive ? undefined : "Tu período de prueba finalizó. Por favor, actualizá tu plan para continuar." }
+    }
+
+    // En ACTIVE respetar el plan y sus features
     const hasAccess = features[feature] === true
 
     const planNames: Record<string, string> = {

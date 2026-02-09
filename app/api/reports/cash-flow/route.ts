@@ -3,10 +3,19 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getAccountBalance, getAccountBalancesBatch } from "@/lib/accounting/ledger"
 import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "reports")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a Reportes" },
+        { status: 403 }
+      )
+    }
     
     // Solo SUPER_ADMIN, ADMIN y CONTABLE pueden ver flujo de caja
     if (!["SUPER_ADMIN", "ADMIN", "CONTABLE"].includes(user.role)) {

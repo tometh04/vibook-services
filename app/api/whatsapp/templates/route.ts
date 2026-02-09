@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "whatsapp")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a WhatsApp" },
+        { status: 403 }
+      )
+    }
 
     // Obtener agencias del usuario
     const { data: userAgencies } = await supabase
@@ -58,6 +67,14 @@ export async function POST(request: Request) {
     const supabase = await createServerClient()
     const body = await request.json()
 
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "whatsapp", body?.agency_id)
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a WhatsApp" },
+        { status: 403 }
+      )
+    }
+
     // Solo ADMIN o SUPER_ADMIN pueden crear templates
     if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
@@ -82,4 +99,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-

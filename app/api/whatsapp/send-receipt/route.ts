@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { canPerformAction } from "@/lib/permissions-api"
 import { createWhatsAppMessage } from "@/lib/whatsapp/whatsapp-service"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 /**
  * POST /api/whatsapp/send-receipt
@@ -11,6 +12,14 @@ import { createWhatsAppMessage } from "@/lib/whatsapp/whatsapp-service"
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "whatsapp")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a WhatsApp" },
+        { status: 403 }
+      )
+    }
     
     if (!canPerformAction(user, "operations", "write")) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
@@ -152,4 +161,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error al enviar recibo por WhatsApp" }, { status: 500 })
   }
 }
-

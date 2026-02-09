@@ -8,6 +8,7 @@ import {
     buildAssistantContent,
 } from "@/lib/emilia/utils"
 import { transformFlights, transformHotels } from "@/lib/emilia/transformers"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 interface ChatRequest {
     message: string
@@ -20,6 +21,14 @@ export async function POST(request: Request) {
         const { user } = await getCurrentUser()
         if (!user) {
             return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+        }
+
+        const featureAccess = await verifyFeatureAccess(user.id, user.role, "emilia")
+        if (!featureAccess.hasAccess) {
+            return NextResponse.json(
+                { error: featureAccess.message || "No tiene acceso a Emilia" },
+                { status: 403 }
+            )
         }
 
         const body: ChatRequest = await request.json()
@@ -392,4 +401,3 @@ export async function POST(request: Request) {
         )
     }
 }
-

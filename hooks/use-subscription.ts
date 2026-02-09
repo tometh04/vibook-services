@@ -94,11 +94,15 @@ export function useSubscription() {
         return true
       }
       
-      // Si está en TRIAL o ACTIVE, verificar la feature específica del plan
+      // Si está en TRIAL, permitir acceso completo
       const trialEnd = subscription.trial_end ? new Date(subscription.trial_end) : null
       const trialActive = subscription.status === "TRIAL" && (!trialEnd || trialEnd >= new Date())
 
-      if (subscription.status === "ACTIVE" || trialActive) {
+      if (trialActive) {
+        return true
+      }
+
+      if (subscription.status === "ACTIVE") {
         // Asegurarse de que features es un objeto
         let features = subscription.plan.features
         if (typeof features === 'string') {

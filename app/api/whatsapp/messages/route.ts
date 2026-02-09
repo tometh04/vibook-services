@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "whatsapp")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a WhatsApp" },
+        { status: 403 }
+      )
+    }
 
     // Obtener agencias del usuario
     const { data: userAgencies } = await supabase
@@ -113,6 +122,14 @@ export async function POST(request: Request) {
       scheduled_for,
     } = body
 
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "whatsapp", agency_id)
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a WhatsApp" },
+        { status: 403 }
+      )
+    }
+
     if (!customer_id || !phone || !message) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
@@ -151,4 +168,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-

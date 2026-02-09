@@ -317,10 +317,10 @@ async function handlePreApprovalNotification(preapprovalId: string) {
     } else if (mpStatus === 'paused') {
       status = 'SUSPENDED'
     } else if (mpStatus === 'authorized') {
-      // Si tiene trial vigente, mantener TRIAL aun cuando MP autoriza
+      // Si tiene trial vigente (aunque aún esté UNPAID), activar TRIAL
       const trialEndRaw = (subscription as any)?.trial_end as string | null | undefined
       const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null
-      const hasTrial = (subscription as any)?.status === 'TRIAL' && (!trialEndDate || trialEndDate >= new Date())
+      const hasTrial = !!trialEndDate && trialEndDate >= new Date()
       status = hasTrial ? 'TRIAL' : 'ACTIVE'
       // Resetear intentos de pago cuando hay pago exitoso
       if (subscription) {
@@ -389,6 +389,21 @@ async function handlePreApprovalNotification(preapprovalId: string) {
 
       if (updateError) {
         console.error('Error actualizando suscripción:', updateError)
+      }
+
+      // Si se activó TRIAL, marcar has_used_trial
+      if (status === 'TRIAL') {
+        try {
+          const { error: trialError } = await (getSupabaseAdmin()
+            .from("agencies") as any)
+            .update({ has_used_trial: true })
+            .eq("id", subData.agency_id)
+          if (trialError) {
+            console.error('Error marcando has_used_trial:', trialError)
+          }
+        } catch (err: any) {
+          console.error('Error marcando has_used_trial:', err)
+        }
       }
 
       // Registrar evento según el estado

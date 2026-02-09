@@ -12,6 +12,7 @@ import {
   mapDepositMethodToLedgerMethod,
   getAccountTypeForDeposit,
 } from "@/lib/accounting/deposit-utils"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export async function DELETE(
   request: Request,
@@ -20,6 +21,14 @@ export async function DELETE(
   try {
     const { user } = await getCurrentUser()
     const { id } = await params
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "crm")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso al CRM" },
+        { status: 403 }
+      )
+    }
 
     if (!canPerformAction(user, "leads", "write")) {
       return NextResponse.json({ error: "No tiene permiso para eliminar leads" }, { status: 403 })
@@ -101,6 +110,14 @@ export async function PATCH(
     const { user } = await getCurrentUser()
     const { id } = await params
     const body = await request.json()
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "crm")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso al CRM" },
+        { status: 403 }
+      )
+    }
 
     if (!canPerformAction(user, "leads", "write")) {
       return NextResponse.json({ error: "No tiene permiso para editar leads" }, { status: 403 })
@@ -312,4 +329,3 @@ export async function PATCH(
     return NextResponse.json({ error: error.message || "Error al actualizar lead" }, { status: 500 })
   }
 }
-

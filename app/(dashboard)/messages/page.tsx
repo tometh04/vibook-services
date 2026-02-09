@@ -2,11 +2,22 @@ import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { MessagesPageClient } from "@/components/whatsapp/messages-page-client"
 import { PaywallGate } from "@/components/billing/paywall-gate"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export const dynamic = 'force-dynamic'
 
 export default async function MessagesPage() {
   const { user } = await getCurrentUser()
+  
+  const featureAccess = await verifyFeatureAccess(user.id, user.role, "whatsapp")
+  if (!featureAccess.hasAccess) {
+    return (
+      <PaywallGate feature="whatsapp" requiredPlan="Starter" message="WhatsApp está disponible en planes Starter y superiores.">
+        <div className="h-64 rounded-lg border border-dashed border-muted-foreground/30" />
+      </PaywallGate>
+    )
+  }
+
   const supabase = await createServerClient()
 
   // Obtener agencias del usuario
@@ -57,4 +68,3 @@ export default async function MessagesPage() {
     />
   )
 }
-

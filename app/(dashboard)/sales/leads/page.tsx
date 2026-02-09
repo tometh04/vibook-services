@@ -6,6 +6,7 @@ import { LeadsPageClient } from "@/components/sales/leads-page-client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { canAccessModule } from "@/lib/permissions"
 import { PaywallGate } from "@/components/billing/paywall-gate"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 // Forzar renderizado dinámico para evitar caché
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,15 @@ export default async function LeadsPage() {
           <p className="text-muted-foreground">No tiene permiso para acceder a leads</p>
         </div>
       </div>
+    )
+  }
+
+  const featureAccess = await verifyFeatureAccess(user.id, user.role, "crm")
+  if (!featureAccess.hasAccess) {
+    return (
+      <PaywallGate feature="crm" requiredPlan="Starter" message="El CRM está disponible en planes Starter y superiores.">
+        <div className="h-64 rounded-lg border border-dashed border-muted-foreground/30" />
+      </PaywallGate>
     )
   }
 

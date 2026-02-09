@@ -58,6 +58,17 @@ export async function POST(request: Request) {
 
     const plan = planData as any // Cast porque los tipos no están generados todavía
 
+    // Plan ENTERPRISE no se checkout-ea (contacto manual)
+    if (plan.name === 'ENTERPRISE' || plan.price_monthly === 0) {
+      const whatsappNumber = '5493417417442'
+      const whatsappMessage = encodeURIComponent('Hola! Quiero el plan Enterprise de Vibook.')
+      const contactUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`
+      return NextResponse.json(
+        { error: "El plan Enterprise requiere contacto con el equipo comercial.", contactUrl },
+        { status: 400 }
+      )
+    }
+
     // Plan FREE no requiere pago
     if (plan.name === 'FREE') {
       return NextResponse.json(

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth"
 import OpenAI from "openai"
 import { createServerClient } from "@/lib/supabase/server"
 import { getUserAgencyIds } from "@/lib/permissions-api"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 // Esquema REAL de la base de datos - Actualizado 2025-01-28
 const DATABASE_SCHEMA = `
@@ -329,6 +330,14 @@ async function executeQuery(
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "cerebro")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a Cerebro" },
+        { status: 403 }
+      )
+    }
     
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })

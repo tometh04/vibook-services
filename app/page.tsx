@@ -1,5 +1,6 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { createServerClient } from "@/lib/supabase/server"
 
 export const dynamic = 'force-dynamic'
 
@@ -14,9 +15,26 @@ export default async function Home() {
     redirect("/admin-login")
   }
   
-  // Para app.vibook.ai, redirigir a /login
+  // Para app.vibook.ai, mantener sesión y enviar a paywall
   if (host === "app.vibook.ai" || host.includes("app.vibook.ai")) {
-    redirect("/login")
+    const supabase = await createServerClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      redirect("/login")
+    }
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, is_active")
+      .eq("auth_id", authUser.id)
+      .maybeSingle()
+
+    if (!user || user.is_active === false) {
+      redirect("/login")
+    }
+
+    redirect("/paywall")
   }
   
   // Para la app principal, mostrar home normal

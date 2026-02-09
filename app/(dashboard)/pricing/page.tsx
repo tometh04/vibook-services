@@ -12,6 +12,8 @@ export default function PricingPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [loading, setLoading] = useState(true)
   const { subscription, loading: subscriptionLoading } = useSubscription()
+  const enterpriseWhatsappUrl =
+    "https://wa.me/5493417417442?text=" + encodeURIComponent("Hola! Quiero el plan Enterprise de Vibook.")
 
   useEffect(() => {
     async function fetchPlans() {
@@ -30,6 +32,12 @@ export default function PricingPage() {
 
   const handleUpgrade = async (planId: string) => {
     try {
+      const plan = plans.find((p) => p.id === planId)
+      if (plan?.name === "ENTERPRISE" || plan?.price_monthly === 0) {
+        window.open(enterpriseWhatsappUrl, "_blank", "noopener,noreferrer")
+        return
+      }
+
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -112,6 +120,7 @@ export default function PricingPage() {
           const price = plan.price_monthly
           const isCurrentPlan = currentPlanId === plan.id
           const isPopular = plan.name === 'PRO'
+          const isEnterprise = plan.name === 'ENTERPRISE'
 
           return (
             <Card
@@ -135,8 +144,10 @@ export default function PricingPage() {
                 <CardTitle className="text-2xl">{plan.display_name}</CardTitle>
                 <CardDescription>{plan.description}</CardDescription>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold">{formatPrice(price)}</span>
-                  {price !== null && price > 0 && (
+                  <span className="text-4xl font-bold">
+                    {isEnterprise ? "Contactanos" : formatPrice(price)}
+                  </span>
+                  {!isEnterprise && price !== null && price > 0 && (
                     <span className="text-muted-foreground">/mes</span>
                   )}
                 </div>
@@ -203,6 +214,12 @@ export default function PricingPage() {
                 {isCurrentPlan ? (
                   <Button className="w-full" variant="outline" disabled>
                     Plan Actual
+                  </Button>
+                ) : isEnterprise ? (
+                  <Button className="w-full" variant={isPopular ? "default" : "outline"} asChild>
+                    <a href={enterpriseWhatsappUrl} target="_blank" rel="noreferrer">
+                      Hablar por WhatsApp
+                    </a>
                   </Button>
                 ) : (
                   <Button

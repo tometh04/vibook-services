@@ -3,12 +3,21 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "reports")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a Reportes" },
+        { status: 403 }
+      )
+    }
 
     const reportType = searchParams.get("type") || "operations"
     const exportFormat = searchParams.get("format") || "csv"

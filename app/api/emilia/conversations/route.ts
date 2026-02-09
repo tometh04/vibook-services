@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 // GET /api/emilia/conversations - Listar conversaciones del usuario
 export async function GET(request: Request) {
@@ -8,6 +9,14 @@ export async function GET(request: Request) {
     const { user } = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "emilia")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a Emilia" },
+        { status: 403 }
+      )
     }
 
     const { searchParams } = new URL(request.url)
@@ -80,6 +89,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "emilia")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso a Emilia" },
+        { status: 403 }
+      )
+    }
+
     const supabase = await createServerClient()
 
     // Crear nueva conversación con título temporal
@@ -124,4 +141,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

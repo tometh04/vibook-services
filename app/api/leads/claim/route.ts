@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 /**
  * POST /api/leads/claim
@@ -13,6 +14,14 @@ import { getCurrentUser } from "@/lib/auth"
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "crm")
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso al CRM" },
+        { status: 403 }
+      )
+    }
     
     // Solo vendedores pueden "agarrar" leads
     if (user.role !== "SELLER" && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
@@ -74,4 +83,3 @@ export async function POST(request: Request) {
     }, { status: 500 })
   }
 }
-

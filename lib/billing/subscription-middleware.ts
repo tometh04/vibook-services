@@ -6,7 +6,7 @@
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { createServerClient } from "@/lib/supabase/server"
-import { getCurrentUser } from "@/lib/auth"
+import { checkFeatureAccess } from "@/lib/billing/limits"
 
 export interface SubscriptionCheckResult {
   hasAccess: boolean
@@ -147,6 +147,65 @@ export async function verifySubscriptionAccess(
     return {
       hasAccess: false,
       message: "Error al verificar suscripción"
+    }
+  }
+}
+
+export interface FeatureAccessResult {
+  hasAccess: boolean
+  message?: string
+  agencyId?: string
+}
+
+/**
+ * Verifica acceso a una feature específica por agencia
+ * - Usa subscription + plan features
+ * - En TRIAL permite acceso completo
+ */
+export async function verifyFeatureAccess(
+  userId: string,
+  userRole: string,
+  feature: string,
+  agencyId?: string
+): Promise<FeatureAccessResult> {
+  try {
+    // Bypass para desarrollo local cuando la auth está deshabilitada
+    if (process.env.DISABLE_AUTH === "true") {
+      return { hasAccess: true, agencyId }
+    }
+
+    const supabase = await createServerClient()
+
+    // Obtener agencias del usuario
+    const agencyIds = await getUserAgencyIds(supabase, userId, userRole as any)
+
+    if (agencyIds.length === 0) {
+      return {
+        hasAccess: false,
+        message: "No tiene agencias asignadas",
+      }
+    }
+
+    const targetAgencyId = agencyId || agencyIds[0]
+
+    if (agencyId && !agencyIds.includes(agencyId) && userRole !== "SUPER_ADMIN") {
+      return {
+        hasAccess: false,
+        message: "No tiene permiso para acceder a esta agencia",
+      }
+    }
+
+    const access = await checkFeatureAccess(targetAgencyId, feature)
+    return {
+      hasAccess: access.hasAccess,
+      message: access.message,
+      agencyId: targetAgencyId,
+    }
+  } catch (error: any) {
+    console.error("[verifyFeatureAccess] Error:", error)
+    return {
+      hasAccess: false,
+      message: "Error al verificar suscripción",
     }
   }
 }

@@ -5,6 +5,7 @@ import { getUserAgencyIds } from "@/lib/permissions-api"
 import { subMonths, format } from "date-fns"
 import { es } from "date-fns/locale"
 import { getExchangeRatesBatch, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,19 @@ export async function GET(request: Request) {
     // Parámetros de filtro
     const agencyId = searchParams.get("agencyId")
     const months = parseInt(searchParams.get("months") || "12")
+
+    const featureAccess = await verifyFeatureAccess(
+      user.id,
+      user.role,
+      "crm",
+      agencyId && agencyId !== "ALL" ? agencyId : undefined
+    )
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso al CRM" },
+        { status: 403 }
+      )
+    }
 
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)

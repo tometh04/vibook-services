@@ -12,12 +12,27 @@ import {
   getAccountTypeForDeposit,
 } from "@/lib/accounting/deposit-utils"
 import { applyLeadsFilters, canPerformAction } from "@/lib/permissions-api"
+import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
+
+    const agencyIdParam = searchParams.get("agencyId")
+    const featureAccess = await verifyFeatureAccess(
+      user.id,
+      user.role,
+      "crm",
+      agencyIdParam && agencyIdParam !== "ALL" ? agencyIdParam : undefined
+    )
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso al CRM" },
+        { status: 403 }
+      )
+    }
 
     // Get user agencies (con caché)
     const { getUserAgencyIds } = await import("@/lib/permissions-api")
@@ -213,6 +228,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
+
+    const supabase = await createServerClient()
+    const body = await request.json()
+
+    const featureAccess = await verifyFeatureAccess(user.id, user.role, "crm", body?.agency_id)
+    if (!featureAccess.hasAccess) {
+      return NextResponse.json(
+        { error: featureAccess.message || "No tiene acceso al CRM" },
+        { status: 403 }
+      )
+    }
     
     // Verificar permiso de escritura
     if (!canPerformAction(user, "leads", "write")) {
@@ -228,9 +254,6 @@ export async function POST(request: Request) {
         { status: 403 }
       )
     }
-
-    const supabase = await createServerClient()
-    const body = await request.json()
 
     const {
       agency_id,
