@@ -27,6 +27,7 @@ import { shouldShowInSidebar, type UserRole } from "@/lib/permissions"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { ThemeToggleSidebar } from "@/components/theme-toggle-sidebar"
+import { OnboardingGuard } from "@/components/onboarding/onboarding-guard"
 import {
   Sidebar,
   SidebarContent,
@@ -302,6 +303,7 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navigation} pathname={pathname} />
+        <OnboardingGuard variant="sidebar" />
       </SidebarContent>
       <SidebarFooter>
         <ThemeToggleSidebar />

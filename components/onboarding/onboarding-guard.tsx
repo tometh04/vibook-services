@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react"
-import { useIsMobile } from "@/hooks/use-mobile"
 import { trackOnboardingEvent } from "@/lib/onboarding/client"
 
 interface OnboardingStep {
@@ -33,10 +32,13 @@ function isAllowedPath(pathname: string, allowedPrefixes: string[]) {
   return allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))
 }
 
-export function OnboardingGuard() {
+interface OnboardingGuardProps {
+  variant?: "floating" | "sidebar"
+}
+
+export function OnboardingGuard({ variant = "floating" }: OnboardingGuardProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const isMobile = useIsMobile()
   const [progress, setProgress] = useState<OnboardingProgress | null>(null)
   const [loading, setLoading] = useState(true)
   const [skipRequested, setSkipRequested] = useState(false)
@@ -78,7 +80,6 @@ export function OnboardingGuard() {
   if (loading || skipRequested || !progress?.active || !progress.currentStep) return null
 
   const current = progress.currentStep
-  const shouldDockLeft = !isMobile && current.id === "payment" && Boolean(pathname?.startsWith("/operations"))
 
   const handleSkip = async () => {
     setSkipRequested(true)
@@ -86,11 +87,76 @@ export function OnboardingGuard() {
     await trackOnboardingEvent("skipped_onboarding")
   }
 
+  if (variant === "sidebar") {
+    return (
+      <div className="group-data-[collapsible=icon]:hidden px-2 pb-3">
+        <div className="rounded-xl border border-sidebar-border bg-sidebar px-3 py-3 text-sidebar-foreground shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/70">
+              Onboarding
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-full border border-sidebar-border px-2 py-0.5 text-[10px]">
+                {completionPercent}%
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                onClick={handleSkip}
+              >
+                Saltar
+              </Button>
+            </div>
+          </div>
+
+          <Progress
+            value={completionPercent}
+            className="mt-2 h-1.5 bg-sidebar-accent/60 [&>div]:bg-sidebar-primary"
+          />
+          <p className="mt-2 text-[11px] text-sidebar-foreground/70">
+            Completá cada paso para desbloquear el sistema.
+          </p>
+
+          <div className="mt-3 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/30 p-2">
+            <p className="text-[10px] uppercase tracking-wide text-sidebar-foreground/60">
+              Paso actual
+            </p>
+            <p className="mt-1 text-xs font-semibold">{current.title}</p>
+            <p className="mt-1 text-[11px] text-sidebar-foreground/70 line-clamp-2">
+              {current.description}
+            </p>
+            <Button
+              size="sm"
+              className="mt-2 h-7 w-full text-xs bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+              onClick={() => router.push(current.actionPath)}
+            >
+              {current.actionLabel}
+              <ArrowRight className="ml-2 h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <div className="mt-3 space-y-1 text-[11px]">
+            {progress.steps.map((step) => (
+              <div key={step.id} className="flex items-start gap-2">
+                {step.completed ? (
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-green-500" />
+                ) : (
+                  <Circle className="mt-0.5 h-3.5 w-3.5 text-sidebar-foreground/50" />
+                )}
+                <span className={step.completed ? "text-sidebar-foreground/50 line-through" : "text-sidebar-foreground"}>
+                  {step.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div
-      className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[90vw]"
-      style={shouldDockLeft ? { left: "calc(var(--sidebar-width) + 1.5rem)", right: "auto" } : undefined}
-    >
+    <div className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[90vw]">
       <Card className="border border-primary/20 bg-background/95 shadow-xl backdrop-blur">
         <CardHeader className="space-y-2">
           <div className="flex items-center justify-between">
