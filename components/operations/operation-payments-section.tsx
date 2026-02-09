@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -114,6 +114,7 @@ export function OperationPaymentsSection({
   const [financialAccounts, setFinancialAccounts] = useState<Array<{ id: string; name: string; currency: string; current_balance?: number; initial_balance?: number }>>([])
   const [accountDialogOpen, setAccountDialogOpen] = useState(false)
   const [creatingAccount, setCreatingAccount] = useState(false)
+  const creatingAccountRef = useRef(false)
   const [newAccountName, setNewAccountName] = useState("")
   const [newAccountType, setNewAccountType] = useState("")
 
@@ -575,6 +576,7 @@ export function OperationPaymentsSection({
   }, [accountDialogOpen, accountTypeOptions, accountTypeLabels])
 
   const handleCreateAccount = async () => {
+    if (creatingAccountRef.current) return
     if (!newAccountType) {
       toast.error("Seleccioná el tipo de cuenta")
       return
@@ -586,6 +588,7 @@ export function OperationPaymentsSection({
       return
     }
 
+    creatingAccountRef.current = true
     setCreatingAccount(true)
     try {
       const response = await fetch("/api/accounting/financial-accounts", {
@@ -623,6 +626,7 @@ export function OperationPaymentsSection({
       console.error("Error creating financial account:", error)
       toast.error(error?.message || "Error al crear cuenta financiera")
     } finally {
+      creatingAccountRef.current = false
       setCreatingAccount(false)
     }
   }

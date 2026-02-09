@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -84,6 +84,8 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
   const [agencies, setAgencies] = useState<any[]>(initialAgencies)
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>("ALL")
   const [openDialog, setOpenDialog] = useState(false)
+  const [creatingAccount, setCreatingAccount] = useState(false)
+  const creatingAccountRef = useRef(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<any>(null)
@@ -163,6 +165,7 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (creatingAccountRef.current) return
     if (!formData.type || !formData.agency_id) {
       toast.error("Tipo de cuenta y agencia son requeridos")
       return
@@ -222,6 +225,8 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
       accountData.asset_quantity = Number(formData.asset_quantity) || 0
     }
 
+    creatingAccountRef.current = true
+    setCreatingAccount(true)
     try {
       const res = await fetch("/api/accounting/financial-accounts", {
         method: "POST",
@@ -241,6 +246,9 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
       fetchData()
     } catch (error: any) {
       toast.error(error.message || "Error al crear cuenta")
+    } finally {
+      creatingAccountRef.current = false
+      setCreatingAccount(false)
     }
   }
 
@@ -636,7 +644,16 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
                   <Button type="button" variant="outline" onClick={() => setOpenDialog(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit">Crear Cuenta</Button>
+                  <Button type="submit" disabled={creatingAccount}>
+                    {creatingAccount ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creando...
+                      </>
+                    ) : (
+                      "Crear Cuenta"
+                    )}
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>

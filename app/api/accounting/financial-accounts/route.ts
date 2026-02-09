@@ -144,9 +144,11 @@ export async function POST(request: Request) {
     }
 
     // Validar campos requeridos
-    if (!name || !type || !currency || !resolvedAgencyId) {
+    if (!normalizedName || !type || !currency || !resolvedAgencyId) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
+
+    const normalizedName = String(name || "").trim()
 
     // Normalizar moneda según tipo (evita inconsistencias USD/ARS)
     const inferredCurrency = type.endsWith("_ARS")
@@ -155,6 +157,21 @@ export async function POST(request: Request) {
         ? "USD"
         : currency
     const finalCurrency = inferredCurrency || currency
+
+    // Idempotencia: si ya existe una cuenta igual (evita duplicados por doble submit)
+    const { data: existingAccount, error: existingError } = await (supabase.from("financial_accounts") as any)
+      .select("*")
+      .eq("agency_id", resolvedAgencyId)
+      .eq("type", type)
+      .eq("currency", finalCurrency)
+      .eq("name", normalizedName)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!existingError && existingAccount) {
+      return NextResponse.json({ account: existingAccount, idempotent: true }, { status: 200 })
+    }
 
     // Si no se proporciona chart_account_id, asignarlo automáticamente según tipo
     let finalChartAccountId = chart_account_id
@@ -283,7 +300,7 @@ export async function POST(request: Request) {
 
     // Preparar datos para inserción
     const accountData: any = {
-      name,
+      name: normalizedName,
       type,
       currency: finalCurrency,
       agency_id: resolvedAgencyId,
