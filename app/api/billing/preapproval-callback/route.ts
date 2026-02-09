@@ -167,7 +167,8 @@ export async function GET(request: Request) {
 
     // Mapear estado de Mercado Pago a nuestro estado base (NO activar acceso aquí)
     const mpStatus = preapproval.status as string
-    let subscriptionStatus: 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED' = 'UNPAID'
+    type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'UNPAID' | 'SUSPENDED'
+    let subscriptionStatus: SubscriptionStatus = 'UNPAID'
     
     if (mpStatus === 'cancelled') {
       subscriptionStatus = 'CANCELED'
@@ -236,7 +237,7 @@ export async function GET(request: Request) {
     hasUsedTrial = hasUsedTrial || agencyData?.has_used_trial || false
 
     // Definir status final (webhook es la fuente de activación)
-    const existingStatus = (existingSubscription as any)?.status as typeof subscriptionStatus | undefined
+    const existingStatus = (existingSubscription as any)?.status as SubscriptionStatus | undefined
     const shouldKeepStatus = existingStatus === 'ACTIVE' || existingStatus === 'TRIAL'
     const finalStatus = shouldKeepStatus
       ? existingStatus!
