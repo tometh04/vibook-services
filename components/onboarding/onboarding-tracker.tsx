@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation"
 import { ONBOARDING_EVENT_TYPES } from "@/lib/onboarding/events"
 
 const EVENT_BY_PREFIX: Array<{ prefix: string; event: string }> = [
-  { prefix: "/messages", event: ONBOARDING_EVENT_TYPES.visited_whatsapp },
+  { prefix: "/cash", event: ONBOARDING_EVENT_TYPES.visited_finances },
+  { prefix: "/accounting", event: ONBOARDING_EVENT_TYPES.visited_finances },
+  { prefix: "/finances", event: ONBOARDING_EVENT_TYPES.visited_finances },
   { prefix: "/reports", event: ONBOARDING_EVENT_TYPES.visited_reports },
 ]
 

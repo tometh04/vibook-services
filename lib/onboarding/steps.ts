@@ -2,7 +2,7 @@ export type OnboardingStepId =
   | "lead"
   | "operation"
   | "payment"
-  | "whatsapp"
+  | "finance"
   | "reports"
   | "cerebro"
   | "emilia"
@@ -44,13 +44,12 @@ export const ONBOARDING_STEPS: OnboardingStepDefinition[] = [
     allowedPrefixes: ["/operations"],
   },
   {
-    id: "whatsapp",
-    title: "Abrí WhatsApp",
-    description: "Revisá la bandeja de WhatsApp y probá el envío de un mensaje.",
-    actionLabel: "Ir a Mensajes",
-    actionPath: "/messages",
-    allowedPrefixes: ["/messages", "/customers"],
-    feature: "whatsapp",
+    id: "finance",
+    title: "Revisá tu caja",
+    description: "Entrá al resumen financiero para validar ingresos y egresos.",
+    actionLabel: "Ir a Finanzas",
+    actionPath: "/cash/summary",
+    allowedPrefixes: ["/cash", "/accounting", "/finances"],
   },
   {
     id: "reports",

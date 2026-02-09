@@ -104,7 +104,7 @@ export async function GET() {
       lead: leadsCount > 0,
       operation: operationsCount > 0,
       payment: paymentsCount > 0,
-      whatsapp: events.has("visited_whatsapp"),
+      finance: events.has("visited_finances"),
       reports: events.has("visited_reports"),
       cerebro: events.has("used_cerebro"),
       emilia: events.has("used_emilia"),
