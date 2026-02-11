@@ -236,6 +236,54 @@ GROUP BY c.id, c.first_name, c.last_name, o.id, o.file_code, o.sale_amount_total
 HAVING o.sale_amount_total > COALESCE(SUM(p.amount), 0)
 LIMIT 20
 
+-- Buscar cliente por nombre (SIEMPRE usar ILIKE para búsquedas de texto)
+SELECT first_name, last_name, email, phone, document_number
+FROM customers
+WHERE (first_name ILIKE '%thomas%' OR last_name ILIKE '%thomas%')
+AND agency_id = ANY({{agency_ids}})
+
+-- Buscar datos de un cliente específico con sus operaciones
+SELECT c.first_name, c.last_name, c.email, c.phone, o.file_code, o.destination,
+  o.sale_amount_total, o.status
+FROM customers c
+LEFT JOIN operation_customers oc ON oc.customer_id = c.id AND oc.role = 'MAIN'
+LEFT JOIN operations o ON o.id = oc.operation_id
+WHERE (c.first_name ILIKE '%nombre%' OR c.last_name ILIKE '%nombre%')
+AND c.agency_id = ANY({{agency_ids}})
+
+-- Deuda de un cliente específico
+SELECT c.first_name, c.last_name, o.file_code, o.sale_amount_total,
+  COALESCE(SUM(p.amount), 0) as pagado,
+  o.sale_amount_total - COALESCE(SUM(p.amount), 0) as deuda
+FROM customers c
+JOIN operation_customers oc ON oc.customer_id = c.id AND oc.role = 'MAIN'
+JOIN operations o ON o.id = oc.operation_id
+LEFT JOIN payments p ON p.operation_id = o.id AND p.direction = 'INCOME' AND p.status = 'PAID'
+WHERE (c.first_name ILIKE '%nombre%' OR c.last_name ILIKE '%nombre%')
+AND o.agency_id = ANY({{agency_ids}})
+GROUP BY c.id, c.first_name, c.last_name, o.id, o.file_code, o.sale_amount_total
+
+-- Margen de operaciones (margen = venta - costo operador)
+SELECT file_code, destination, sale_amount_total, operator_cost,
+  sale_amount_total - COALESCE(operator_cost, 0) as margen,
+  CASE WHEN sale_amount_total > 0
+    THEN ROUND(((sale_amount_total - COALESCE(operator_cost, 0)) / sale_amount_total * 100)::numeric, 1)
+    ELSE 0 END as margen_porcentaje
+FROM operations
+WHERE status NOT IN ('CANCELLED') AND agency_id = ANY({{agency_ids}})
+
+REGLAS DE BÚSQUEDA POR NOMBRE:
+- SIEMPRE usá ILIKE con comodines para buscar por nombre: first_name ILIKE '%texto%' OR last_name ILIKE '%texto%'
+- Las columnas first_name y last_name pueden estar en MAYÚSCULAS, minúsculas o mixto - ILIKE los matchea todos
+- Si el usuario pregunta por "Thomas Sanchez", buscá: first_name ILIKE '%thomas%' OR last_name ILIKE '%sanchez%'
+- Si solo da un nombre, buscá en AMBOS campos: first_name ILIKE '%nombre%' OR last_name ILIKE '%nombre%'
+
+REGLAS PARA RESULTADOS VACÍOS:
+- Si una query devuelve 0 resultados (data: [], count: 0), eso NO es un error
+- Respondé claramente: "No hay [X] registrados/as en este momento"
+- NUNCA digas "No pude obtener esa información" cuando el resultado es un array vacío - eso es información válida (la tabla está vacía)
+- Solo decí "No pude obtener esa información" si la query FALLÓ con un error real
+
 SI UNA QUERY FALLA:
 - Intenta con una versión más simple
 - Si sigue fallando, responde: "No pude obtener esa información en este momento. ¿Puedo ayudarte con algo más?"
