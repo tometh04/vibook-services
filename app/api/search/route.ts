@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
-import { applyLeadsFilters } from "@/lib/permissions-api"
+import { applyLeadsFilters, applyOperationsFilters } from "@/lib/permissions-api"
 
 export async function GET(request: Request) {
   try {
@@ -54,32 +54,65 @@ export async function GET(request: Request) {
       // Buscar clientes que matcheen TODAS las palabras en first_name o last_name combinados
       // Usamos la primera palabra para filtrar y luego filtramos en JS
       const firstWordTerm = wordFilters[0]
-      const customerQuery = (supabase.from("customers") as any)
+      let customerQuery = (supabase.from("customers") as any)
         .select("id, first_name, last_name, email, phone")
         .or(`first_name.ilike.${firstWordTerm},last_name.ilike.${firstWordTerm},email.ilike.${searchTerm}`)
-        .limit(20)
 
-      customerPromise = customerQuery
-        .then((r: any) => {
-          if (r.error || !r.data) return { type: 'customers', data: r.data, error: r.error }
-          // Filtrar en JS: todas las palabras deben aparecer en first_name + last_name combinados
-          const filtered = r.data.filter((c: any) => {
-            const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase()
-            return queryWords.every(w => fullName.includes(w.toLowerCase()))
+      // FILTRO DE MULTI-TENANCY: solo clientes de las agencias del usuario
+      if (user.role !== "SUPER_ADMIN") {
+        if (agencyIds.length === 0) {
+          customerPromise = Promise.resolve({ type: 'customers', data: [], error: null })
+        } else {
+          customerQuery = customerQuery.in("agency_id", agencyIds)
+          customerQuery = customerQuery.limit(20)
+
+          customerPromise = customerQuery
+            .then((r: any) => {
+              if (r.error || !r.data) return { type: 'customers', data: r.data, error: r.error }
+              const filtered = r.data.filter((c: any) => {
+                const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase()
+                return queryWords.every(w => fullName.includes(w.toLowerCase()))
+              })
+              return { type: 'customers', data: filtered.slice(0, 5), error: null }
+            })
+            .catch((err: any) => ({ type: 'customers', data: null, error: err }))
+        }
+      } else {
+        customerQuery = customerQuery.limit(20)
+        customerPromise = customerQuery
+          .then((r: any) => {
+            if (r.error || !r.data) return { type: 'customers', data: r.data, error: r.error }
+            const filtered = r.data.filter((c: any) => {
+              const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase()
+              return queryWords.every(w => fullName.includes(w.toLowerCase()))
+            })
+            return { type: 'customers', data: filtered.slice(0, 5), error: null }
           })
-          return { type: 'customers', data: filtered.slice(0, 5), error: null }
-        })
-        .catch((err: any) => ({ type: 'customers', data: null, error: err }))
+          .catch((err: any) => ({ type: 'customers', data: null, error: err }))
+      }
     } else {
       // Búsqueda simple: una palabra, buscar en todos los campos incluyendo document_number
-      const customerQuery = (supabase.from("customers") as any)
+      let customerQuery = (supabase.from("customers") as any)
         .select("id, first_name, last_name, email, phone")
         .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm},document_number.ilike.${searchTerm}`)
-        .limit(5)
 
-      customerPromise = customerQuery
-        .then((r: any) => ({ type: 'customers', data: r.data, error: r.error }))
-        .catch((err: any) => ({ type: 'customers', data: null, error: err }))
+      // FILTRO DE MULTI-TENANCY: solo clientes de las agencias del usuario
+      if (user.role !== "SUPER_ADMIN") {
+        if (agencyIds.length === 0) {
+          customerPromise = Promise.resolve({ type: 'customers', data: [], error: null })
+        } else {
+          customerQuery = customerQuery.in("agency_id", agencyIds)
+          customerQuery = customerQuery.limit(5)
+          customerPromise = customerQuery
+            .then((r: any) => ({ type: 'customers', data: r.data, error: r.error }))
+            .catch((err: any) => ({ type: 'customers', data: null, error: err }))
+        }
+      } else {
+        customerQuery = customerQuery.limit(5)
+        customerPromise = customerQuery
+          .then((r: any) => ({ type: 'customers', data: r.data, error: r.error }))
+          .catch((err: any) => ({ type: 'customers', data: null, error: err }))
+      }
     }
 
     searchPromises.push(customerPromise)
@@ -89,14 +122,10 @@ export async function GET(request: Request) {
       .select("id, file_code, destination, status, agency_id, reservation_code_air, reservation_code_hotel")
       .or(`file_code.ilike.${searchTerm},destination.ilike.${searchTerm},reservation_code_air.ilike.${searchTerm},reservation_code_hotel.ilike.${searchTerm}`)
       .limit(5)
-    
-    // Aplicar filtros de permisos para operaciones
-    if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
-      operationQuery = operationQuery.in("agency_id", agencyIds)
-    } else if (user.role === "SELLER") {
-      operationQuery = operationQuery.eq("seller_id", user.id)
-    }
-    
+
+    // FILTRO DE MULTI-TENANCY: usar la función centralizada de permisos
+    operationQuery = applyOperationsFilters(operationQuery, user, agencyIds)
+
     searchPromises.push(
       operationQuery
         .then((r: any) => ({ type: 'operations', data: r.data, error: r.error }))
@@ -104,16 +133,29 @@ export async function GET(request: Request) {
     )
 
     // Buscar operadores
-    const operatorQuery = (supabase.from("operators") as any)
+    let operatorQuery = (supabase.from("operators") as any)
       .select("id, name, contact_email")
       .or(`name.ilike.${searchTerm},contact_email.ilike.${searchTerm}`)
       .limit(5)
-    
-    searchPromises.push(
-      operatorQuery
-        .then((r: any) => ({ type: 'operators', data: r.data, error: r.error }))
-        .catch((err: any) => ({ type: 'operators', data: null, error: err }))
-    )
+
+    // FILTRO DE MULTI-TENANCY: solo operadores de las agencias del usuario
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyIds.length > 0) {
+        operatorQuery = operatorQuery.in("agency_id", agencyIds)
+      } else {
+        // Sin agencias asignadas, no devolver resultados
+        searchPromises.push(Promise.resolve({ type: 'operators', data: [], error: null }))
+      }
+    }
+
+    // Solo agregar la promesa si no fue ya agregada como vacía
+    if (user.role === "SUPER_ADMIN" || agencyIds.length > 0) {
+      searchPromises.push(
+        operatorQuery
+          .then((r: any) => ({ type: 'operators', data: r.data, error: r.error }))
+          .catch((err: any) => ({ type: 'operators', data: null, error: err }))
+      )
+    }
 
     // Buscar leads (con filtros de permisos)
     let leadQuery = (supabase.from("leads") as any)
