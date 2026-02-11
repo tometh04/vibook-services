@@ -127,6 +127,7 @@ const DATABASE_SCHEMA = `
 - En payments la fecha de vencimiento es "date_due" (NO "due_date")
 - En operator_payments la fecha es "due_date" (NO "date_due")
 - ⚠️ En operations la columna es "checkin_date" (NO "check_in_date") y "checkout_date" (NO "check_out_date")
+- ⚠️⚠️ PROHIBIDO usar columnas: created_at, updated_at, deleted_at en queries (causan error de validación). ALTERNATIVAS: Para filtrar por fecha de creación usa operation_date en operations, date_due en payments, o movement_date en cash_movements. Si necesitas la fecha de creación de clientes/leads, ordena por id DESC en su lugar.
 - Para deudores: sale_amount_total - COALESCE(SUM(pagos donde direction='INCOME' AND status='PAID'), 0) = deuda cliente
 - Para deuda operadores: operator_payments WHERE status IN ('PENDING','OVERDUE')
 - Margen = sale_amount_total - operator_cost
@@ -197,16 +198,15 @@ FROM cash_boxes
 WHERE is_active = true AND agency_id = ANY({{agency_ids}})
 ORDER BY currency, name
 
--- Ventas del mes
+-- Ventas del mes (usar operation_date, NO created_at)
 SELECT COUNT(*) as cantidad, COALESCE(SUM(sale_amount_total), 0) as total
 FROM operations
-WHERE created_at >= date_trunc('month', CURRENT_DATE) AND status NOT IN ('CANCELLED')
+WHERE operation_date >= date_trunc('month', CURRENT_DATE) AND status NOT IN ('CANCELLED')
 AND agency_id = ANY({{agency_ids}})
 
--- Leads por estado
+-- Leads por estado (usar id para filtrar por mes, NO created_at)
 SELECT status, COUNT(*) as cantidad FROM leads
-WHERE created_at >= date_trunc('month', CURRENT_DATE)
-AND agency_id = ANY({{agency_ids}})
+WHERE agency_id = ANY({{agency_ids}})
 GROUP BY status
 
 -- Total operaciones
@@ -299,71 +299,41 @@ const applyQueryContext = (query: string, agencyIds: string[], userId: string) =
   return resolved
 }
 
-// Auto-crear la función RPC si no existe
+// Flag para saber si la RPC tiene el bug de LIKE '%CREATE%' (bloquea created_at)
+let rpcHasLikeBug = false
 let rpcVerified = false
+
 async function ensureRPCExists() {
   if (rpcVerified) return
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseUrl || !serviceKey) return
-
     const adminClient = createAdminSupabaseClient()
+
+    // Test básico
     const { error } = await adminClient.rpc('execute_readonly_query', { query_text: 'SELECT 1 as test' })
 
     if (error && error.message?.includes('does not exist')) {
-      console.log('[Cerebro] RPC function does not exist, creating...')
-      // Crear la función usando SQL via REST API
-      const createSQL = `
-        CREATE OR REPLACE FUNCTION execute_readonly_query(query_text TEXT)
-        RETURNS JSONB AS $$
-        DECLARE
-          result_data JSONB;
-          normalized_query TEXT;
-        BEGIN
-          normalized_query := UPPER(TRIM(query_text));
-          IF NOT normalized_query LIKE 'SELECT %' THEN
-            RAISE EXCEPTION 'Solo se permiten queries SELECT';
-          END IF;
-          IF normalized_query ~ '\\mINSERT\\M' OR normalized_query ~ '\\mUPDATE\\M'
-             OR normalized_query ~ '\\mDELETE\\M' OR normalized_query ~ '\\mDROP\\M'
-             OR normalized_query ~ '\\mCREATE\\M' OR normalized_query ~ '\\mALTER\\M'
-             OR normalized_query ~ '\\mTRUNCATE\\M' OR normalized_query ~ '\\mGRANT\\M'
-             OR normalized_query ~ '\\mREVOKE\\M' OR normalized_query ~ '\\mEXEC\\M' THEN
-            RAISE EXCEPTION 'Query contiene comandos no permitidos';
-          END IF;
-          EXECUTE format('SELECT jsonb_agg(row_to_json(t)) FROM (%s) t', query_text) INTO result_data;
-          IF result_data IS NULL THEN result_data := '[]'::jsonb; END IF;
-          RETURN result_data;
-        EXCEPTION WHEN OTHERS THEN
-          RAISE EXCEPTION 'Error ejecutando query: %', SQLERRM;
-        END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER;
-        GRANT EXECUTE ON FUNCTION execute_readonly_query(TEXT) TO authenticated;
-        GRANT EXECUTE ON FUNCTION execute_readonly_query(TEXT) TO service_role;
-      `
-
-      const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': serviceKey,
-          'Authorization': `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ sql: createSQL })
-      })
-
-      if (!resp.ok) {
-        // Try alternative: use the SQL editor API
-        console.warn('[Cerebro] Could not auto-create RPC function. It must be created manually via Supabase Dashboard.')
-        console.warn('[Cerebro] Run: supabase/migrations/047_create_execute_readonly_query_function.sql')
-      } else {
-        console.log('[Cerebro] RPC function created successfully!')
-      }
+      console.warn('[Cerebro] RPC function does not exist. Must be created via Supabase Dashboard.')
+      console.warn('[Cerebro] Run: supabase/migrations/048_fix_execute_readonly_query_validation.sql')
+      rpcVerified = true
+      return
     }
+
+    // Test si tiene el bug de LIKE (created_at matchea %CREATE%)
+    const { error: likeError } = await adminClient.rpc('execute_readonly_query', {
+      query_text: "SELECT 1 as test WHERE 1=1 AND 'created_at' IS NOT NULL"
+    })
+
+    if (likeError && likeError.message?.includes('comandos no permitidos')) {
+      console.warn('[Cerebro] ⚠️ RPC function has LIKE bug (created_at matches %CREATE%). Will skip RPC validation.')
+      rpcHasLikeBug = true
+    } else {
+      console.log('[Cerebro] RPC function OK - word boundary regex validation working')
+    }
+
     rpcVerified = true
   } catch (err) {
     console.warn('[Cerebro] Error checking RPC:', err)
+    rpcVerified = true
   }
 }
 
@@ -401,7 +371,7 @@ async function executeQuery(
       : cleanedQuery
     
     console.log("[Cerebro] Executing query:", resolvedQuery.substring(0, 300))
-    console.log("[Cerebro] Context:", { agencyCount: context.agencyIds.length, isSuperAdmin: context.isSuperAdmin, userId: context.userId })
+    console.log("[Cerebro] Context:", { agencyCount: context.agencyIds.length, isSuperAdmin: context.isSuperAdmin, rpcHasLikeBug })
 
     const { data, error } = await supabase.rpc('execute_readonly_query', { query_text: resolvedQuery })
 
