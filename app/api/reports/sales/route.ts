@@ -24,6 +24,10 @@ export async function GET(request: Request) {
     const agencyId = searchParams.get("agencyId")
     const groupBy = searchParams.get("groupBy") || "day" // day, week, month
 
+    // CRÍTICO: Obtener agencias del usuario para filtro obligatorio
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
     // Base query
     let query = (supabase
       .from("operations") as any)
@@ -61,8 +65,16 @@ export async function GET(request: Request) {
       query = query.eq("seller_id", user.id)
     }
 
-    // Filtro de agencia
-    if (agencyId && agencyId !== "ALL") {
+    // CRÍTICO: Filtro obligatorio de agencia (multi-tenancy)
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyId && agencyId !== "ALL" && userAgencyIds.includes(agencyId)) {
+        query = query.eq("agency_id", agencyId)
+      } else if (userAgencyIds.length > 0) {
+        query = query.in("agency_id", userAgencyIds)
+      } else {
+        return NextResponse.json({ operations: [], totals: { count: 0, sale_total_usd: 0, cost_total_usd: 0, margin_total_usd: 0 }, byPeriod: [], bySeller: [] })
+      }
+    } else if (agencyId && agencyId !== "ALL") {
       query = query.eq("agency_id", agencyId)
     }
 

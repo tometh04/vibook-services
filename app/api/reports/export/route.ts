@@ -25,13 +25,14 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get("dateTo")
     const agencyId = searchParams.get("agencyId")
 
-    // Obtener agencias del usuario
-    const { data: userAgencies } = await supabase
-      .from("user_agencies")
-      .select("agency_id")
-      .eq("user_id", user.id)
+    // CRÍTICO: Obtener agencias del usuario para filtro obligatorio (multi-tenancy)
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
-    const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+    // Validar que el agencyId solicitado pertenece al usuario
+    if (agencyId && agencyId !== "ALL" && user.role !== "SUPER_ADMIN" && !agencyIds.includes(agencyId)) {
+      return NextResponse.json({ error: "No tiene acceso a esta agencia" }, { status: 403 })
+    }
 
     let data: any[] = []
     let columns: { key: string; label: string }[] = []
@@ -136,6 +137,26 @@ export async function GET(request: Request) {
 
         if (dateFrom) query = query.gte("date_due", dateFrom)
         if (dateTo) query = query.lte("date_due", dateTo)
+
+        // CRÍTICO: Filtro de agencia para payments (a través de operations)
+        if (agencyId && agencyId !== "ALL") {
+          // Obtener operation_ids de la agencia
+          const { data: agencyOps } = await (supabase.from("operations") as any)
+            .select("id")
+            .eq("agency_id", agencyId)
+          const opIds = (agencyOps || []).map((o: any) => o.id)
+          if (opIds.length > 0) {
+            query = query.in("operation_id", opIds)
+          }
+        } else if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+          const { data: agencyOps } = await (supabase.from("operations") as any)
+            .select("id")
+            .in("agency_id", agencyIds)
+          const opIds = (agencyOps || []).map((o: any) => o.id)
+          if (opIds.length > 0) {
+            query = query.in("operation_id", opIds)
+          }
+        }
 
         const { data: payments } = await query.limit(1000)
         data = (payments || []).map((p: any) => ({

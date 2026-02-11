@@ -222,8 +222,29 @@ export async function GET(request: Request) {
       { count: "exact" }
       )
 
+    // CRÍTICO: Obtener agencias del usuario para filtro obligatorio
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
     if (user.role === "SELLER") {
       query = query.eq("user_id", user.id)
+    }
+
+    // CRÍTICO: Filtro obligatorio de agencia a nivel DB (multi-tenancy)
+    // cash_movements tiene columna agency_id directa
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyId && agencyId !== "ALL" && userAgencyIds.includes(agencyId)) {
+        query = query.eq("agency_id", agencyId)
+      } else if (userAgencyIds.length > 0) {
+        query = query.in("agency_id", userAgencyIds)
+      } else {
+        return NextResponse.json({
+          movements: [],
+          pagination: { total: 0, page, limit, totalPages: 0, hasMore: false }
+        })
+      }
+    } else if (agencyId && agencyId !== "ALL") {
+      query = query.eq("agency_id", agencyId)
     }
 
     if (type && type !== "ALL") {
@@ -234,9 +255,6 @@ export async function GET(request: Request) {
       query = query.eq("currency", currency)
     }
 
-    // Para agencyId, necesitamos filtrar a través de operations
-    // Esto requiere una query más compleja, pero por ahora lo dejamos así
-    // y filtramos en el cliente si es necesario
     if (dateFrom) {
       query = query.gte("movement_date", dateFrom)
     }
@@ -255,14 +273,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Error al obtener movimientos" }, { status: 500 })
     }
 
-    // Filtrar por agencyId en el resultado si es necesario (porque no podemos filtrar fácilmente por operations.agency_id)
     let filteredMovements = movements || []
-    if (agencyId && agencyId !== "ALL") {
-      filteredMovements = filteredMovements.filter((m: any) => 
-        m.operations?.agency_id === agencyId
-      )
-      // Nota: El count no será preciso si filtramos después, pero es una limitación de Supabase
-    }
 
     const totalPages = count ? Math.ceil(count / limit) : 0
 

@@ -17,13 +17,9 @@ export async function GET(request: Request) {
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
 
-    // Get user agencies
-    const { data: userAgencies } = await supabase
-      .from("user_agencies")
-      .select("agency_id")
-      .eq("user_id", user.id)
-
-    const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+    // CRÍTICO: Obtener agencias del usuario para filtro obligatorio
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
     // Build filters
     const filters: Parameters<typeof getLedgerMovements>[1] = {
@@ -41,28 +37,47 @@ export async function GET(request: Request) {
     // Get ledger movements
     const movements = await getLedgerMovements(supabase, filters)
 
-    // Apply role-based filtering
+    // CRÍTICO: Filtro obligatorio de agencia (multi-tenancy)
     let filteredMovements = movements || []
 
     if (user.role === "SELLER") {
       // Sellers can only see their own movements
       filteredMovements = filteredMovements.filter((m: any) => m.seller_id === user.id)
-    } else if (agencyIds.length > 0) {
-      // Filter by agency if user has agencies
-      // We need to join with operations to filter by agency
+    } else if (user.role !== "SUPER_ADMIN" && userAgencyIds.length > 0) {
+      // Filtrar por agencias del usuario - obtener operations de sus agencias
       const { data: operations } = await supabase
         .from("operations")
         .select("id, agency_id")
-        .in("agency_id", agencyIds)
+        .in("agency_id", userAgencyIds)
 
-      const operationIds = (operations || []).map((op: any) => op.id)
+      const operationIds = new Set((operations || []).map((op: any) => op.id))
+
+      // También obtener las cuentas financieras del usuario para movimientos sin operación
+      const { data: userAccounts } = await (supabase.from("financial_accounts") as any)
+        .select("id")
+        .in("agency_id", userAgencyIds)
+
+      const userAccountIds = new Set((userAccounts || []).map((acc: any) => acc.id))
+
       filteredMovements = filteredMovements.filter((m: any) => {
+        // Si tiene operation_id, verificar que pertenece a la agencia del usuario
         if (m.operation_id) {
-          return operationIds.includes(m.operation_id)
+          return operationIds.has(m.operation_id)
         }
-        // If no operation_id, include it (could be a lead movement)
-        return true
+        // Si tiene account_id, verificar que pertenece a cuenta del usuario
+        if (m.account_id) {
+          return userAccountIds.has(m.account_id)
+        }
+        // Si tiene created_by, verificar que es del usuario
+        if (m.created_by === user.id) {
+          return true
+        }
+        // Sin operación ni cuenta, no incluir (prevenir leak)
+        return false
       })
+    } else if (user.role !== "SUPER_ADMIN") {
+      // Sin agencias, no mostrar nada
+      filteredMovements = []
     }
 
     return NextResponse.json({ movements: filteredMovements })

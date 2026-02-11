@@ -66,8 +66,20 @@ export async function GET(request: Request) {
       query = query.eq("seller_id", user.id)
     }
 
-    // Filtro de agencia
-    if (agencyId && agencyId !== "ALL" && agencyId !== "") {
+    // CRÍTICO: Obtener agencias del usuario para filtro obligatorio
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    // CRÍTICO: Filtro obligatorio de agencia (multi-tenancy)
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyId && agencyId !== "ALL" && agencyId !== "" && userAgencyIds.includes(agencyId)) {
+        query = query.eq("agency_id", agencyId)
+      } else if (userAgencyIds.length > 0) {
+        query = query.in("agency_id", userAgencyIds)
+      } else {
+        return NextResponse.json({ totals: { count: 0, total_sale_usd: 0, total_cost_usd: 0, total_margin_usd: 0 }, operations: [] })
+      }
+    } else if (agencyId && agencyId !== "ALL" && agencyId !== "") {
       query = query.eq("agency_id", agencyId)
     }
 

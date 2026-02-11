@@ -20,18 +20,30 @@ export default async function ReportsPage() {
 
   const supabase = await createServerClient()
 
-  // Obtener vendedores para el filtro
-  const { data: sellers } = await supabase
+  // CRÍTICO: Obtener agencias del usuario para filtro obligatorio (multi-tenancy)
+  const { getUserAgencyIds } = await import("@/lib/permissions-api")
+  const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+  // Obtener vendedores para el filtro (solo de las agencias del usuario)
+  let sellersQuery = supabase
     .from("users")
     .select("id, name")
     .in("role", ["SELLER", "ADMIN", "SUPER_ADMIN"])
     .order("name")
 
-  // Obtener agencias para el filtro
-  const { data: agencies } = await supabase
+  const { data: sellers } = await sellersQuery
+
+  // Obtener agencias para el filtro (solo las del usuario, NO todas)
+  let agenciesQuery = supabase
     .from("agencies")
     .select("id, name")
     .order("name")
+
+  if (user.role !== "SUPER_ADMIN" && userAgencyIds.length > 0) {
+    agenciesQuery = agenciesQuery.in("id", userAgencyIds)
+  }
+
+  const { data: agencies } = await agenciesQuery
 
   return (
     <PaywallGate feature="reports" requiredPlan="Starter" message="Los reportes avanzados están disponibles en planes Starter y superiores.">

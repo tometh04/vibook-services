@@ -30,6 +30,10 @@ export async function GET(request: Request) {
     const currency = searchParams.get("currency") || "ALL"
     const agencyId = searchParams.get("agencyId") || "ALL"
 
+    // CRÍTICO: Obtener agencias del usuario para filtro obligatorio
+    const { getUserAgencyIds } = await import("@/lib/permissions-api")
+    const userAgencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
     // Obtener movimientos de caja con información de operaciones para filtrar por agencia
     let query = (supabase
       .from("cash_movements") as any)
@@ -38,6 +42,24 @@ export async function GET(request: Request) {
         operations:operation_id(agency_id)
       `)
       .order("movement_date", { ascending: true })
+
+    // CRÍTICO: Filtro obligatorio de agencia a nivel DB (multi-tenancy)
+    // cash_movements tiene columna agency_id directa
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyId !== "ALL" && userAgencyIds.includes(agencyId)) {
+        query = query.eq("agency_id", agencyId)
+      } else if (userAgencyIds.length > 0) {
+        query = query.in("agency_id", userAgencyIds)
+      } else {
+        return NextResponse.json({
+          totals: { income_usd: 0, expense_usd: 0, net_usd: 0 },
+          byCategory: [], byDay: [], movementsCount: 0,
+          accountBalances: { summary: { total_usd: 0, by_agency: {} }, accounts: [] },
+        })
+      }
+    } else if (agencyId !== "ALL") {
+      query = query.eq("agency_id", agencyId)
+    }
 
     if (dateFrom) {
       query = query.gte("movement_date", dateFrom)
@@ -51,18 +73,7 @@ export async function GET(request: Request) {
 
     const { data: movementsRaw, error } = await query as { data: any[] | null, error: any }
 
-    // Filtrar por agencia si es necesario
     let movements = movementsRaw
-    if (agencyId !== "ALL" && movements) {
-      movements = movements.filter((mov: any) => {
-        // Si tiene operation_id, verificar la agencia de la operación
-        if (mov.operation_id && mov.operations) {
-          return mov.operations.agency_id === agencyId
-        }
-        // Si no tiene operación, no podemos filtrar (se incluye)
-        return true
-      })
-    }
 
     if (error) {
       console.error("Error fetching cash flow:", error)
@@ -183,8 +194,14 @@ export async function GET(request: Request) {
       `)
       .eq("is_active", true)
 
-    // Filtrar por agencia si es necesario
-    if (agencyId !== "ALL") {
+    // CRÍTICO: Filtro obligatorio de cuentas financieras por agencia (multi-tenancy)
+    if (user.role !== "SUPER_ADMIN") {
+      if (agencyId !== "ALL" && userAgencyIds.includes(agencyId)) {
+        accountsQuery = accountsQuery.eq("agency_id", agencyId)
+      } else if (userAgencyIds.length > 0) {
+        accountsQuery = accountsQuery.in("agency_id", userAgencyIds)
+      }
+    } else if (agencyId !== "ALL") {
       accountsQuery = accountsQuery.eq("agency_id", agencyId)
     }
 
