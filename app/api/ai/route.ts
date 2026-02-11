@@ -507,6 +507,8 @@ export async function POST(request: Request) {
     let iterations = 0
     const maxIterations = 3
 
+    console.log("[Cerebro] Initial response - has tool_calls:", !!(assistantMessage.tool_calls?.length), "content:", finalResponse?.substring(0, 100))
+
     while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && iterations < maxIterations) {
       iterations++
       const toolResults: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
@@ -584,9 +586,12 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("[Cerebro] Error:", error)
-    // NUNCA mostrar errores técnicos al usuario
-    return NextResponse.json({ 
-      response: "Hubo un problema al procesar tu consulta. Por favor, intentá de nuevo o contactá a soporte si el problema persiste." 
+    // Temporalmente incluir debug info para diagnosticar
+    const debugInfo = process.env.NODE_ENV === 'production'
+      ? ` [Debug: ${error?.message?.substring(0, 100)}]`
+      : ` [${error?.message}]`
+    return NextResponse.json({
+      response: "Hubo un problema al procesar tu consulta." + debugInfo
     })
   }
 }
