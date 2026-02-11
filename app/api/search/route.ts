@@ -46,25 +46,29 @@ export async function GET(request: Request) {
     let customerPromise: Promise<any>
 
     if (hasMultipleWords) {
-      // Búsqueda de nombre completo: cada palabra debe matchear en first_name o last_name
-      // Usamos RPC o filter manual: buscamos por primera y última palabra
-      const firstWord = `%${queryWords[0]}%`
-      const lastWord = `%${queryWords[queryWords.length - 1]}%`
+      // Búsqueda de nombre completo: buscar por cada palabra en first_name y last_name
+      // Supabase no soporta bien and() anidado en .or(), así que hacemos queries separadas
+      // y las intersectamos manualmente
+      const wordFilters = queryWords.map(w => `%${w}%`)
 
-      // Estrategia: buscar clientes donde (first_name match primera palabra AND last_name match última)
-      // O (first_name match última AND last_name match primera) para cubrir orden invertido
-      // También buscar en email/phone por el término completo
+      // Buscar clientes que matcheen TODAS las palabras en first_name o last_name combinados
+      // Usamos la primera palabra para filtrar y luego filtramos en JS
+      const firstWordTerm = wordFilters[0]
       const customerQuery = (supabase.from("customers") as any)
         .select("id, first_name, last_name, email, phone")
-        .or(
-          `and(first_name.ilike.${firstWord},last_name.ilike.${lastWord}),` +
-          `and(first_name.ilike.${lastWord},last_name.ilike.${firstWord}),` +
-          `email.ilike.${searchTerm},phone.ilike.${searchTerm}`
-        )
-        .limit(5)
+        .or(`first_name.ilike.${firstWordTerm},last_name.ilike.${firstWordTerm},email.ilike.${searchTerm}`)
+        .limit(20)
 
       customerPromise = customerQuery
-        .then((r: any) => ({ type: 'customers', data: r.data, error: r.error }))
+        .then((r: any) => {
+          if (r.error || !r.data) return { type: 'customers', data: r.data, error: r.error }
+          // Filtrar en JS: todas las palabras deben aparecer en first_name + last_name combinados
+          const filtered = r.data.filter((c: any) => {
+            const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase()
+            return queryWords.every(w => fullName.includes(w.toLowerCase()))
+          })
+          return { type: 'customers', data: filtered.slice(0, 5), error: null }
+        })
         .catch((err: any) => ({ type: 'customers', data: null, error: err }))
     } else {
       // Búsqueda simple: una palabra, buscar en todos los campos incluyendo document_number
