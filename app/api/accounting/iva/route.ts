@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const agencyId = searchParams.get("agencyId")
 
     // Get monthly IVA summary
-    const ivaSummary = await getMonthlyIVAToPay(supabase, year, month)
+    const ivaSummary = await getMonthlyIVAToPay(supabase, year, month, agencyId || undefined)
 
     // Get detailed IVA sales
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`

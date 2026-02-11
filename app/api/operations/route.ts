@@ -775,6 +775,8 @@ export async function POST(request: Request) {
         
         // Validar cliente requerido según configuración
         if (settingsData?.require_customer && !customerId) {
+          // Eliminar la operación huérfana antes de retornar error
+          await (supabase.from("operations") as any).delete().eq("id", operation.id)
           return NextResponse.json({ error: "Se debe asociar al menos un cliente" }, { status: 400 })
         }
 

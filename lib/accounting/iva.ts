@@ -234,7 +234,8 @@ export async function deletePurchaseIVA(
 export async function getMonthlyIVAToPay(
   supabase: SupabaseClient<Database>,
   year: number,
-  month: number
+  month: number,
+  agencyId?: string
 ): Promise<{
   total_sales_iva: number
   total_purchases_iva: number
@@ -243,11 +244,27 @@ export async function getMonthlyIVAToPay(
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`
   const endDate = `${year}-${String(month).padStart(2, "0")}-31`
 
+  // Si hay filtro de agencia, obtener operation_ids de esa agencia
+  let agencyOperationIds: string[] | null = null
+  if (agencyId && agencyId !== "ALL") {
+    const { data: ops } = await (supabase.from("operations") as any)
+      .select("id")
+      .eq("agency_id", agencyId)
+    agencyOperationIds = (ops || []).map((o: any) => o.id)
+    if (agencyOperationIds!.length === 0) {
+      return { total_sales_iva: 0, total_purchases_iva: 0, iva_to_pay: 0 }
+    }
+  }
+
   // Sumar IVA de ventas del mes
-  const { data: salesIVA, error: salesError } = await (supabase.from("iva_sales") as any)
+  let salesQuery = (supabase.from("iva_sales") as any)
     .select("iva_amount")
     .gte("sale_date", startDate)
     .lte("sale_date", endDate)
+  if (agencyOperationIds) {
+    salesQuery = salesQuery.in("operation_id", agencyOperationIds)
+  }
+  const { data: salesIVA, error: salesError } = await salesQuery
 
   if (salesError) {
     throw new Error(`Error obteniendo IVA de ventas: ${salesError.message}`)
@@ -256,10 +273,14 @@ export async function getMonthlyIVAToPay(
   const total_sales_iva = salesIVA?.reduce((sum: number, record: any) => sum + parseFloat(record.iva_amount || "0"), 0) || 0
 
   // Sumar IVA de compras del mes
-  const { data: purchasesIVA, error: purchasesError } = await (supabase.from("iva_purchases") as any)
+  let purchasesQuery = (supabase.from("iva_purchases") as any)
     .select("iva_amount")
     .gte("purchase_date", startDate)
     .lte("purchase_date", endDate)
+  if (agencyOperationIds) {
+    purchasesQuery = purchasesQuery.in("operation_id", agencyOperationIds)
+  }
+  const { data: purchasesIVA, error: purchasesError } = await purchasesQuery
 
   if (purchasesError) {
     throw new Error(`Error obteniendo IVA de compras: ${purchasesError.message}`)

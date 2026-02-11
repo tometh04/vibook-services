@@ -80,10 +80,11 @@ export function OperationAccountingSection({
   const ivaAPagar = ivaVentas - ivaCompras
   
   // Netos (sin IVA)
-  // Venta neta: ganancia sin IVA
-  const ventaNeta = marginBruto - ivaVentas
+  // Venta neta: venta sin IVA
+  const ventaNeta = saleAmount / 1.21
   // Costo neto: costo del operador sin IVA
   const costoNeto = operatorCost / 1.21
+  // Margen neto: margen bruto menos IVA a pagar
   const marginNeto = ventaNeta - costoNeto
   
   // ROI

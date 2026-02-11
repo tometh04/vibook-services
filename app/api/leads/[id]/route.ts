@@ -238,7 +238,7 @@ export async function PATCH(
             }
 
             let exchangeRate: number | null = null
-            if (depositCurrency === "USD") {
+            if (depositCurrency === "ARS") {
               const rateDate = depositDate ? new Date(depositDate) : new Date()
               exchangeRate = await getExchangeRate(supabase, rateDate)
 

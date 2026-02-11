@@ -58,7 +58,7 @@ export async function GET(
 
     // Calcular totales - usar amount_usd para manejar correctamente ARS/USD
     const totalOwed = payments
-      .filter(p => p.status === "PENDING" && p.direction === "CUSTOMER_TO_AGENCY")
+      .filter(p => p.status === "PENDING" && (p.direction === "CUSTOMER_TO_AGENCY" || p.direction === "INCOME"))
       .reduce((sum, p) => {
         if (p.amount_usd != null) return sum + Number(p.amount_usd)
         if (p.currency === "USD") return sum + Number(p.amount || 0)
@@ -67,7 +67,7 @@ export async function GET(
       }, 0)
 
     const totalPaid = payments
-      .filter(p => p.status === "PAID" && p.direction === "CUSTOMER_TO_AGENCY")
+      .filter(p => p.status === "PAID" && (p.direction === "CUSTOMER_TO_AGENCY" || p.direction === "INCOME"))
       .reduce((sum, p) => {
         if (p.amount_usd != null) return sum + Number(p.amount_usd)
         if (p.currency === "USD") return sum + Number(p.amount || 0)
@@ -287,7 +287,7 @@ export async function GET(
             return `
               <tr>
                 <td>${format(new Date(p.date_due), "dd/MM/yyyy")}</td>
-                <td>${p.description || (p.direction === "CUSTOMER_TO_AGENCY" ? "Pago cliente" : "Pago a operador")}</td>
+                <td>${p.description || ((p.direction === "CUSTOMER_TO_AGENCY" || p.direction === "INCOME") ? "Pago cliente" : "Pago a operador")}</td>
                 <td>${p.operations?.destination || "-"}</td>
                 <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                 <td style="text-align: right; font-weight: 600;">${p.currency} ${p.amount?.toLocaleString("es-AR")}</td>

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const supabase = await createServerClient()
 
     // Solo admins pueden ejecutar esta acción
-    if (!canPerformAction(user.role as any, "cash", "write")) {
+    if (!canPerformAction(user, "cash", "write")) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
     }
 

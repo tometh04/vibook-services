@@ -75,8 +75,8 @@ export function OperationsPageClient({
         const response = await fetch("/api/operations/settings")
         if (response.ok) {
           const data = await response.json()
-          if (data.settings?.custom_statuses) {
-            setCustomStatuses(data.settings.custom_statuses)
+          if (data.custom_statuses || data.settings?.custom_statuses) {
+            setCustomStatuses(data.custom_statuses || data.settings.custom_statuses)
           }
         }
       } catch (error) {

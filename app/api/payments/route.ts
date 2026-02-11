@@ -412,24 +412,31 @@ export async function DELETE(request: Request) {
       console.warn("Warning: Could not delete cash movement:", cashError)
     }
 
-    // 3. Si hay ledger_movement_id, eliminar el movimiento del libro mayor
+    // 3. Eliminar TODOS los ledger movements asociados al pago (no solo el referenciado)
+    // Un pago puede generar múltiples movimientos contables (ingreso, costo, IVA, etc.)
     if (payment.ledger_movement_id) {
       // Primero, desmarcar operator_payment si existe
       await (supabase.from("operator_payments") as any)
-        .update({ 
+        .update({
           status: "PENDING",
           ledger_movement_id: null,
           updated_at: new Date().toISOString()
         })
         .eq("ledger_movement_id", payment.ledger_movement_id)
+    }
 
-      // Eliminar el ledger movement
-      const { error: ledgerError } = await (supabase.from("ledger_movements") as any)
-        .delete()
-        .eq("id", payment.ledger_movement_id)
+    // Eliminar todos los ledger movements que referencian este pago
+    const { error: ledgerError } = await (supabase.from("ledger_movements") as any)
+      .delete()
+      .eq("payment_id", paymentId)
 
-      if (ledgerError) {
-        console.warn("Warning: Could not delete ledger movement:", ledgerError)
+    if (ledgerError) {
+      console.warn("Warning: Could not delete ledger movements by payment_id:", ledgerError)
+      // Fallback: eliminar por ledger_movement_id si existe
+      if (payment.ledger_movement_id) {
+        await (supabase.from("ledger_movements") as any)
+          .delete()
+          .eq("id", payment.ledger_movement_id)
       }
     }
 
