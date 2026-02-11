@@ -8,6 +8,8 @@ import {
   CreditCard,
   Home,
   LogOut,
+  Paintbrush,
+  Palette,
   Settings,
   Shield,
   Users,
@@ -46,6 +48,16 @@ const adminNavItems = [
     title: "Configuracion",
     url: "/admin/settings",
     icon: Settings,
+  },
+  {
+    title: "UI Kit",
+    url: "/admin/ui-kit",
+    icon: Palette,
+  },
+  {
+    title: "Brand Kit",
+    url: "/admin/brand-kit",
+    icon: Paintbrush,
   },
 ]
 
