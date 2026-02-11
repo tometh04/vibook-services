@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { canPerformAction } from "@/lib/permissions-api"
 
 export async function DELETE(request: Request) {
   try {
     const { user } = await getCurrentUser()
+
+    // Verificar permisos de escritura en operaciones
+    if (!canPerformAction(user, "operations", "write")) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+    }
+
     const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
-    
+
     const operationId = searchParams.get("operationId")
 
     if (!operationId) {
@@ -25,15 +32,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Error al eliminar alertas" }, { status: 500 })
     }
 
-    console.log(`✅ Eliminadas ${count || 0} alertas de operación ${operationId}`)
-
-    return NextResponse.json({ 
-      success: true, 
-      deletedAlerts: count || 0 
+    return NextResponse.json({
+      success: true,
+      deletedAlerts: count || 0
     })
   } catch (error) {
     console.error("Error in DELETE /api/alerts/cleanup:", error)
     return NextResponse.json({ error: "Error al limpiar alertas" }, { status: 500 })
   }
 }
-

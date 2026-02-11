@@ -120,6 +120,7 @@ export function hasRole(userRole: string, requiredRole: string): boolean {
   const roleHierarchy: Record<string, number> = {
     VIEWER: 1,
     SELLER: 2,
+    CONTABLE: 2,
     ADMIN: 3,
     SUPER_ADMIN: 4,
   }

@@ -2,6 +2,7 @@ import { OperatorsPageClient } from "@/components/operators/operators-page-clien
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { canAccessModule } from "@/lib/permissions"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 
 export const dynamic = 'force-dynamic'
 
@@ -22,8 +23,10 @@ export default async function OperatorsPage() {
 
   const supabase = await createServerClient()
 
-  // Fetch initial data
-  const { data: operators } = await supabase
+  // Fetch initial data con filtro multi-tenant
+  const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+  let operatorsQuery = supabase
     .from("operators")
     .select(
       `
@@ -46,6 +49,12 @@ export default async function OperatorsPage() {
     `,
     )
     .order("name")
+
+  if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+    operatorsQuery = (operatorsQuery as any).in("agency_id", agencyIds)
+  }
+
+  const { data: operators } = await operatorsQuery
 
   // Calculate initial stats
   const initialOperators = (operators || []).map((op: any) => {

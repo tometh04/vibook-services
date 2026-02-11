@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 
 export async function GET() {
   try {
@@ -12,12 +13,17 @@ export async function GET() {
     const month = today.getMonth() + 1
     const day = today.getDate()
 
-    // Buscar clientes con cumpleaños hoy
-    // Nota: La tabla customers NO tiene agency_id, los clientes se relacionan con agencias a través de operations
+    // Filtrar clientes por agencia del usuario
+    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
     let query = (supabase.from("customers") as any)
-      .select("id, first_name, last_name, phone, date_of_birth")
+      .select("id, first_name, last_name, phone, date_of_birth, agency_id")
       .not("date_of_birth", "is", null)
       .not("phone", "is", null)
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+      query = query.in("agency_id", agencyIds)
+    }
 
     const { data: customers, error } = await query
 
@@ -39,4 +45,3 @@ export async function GET() {
     return NextResponse.json({ customers: [] })
   }
 }
-

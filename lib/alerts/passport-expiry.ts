@@ -186,21 +186,21 @@ export async function generatePassportExpiryAlerts(): Promise<PassportExpiryResu
       }
       
       // Verificar si ya existe una alerta similar
-      const existingAlertQuery = supabase
+      let existingAlertQuery = supabase
         .from("alerts")
         .select("id")
         .eq("type", "PASSPORT_EXPIRY")
         .eq("status", "PENDING")
-      
+
       if (entityType === "operation") {
-        existingAlertQuery.eq("operation_id", entityId)
+        existingAlertQuery = existingAlertQuery.eq("operation_id", entityId)
       } else {
-        existingAlertQuery.eq("lead_id", entityId)
+        existingAlertQuery = existingAlertQuery.eq("lead_id", entityId)
       }
-      
+
       // Agregar filtro por documento específico
-      existingAlertQuery.ilike("description", `%${passengerName || "Pasajero"}%`)
-      
+      existingAlertQuery = existingAlertQuery.ilike("description", `%${passengerName || "Pasajero"}%`)
+
       const { data: existingAlert } = await existingAlertQuery.maybeSingle()
       
       if (existingAlert) {

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
+import { getUserAgencyIds } from "@/lib/permissions-api"
+
+const VALID_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST", "ARCHIVED"]
 
 export async function POST(request: Request) {
   try {
@@ -22,13 +25,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Falta leadId" }, { status: 400 })
     }
 
-    // Actualizar status del lead
-    if (status) {
-      await supabase
-        .from("leads")
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq("id", leadId)
+    if (!status || !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "Estado inválido" }, { status: 400 })
     }
+
+    // Verificar que el lead pertenece a una agencia del usuario
+    const { data: lead, error: leadError } = await supabase
+      .from("leads")
+      .select("id, agency_id")
+      .eq("id", leadId)
+      .single()
+
+    if (leadError || !lead) {
+      return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+    }
+
+    if (user.role !== "SUPER_ADMIN" && lead.agency_id) {
+      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+      if (!agencyIds.includes(lead.agency_id)) {
+        return NextResponse.json({ error: "No tiene acceso a este lead" }, { status: 403 })
+      }
+    }
+
+    // Actualizar status del lead
+    await supabase
+      .from("leads")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", leadId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

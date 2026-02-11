@@ -412,17 +412,18 @@ export async function markPaymentAsPaid({
     
     if (ingresosChart) {
       // Buscar o crear financial_account vinculada a esta cuenta del plan
-      let ingresosFinancialAccount = await (supabase.from("financial_accounts") as any)
+      const { data: existingIngresos } = await (supabase.from("financial_accounts") as any)
         .select("id")
         .eq("chart_account_id", ingresosChart.id)
         .eq("is_active", true)
         .maybeSingle()
-      
-      if (!ingresosFinancialAccount) {
+
+      let ingresosAccountId = existingIngresos?.id
+      if (!ingresosAccountId) {
         const { data: newFA } = await (supabase.from("financial_accounts") as any)
           .insert({
             name: "Ventas de Viajes",
-            type: "CASH_ARS", // Tipo genérico, no importa para RESULTADO
+            type: "CASH_ARS",
             currency: paymentData.currency as "ARS" | "USD",
             chart_account_id: ingresosChart.id,
             initial_balance: 0,
@@ -431,9 +432,9 @@ export async function markPaymentAsPaid({
           })
           .select("id")
           .single()
-        ingresosFinancialAccount = newFA
+        ingresosAccountId = newFA?.id
       }
-      resultAccountId = ingresosFinancialAccount.id
+      resultAccountId = ingresosAccountId
     } else {
       // Fallback si no existe el plan de cuentas
       const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
@@ -453,13 +454,14 @@ export async function markPaymentAsPaid({
         .maybeSingle())
     
     if (costosChart) {
-      let costosFinancialAccount = await (supabase.from("financial_accounts") as any)
+      const { data: existingCostos } = await (supabase.from("financial_accounts") as any)
         .select("id")
         .eq("chart_account_id", costosChart.id)
         .eq("is_active", true)
         .maybeSingle()
-      
-      if (!costosFinancialAccount) {
+
+      let costosAccountId = existingCostos?.id
+      if (!costosAccountId) {
         const { data: newFA } = await (supabase.from("financial_accounts") as any)
           .insert({
             name: "Costo de Operadores",
@@ -472,9 +474,9 @@ export async function markPaymentAsPaid({
           })
           .select("id")
           .single()
-        costosFinancialAccount = newFA
+        costosAccountId = newFA?.id
       }
-      resultAccountId = costosFinancialAccount.id
+      resultAccountId = costosAccountId
     } else {
       // Fallback
       const accountType = paymentData.currency === "USD" ? "USD" : "CASH"
@@ -494,13 +496,14 @@ export async function markPaymentAsPaid({
         .maybeSingle())
     
     if (gastosChart) {
-      let gastosFinancialAccount = await (supabase.from("financial_accounts") as any)
+      const { data: existingGastos } = await (supabase.from("financial_accounts") as any)
         .select("id")
         .eq("chart_account_id", gastosChart.id)
         .eq("is_active", true)
         .maybeSingle()
-      
-      if (!gastosFinancialAccount) {
+
+      let gastosAccountId = existingGastos?.id
+      if (!gastosAccountId) {
         const { data: newFA } = await (supabase.from("financial_accounts") as any)
           .insert({
             name: "Gastos Administrativos",
@@ -513,9 +516,9 @@ export async function markPaymentAsPaid({
           })
           .select("id")
           .single()
-        gastosFinancialAccount = newFA
+        gastosAccountId = newFA?.id
       }
-      resultAccountId = gastosFinancialAccount.id
+      resultAccountId = gastosAccountId
     } else {
       // Fallback
       const accountType = paymentData.currency === "USD" ? "USD" : "CASH"

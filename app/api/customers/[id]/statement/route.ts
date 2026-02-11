@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -24,6 +25,14 @@ export async function GET(
 
     if (customerError || !customer) {
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
+    }
+
+    // Verificar que el cliente pertenece a una agencia del usuario
+    if (user.role !== "SUPER_ADMIN" && customer.agency_id) {
+      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+      if (!agencyIds.includes(customer.agency_id)) {
+        return NextResponse.json({ error: "No tiene acceso a este cliente" }, { status: 403 })
+      }
     }
 
     // Obtener operaciones del cliente

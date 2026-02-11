@@ -402,7 +402,8 @@ export async function getOrCreateDefaultAccount(
   type: "CASH" | "BANK" | "MP" | "USD",
   currency: "ARS" | "USD",
   userId: string,
-  supabase: SupabaseClient<Database>
+  supabase: SupabaseClient<Database>,
+  agencyId?: string
 ): Promise<string> {
   // Mapear tipos antiguos a tipos válidos según el constraint
   const typeMapping: Record<string, string> = {
@@ -414,11 +415,15 @@ export async function getOrCreateDefaultAccount(
 
   const validType = typeMapping[type] || (currency === "ARS" ? "CASH_ARS" : "CASH_USD")
 
-  // Buscar cuenta existente del tipo y moneda válidos
-  const { data: existing, error: existingError } = await (supabase.from("financial_accounts") as any)
+  // Buscar cuenta existente del tipo y moneda válidos (aislada por agencia)
+  let searchQuery = (supabase.from("financial_accounts") as any)
     .select("id")
     .eq("type", validType)
     .eq("currency", currency)
+  if (agencyId) {
+    searchQuery = searchQuery.eq("agency_id", agencyId)
+  }
+  const { data: existing, error: existingError } = await searchQuery
     .limit(1)
     .maybeSingle()
 
@@ -437,14 +442,19 @@ export async function getOrCreateDefaultAccount(
     SAVINGS_USD: "Caja de Ahorro USD",
   }
 
+  const insertData: any = {
+    name: accountNames[validType] || `Cuenta ${validType}`,
+    type: validType,
+    currency,
+    initial_balance: 0,
+    created_by: userId,
+  }
+  if (agencyId) {
+    insertData.agency_id = agencyId
+  }
+
   const { data: newAccount, error } = await (supabase.from("financial_accounts") as any)
-    .insert({
-      name: accountNames[validType] || `Cuenta ${validType}`,
-      type: validType,
-      currency,
-      initial_balance: 0,
-      created_by: userId,
-    })
+    .insert(insertData)
     .select("id")
     .single()
 

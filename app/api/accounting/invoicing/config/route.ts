@@ -31,17 +31,20 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (existing) {
-      // Actualizar
+      // Actualizar - no sobreescribir token si viene el valor enmascarado
+      const updateData: any = {
+        cuit,
+        environment: environment || "sandbox",
+        punto_venta: punto_venta || 1,
+        is_active: is_active || false,
+        updated_at: new Date().toISOString(),
+      }
+      if (access_token !== "********") {
+        updateData.access_token = access_token
+      }
       const { error } = await supabase
         .from("afip_config")
-        .update({
-          cuit,
-          access_token,
-          environment: environment || "sandbox",
-          punto_venta: punto_venta || 1,
-          is_active: is_active || false,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", existing.id)
 
       if (error) {

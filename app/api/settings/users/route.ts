@@ -51,16 +51,34 @@ export async function GET() {
 
     if (usersError) {
       console.error("Error fetching users:", usersError)
-      // Si hay error con la relación, intentar sin user_agencies
-      const { data: usersSimple, error: simpleError } = await supabase
+      // Si hay error con la relación, intentar sin user_agencies pero manteniendo filtro de tenant
+      let fallbackQuery = supabase
         .from("users")
         .select("*")
-        .order("created_at", { ascending: false })
-      
+
+      if (user.role !== "SUPER_ADMIN") {
+        const { getUserAgencyIds } = await import("@/lib/permissions-api")
+        const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+        if (agencyIds.length === 0) {
+          return NextResponse.json({ users: [] })
+        }
+        const { data: userAgenciesData } = await supabase
+          .from("user_agencies")
+          .select("user_id")
+          .in("agency_id", agencyIds)
+        const userIds = Array.from(new Set((userAgenciesData || []).map((ua: any) => ua.user_id))) as string[]
+        if (userIds.length === 0) {
+          return NextResponse.json({ users: [] })
+        }
+        fallbackQuery = fallbackQuery.in("id", userIds)
+      }
+
+      const { data: usersSimple, error: simpleError } = await fallbackQuery.order("created_at", { ascending: false })
+
       if (simpleError) {
         return NextResponse.json({ error: "Error al cargar usuarios", details: simpleError.message }, { status: 500 })
       }
-      
+
       return NextResponse.json({ users: usersSimple || [] })
     }
 
