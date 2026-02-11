@@ -153,11 +153,14 @@ REGLAS CRÍTICAS:
 ESQUEMA:
 ${DATABASE_SCHEMA}
 
-REGLAS DE TENANCIA (OBLIGATORIAS):
-- Si el usuario NO es SUPER_ADMIN, SIEMPRE filtra por agencia usando el placeholder: agency_id = ANY({{agency_ids}})
+REGLAS DE TENANCIA (OBLIGATORIAS - TU QUERY SERÁ RECHAZADA SI NO LAS CUMPLÍS):
+- SIEMPRE incluí agency_id = ANY({{agency_ids}}) en TODA query que toque tablas con datos de agencia
+- Tablas con agency_id directo: operations, customers, leads, operators, cash_boxes, cash_movements, financial_accounts, recurring_payments, alerts, invoices, quotations, documents, notes, whatsapp_messages, ledger_movements
+- Tablas SIN agency_id que requieren JOIN: payments (JOIN operations), operator_payments (JOIN operators), operation_customers (JOIN operations), operation_passengers (JOIN operations)
 - Para la tabla agencies (no tiene agency_id), usa: id = ANY({{agency_ids}})
 - Si consultas user_agencies, filtra por user_id = {{user_id}}
 - NUNCA hardcodees IDs reales: usa {{agency_ids}} y {{user_id}} siempre
+- ⚠️ Si omitís el filtro {{agency_ids}}, la query será RECHAZADA automáticamente
 
 EJEMPLOS DE QUERIES CORRECTAS:
 
@@ -175,7 +178,9 @@ ORDER BY COALESCE(o.departure_date, o.checkin_date) ASC LIMIT 10
 -- Pagos pendientes de clientes (la columna es date_due, NO due_date)
 SELECT p.amount, p.currency, p.date_due, p.status
 FROM payments p
+JOIN operations op ON op.id = p.operation_id
 WHERE p.status = 'PENDING' AND p.direction = 'INCOME'
+AND op.agency_id = ANY({{agency_ids}})
 ORDER BY p.date_due ASC LIMIT 10
 
 -- Deuda a operadores (pagos pendientes)
@@ -183,6 +188,7 @@ SELECT op.amount, op.paid_amount, op.currency, op.due_date, op.status, o.name as
 FROM operator_payments op
 JOIN operators o ON o.id = op.operator_id
 WHERE op.status IN ('PENDING', 'OVERDUE')
+AND o.agency_id = ANY({{agency_ids}})
 ORDER BY op.due_date ASC LIMIT 10
 
 -- Cuánto hay en caja (cash_boxes)
@@ -195,22 +201,27 @@ ORDER BY currency, name
 SELECT COUNT(*) as cantidad, COALESCE(SUM(sale_amount_total), 0) as total
 FROM operations
 WHERE created_at >= date_trunc('month', CURRENT_DATE) AND status NOT IN ('CANCELLED')
+AND agency_id = ANY({{agency_ids}})
 
 -- Leads por estado
 SELECT status, COUNT(*) as cantidad FROM leads
-WHERE created_at >= date_trunc('month', CURRENT_DATE) GROUP BY status
+WHERE created_at >= date_trunc('month', CURRENT_DATE)
+AND agency_id = ANY({{agency_ids}})
+GROUP BY status
 
 -- Total operaciones
-SELECT COUNT(*) as total FROM operations WHERE status NOT IN ('CANCELLED')
+SELECT COUNT(*) as total FROM operations
+WHERE status NOT IN ('CANCELLED') AND agency_id = ANY({{agency_ids}})
 
 -- Total clientes
 SELECT COUNT(*) as total FROM customers
+WHERE agency_id = ANY({{agency_ids}})
 
 -- Gastos recurrentes activos
 SELECT rp.provider_name, rp.amount, rp.currency, rp.frequency, rpc.name as categoria
 FROM recurring_payments rp
 LEFT JOIN recurring_payment_categories rpc ON rpc.id = rp.category_id
-WHERE rp.is_active = true
+WHERE rp.is_active = true AND rp.agency_id = ANY({{agency_ids}})
 ORDER BY rp.amount DESC
 
 -- Deudores por ventas (clientes que deben)
