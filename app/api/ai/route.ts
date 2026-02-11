@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import OpenAI from "openai"
 import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 
@@ -30,15 +31,17 @@ const DATABASE_SCHEMA = `
 - contact_name, contact_phone, contact_email, assigned_seller_id, travel_date, return_date, loss_reason, created_at
 
 ### operations (Operaciones/Ventas) ⭐
-- id, file_code, agency_id, lead_id, seller_id, operator_id
+- id, file_code, agency_id, lead_id, seller_id, seller_secondary_id, operator_id
 - ⚠️ NO tiene customer_id directo. Para obtener el cliente: JOIN operation_customers oc ON oc.operation_id = operations.id AND oc.role = 'MAIN' JOIN customers c ON c.id = oc.customer_id
-- type ('FLIGHT','HOTEL','PACKAGE','CRUISE','TRANSFER','MIXED'), origin, destination
-- departure_date, return_date, operation_date
+- type ('FLIGHT','HOTEL','PACKAGE','CRUISE','TRANSFER','MIXED'), product_type, origin, destination
+- departure_date, return_date, operation_date, checkin_date, checkout_date
 - adults, children, infants
 - status ('PRE_RESERVATION','RESERVED','CONFIRMED','CANCELLED','TRAVELLED','CLOSED')
-- sale_amount_total (venta total), currency ('ARS','USD')
-- operator_cost (costo operador), margin_amount (ganancia), margin_percentage
-- billing_margin, notes, created_at, updated_at
+- sale_amount_total (venta total), currency ('ARS','USD'), sale_currency
+- operator_cost (costo operador), operator_cost_currency, margin_amount (ganancia), margin_percentage
+- billing_margin, billing_margin_amount, billing_margin_percentage
+- reservation_code_air, reservation_code_hotel
+- notes, created_at, updated_at
 
 ### operation_customers (Pasajeros de operación)
 - id, operation_id, customer_id, role ('MAIN','COMPANION')
@@ -124,6 +127,7 @@ const DATABASE_SCHEMA = `
 - Fechas: usar CURRENT_DATE, date_trunc('month', CURRENT_DATE), etc.
 - En payments la fecha de vencimiento es "date_due" (NO "due_date")
 - En operator_payments la fecha es "due_date" (NO "date_due")
+- ⚠️ En operations la columna es "checkin_date" (NO "check_in_date") y "checkout_date" (NO "check_out_date")
 - Para deudores: sale_amount_total - COALESCE(SUM(pagos donde direction='INCOME' AND status='PAID'), 0) = deuda cliente
 - Para deuda operadores: operator_payments WHERE status IN ('PENDING','OVERDUE')
 - Margen = sale_amount_total - operator_cost
@@ -135,6 +139,7 @@ const DATABASE_SCHEMA = `
 - Para ventas = operaciones con status NOT IN ('CANCELLED'). Una operación ES una venta.
 - Para "últimos clientes que compraron": usar operation_customers JOIN customers JOIN operations
 - Para vendedor con más ventas: operations.seller_id JOIN users
+- Para viajes próximos: usar COALESCE(departure_date, checkin_date) para la fecha de salida
 `
 
 const SYSTEM_PROMPT = `Eres "Cerebro", el asistente de Vibook Gestión para agencias de viajes.
@@ -158,11 +163,15 @@ REGLAS DE TENANCIA (OBLIGATORIAS):
 EJEMPLOS DE QUERIES CORRECTAS:
 
 -- Viajes próximos (usa departure_date O checkin_date)
-SELECT file_code, destination, departure_date, checkin_date, sale_amount_total, status 
-FROM operations 
-WHERE (departure_date >= CURRENT_DATE OR checkin_date >= CURRENT_DATE)
-AND status NOT IN ('CANCELLED')
-ORDER BY COALESCE(departure_date, checkin_date) ASC LIMIT 10
+SELECT o.file_code, o.destination, o.departure_date, o.checkin_date, o.sale_amount_total, o.status,
+  c.first_name || ' ' || c.last_name as cliente
+FROM operations o
+LEFT JOIN operation_customers oc ON oc.operation_id = o.id AND oc.role = 'MAIN'
+LEFT JOIN customers c ON c.id = oc.customer_id
+WHERE (o.departure_date >= CURRENT_DATE OR o.checkin_date >= CURRENT_DATE)
+AND o.status NOT IN ('CANCELLED')
+AND o.agency_id = ANY({{agency_ids}})
+ORDER BY COALESCE(o.departure_date, o.checkin_date) ASC LIMIT 10
 
 -- Pagos pendientes de clientes (la columna es date_due, NO due_date)
 SELECT p.amount, p.currency, p.date_due, p.status
@@ -257,7 +266,11 @@ const TENANT_TABLES = [
 
 const containsTenantTable = (query: string) => {
   const normalized = query.toLowerCase()
-  return TENANT_TABLES.some((table) => normalized.includes(` ${table} `) || normalized.includes(` ${table}\n`) || normalized.includes(` ${table},`) || normalized.includes(` ${table}\t`))
+  return TENANT_TABLES.some((table) => {
+    // Match table name as word boundary: after space/comma/join/from, before space/comma/newline/tab/;/)/end
+    const regex = new RegExp(`(?:^|\\s|,|\\()${table}(?:\\s|,|\\n|\\t|;|\\)|$)`)
+    return regex.test(normalized)
+  })
 }
 
 const buildAgencyArrayLiteral = (agencyIds: string[]) => {
@@ -274,6 +287,73 @@ const applyQueryContext = (query: string, agencyIds: string[], userId: string) =
     resolved = resolved.replaceAll("{{user_id}}", `'${userId}'::uuid`)
   }
   return resolved
+}
+
+// Auto-crear la función RPC si no existe
+let rpcVerified = false
+async function ensureRPCExists() {
+  if (rpcVerified) return
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceKey) return
+
+    const adminClient = createAdminSupabaseClient()
+    const { error } = await adminClient.rpc('execute_readonly_query', { query_text: 'SELECT 1 as test' })
+
+    if (error && error.message?.includes('does not exist')) {
+      console.log('[Cerebro] RPC function does not exist, creating...')
+      // Crear la función usando SQL via REST API
+      const createSQL = `
+        CREATE OR REPLACE FUNCTION execute_readonly_query(query_text TEXT)
+        RETURNS JSONB AS $$
+        DECLARE
+          result_data JSONB;
+          normalized_query TEXT;
+        BEGIN
+          normalized_query := UPPER(TRIM(query_text));
+          IF NOT normalized_query LIKE 'SELECT %' THEN
+            RAISE EXCEPTION 'Solo se permiten queries SELECT';
+          END IF;
+          IF normalized_query LIKE '%INSERT%' OR normalized_query LIKE '%UPDATE%'
+             OR normalized_query LIKE '%DELETE%' OR normalized_query LIKE '%DROP%'
+             OR normalized_query LIKE '%CREATE%' OR normalized_query LIKE '%ALTER%'
+             OR normalized_query LIKE '%TRUNCATE%' OR normalized_query LIKE '%GRANT%'
+             OR normalized_query LIKE '%REVOKE%' THEN
+            RAISE EXCEPTION 'Query contiene comandos no permitidos';
+          END IF;
+          EXECUTE format('SELECT jsonb_agg(row_to_json(t)) FROM (%s) t', query_text) INTO result_data;
+          IF result_data IS NULL THEN result_data := '[]'::jsonb; END IF;
+          RETURN result_data;
+        EXCEPTION WHEN OTHERS THEN
+          RAISE EXCEPTION 'Error ejecutando query: %', SQLERRM;
+        END;
+        $$ LANGUAGE plpgsql SECURITY DEFINER;
+        GRANT EXECUTE ON FUNCTION execute_readonly_query(TEXT) TO authenticated;
+      `
+
+      const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ sql: createSQL })
+      })
+
+      if (!resp.ok) {
+        // Try alternative: use the SQL editor API
+        console.warn('[Cerebro] Could not auto-create RPC function. It must be created manually via Supabase Dashboard.')
+        console.warn('[Cerebro] Run: supabase/migrations/047_create_execute_readonly_query_function.sql')
+      } else {
+        console.log('[Cerebro] RPC function created successfully!')
+      }
+    }
+    rpcVerified = true
+  } catch (err) {
+    console.warn('[Cerebro] Error checking RPC:', err)
+  }
 }
 
 // Ejecutar consulta SQL de forma segura
@@ -315,6 +395,9 @@ async function executeQuery(
     
     if (error) {
       console.error("[Cerebro] Query error:", error.message)
+      if (error.message?.includes('does not exist')) {
+        return { success: false, error: "La función de consultas no está disponible. Contacta a soporte para configurar Cerebro." }
+      }
       return { success: false, error: error.message }
     }
     
@@ -331,16 +414,16 @@ export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
 
+    if (!user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     const featureAccess = await verifyFeatureAccess(user.id, user.role, "cerebro")
     if (!featureAccess.hasAccess) {
       return NextResponse.json(
         { error: featureAccess.message || "No tiene acceso a Cerebro" },
         { status: 403 }
       )
-    }
-    
-    if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
     const body = await request.json()
@@ -361,6 +444,9 @@ export async function POST(request: Request) {
     const supabase = await createServerClient()
     const isSuperAdmin = user.role === "SUPER_ADMIN"
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+
+    // Ensure RPC function exists (auto-create if possible)
+    await ensureRPCExists()
 
     const today = new Date().toISOString().split('T')[0]
     const userContext = `Fecha: ${today} | Usuario: ${user.name || user.email} | Rol: ${user.role} | user_id: ${user.id} | agency_ids: ${agencyIds.join(", ") || "SIN_AGENCIAS"}`

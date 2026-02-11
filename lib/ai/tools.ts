@@ -266,9 +266,16 @@ export async function getTopDestinations(
 export async function getOperatorBalances(user: User, onlyOverdue: boolean = false): Promise<any[]> {
   const supabase = await createServerClient()
 
+  // Get user agencies for filtering
+  const { data: userAgencies } = await supabase
+    .from("user_agencies")
+    .select("agency_id")
+    .eq("user_id", user.id)
+
+  const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+
   // Get all operators with their operations and payments
-  const { data: operators } = await supabase
-    .from("operators")
+  let query = (supabase.from("operators") as any)
     .select(
       `
       *,
@@ -286,6 +293,13 @@ export async function getOperatorBalances(user: User, onlyOverdue: boolean = fal
     `,
     )
     .order("name")
+
+  // Filter by agency_id
+  if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+    query = query.in("agency_id", agencyIds)
+  }
+
+  const { data: operators } = await query
 
   const operatorsWithBalances = (operators || []).map((op: any) => {
     const operations = (op.operations || []) as any[]
@@ -366,10 +380,24 @@ export async function getCashBalances(user: User): Promise<any[]> {
   const supabase = await createServerClient()
 
   try {
-    const { data: accounts } = await (supabase.from("financial_accounts") as any)
+    // Get user agencies for filtering
+    const { data: userAgencies } = await supabase
+      .from("user_agencies")
+      .select("agency_id")
+      .eq("user_id", user.id)
+
+    const agencyIds = (userAgencies || []).map((ua: any) => ua.agency_id)
+
+    let accountsQuery = (supabase.from("financial_accounts") as any)
       .select("*")
       .order("type", { ascending: true })
       .order("currency", { ascending: true })
+
+    if (user.role !== "SUPER_ADMIN" && agencyIds.length > 0) {
+      accountsQuery = accountsQuery.in("agency_id", agencyIds)
+    }
+
+    const { data: accounts } = await accountsQuery
 
     const accountsWithBalance = await Promise.all(
       (accounts || []).map(async (account: any) => {

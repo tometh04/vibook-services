@@ -277,24 +277,47 @@ export async function getCustomerDuePaymentsToday(user: User): Promise<any[]> {
     .select(`
       id, amount, currency, date_due,
       operations:operation_id(
-        id, file_code, destination,
-        customers:customer_id(name, phone, email)
+        id, file_code, destination
       )
     `)
     .eq("status", "PENDING")
     .eq("direction", "INCOME")
     .eq("date_due", today)
 
-  return (payments || []).map((p: any) => ({
-    paymentId: p.id,
-    amount: p.amount,
-    currency: p.currency,
-    dueDate: p.date_due,
-    operation: p.operations?.file_code || p.operations?.destination,
-    customerName: p.operations?.customers?.name || "Sin cliente",
-    customerPhone: p.operations?.customers?.phone,
-    customerEmail: p.operations?.customers?.email,
-  }))
+  // Get customer names via operation_customers
+  const results = []
+  for (const p of (payments || [])) {
+    let customerName = "Sin cliente"
+    let customerPhone = null
+    let customerEmail = null
+
+    if (p.operations?.id) {
+      const { data: oc } = await (supabase.from("operation_customers") as any)
+        .select("customers:customer_id(first_name, last_name, phone, email)")
+        .eq("operation_id", p.operations.id)
+        .eq("role", "MAIN")
+        .maybeSingle()
+
+      if (oc?.customers) {
+        customerName = `${oc.customers.first_name} ${oc.customers.last_name}`.trim()
+        customerPhone = oc.customers.phone
+        customerEmail = oc.customers.email
+      }
+    }
+
+    results.push({
+      paymentId: p.id,
+      amount: p.amount,
+      currency: p.currency,
+      dueDate: p.date_due,
+      operation: p.operations?.file_code || p.operations?.destination,
+      customerName,
+      customerPhone,
+      customerEmail,
+    })
+  }
+
+  return results
 }
 
 /**
@@ -306,12 +329,11 @@ export async function getOperationsWithPendingPaymentBeforeTravel(user: User): P
 
   const { data: operations } = await (supabase.from("operations") as any)
     .select(`
-      id, file_code, destination, check_in_date, sale_amount_total,
-      customers:customer_id(name, phone),
+      id, file_code, destination, checkin_date, departure_date, sale_amount_total,
       payments:payments!operation_id(id, amount, status, direction, date_due)
     `)
-    .gte("check_in_date", today)
-    .order("check_in_date", { ascending: true })
+    .or(`checkin_date.gte.${today},departure_date.gte.${today}`)
+    .order("checkin_date", { ascending: true })
     .limit(50)
 
   const opsWithPendingPayments = (operations || []).filter((op: any) => {
@@ -321,24 +343,41 @@ export async function getOperationsWithPendingPaymentBeforeTravel(user: User): P
     return pendingCustomerPayments.length > 0
   })
 
-  return opsWithPendingPayments.map((op: any) => {
+  const results = []
+  for (const op of opsWithPendingPayments) {
     const pendingPayments = (op.payments || []).filter(
       (p: any) => p.direction === "INCOME" && p.status === "PENDING"
     )
     const totalPending = pendingPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
 
-    return {
+    // Get main customer via operation_customers
+    let customerName = "Sin cliente"
+    let customerPhone = null
+    const { data: oc } = await (supabase.from("operation_customers") as any)
+      .select("customers:customer_id(first_name, last_name, phone)")
+      .eq("operation_id", op.id)
+      .eq("role", "MAIN")
+      .maybeSingle()
+
+    if (oc?.customers) {
+      customerName = `${oc.customers.first_name} ${oc.customers.last_name}`.trim()
+      customerPhone = oc.customers.phone
+    }
+
+    results.push({
       operationId: op.id,
       fileCode: op.file_code,
       destination: op.destination,
-      checkInDate: op.check_in_date,
+      checkInDate: op.checkin_date || op.departure_date,
       saleAmount: op.sale_amount_total,
       pendingAmount: totalPending,
       pendingPaymentsCount: pendingPayments.length,
-      customerName: op.customers?.name || "Sin cliente",
-      customerPhone: op.customers?.phone,
-    }
-  })
+      customerName,
+      customerPhone,
+    })
+  }
+
+  return results
 }
 
 /**
@@ -351,28 +390,48 @@ export async function getOperationsTravelingThisWeek(user: User): Promise<any[]>
   const endOfWeek = new Date(today)
   endOfWeek.setDate(today.getDate() + (7 - today.getDay()))
 
+  const todayStr = today.toISOString().split("T")[0]
+  const endOfWeekStr = endOfWeek.toISOString().split("T")[0]
+
   const { data: operations } = await (supabase.from("operations") as any)
     .select(`
-      id, file_code, destination, check_in_date, check_out_date, status, sale_amount_total,
-      customers:customer_id(name, phone, email),
+      id, file_code, destination, checkin_date, checkout_date, departure_date, status, sale_amount_total,
       users:seller_id(name)
     `)
-    .gte("check_in_date", today.toISOString().split("T")[0])
-    .lte("check_in_date", endOfWeek.toISOString().split("T")[0])
-    .order("check_in_date", { ascending: true })
+    .or(`and(checkin_date.gte.${todayStr},checkin_date.lte.${endOfWeekStr}),and(departure_date.gte.${todayStr},departure_date.lte.${endOfWeekStr})`)
+    .order("checkin_date", { ascending: true })
 
-  return (operations || []).map((op: any) => ({
-    id: op.id,
-    fileCode: op.file_code,
-    destination: op.destination,
-    checkIn: op.check_in_date,
-    checkOut: op.check_out_date,
-    status: op.status,
-    saleAmount: op.sale_amount_total,
-    customer: op.customers?.name || "Sin cliente",
-    customerPhone: op.customers?.phone,
-    seller: op.users?.name || "Sin vendedor",
-  }))
+  const results = []
+  for (const op of (operations || [])) {
+    // Get main customer via operation_customers
+    let customerName = "Sin cliente"
+    let customerPhone = null
+    const { data: oc } = await (supabase.from("operation_customers") as any)
+      .select("customers:customer_id(first_name, last_name, phone)")
+      .eq("operation_id", op.id)
+      .eq("role", "MAIN")
+      .maybeSingle()
+
+    if (oc?.customers) {
+      customerName = `${oc.customers.first_name} ${oc.customers.last_name}`.trim()
+      customerPhone = oc.customers.phone
+    }
+
+    results.push({
+      id: op.id,
+      fileCode: op.file_code,
+      destination: op.destination,
+      checkIn: op.checkin_date || op.departure_date,
+      checkOut: op.checkout_date,
+      status: op.status,
+      saleAmount: op.sale_amount_total,
+      customer: customerName,
+      customerPhone,
+      seller: op.users?.name || "Sin vendedor",
+    })
+  }
+
+  return results
 }
 
 /**
@@ -531,16 +590,17 @@ export async function getOperationsWithPendingHotelPayment(user: User, days: num
   const futureDate = new Date(today)
   futureDate.setDate(today.getDate() + days)
 
+  const todayStr = today.toISOString().split("T")[0]
+  const futureDateStr = futureDate.toISOString().split("T")[0]
+
   const { data: operations } = await (supabase.from("operations") as any)
     .select(`
-      id, file_code, destination, check_in_date, operator_cost,
-      customers:customer_id(name),
+      id, file_code, destination, checkin_date, departure_date, operator_cost,
       operators:operator_id(name),
       payments:payments!operation_id(id, amount, status, direction)
     `)
-    .gte("check_in_date", today.toISOString().split("T")[0])
-    .lte("check_in_date", futureDate.toISOString().split("T")[0])
-    .order("check_in_date", { ascending: true })
+    .or(`and(checkin_date.gte.${todayStr},checkin_date.lte.${futureDateStr}),and(departure_date.gte.${todayStr},departure_date.lte.${futureDateStr})`)
+    .order("checkin_date", { ascending: true })
 
   const opsWithPendingHotel = (operations || []).filter((op: any) => {
     const pendingToOperator = (op.payments || []).filter(
@@ -549,23 +609,38 @@ export async function getOperationsWithPendingHotelPayment(user: User, days: num
     return pendingToOperator.length > 0
   })
 
-  return opsWithPendingHotel.map((op: any) => {
+  const results = []
+  for (const op of opsWithPendingHotel) {
     const pendingPayments = (op.payments || []).filter(
       (p: any) => p.direction === "EXPENSE" && p.status === "PENDING"
     )
     const totalPending = pendingPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
 
-    return {
+    // Get main customer via operation_customers
+    let customerName = "Sin cliente"
+    const { data: oc } = await (supabase.from("operation_customers") as any)
+      .select("customers:customer_id(first_name, last_name)")
+      .eq("operation_id", op.id)
+      .eq("role", "MAIN")
+      .maybeSingle()
+
+    if (oc?.customers) {
+      customerName = `${oc.customers.first_name} ${oc.customers.last_name}`.trim()
+    }
+
+    results.push({
       operationId: op.id,
       fileCode: op.file_code,
       destination: op.destination,
-      checkInDate: op.check_in_date,
+      checkInDate: op.checkin_date || op.departure_date,
       operatorCost: op.operator_cost,
       pendingAmount: totalPending,
-      customer: op.customers?.name || "Sin cliente",
+      customer: customerName,
       operator: op.operators?.name || "Sin operador",
-    }
-  })
+    })
+  }
+
+  return results
 }
 
 /**
