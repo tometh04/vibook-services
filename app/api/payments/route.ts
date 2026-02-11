@@ -151,39 +151,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Error al crear pago: ${paymentError.message}` }, { status: 500 })
     }
 
-    // IMPORTANTE: SIEMPRE crear movimiento en la cuenta financiera para actualizar el saldo
-    // Esto se hace para TODOS los pagos (PENDING o PAID)
-    try {
-      const { createFinancialAccountMovement } = await import("@/lib/accounting/create-financial-account-movement")
-      await createFinancialAccountMovement({
-        paymentId: payment.id,
-        accountId: account_id,
-        amount: parseFloat(amount),
-        currency: currency as "ARS" | "USD",
-        direction: direction as "INCOME" | "EXPENSE",
-        operationId: operation_id || null,
-        datePaid: date_paid || undefined,
-        reference: notes || null,
-        method: method || "Transferencia",
-        userId: user.id,
-        supabase,
-        exchangeRate: exchange_rate ? parseFloat(exchange_rate) : null, // Pasar tipo de cambio explícito
-      })
-      console.log(`✅ Movimiento creado en cuenta financiera ${account_id} para pago ${payment.id}`)
-    } catch (financialAccountError: any) {
-      console.error("❌ Error creando movimiento en cuenta financiera:", financialAccountError)
-      // Eliminar el pago si no se pudo crear el movimiento en la cuenta financiera
-      await (supabase.from("payments") as any)
-        .delete()
-        .eq("id", payment.id)
-      
-      return NextResponse.json({ 
-        error: "Error crítico: No se pudo crear movimiento en cuenta financiera: " + (financialAccountError.message || "Error desconocido")
-      }, { status: 500 })
-    }
-
-    // Solo crear movimientos contables en RESULTADO si el pago está PAID explícitamente
-    // Los movimientos en RESULTADO son para contabilidad (plan contable)
+    // Crear movimientos contables según el status del pago
+    // - PAID: markPaymentAsPaid() se encarga de TODO (ledger en cuenta financiera + cash_movement + resultado)
+    // - PENDING: solo crear movimiento en cuenta financiera para actualizar el saldo
     if (status === "PAID") {
       try {
         // Obtener datos de la operación si existe para pasarlos directamente
@@ -228,7 +198,37 @@ export async function POST(request: Request) {
         }, { status: 201 }) // 201 porque el pago se creó y el saldo se actualizó
       }
     } else {
-      console.log(`ℹ️ Pago ${payment.id} creado con status ${status || "PENDING"}, no se crearán movimientos contables hasta que se marque como PAID`)
+      // PENDING: Solo crear movimiento en la cuenta financiera para actualizar el saldo
+      // Los movimientos de resultado y cash_movement se crearán cuando se marque como PAID
+      try {
+        const { createFinancialAccountMovement } = await import("@/lib/accounting/create-financial-account-movement")
+        await createFinancialAccountMovement({
+          paymentId: payment.id,
+          accountId: account_id,
+          amount: parseFloat(amount),
+          currency: currency as "ARS" | "USD",
+          direction: direction as "INCOME" | "EXPENSE",
+          operationId: operation_id || null,
+          datePaid: date_paid || undefined,
+          reference: notes || null,
+          method: method || "Transferencia",
+          userId: user.id,
+          supabase,
+          exchangeRate: exchange_rate ? parseFloat(exchange_rate) : null,
+        })
+        console.log(`✅ Movimiento en cuenta financiera creado para pago PENDING ${payment.id}`)
+      } catch (financialAccountError: any) {
+        console.error("❌ Error creando movimiento en cuenta financiera para PENDING:", financialAccountError)
+        // Eliminar el pago si no se pudo crear el movimiento
+        await (supabase.from("payments") as any)
+          .delete()
+          .eq("id", payment.id)
+
+        return NextResponse.json({
+          error: "Error crítico: No se pudo crear movimiento en cuenta financiera: " + (financialAccountError.message || "Error desconocido")
+        }, { status: 500 })
+      }
+      console.log(`ℹ️ Pago ${payment.id} creado con status PENDING, movimientos de resultado se crearán cuando se marque como PAID`)
     }
 
     return NextResponse.json({ payment })
