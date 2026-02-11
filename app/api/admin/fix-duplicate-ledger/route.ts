@@ -14,8 +14,8 @@ export async function POST(request: Request) {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
 
-    // Solo SUPER_ADMIN puede usar esto
-    if (user.role !== "SUPER_ADMIN") {
+    // ADMIN o SUPER_ADMIN pueden usar esto
+    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN" && user.role !== "OWNER") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
     }
 
