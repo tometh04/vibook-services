@@ -468,7 +468,9 @@ export async function POST(request: Request) {
     await ensureRPCExists()
 
     const today = new Date().toISOString().split('T')[0]
-    const userContext = `Fecha: ${today} | Usuario: ${user.name || user.email} | Rol: ${user.role} | user_id: ${user.id} | agency_ids: ${agencyIds.join(", ") || "SIN_AGENCIAS"}`
+    // NO exponer agency_ids reales al modelo - GPT DEBE usar el placeholder {{agency_ids}}
+    // Los placeholders se reemplazan automáticamente antes de ejecutar la query
+    const userContext = `Fecha: ${today} | Usuario: ${user.name || user.email} | Rol: ${user.role} | user_id: {{user_id}} | Tiene ${agencyIds.length} agencia(s) asignada(s). SIEMPRE usá {{agency_ids}} en tus queries, NUNCA hardcodees IDs.`
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -593,12 +595,9 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("[Cerebro] Error:", error)
-    // Temporalmente incluir debug info para diagnosticar
-    const debugInfo = process.env.NODE_ENV === 'production'
-      ? ` [Debug: ${error?.message?.substring(0, 100)}]`
-      : ` [${error?.message}]`
     return NextResponse.json({
-      response: "Hubo un problema al procesar tu consulta." + debugInfo
+      response: "Hubo un problema al procesar tu consulta. Por favor, intentá de nuevo.",
+      _debug: [{ step: "exception", error: error?.message?.substring(0, 200) }]
     })
   }
 }
