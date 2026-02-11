@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getUserAgencyIds } from "@/lib/permissions-api"
-import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getAccountBalance, isAccountingOnlyAccount, getAccountBalancesBatch, filterAccountingOnlyAccountsBatch } from "@/lib/accounting/ledger"
 import { canPerformAction } from "@/lib/permissions-api"
 
@@ -144,40 +143,14 @@ export async function POST(request: Request) {
     }
 
     // Validar campos requeridos
-    if (!normalizedName || !type || !currency || !resolvedAgencyId) {
+    if (!name || !type || !currency || !resolvedAgencyId) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
-    }
-
-    const normalizedName = String(name || "").trim()
-
-    // Normalizar moneda según tipo (evita inconsistencias USD/ARS)
-    const inferredCurrency = type.endsWith("_ARS")
-      ? "ARS"
-      : type.endsWith("_USD")
-        ? "USD"
-        : currency
-    const finalCurrency = inferredCurrency || currency
-
-    // Idempotencia: si ya existe una cuenta igual (evita duplicados por doble submit)
-    const { data: existingAccount, error: existingError } = await (supabase.from("financial_accounts") as any)
-      .select("*")
-      .eq("agency_id", resolvedAgencyId)
-      .eq("type", type)
-      .eq("currency", finalCurrency)
-      .eq("name", normalizedName)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (!existingError && existingAccount) {
-      return NextResponse.json({ account: existingAccount, idempotent: true }, { status: 200 })
     }
 
     // Si no se proporciona chart_account_id, asignarlo automáticamente según tipo
     let finalChartAccountId = chart_account_id
     
     if (!finalChartAccountId) {
-      const supabaseAdmin = createAdminSupabaseClient()
       // Mapeo automático de tipo de cuenta a código del plan de cuentas
       const typeToAccountCodeMap: Record<string, string> = {
         "CASH_ARS": "1.1.01",      // Caja ARS
@@ -194,7 +167,7 @@ export async function POST(request: Request) {
       
       if (accountCode) {
         // Buscar el chart_account_id por código (aislado por agencia)
-        const { data: chartAccount, error: chartError } = await (supabaseAdmin.from("chart_of_accounts") as any)
+        const { data: chartAccount, error: chartError } = await (supabase.from("chart_of_accounts") as any)
           .select("id, account_code, account_name, is_active")
           .eq("account_code", accountCode)
           .eq("agency_id", resolvedAgencyId)
@@ -220,7 +193,7 @@ export async function POST(request: Request) {
 
           const defaults = defaultChartAccounts[accountCode]
           if (defaults) {
-            const { data: createdChart, error: createError } = await (supabaseAdmin.from("chart_of_accounts") as any)
+            const { data: createdChart, error: createError } = await (supabase.from("chart_of_accounts") as any)
               .insert({
                 agency_id: resolvedAgencyId,
                 account_code: accountCode,
@@ -263,7 +236,7 @@ export async function POST(request: Request) {
     }
 
     // Verificar que el chart_account_id existe y está activo
-    const { data: chartAccount, error: chartError } = await (createAdminSupabaseClient().from("chart_of_accounts") as any)
+    const { data: chartAccount, error: chartError } = await (supabase.from("chart_of_accounts") as any)
       .select("id, account_code, account_name, category, is_active")
       .eq("id", finalChartAccountId)
       .eq("agency_id", resolvedAgencyId)
@@ -300,9 +273,9 @@ export async function POST(request: Request) {
 
     // Preparar datos para inserción
     const accountData: any = {
-      name: normalizedName,
+      name,
       type,
-      currency: finalCurrency,
+      currency,
       agency_id: resolvedAgencyId,
       initial_balance: Number(initial_balance) || 0,
       chart_account_id: finalChartAccountId, // Asignado automáticamente o proporcionado
