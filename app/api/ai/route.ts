@@ -325,11 +325,11 @@ async function ensureRPCExists() {
           IF NOT normalized_query LIKE 'SELECT %' THEN
             RAISE EXCEPTION 'Solo se permiten queries SELECT';
           END IF;
-          IF normalized_query LIKE '%INSERT%' OR normalized_query LIKE '%UPDATE%'
-             OR normalized_query LIKE '%DELETE%' OR normalized_query LIKE '%DROP%'
-             OR normalized_query LIKE '%CREATE%' OR normalized_query LIKE '%ALTER%'
-             OR normalized_query LIKE '%TRUNCATE%' OR normalized_query LIKE '%GRANT%'
-             OR normalized_query LIKE '%REVOKE%' THEN
+          IF normalized_query ~ '\\mINSERT\\M' OR normalized_query ~ '\\mUPDATE\\M'
+             OR normalized_query ~ '\\mDELETE\\M' OR normalized_query ~ '\\mDROP\\M'
+             OR normalized_query ~ '\\mCREATE\\M' OR normalized_query ~ '\\mALTER\\M'
+             OR normalized_query ~ '\\mTRUNCATE\\M' OR normalized_query ~ '\\mGRANT\\M'
+             OR normalized_query ~ '\\mREVOKE\\M' OR normalized_query ~ '\\mEXEC\\M' THEN
             RAISE EXCEPTION 'Query contiene comandos no permitidos';
           END IF;
           EXECUTE format('SELECT jsonb_agg(row_to_json(t)) FROM (%s) t', query_text) INTO result_data;
@@ -340,6 +340,7 @@ async function ensureRPCExists() {
         END;
         $$ LANGUAGE plpgsql SECURITY DEFINER;
         GRANT EXECUTE ON FUNCTION execute_readonly_query(TEXT) TO authenticated;
+        GRANT EXECUTE ON FUNCTION execute_readonly_query(TEXT) TO service_role;
       `
 
       const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
