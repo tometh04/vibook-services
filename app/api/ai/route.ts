@@ -95,7 +95,8 @@ const DATABASE_SCHEMA = `
 - status ('PENDING','SENT','DELIVERED'), scheduled_for, sent_at
 
 ### documents (Documentos)
-- id, agency_id, operation_id, customer_id, name, type, file_url, is_required, uploaded_at
+- id, operation_id, customer_id, lead_id, passenger_id, type, file_url, file_name, uploaded_by_user_id, uploaded_at
+- ⚠️ NO tiene agency_id. Para filtrar por agencia: JOIN operations o ON o.id = documents.operation_id WHERE o.agency_id = ANY({{agency_ids}})
 
 ### invoices (Facturas)
 - id, agency_id, operation_id, customer_id, invoice_number, invoice_type ('A','B','C','E')
@@ -106,10 +107,10 @@ const DATABASE_SCHEMA = `
 - status ('PENDING','DONE','IGNORED'), title, description, date_due, created_at
 
 ### notes (Notas)
-- id, agency_id, entity_type ('LEAD','OPERATION','CUSTOMER'), entity_id, user_id, content, created_at
+- id, agency_id, title, content, note_type, operation_id, customer_id, visibility, tags, status, is_pinned, color, created_by, created_at, updated_at
 
 ### exchange_rates (Tipos de cambio)
-- id, currency_from, currency_to, rate, date, source
+- id, currency_from, currency_to, rate, effective_date, source, created_at, created_by
 
 ### subscriptions (Suscripciones)
 - id, agency_id, plan_id, status ('TRIAL','ACTIVE','CANCELED','PAST_DUE','UNPAID','SUSPENDED')
@@ -156,8 +157,8 @@ ${DATABASE_SCHEMA}
 
 REGLAS DE TENANCIA (OBLIGATORIAS - TU QUERY SERÁ RECHAZADA SI NO LAS CUMPLÍS):
 - SIEMPRE incluí agency_id = ANY({{agency_ids}}) en TODA query que toque tablas con datos de agencia
-- Tablas con agency_id directo: operations, customers, leads, operators, cash_boxes, cash_movements, financial_accounts, recurring_payments, alerts, invoices, quotations, documents, notes, whatsapp_messages, ledger_movements
-- Tablas SIN agency_id que requieren JOIN: payments (JOIN operations), operator_payments (JOIN operators), operation_customers (JOIN operations), operation_passengers (JOIN operations)
+- Tablas con agency_id directo: operations, customers, leads, operators, cash_boxes, cash_movements, financial_accounts, recurring_payments, alerts, invoices, quotations, notes, whatsapp_messages, ledger_movements
+- Tablas SIN agency_id que requieren JOIN: payments (JOIN operations), operator_payments (JOIN operators), operation_customers (JOIN operations), operation_passengers (JOIN operations), documents (JOIN operations ON operations.id = documents.operation_id)
 - Para la tabla agencies (no tiene agency_id), usa: id = ANY({{agency_ids}})
 - Si consultas user_agencies, filtra por user_id = {{user_id}}
 - NUNCA hardcodees IDs reales: usa {{agency_ids}} y {{user_id}} siempre
