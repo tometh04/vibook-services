@@ -5,6 +5,17 @@ import { getUserAgencyIds } from "@/lib/permissions-api"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
+// Prevenir XSS en template HTML
+function escapeHtml(str: string | null | undefined): string {
+  if (!str) return ""
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -214,12 +225,12 @@ export async function GET(
 <body>
   <div class="header">
     <div>
-      <div class="agency-name">${customer.agencies?.name || "Agencia"}</div>
-      ${customer.agencies?.address ? `<div style="font-size: 11px; color: #666;">${customer.agencies.address}</div>` : ""}
+      <div class="agency-name">${escapeHtml(customer.agencies?.name) || "Agencia"}</div>
+      ${customer.agencies?.address ? `<div style="font-size: 11px; color: #666;">${escapeHtml(customer.agencies.address)}</div>` : ""}
     </div>
     <div class="agency-info">
-      ${customer.agencies?.phone ? `<div>Tel: ${customer.agencies.phone}</div>` : ""}
-      ${customer.agencies?.email ? `<div>${customer.agencies.email}</div>` : ""}
+      ${customer.agencies?.phone ? `<div>Tel: ${escapeHtml(customer.agencies.phone)}</div>` : ""}
+      ${customer.agencies?.email ? `<div>${escapeHtml(customer.agencies.email)}</div>` : ""}
     </div>
   </div>
   
@@ -233,7 +244,7 @@ export async function GET(
     <div class="info-grid">
       <div class="info-item">
         <span class="info-label">Nombre:</span>
-        <span class="info-value">${customer.first_name} ${customer.last_name}</span>
+        <span class="info-value">${escapeHtml(customer.first_name)} ${escapeHtml(customer.last_name)}</span>
       </div>
       <div class="info-item">
         <span class="info-label">Email:</span>

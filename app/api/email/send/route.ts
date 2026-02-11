@@ -117,6 +117,45 @@ export async function POST(request: Request) {
         break
       }
 
+      case "quotation": {
+        // Enviar cotización por email
+        const { data: operation } = await (supabase.from("operations") as any)
+          .select(`*, agencies:agency_id (name)`)
+          .eq("id", entityId)
+          .single()
+
+        if (!operation) {
+          return NextResponse.json({ error: "Operación no encontrada" }, { status: 404 })
+        }
+
+        const { data: mainCustomerQ } = await (supabase.from("operation_customers") as any)
+          .select(`customers:customer_id (first_name, last_name, email)`)
+          .eq("operation_id", entityId)
+          .eq("role", "MAIN")
+          .single()
+
+        const quotationEmail = to || mainCustomerQ?.customers?.email
+        if (!quotationEmail) {
+          return NextResponse.json({ error: "No hay email de destino" }, { status: 400 })
+        }
+
+        const customerNameQ = mainCustomerQ?.customers
+          ? `${mainCustomerQ.customers.first_name} ${mainCustomerQ.customers.last_name}`
+          : "Cliente"
+
+        const { sendQuotationEmail } = await import("@/lib/email/email-service")
+        result = await sendQuotationEmail(
+          quotationEmail,
+          operation.id.slice(0, 8).toUpperCase(),
+          customerNameQ,
+          operation.destination || "Viaje",
+          `${operation.currency || "USD"} ${(operation.sale_amount_total || 0).toLocaleString("es-AR")}`,
+          format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "dd/MM/yyyy", { locale: es }),
+          operation.agencies?.name || "Agencia"
+        )
+        break
+      }
+
       case "statement": {
         // Enviar estado de cuenta con HTML pre-generado
         const { to: emailTo, customerName, html } = body

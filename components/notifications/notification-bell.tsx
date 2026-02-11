@@ -71,15 +71,10 @@ export function NotificationBell() {
           schema: 'public',
           table: 'alerts',
         },
-        (payload: any) => {
-          const newAlert = payload.new as Alert
-          if (newAlert.status === 'PENDING') {
-            setAlerts((prev) => [newAlert, ...prev.slice(0, 9)])
-            setUnreadCount((prev) => prev + 1)
-            toast.info(`🔔 Nueva alerta: ${newAlert.description.slice(0, 50)}...`, {
-              duration: 4000,
-            })
-          }
+        () => {
+          // Re-fetch desde la API para respetar filtro de agencia
+          // (el canal realtime escucha TODAS las alertas, pero la API filtra por agencia del usuario)
+          fetchAlerts()
         }
       )
       .on(

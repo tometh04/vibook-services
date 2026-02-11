@@ -117,6 +117,10 @@ export async function GET(request: Request) {
       operationsQuery = operationsQuery.in("agency_id", agencyIds)
     }
 
+    // Filtrar por período (meses) para no traer operaciones de toda la historia
+    const dateThreshold = subMonths(new Date(), months).toISOString()
+    operationsQuery = operationsQuery.gte("created_at", dateThreshold)
+
     const { data: operations, error: operationsError } = await operationsQuery
 
     if (operationsError) {

@@ -2,6 +2,7 @@ import { MovementsPageClient } from "@/components/cash/movements-page-client"
 import { CashFiltersState } from "@/components/cash/cash-filters"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
+import { canAccessModule } from "@/lib/permissions"
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,18 @@ function getDefaultDateRange() {
 
 export default async function CashMovementsPage() {
   const { user } = await getCurrentUser()
+
+  if (!canAccessModule(user.role as any, "cash")) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Acceso denegado</h2>
+          <p className="text-muted-foreground">No tiene permisos para acceder a esta sección.</p>
+        </div>
+      </div>
+    )
+  }
+
   const supabase = await createServerClient()
 
   const { data: userAgencies } = await supabase

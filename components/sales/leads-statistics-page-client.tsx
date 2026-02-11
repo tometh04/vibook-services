@@ -231,7 +231,7 @@ export function LeadsStatisticsPageClient() {
               <SelectItem value="24">Últimos 24 meses</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" disabled title="Próximamente">
             <Download className="mr-2 h-4 w-4" />
             Exportar
           </Button>

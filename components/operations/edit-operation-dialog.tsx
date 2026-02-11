@@ -48,7 +48,7 @@ const operationSchema = z.object({
   adults: z.coerce.number().min(1, "Debe haber al menos 1 adulto"),
   children: z.coerce.number().min(0),
   infants: z.coerce.number().min(0),
-  status: z.enum(["PRE_RESERVATION", "RESERVED", "CONFIRMED", "CANCELLED", "TRAVELLED", "CLOSED"]),
+  status: z.string().min(1, "El estado es requerido"),
   sale_amount_total: z.coerce.number().min(0, "El monto debe ser mayor a 0"),
   operator_cost: z.coerce.number().min(0, "El costo debe ser mayor a 0"),
   currency: z.enum(["ARS", "USD"]),

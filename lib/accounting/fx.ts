@@ -37,7 +37,11 @@ export async function calculateAndRecordFX(
     return { fxType: null, fxAmount: 0 }
   }
 
-  const fallbackRate = (await getLatestExchangeRate(supabase)) || 1000
+  const latestRate = await getLatestExchangeRate(supabase)
+  if (!latestRate) {
+    console.warn("⚠️ FX: No se encontró tipo de cambio configurado. Usando fallback 1000. Configure el TC en Configuración.")
+  }
+  const fallbackRate = latestRate || 1000
   const saleRate = saleCurrency === "ARS" ? (saleExchangeRate || fallbackRate) : null
   const paymentRate = paymentCurrency === "ARS" ? (paymentExchangeRate || fallbackRate) : null
 
@@ -185,7 +189,11 @@ export async function autoCalculateFXForPayment(
     .filter((p: any) => p.currency === paymentCurrency)
     .reduce((sum: number, p: any) => sum + parseFloat(p.amount || "0"), 0)
 
-  const fallbackRate = (await getLatestExchangeRate(supabase)) || 1000
+  const latestRate = await getLatestExchangeRate(supabase)
+  if (!latestRate) {
+    console.warn("⚠️ FX: No se encontró tipo de cambio configurado. Usando fallback 1000. Configure el TC en Configuración.")
+  }
+  const fallbackRate = latestRate || 1000
   const saleRate = operation.sale_currency === "ARS" ? (saleExchangeRate || fallbackRate) : null
   const paymentRate = paymentCurrency === "ARS" ? (paymentExchangeRate || fallbackRate) : null
 

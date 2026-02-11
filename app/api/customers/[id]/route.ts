@@ -152,10 +152,18 @@ export async function PATCH(
       .eq("id", customerId)
       .single()
 
-    // Update customer
-    const updateData: any = {
-      ...body,
-      updated_at: new Date().toISOString(),
+    // Update customer - whitelist de campos editables (prevenir overwrite de id, agency_id, created_at)
+    const allowedFields = [
+      "first_name", "last_name", "phone", "email", "instagram_handle",
+      "document_type", "document_number", "procedure_number",
+      "date_of_birth", "nationality", "address", "city", "country",
+      "notes", "tags",
+    ]
+    const updateData: any = { updated_at: new Date().toISOString() }
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field]
+      }
     }
 
     const { data: customer, error: updateError } = await (supabase.from("customers") as any)

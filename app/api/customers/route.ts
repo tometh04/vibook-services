@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     // OPTIMIZACIÓN: Aplicar búsqueda en DB con ILIKE (case-insensitive like)
     if (search) {
       // Usar or() para buscar en múltiples campos - mucho más eficiente que filtrar en memoria
-      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`)
+      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%,document_number.ilike.%${search}%`)
     }
 
     // Ejecutar query optimizada

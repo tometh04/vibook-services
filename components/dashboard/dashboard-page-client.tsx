@@ -10,7 +10,6 @@ import { TopSellersCard } from "./top-sellers-card"
 import { BirthdaysTodayCard } from "./birthdays-today-card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowUpIcon, ArrowDownIcon } from "@radix-ui/react-icons"
 import { DollarSign, TrendingUp, Package, Percent, Users, Building2 } from "lucide-react"
 import { formatUSD } from "@/lib/currency"
 
@@ -51,35 +50,6 @@ interface KPIs {
   pendingOperatorPayments: number
 }
 
-interface KPIComparison {
-  totalSales: number
-  totalMargin: number
-  operationsCount: number
-}
-
-function calculateChange(current: number, previous: number): { change: number; isPositive: boolean } {
-  if (previous === 0) return { change: 0, isPositive: true }
-  const change = ((current - previous) / previous) * 100
-  return { change: Math.abs(change), isPositive: change >= 0 }
-}
-
-function ComparisonBadge({ current, previous, suffix = "%" }: { current: number; previous: number; suffix?: string }) {
-  const { change, isPositive } = calculateChange(current, previous)
-  
-  if (change === 0 || previous === 0) return null
-  
-  return (
-    <span className={`inline-flex items-center text-[10px] font-medium whitespace-nowrap ${isPositive ? "text-emerald-600" : "text-red-500"}`}>
-      {isPositive ? (
-        <ArrowUpIcon className="h-2.5 w-2.5" />
-      ) : (
-        <ArrowDownIcon className="h-2.5 w-2.5" />
-      )}
-      {change.toFixed(0)}{suffix}
-    </span>
-  )
-}
-
 export function DashboardPageClient({
   agencies,
   sellers,
@@ -94,11 +64,6 @@ export function DashboardPageClient({
     avgMarginPercent: 0,
     pendingCustomerPayments: 0,
     pendingOperatorPayments: 0,
-  })
-  const [previousKpis, setPreviousKpis] = useState<KPIComparison>({
-    totalSales: 0,
-    totalMargin: 0,
-    operationsCount: 0,
   })
   const [sellersData, setSellersData] = useState<any[]>([])
   const [destinationsData, setDestinationsData] = useState<any[]>([])
@@ -116,11 +81,6 @@ export function DashboardPageClient({
       pendingCustomerPayments: 0,
       pendingOperatorPayments: 0,
     })
-    setPreviousKpis({
-      totalSales: 0,
-      totalMargin: 0,
-      operationsCount: 0,
-    })
     setSellersData([])
     setDestinationsData([])
     setDestinationsAllData([])
@@ -136,54 +96,25 @@ export function DashboardPageClient({
         params.set("sellerId", filters.sellerId)
       }
 
-      // Calcular período anterior (mismo rango de días, antes)
-      const dateFrom = new Date(filters.dateFrom)
-      const dateTo = new Date(filters.dateTo)
-      const daysDiff = Math.ceil((dateTo.getTime() - dateFrom.getTime()) / (1000 * 60 * 60 * 24))
-      
-      const prevDateTo = new Date(dateFrom)
-      prevDateTo.setDate(prevDateTo.getDate() - 1)
-      const prevDateFrom = new Date(prevDateTo)
-      prevDateFrom.setDate(prevDateFrom.getDate() - daysDiff)
-      
-      const prevParams = new URLSearchParams()
-      prevParams.set("dateFrom", prevDateFrom.toISOString().split("T")[0])
-      prevParams.set("dateTo", prevDateTo.toISOString().split("T")[0])
-      if (filters.agencyId !== "ALL") {
-        prevParams.set("agencyId", filters.agencyId)
-      }
-      if (filters.sellerId !== "ALL") {
-        prevParams.set("sellerId", filters.sellerId)
-      }
-
       // Fetch all data in parallel with cache headers
       const fetchOptions = {
         next: { revalidate: 30 } // Cache por 30 segundos
       }
 
       // Optimización: Una sola llamada a destinations con limit=10, luego usamos slice para limit=5
-      const [salesRes, sellersRes, destinationsAllRes, cashflowRes, pendingBalancesRes, prevSalesRes] = await Promise.all([
+      const [salesRes, sellersRes, destinationsAllRes, cashflowRes, pendingBalancesRes] = await Promise.all([
         fetch(`/api/analytics/sales?${params.toString()}`, fetchOptions),
         fetch(`/api/analytics/sellers?${params.toString()}`, fetchOptions),
         fetch(`/api/analytics/destinations?${params.toString()}&limit=10`, fetchOptions),
         fetch(`/api/analytics/cashflow?${params.toString()}`, fetchOptions),
         fetch(`/api/analytics/pending-balances`, fetchOptions),
-        fetch(`/api/analytics/sales?${prevParams.toString()}`, fetchOptions),
       ])
 
-      const salesData = await salesRes.json()
-      const sellersData = await sellersRes.json()
-      const destinationsAllData = await destinationsAllRes.json()
-      const cashflowData = await cashflowRes.json()
-      const pendingBalancesData = await pendingBalancesRes.json()
-      const prevSalesData = await prevSalesRes.json()
-
-      // Guardar datos del período anterior para comparativa
-      setPreviousKpis({
-        totalSales: prevSalesData.totalSales || 0,
-        totalMargin: prevSalesData.totalMargin || 0,
-        operationsCount: prevSalesData.operationsCount || 0,
-      })
+      const salesData = salesRes.ok ? await salesRes.json() : {}
+      const sellersData = sellersRes.ok ? await sellersRes.json() : {}
+      const destinationsAllData = destinationsAllRes.ok ? await destinationsAllRes.json() : {}
+      const cashflowData = cashflowRes.ok ? await cashflowRes.json() : {}
+      const pendingBalancesData = pendingBalancesRes.ok ? await pendingBalancesRes.json() : {}
 
       setKpis({
         totalSales: salesData.totalSales || 0,
@@ -208,11 +139,6 @@ export function DashboardPageClient({
         avgMarginPercent: 0,
         pendingCustomerPayments: 0,
         pendingOperatorPayments: 0,
-      })
-      setPreviousKpis({
-        totalSales: 0,
-        totalMargin: 0,
-        operationsCount: 0,
       })
       setSellersData([])
       setDestinationsData([])
@@ -410,24 +336,20 @@ export function DashboardPageClient({
 
       {/* Charts */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-        <Card>
-          <SalesBySellerChart data={sellersData} />
-        </Card>
-        <Card>
-          <DestinationsChart data={destinationsData} />
-        </Card>
+        <SalesBySellerChart data={sellersData} />
+        <DestinationsChart data={destinationsData} />
       </div>
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="md:col-span-1 lg:col-span-1">
+        <div className="md:col-span-1 lg:col-span-1">
           <DestinationsPieChart data={destinationsAllData} />
-        </Card>
-        <Card className="md:col-span-1 lg:col-span-1">
+        </div>
+        <div className="md:col-span-1 lg:col-span-1">
           <RegionsRadarChart data={destinationsAllData} />
-        </Card>
-        <Card className="md:col-span-2 lg:col-span-2">
+        </div>
+        <div className="md:col-span-2 lg:col-span-2">
           <CashflowChart data={cashflowData} />
-        </Card>
+        </div>
       </div>
     </div>
   )
