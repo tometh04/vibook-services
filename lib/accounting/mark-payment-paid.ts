@@ -206,10 +206,13 @@ export async function markPaymentAsPaid({
   }
 
   // Verificar si ya existe un cash_movement para este pago
-  const { data: existingCashMovement } = await supabase
-    .from("cash_movements")
+  // Nota: cash_movements NO tiene columna payment_id, usamos operation_id + amount + movement_date
+  const { data: existingCashMovement } = await (supabase.from("cash_movements") as any)
     .select("id")
-    .eq("payment_id", paymentId)
+    .eq("operation_id", paymentData.operation_id || "")
+    .eq("amount", parseFloat(paymentData.amount))
+    .eq("currency", paymentData.currency)
+    .eq("movement_date", datePaid)
     .maybeSingle()
 
   // Solo crear cash_movement si no existe uno ya vinculado a este pago
