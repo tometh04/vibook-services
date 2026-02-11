@@ -506,7 +506,9 @@ export async function POST(request: Request) {
     let finalResponse = assistantMessage.content || ""
     let iterations = 0
     const maxIterations = 3
+    const _debugLog: any[] = []
 
+    _debugLog.push({ step: "initial", hasToolCalls: !!(assistantMessage.tool_calls?.length), content: finalResponse?.substring(0, 100) })
     console.log("[Cerebro] Initial response - has tool_calls:", !!(assistantMessage.tool_calls?.length), "content:", finalResponse?.substring(0, 100))
 
     while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && iterations < maxIterations) {
@@ -517,13 +519,15 @@ export async function POST(request: Request) {
         if (toolCall.function.name === "execute_query") {
           try {
             const args = JSON.parse(toolCall.function.arguments)
+            _debugLog.push({ step: `tool_call_${iterations}`, query: args.query?.substring(0, 200), description: args.description })
             const result = await executeQuery(supabaseAdmin, args.query, {
               agencyIds,
               userId: user.id,
               isSuperAdmin,
             })
-            
+
             if (result.success) {
+              _debugLog.push({ step: `tool_result_${iterations}`, success: true, count: result.data?.length || 0 })
               console.log("[Cerebro] Tool call success, data count:", result.data?.length || 0)
               toolResults.push({
                 role: "tool",
@@ -535,7 +539,7 @@ export async function POST(request: Request) {
                 })
               })
             } else {
-              // Query falló - darle al AI el error para que reintente con mejor query
+              _debugLog.push({ step: `tool_result_${iterations}`, success: false, error: result.error })
               console.warn("[Cerebro] Tool call failed:", result.error)
               toolResults.push({
                 role: "tool",
@@ -548,6 +552,7 @@ export async function POST(request: Request) {
               })
             }
           } catch (toolError: any) {
+            _debugLog.push({ step: `tool_exception_${iterations}`, error: toolError?.message })
             console.error("[Cerebro] Tool call exception:", toolError?.message)
             toolResults.push({
               role: "tool",
@@ -582,7 +587,9 @@ export async function POST(request: Request) {
       finalResponse = "No pude procesar tu consulta en este momento. ¿Puedo ayudarte con algo más?"
     }
 
-    return NextResponse.json({ response: finalResponse })
+    _debugLog.push({ step: "final", iterations, response: finalResponse?.substring(0, 100) })
+
+    return NextResponse.json({ response: finalResponse, _debug: _debugLog })
 
   } catch (error: any) {
     console.error("[Cerebro] Error:", error)
