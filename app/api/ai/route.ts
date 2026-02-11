@@ -77,11 +77,13 @@ const DATABASE_SCHEMA = `
 - financial_account_id, operation_id, created_at
 
 ### recurring_payments (Gastos recurrentes)
-- id, agency_id, provider_name, amount, currency, frequency ('WEEKLY','BIWEEKLY','MONTHLY','QUARTERLY','YEARLY')
-- category_id, next_due_date, is_active, created_at
+- id, agency_id, operator_id, amount, currency, frequency ('WEEKLY','BIWEEKLY','MONTHLY','QUARTERLY','YEARLY')
+- start_date, end_date, next_due_date, last_generated_date, is_active, description, notes, category_id, created_by, created_at, updated_at
+- ⚠️ NO tiene provider_name. Para obtener el nombre del proveedor: JOIN operators ON operators.id = recurring_payments.operator_id
 
 ### recurring_payment_categories (Categorías de gastos)
-- id, agency_id, name, description, color, is_active
+- id, name, description, color, is_active, created_at, updated_at
+- ⚠️ NO tiene agency_id
 
 ### quotations (Cotizaciones)
 - id, agency_id, lead_id, seller_id, status ('DRAFT','SENT','APPROVED','REJECTED','CONVERTED')
@@ -103,8 +105,9 @@ const DATABASE_SCHEMA = `
 - subtotal, tax_amount, total_amount, currency, issue_date, due_date, status
 
 ### alerts (Alertas)
-- id, agency_id, operation_id, customer_id, user_id, type ('PAYMENT_DUE','OPERATOR_DUE','UPCOMING_TRIP','MISSING_DOCUMENT','PASSPORT_EXPIRY','BIRTHDAY','GENERIC')
-- status ('PENDING','DONE','IGNORED'), title, description, date_due, created_at
+- id, agency_id, operation_id, customer_id, user_id, payment_id, type ('PAYMENT_DUE','OPERATOR_DUE','UPCOMING_TRIP','MISSING_DOCUMENT','PASSPORT_EXPIRY','BIRTHDAY','GENERIC')
+- status ('PENDING','DONE','IGNORED'), description, date_due, priority, snoozed_until, created_at, updated_at
+- ⚠️ NO tiene columna "title" - usá "description" para el contenido de la alerta
 
 ### notes (Notas)
 - id, agency_id, title, content, note_type, operation_id, customer_id, visibility, tags, status, is_pinned, color, created_by, created_at, updated_at
@@ -219,8 +222,10 @@ SELECT COUNT(*) as total FROM customers
 WHERE agency_id = ANY({{agency_ids}})
 
 -- Gastos recurrentes activos
-SELECT rp.provider_name, rp.amount, rp.currency, rp.frequency, rpc.name as categoria
+SELECT rp.description, rp.amount, rp.currency, rp.frequency, rp.next_due_date,
+  o.name as operador, rpc.name as categoria
 FROM recurring_payments rp
+LEFT JOIN operators o ON o.id = rp.operator_id
 LEFT JOIN recurring_payment_categories rpc ON rpc.id = rp.category_id
 WHERE rp.is_active = true AND rp.agency_id = ANY({{agency_ids}})
 ORDER BY rp.amount DESC
