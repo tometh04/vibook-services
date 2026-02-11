@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import OpenAI from "openai"
-import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
@@ -389,20 +388,21 @@ async function executeQuery(
       ? applyQueryContext(cleanedQuery, context.agencyIds, context.userId)
       : cleanedQuery
     
-    console.log("[Cerebro] Query:", resolvedQuery.substring(0, 200))
-    
+    console.log("[Cerebro] Executing query:", resolvedQuery.substring(0, 300))
+    console.log("[Cerebro] Context:", { agencyCount: context.agencyIds.length, isSuperAdmin: context.isSuperAdmin, userId: context.userId })
+
     const { data, error } = await supabase.rpc('execute_readonly_query', { query_text: resolvedQuery })
-    
+
     if (error) {
-      console.error("[Cerebro] Query error:", error.message)
+      console.error("[Cerebro] RPC error:", JSON.stringify(error))
       if (error.message?.includes('does not exist')) {
         return { success: false, error: "La función de consultas no está disponible. Contacta a soporte para configurar Cerebro." }
       }
       return { success: false, error: error.message }
     }
-    
+
     const result = Array.isArray(data) ? data : (data ? [data] : [])
-    console.log("[Cerebro] Results:", result.length)
+    console.log("[Cerebro] Success - Results count:", result.length)
     return { success: true, data: result }
   } catch (error: any) {
     console.error("[Cerebro] Exception:", error.message)
@@ -435,15 +435,23 @@ export async function POST(request: Request) {
 
     const openaiKey = process.env.OPENAI_API_KEY
     if (!openaiKey) {
-      return NextResponse.json({ 
-        response: "El servicio de AI no está configurado. Contactá a soporte." 
+      console.error("[Cerebro] OPENAI_API_KEY not configured!")
+      return NextResponse.json({
+        response: "El servicio de AI no está configurado. Contactá a soporte."
       })
     }
 
     const openai = new OpenAI({ apiKey: openaiKey })
-    const supabase = await createServerClient()
+    // IMPORTANTE: Usar admin client para Cerebro
+    // - La autenticación ya se verificó con getCurrentUser() + verifyFeatureAccess()
+    // - El admin client bypasea RLS, necesario para execute_readonly_query
+    // - El server client (anon key) puede fallar por RLS en la función RPC
+    // - La seguridad se maneja en código: solo SELECT, filtro por agency_id obligatorio
+    const supabaseAdmin = createAdminSupabaseClient()
     const isSuperAdmin = user.role === "SUPER_ADMIN"
-    const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+    const agencyIds = await getUserAgencyIds(supabaseAdmin as any, user.id, user.role as any)
+
+    console.log("[Cerebro] User:", user.email, "| Role:", user.role, "| Agencies:", agencyIds.length, "| SuperAdmin:", isSuperAdmin)
 
     // Ensure RPC function exists (auto-create if possible)
     await ensureRPCExists()
@@ -496,13 +504,14 @@ export async function POST(request: Request) {
         if (toolCall.function.name === "execute_query") {
           try {
             const args = JSON.parse(toolCall.function.arguments)
-            const result = await executeQuery(supabase, args.query, {
+            const result = await executeQuery(supabaseAdmin, args.query, {
               agencyIds,
               userId: user.id,
               isSuperAdmin,
             })
             
             if (result.success) {
+              console.log("[Cerebro] Tool call success, data count:", result.data?.length || 0)
               toolResults.push({
                 role: "tool",
                 tool_call_id: toolCall.id,
@@ -513,17 +522,20 @@ export async function POST(request: Request) {
                 })
               })
             } else {
-              // Query falló - decirle al AI que intente otra
+              // Query falló - darle al AI el error para que reintente con mejor query
+              console.warn("[Cerebro] Tool call failed:", result.error)
               toolResults.push({
                 role: "tool",
                 tool_call_id: toolCall.id,
                 content: JSON.stringify({
                   success: false,
-                  message: "La consulta falló. Intenta con una query más simple o responde que no pudiste obtener la información."
+                  error: result.error,
+                  message: "La consulta falló. Intenta con una query más simple o diferente. Error: " + (result.error || "desconocido")
                 })
               })
             }
-          } catch {
+          } catch (toolError: any) {
+            console.error("[Cerebro] Tool call exception:", toolError?.message)
             toolResults.push({
               role: "tool",
               tool_call_id: toolCall.id,
