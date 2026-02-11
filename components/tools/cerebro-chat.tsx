@@ -170,7 +170,10 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
   const firstName = userName.split(' ')[0]
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] max-w-4xl mx-auto">
+    <div className={cn(
+      "flex flex-col h-[calc(100vh-120px)]",
+      messages.length === 0 ? "max-w-4xl mx-auto" : "w-full"
+    )}>
       {messages.length === 0 ? (
         // Empty State - Welcome Screen
         <div className="flex-1 flex flex-col items-center justify-center px-4">
@@ -238,7 +241,7 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
         // Chat View
         <>
           <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-            <div className="max-w-3xl mx-auto py-6 space-y-6">
+            <div className="max-w-4xl mx-auto py-6 space-y-6">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -287,7 +290,7 @@ export function CerebroChat({ userId, userName }: CerebroChatProps) {
 
           {/* Input Area - Chat Mode */}
           <div className="p-4 border-t border-border bg-card">
-            <div className="max-w-3xl mx-auto relative">
+            <div className="max-w-4xl mx-auto relative">
               <Textarea
                 ref={textareaRef}
                 placeholder="Seguí preguntando..."
