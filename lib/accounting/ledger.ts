@@ -5,7 +5,6 @@
  * TODO movimiento financiero debe pasar por aquí.
  */
 
-import { createServerClient } from "@/lib/supabase/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabase/types"
 

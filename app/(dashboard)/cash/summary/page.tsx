@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 function getDefaultDateRange() {
   const today = new Date()
   const from = new Date()
-  from.setDate(today.getDate() - 7) // Rango semanal por defecto
+  from.setDate(today.getDate() - 30) // Rango mensual por defecto (consistente con otras páginas de caja)
 
   return {
     dateFrom: from.toISOString().split("T")[0],

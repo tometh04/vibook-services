@@ -41,7 +41,7 @@ function detectRegion(destination: string): string {
   if (dest.includes("caribe") || dest.includes("cancún") || dest.includes("punta cana") || dest.includes("jamaica") || dest.includes("bahamas")) {
     return "Caribe"
   }
-  if (dest.includes("brasil") || dest.includes("rio") || dest.includes("são paulo")) {
+  if (dest.includes("brasil") || dest.includes("rio de janeiro") || dest.includes("são paulo") || dest.includes("florianópolis") || dest.includes("buzios")) {
     return "Brasil"
   }
   if (dest.includes("europa") || dest.includes("parís") || dest.includes("londres") || dest.includes("roma") || dest.includes("barcelona") || dest.includes("madrid")) {

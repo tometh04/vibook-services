@@ -30,11 +30,11 @@ interface CashflowChartProps {
 const chartConfig = {
   Ingresos: {
     label: "Ingresos",
-    color: "hsl(var(--chart-5))",
+    color: "hsl(var(--chart-1))",
   },
   Egresos: {
     label: "Egresos",
-    color: "hsl(var(--chart-6))",
+    color: "hsl(var(--chart-2))",
   },
   Neto: {
     label: "Neto",

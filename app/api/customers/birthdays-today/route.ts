@@ -33,10 +33,11 @@ export async function GET() {
     }
 
     // Filtrar clientes cuyo cumpleaños es hoy
+    // Usar UTC para evitar desplazamiento de timezone (date_of_birth viene como "YYYY-MM-DD" y se parsea como UTC midnight)
     const birthdayCustomers = (customers || []).filter((customer: any) => {
       if (!customer.date_of_birth) return false
       const dob = new Date(customer.date_of_birth)
-      return dob.getMonth() + 1 === month && dob.getDate() === day
+      return dob.getUTCMonth() + 1 === month && dob.getUTCDate() === day
     })
 
     return NextResponse.json({ customers: birthdayCustomers })

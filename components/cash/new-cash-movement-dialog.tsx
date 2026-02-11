@@ -121,7 +121,10 @@ export function NewCashMovementDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) form.reset()
+      onOpenChange(isOpen)
+    }}>
       <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nuevo Movimiento de Caja</DialogTitle>

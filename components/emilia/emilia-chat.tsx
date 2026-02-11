@@ -672,18 +672,7 @@ function SearchResultsDisplay({ flights, hotels, requestType }: SearchResultsDis
     }
 
     const handleGeneratePdf = async () => {
-        if (selectedFlights.size === 0 && selectedHotels.size === 0) return
-
-        setIsGeneratingPdf(true)
-        try {
-            // TODO: Implementar generación de PDF
-            toast.success("Generando PDF...")
-            await new Promise(resolve => setTimeout(resolve, 2000))
-        } catch (error) {
-            toast.error("Error al generar PDF")
-        } finally {
-            setIsGeneratingPdf(false)
-        }
+        toast.info("La generación de PDF de cotizaciones estará disponible próximamente.")
     }
 
     const hasAnyResults = hasFlights || hasHotels
