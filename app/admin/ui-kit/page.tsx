@@ -828,13 +828,13 @@ export default function UIKitPage() {
                     <AccordionItem value="item-1">
                       <AccordionTrigger>Como crear una operacion?</AccordionTrigger>
                       <AccordionContent>
-                        Ve a Operaciones, haz clic en "Nueva operacion" y completa los datos del destino, cliente y montos.
+                        Ve a Operaciones, haz clic en &quot;Nueva operacion&quot; y completa los datos del destino, cliente y montos.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="item-2">
                       <AccordionTrigger>Como registrar un pago?</AccordionTrigger>
                       <AccordionContent>
-                        Dentro de una operacion, ve a la seccion de pagos y haz clic en "Agregar pago" para registrar un cobro o egreso.
+                        Dentro de una operacion, ve a la seccion de pagos y haz clic en &quot;Agregar pago&quot; para registrar un cobro o egreso.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="item-3">
