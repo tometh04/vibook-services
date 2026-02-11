@@ -37,17 +37,48 @@ export async function GET(request: Request) {
     // Paralelizar todas las búsquedas
     const searchPromises = []
 
-    // Buscar clientes (buscar por nombre completo, email y teléfono)
-    const customerQuery = (supabase.from("customers") as any)
-      .select("id, first_name, last_name, email, phone")
-      .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`)
-      .limit(5)
-    
-    searchPromises.push(
-      customerQuery
+    // Buscar clientes (por nombre, email, teléfono y documento)
+    // Si el query tiene múltiples palabras (ej: "Thomas Sanchez"), buscar cada palabra
+    // en first_name o last_name para soportar búsquedas de nombre completo
+    const queryWords = query.trim().split(/\s+/).filter(w => w.length >= 2)
+    const hasMultipleWords = queryWords.length > 1
+
+    let customerPromise: Promise<any>
+
+    if (hasMultipleWords) {
+      // Búsqueda de nombre completo: cada palabra debe matchear en first_name o last_name
+      // Usamos RPC o filter manual: buscamos por primera y última palabra
+      const firstWord = `%${queryWords[0]}%`
+      const lastWord = `%${queryWords[queryWords.length - 1]}%`
+
+      // Estrategia: buscar clientes donde (first_name match primera palabra AND last_name match última)
+      // O (first_name match última AND last_name match primera) para cubrir orden invertido
+      // También buscar en email/phone por el término completo
+      const customerQuery = (supabase.from("customers") as any)
+        .select("id, first_name, last_name, email, phone")
+        .or(
+          `and(first_name.ilike.${firstWord},last_name.ilike.${lastWord}),` +
+          `and(first_name.ilike.${lastWord},last_name.ilike.${firstWord}),` +
+          `email.ilike.${searchTerm},phone.ilike.${searchTerm}`
+        )
+        .limit(5)
+
+      customerPromise = customerQuery
         .then((r: any) => ({ type: 'customers', data: r.data, error: r.error }))
         .catch((err: any) => ({ type: 'customers', data: null, error: err }))
-    )
+    } else {
+      // Búsqueda simple: una palabra, buscar en todos los campos incluyendo document_number
+      const customerQuery = (supabase.from("customers") as any)
+        .select("id, first_name, last_name, email, phone")
+        .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm},document_number.ilike.${searchTerm}`)
+        .limit(5)
+
+      customerPromise = customerQuery
+        .then((r: any) => ({ type: 'customers', data: r.data, error: r.error }))
+        .catch((err: any) => ({ type: 'customers', data: null, error: err }))
+    }
+
+    searchPromises.push(customerPromise)
 
     // Buscar operaciones (por código, destino, códigos de reserva)
     let operationQuery = (supabase.from("operations") as any)
