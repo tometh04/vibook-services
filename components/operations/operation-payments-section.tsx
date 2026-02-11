@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -99,12 +99,13 @@ interface OperationPaymentsSectionProps {
 export function OperationPaymentsSection({
   operationId,
   agencyId,
-  payments,
+  payments: initialPayments,
   currency,
   saleAmount,
   operatorCost,
 }: OperationPaymentsSectionProps) {
   const router = useRouter()
+  const [payments, setPayments] = useState(initialPayments)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -117,6 +118,24 @@ export function OperationPaymentsSection({
   const creatingAccountRef = useRef(false)
   const [newAccountName, setNewAccountName] = useState("")
   const [newAccountType, setNewAccountType] = useState("")
+
+  // Sincronizar con props del server cuando cambien (ej: router.refresh)
+  useEffect(() => {
+    setPayments(initialPayments)
+  }, [initialPayments])
+
+  // Función para recargar pagos desde la API
+  const refreshPayments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/payments?operationId=${operationId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPayments(data.payments || data || [])
+      }
+    } catch (error) {
+      console.error("Error refreshing payments:", error)
+    }
+  }, [operationId])
 
   // Pagos pendientes (los auto-generados que nunca se pagaron)
   const pendingPayments = payments.filter(p => p.status === "PENDING")
@@ -137,6 +156,7 @@ export function OperationPaymentsSection({
         throw new Error("Error al eliminar pagos")
       }
 
+      await refreshPayments()
       router.refresh()
     } catch (error) {
       console.error("Error:", error)
@@ -162,6 +182,7 @@ export function OperationPaymentsSection({
         throw new Error(error.error || "Error al eliminar pago")
       }
 
+      await refreshPayments()
       router.refresh()
     } catch (error) {
       console.error("Error:", error)
@@ -695,8 +716,8 @@ export function OperationPaymentsSection({
           ...values,
           exchange_rate: values.currency === "ARS" ? values.exchange_rate : null, // Solo enviar exchange_rate para ARS
           amount_usd: amountUsd,
-          date_paid: values.date_paid.toISOString().split("T")[0],
-          date_due: values.date_paid.toISOString().split("T")[0], // Pago ya realizado
+          date_paid: format(values.date_paid, "yyyy-MM-dd"),
+          date_due: format(values.date_paid, "yyyy-MM-dd"), // Pago ya realizado
           status: "PAID", // PAID para crear también movimientos en RESULTADO
           account_id: values.account_id,
         }),
@@ -720,6 +741,8 @@ export function OperationPaymentsSection({
       form.reset()
       // Refrescar cuentas financieras para actualizar saldos
       window.dispatchEvent(new CustomEvent("refresh-financial-accounts"))
+      // Recargar pagos inmediatamente para actualizar la UI
+      await refreshPayments()
       router.refresh()
     } catch (error) {
       console.error("Error registering payment:", error)

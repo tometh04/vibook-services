@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { format } from "date-fns"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -61,7 +62,7 @@ export function MarkPaidDialog({
   const form = useForm<MarkPaidFormValues>({
     resolver: zodResolver(markPaidSchema) as any,
     defaultValues: {
-      datePaid: new Date().toISOString().split("T")[0],
+      datePaid: format(new Date(), "yyyy-MM-dd"),
       reference: "",
     },
   })

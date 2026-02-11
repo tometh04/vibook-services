@@ -120,7 +120,7 @@ export function NewLeadDialog({
           deposit_amount: values.deposit_amount || null,
           deposit_currency: values.deposit_currency || null,
           deposit_method: values.deposit_method || null,
-          deposit_date: values.deposit_date ? values.deposit_date.toISOString().split("T")[0] : null,
+          deposit_date: values.deposit_date ? format(values.deposit_date, "yyyy-MM-dd") : null,
         }),
       })
 

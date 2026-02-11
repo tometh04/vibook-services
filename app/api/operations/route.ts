@@ -204,6 +204,11 @@ export async function POST(request: Request) {
       totalOperatorCost = Number(operator_cost)
       finalOperatorCostCurrency = operator_cost_currency || currency || "ARS"
       primaryOperatorId = operator_id
+    } else if (!operator_id && operator_cost !== undefined && Number(operator_cost) > 0) {
+      // Sin operador seleccionado pero con costo operador ingresado
+      // Guardar el costo igualmente (el operador se puede asignar después)
+      totalOperatorCost = Number(operator_cost)
+      finalOperatorCostCurrency = operator_cost_currency || currency || "ARS"
     } else {
       // Sin operadores: permitir operaciones sin operador (costo = 0)
       totalOperatorCost = 0
@@ -342,7 +347,7 @@ export async function POST(request: Request) {
       product_type: inferredProductType,
       origin: origin || null,
       destination,
-      operation_date: operation_date || new Date().toISOString().split("T")[0], // Fecha de operación (hoy por defecto)
+      operation_date: operation_date || new Date().toLocaleDateString("en-CA"), // Fecha de operación (hoy por defecto, formato YYYY-MM-DD)
       departure_date: departure_date || null, // Puede ser null si no es requerida
       return_date: return_date || null,
       checkin_date: checkin_date || null,

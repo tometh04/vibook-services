@@ -294,6 +294,20 @@ export async function POST(request: Request) {
     if (asset_description) accountData.asset_description = asset_description
     if (asset_quantity !== undefined) accountData.asset_quantity = Number(asset_quantity) || 0
 
+    // Verificar si ya existe una cuenta con el mismo nombre, tipo y moneda en la misma agencia
+    const { data: existingAccount } = await (supabase.from("financial_accounts") as any)
+      .select("id, name")
+      .eq("agency_id", agency_id)
+      .eq("name", name)
+      .eq("type", type)
+      .eq("currency", currency)
+      .maybeSingle()
+
+    if (existingAccount) {
+      // Retornar la cuenta existente en lugar de crear un duplicado
+      return NextResponse.json({ account: existingAccount }, { status: 200 })
+    }
+
     const { data: account, error: insertError } = await (supabase.from("financial_accounts") as any)
       .insert(accountData)
       .select()

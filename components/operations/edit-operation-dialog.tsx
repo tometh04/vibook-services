@@ -282,8 +282,8 @@ export function EditOperationDialog({
           operator_id: values.operator_id || null,
           seller_secondary_id: values.seller_secondary_id || null,
           origin: values.origin || null,
-          return_date: values.return_date ? values.return_date.toISOString().split("T")[0] : null,
-          departure_date: values.departure_date.toISOString().split("T")[0],
+          return_date: values.return_date ? format(values.return_date, "yyyy-MM-dd") : null,
+          departure_date: format(values.departure_date, "yyyy-MM-dd"),
         }),
       })
 

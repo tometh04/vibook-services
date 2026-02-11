@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { format } from "date-fns"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -82,7 +83,7 @@ export function NewPaymentDialog({
       method: "Transferencia",
       amount: 0,
       currency: defaultCurrency as "ARS" | "USD",
-      date_due: new Date().toISOString().split("T")[0],
+      date_due: format(new Date(), "yyyy-MM-dd"),
       reference: "",
       account_id: "",
     },

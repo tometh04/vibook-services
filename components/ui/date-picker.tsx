@@ -54,7 +54,7 @@ export function DatePicker({
           selected={date}
           onSelect={(selectedDate) => {
             if (selectedDate) {
-              onChange(selectedDate.toISOString().split("T")[0])
+              onChange(format(selectedDate, "yyyy-MM-dd"))
             }
           }}
           initialFocus

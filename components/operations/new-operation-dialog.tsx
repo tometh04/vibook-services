@@ -487,10 +487,10 @@ export function NewOperationDialog({
         customer_id: values.customer_id || null,
         origin: values.origin || null,
         product_type: values.product_type || null,
-        return_date: values.return_date ? values.return_date.toISOString().split("T")[0] : null,
-        departure_date: values.departure_date ? values.departure_date.toISOString().split("T")[0] : null,
+        return_date: values.return_date ? format(values.return_date, "yyyy-MM-dd") : null,
+        departure_date: values.departure_date ? format(values.departure_date, "yyyy-MM-dd") : null,
         // Si hay múltiples operadores, el costo total ya está calculado en operator_cost
-        operator_cost: useMultipleOperators ? totalOperatorCost : (values.operator_cost || 0),
+        operator_cost: useMultipleOperators ? totalOperatorCost : (values.operator_cost ?? 0),
         notes: values.notes || null,
         // Códigos de reserva
         reservation_code_air: values.reservation_code_air || null,
