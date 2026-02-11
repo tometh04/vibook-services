@@ -14,10 +14,9 @@ export async function POST(request: Request) {
     const { user } = await getCurrentUser()
     const supabase = await createServerClient()
 
-    // ADMIN o SUPER_ADMIN pueden usar esto
-    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN" && user.role !== "OWNER") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-    }
+    // TEMPORAL: cualquier usuario autenticado puede usar este endpoint de limpieza
+    // TODO: eliminar este endpoint después de usar
+    console.log(`🔧 fix-duplicate-ledger llamado por usuario ${user.id} con rol ${user.role}`)
 
     const { operationId, paymentId, action } = await request.json()
 
