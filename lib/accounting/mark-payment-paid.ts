@@ -226,11 +226,11 @@ export async function markPaymentAsPaid({
 
     // Create cash movement (mantener compatibilidad)
     const movementsTable = supabase.from("cash_movements") as any
-    const { error: cashMovementError } = await movementsTable.insert({
+    const cashMovementData: Record<string, any> = {
       operation_id: paymentData.operation_id,
-      payment_id: paymentId, // Vincular con el pago
       cash_box_id: (defaultCashBox as any)?.id || null,
       user_id: userId,
+      agency_id: agencyId || null, // Obligatorio para RLS
       type: paymentData.direction === "INCOME" ? "INCOME" : "EXPENSE",
       category: paymentData.direction === "INCOME" ? "SALE" : "OPERATOR_PAYMENT",
       amount: paymentData.amount,
@@ -238,7 +238,8 @@ export async function markPaymentAsPaid({
       movement_date: datePaid,
       notes: reference || null,
       is_touristic: true, // Payments are always touristic
-    })
+    }
+    const { error: cashMovementError } = await movementsTable.insert(cashMovementData)
 
     if (cashMovementError) {
       console.warn(`⚠️ Error creando cash_movement para pago ${paymentId}:`, cashMovementError)
