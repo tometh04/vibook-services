@@ -29,7 +29,33 @@ interface OnboardingProgress {
   mode?: "AUTO" | "FORCE_ON" | "FORCE_OFF"
 }
 
+// Rutas que SIEMPRE están permitidas sin importar el paso de onboarding
+const ALWAYS_ALLOWED = [
+  "/dashboard",
+  "/settings",
+  "/tools",
+  "/emilia",
+  "/sales",
+  "/operations",
+  "/customers",
+  "/cash",
+  "/accounting",
+  "/finances",
+  "/reports",
+  "/operators",
+  "/messages",
+  "/calendar",
+  "/alerts",
+  "/resources",
+  "/pricing",
+  "/my",
+]
+
 function isAllowedPath(pathname: string, allowedPrefixes: string[]) {
+  // Siempre permitir rutas principales del sistema
+  if (ALWAYS_ALLOWED.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))) {
+    return true
+  }
   return allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))
 }
 
