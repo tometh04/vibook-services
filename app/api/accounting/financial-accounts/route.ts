@@ -62,14 +62,12 @@ export async function GET(request: Request) {
     if (accountIds.length > 0) {
       try {
         balancesMap = await getAccountBalancesBatch(accountIds, supabase)
-        console.log(`[DEBUG] getAccountBalancesBatch returned:`, JSON.stringify(Object.fromEntries(balancesMap)))
       } catch (error) {
         console.error("Error calculating balances in batch:", error)
         // Fallback: calcular balances individualmente si falla el batch
         for (const accountId of accountIds) {
           try {
             const balance = await getAccountBalance(accountId, supabase)
-            console.log(`[DEBUG] getAccountBalance for ${accountId} returned: ${balance}`)
             balancesMap.set(accountId, balance)
           } catch (err) {
             console.error(`Error calculating balance for account ${accountId}:`, err)

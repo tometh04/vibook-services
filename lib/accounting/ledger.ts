@@ -96,14 +96,7 @@ export async function getAccountBalance(
   // Obtener cuenta con su chart_account_id para determinar el tipo
   const { data: account, error: accountError } = await (supabase
     .from("financial_accounts") as any)
-    .select(`
-      initial_balance,
-      currency,
-      chart_account_id,
-      chart_of_accounts:chart_account_id(
-        category
-      )
-    `)
+    .select("initial_balance, currency, chart_account_id")
     .eq("id", accountId)
     .single()
 
@@ -111,9 +104,19 @@ export async function getAccountBalance(
     throw new Error(`Cuenta financiera no encontrada: ${accountId}`)
   }
 
+  // Obtener categoría del plan de cuentas por separado (el JOIN directo falla en Supabase)
+  let category: string | null = null
+  if (account.chart_account_id) {
+    const { data: chartAccount } = await (supabase
+      .from("chart_of_accounts") as any)
+      .select("category")
+      .eq("id", account.chart_account_id)
+      .maybeSingle()
+    category = chartAccount?.category || null
+  }
+
   const initialBalance = parseFloat(account.initial_balance || "0")
   const accountCurrency = account.currency as "ARS" | "USD"
-  const category = account.chart_of_accounts?.category
 
   // Obtener todos los movimientos del ledger para esta cuenta
   // Necesitamos amount_original, currency y exchange_rate para convertir si es necesario
@@ -474,27 +477,30 @@ export async function isAccountingOnlyAccount(
   supabase: SupabaseClient<Database>
 ): Promise<boolean> {
   const { data: account, error } = await (supabase.from("financial_accounts") as any)
-    .select(`
-      chart_account_id,
-      chart_of_accounts:chart_account_id(
-        account_code
-      )
-    `)
+    .select("chart_account_id")
     .eq("id", accountId)
     .single()
 
-  if (error || !account || !account.chart_of_accounts) {
+  if (error || !account || !account.chart_account_id) {
     return false
   }
 
-  const accountCode = account.chart_of_accounts.account_code
+  // Obtener account_code por separado (JOIN directo falla en Supabase)
+  const { data: chartAccount } = await (supabase.from("chart_of_accounts") as any)
+    .select("account_code")
+    .eq("id", account.chart_account_id)
+    .maybeSingle()
+
+  if (!chartAccount?.account_code) {
+    return false
+  }
 
   // Cuentas contables que NO deben aparecer en selecciones:
   // - 1.1.03: Cuentas por Cobrar
   // - 2.1.01: Cuentas por Pagar
   const accountingOnlyCodes = ["1.1.03", "2.1.01"]
 
-  return accountingOnlyCodes.includes(accountCode)
+  return accountingOnlyCodes.includes(chartAccount.account_code)
 }
 
 /**
@@ -509,20 +515,28 @@ export async function filterAccountingOnlyAccountsBatch(
     return new Set()
   }
 
-  // Obtener todas las cuentas con sus chart_account_id en una sola query
+  // Obtener todas las cuentas con sus chart_account_id
   const { data: accounts, error } = await (supabase.from("financial_accounts") as any)
-    .select(`
-      id,
-      chart_account_id,
-      chart_of_accounts:chart_account_id(
-        account_code
-      )
-    `)
+    .select("id, chart_account_id")
     .in("id", accountIds)
 
   if (error || !accounts) {
     console.warn("Error filtering accounting only accounts in batch:", error)
     return new Set()
+  }
+
+  // Obtener account_codes del plan de cuentas por separado (JOIN directo falla en Supabase)
+  const chartAccountIds = Array.from(new Set(accounts.map((a: any) => a.chart_account_id).filter(Boolean))) as string[]
+  const chartCodeMap = new Map<string, string>()
+  if (chartAccountIds.length > 0) {
+    const { data: chartAccounts } = await (supabase.from("chart_of_accounts") as any)
+      .select("id, account_code")
+      .in("id", chartAccountIds)
+    if (chartAccounts) {
+      for (const ca of chartAccounts) {
+        chartCodeMap.set(ca.id, ca.account_code)
+      }
+    }
   }
 
   // Cuentas contables que NO deben aparecer en selecciones:
@@ -532,7 +546,7 @@ export async function filterAccountingOnlyAccountsBatch(
   const accountingOnlyAccountIds = new Set<string>()
 
   for (const account of accounts) {
-    const accountCode = account.chart_of_accounts?.account_code
+    const accountCode = account.chart_account_id ? chartCodeMap.get(account.chart_account_id) : null
     if (accountCode && accountingOnlyCodes.includes(accountCode)) {
       accountingOnlyAccountIds.add(account.id)
     }
@@ -553,22 +567,29 @@ export async function getAccountBalancesBatch(
     return new Map()
   }
 
-  // Query 1: Obtener todas las cuentas con chart_account_id en una sola query
+  // Query 1: Obtener todas las cuentas (sin JOIN a chart_of_accounts que falla en Supabase)
   const { data: accounts, error: accountsError } = await (supabase
     .from("financial_accounts") as any)
-    .select(`
-      id,
-      initial_balance,
-      currency,
-      chart_account_id,
-      chart_of_accounts:chart_account_id(
-        category
-      )
-    `)
+    .select("id, initial_balance, currency, chart_account_id")
     .in("id", accountIds)
 
   if (accountsError || !accounts) {
     throw new Error(`Error obteniendo cuentas financieras: ${accountsError?.message || "Unknown error"}`)
+  }
+
+  // Query 1b: Obtener categorías del plan de cuentas por separado
+  const chartAccountIds = Array.from(new Set(accounts.map((a: any) => a.chart_account_id).filter(Boolean))) as string[]
+  const chartCategoryMap = new Map<string, string>()
+  if (chartAccountIds.length > 0) {
+    const { data: chartAccounts } = await (supabase
+      .from("chart_of_accounts") as any)
+      .select("id, category")
+      .in("id", chartAccountIds)
+    if (chartAccounts) {
+      for (const ca of chartAccounts) {
+        chartCategoryMap.set(ca.id, ca.category)
+      }
+    }
   }
 
   // Query 2: Obtener TODOS los movimientos de todas las cuentas en una sola query
@@ -577,11 +598,7 @@ export async function getAccountBalancesBatch(
     .select("account_id, type, amount_original, currency, exchange_rate")
     .in("account_id", accountIds)
 
-  console.log(`[DEBUG-BATCH] accountIds queried:`, accountIds)
-  console.log(`[DEBUG-BATCH] movements found:`, movements?.length || 0, movements?.map((m: any) => ({ aid: m.account_id?.slice(0,8), type: m.type, amount: m.amount_original })))
-
   if (movementsError) {
-    console.error(`[DEBUG-BATCH] movementsError:`, movementsError)
     throw new Error(`Error obteniendo movimientos: ${movementsError.message}`)
   }
 
@@ -591,7 +608,7 @@ export async function getAccountBalancesBatch(
     accountsMap.set(account.id, {
       initialBalance: parseFloat(account.initial_balance || "0"),
       currency: account.currency as "ARS" | "USD",
-      category: account.chart_of_accounts?.category,
+      category: account.chart_account_id ? chartCategoryMap.get(account.chart_account_id) || null : null,
     })
   }
 
