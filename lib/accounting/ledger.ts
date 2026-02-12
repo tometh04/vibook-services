@@ -577,7 +577,11 @@ export async function getAccountBalancesBatch(
     .select("account_id, type, amount_original, currency, exchange_rate")
     .in("account_id", accountIds)
 
+  console.log(`[DEBUG-BATCH] accountIds queried:`, accountIds)
+  console.log(`[DEBUG-BATCH] movements found:`, movements?.length || 0, movements?.map((m: any) => ({ aid: m.account_id?.slice(0,8), type: m.type, amount: m.amount_original })))
+
   if (movementsError) {
+    console.error(`[DEBUG-BATCH] movementsError:`, movementsError)
     throw new Error(`Error obteniendo movimientos: ${movementsError.message}`)
   }
 
