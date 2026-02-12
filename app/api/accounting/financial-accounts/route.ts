@@ -297,7 +297,7 @@ export async function POST(request: Request) {
     // Verificar si ya existe una cuenta con el mismo nombre, tipo y moneda en la misma agencia
     const { data: existingAccount } = await (supabase.from("financial_accounts") as any)
       .select("id, name")
-      .eq("agency_id", agency_id)
+      .eq("agency_id", resolvedAgencyId)
       .eq("name", name)
       .eq("type", type)
       .eq("currency", currency)

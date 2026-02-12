@@ -41,9 +41,16 @@ export async function POST(request: Request) {
       account_id,    // Cuenta financiera (OBLIGATORIO)
     } = body
 
-    if (!operation_id || !payer_type || !direction || !amount || !currency || !account_id) {
-      return NextResponse.json({ 
-        error: "Faltan campos requeridos. account_id es obligatorio para todos los pagos." 
+    // Validar campos requeridos (operation_id puede ser null para pagos manuales)
+    if (!payer_type || !direction || !amount || !currency || !account_id) {
+      const missingFields = []
+      if (!payer_type) missingFields.push("payer_type")
+      if (!direction) missingFields.push("direction")
+      if (!amount) missingFields.push("amount")
+      if (!currency) missingFields.push("currency")
+      if (!account_id) missingFields.push("account_id")
+      return NextResponse.json({
+        error: `Faltan campos requeridos: ${missingFields.join(", ")}. account_id es obligatorio para todos los pagos.`
       }, { status: 400 })
     }
 

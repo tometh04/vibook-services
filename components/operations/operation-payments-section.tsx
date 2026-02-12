@@ -39,7 +39,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Plus, Loader2, Trash2, FileText, Download, MessageSquare } from "lucide-react"
+import { CalendarIcon, Plus, Loader2, Trash2, FileText, Download, MessageSquare, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useRouter } from "next/navigation"
@@ -1139,7 +1139,7 @@ export function OperationPaymentsSection({
                         </FormControl>
                         <SelectContent>
                           {availableAccounts.map((account) => {
-                              const balance = account.current_balance || account.initial_balance || 0
+                              const balance = account.current_balance ?? account.initial_balance ?? 0
                               return (
                                 <SelectItem key={account.id} value={account.id}>
                                   {account.name} ({account.currency}) - {account.currency} {Number(balance).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
@@ -1175,6 +1175,24 @@ export function OperationPaymentsSection({
                         </Button>
                       </div>
                     )}
+                    {/* Alerta de saldo insuficiente */}
+                    {field.value && watchAmount > 0 && (() => {
+                      const selectedAccount = availableAccounts.find(acc => acc.id === field.value)
+                      if (!selectedAccount) return null
+                      const accountBalance = selectedAccount.current_balance ?? selectedAccount.initial_balance ?? 0
+                      if (Number(watchAmount) > Number(accountBalance)) {
+                        return (
+                          <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950/50">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                            <div className="text-sm text-amber-800 dark:text-amber-300">
+                              <p className="font-medium">Saldo insuficiente</p>
+                              <p>El monto del pago ({watchCurrency} {Number(watchAmount).toLocaleString("es-AR", { minimumFractionDigits: 2 })}) supera el saldo disponible de la cuenta ({watchCurrency} {Number(accountBalance).toLocaleString("es-AR", { minimumFractionDigits: 2 })}).</p>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                     <FormMessage />
                   </FormItem>
                 )}

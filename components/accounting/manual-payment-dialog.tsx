@@ -31,7 +31,7 @@ import {
   FormDescription,
 } from "@/components/ui/form"
 import { DatePicker } from "@/components/ui/date-picker"
-import { Loader2 } from "lucide-react"
+import { Loader2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -373,7 +373,7 @@ export function ManualPaymentDialog({
                       {financialAccounts
                         .filter(acc => acc.currency === form.watch("currency"))
                         .map((account) => {
-                          const balance = account.current_balance || account.initial_balance || 0
+                          const balance = account.current_balance ?? account.initial_balance ?? 0
                           return (
                             <SelectItem key={account.id} value={account.id}>
                               {account.name} ({account.currency}) - {account.currency} {Number(balance).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
@@ -382,6 +382,25 @@ export function ManualPaymentDialog({
                         })}
                     </SelectContent>
                   </Select>
+                  {/* Alerta de saldo insuficiente */}
+                  {field.value && form.watch("amount") > 0 && (() => {
+                    const selectedAccount = financialAccounts.find(acc => acc.id === field.value)
+                    if (!selectedAccount) return null
+                    const accountBalance = selectedAccount.current_balance ?? selectedAccount.initial_balance ?? 0
+                    const currentAmount = Number(form.watch("amount"))
+                    if (currentAmount > Number(accountBalance)) {
+                      return (
+                        <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950/50">
+                          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                          <div className="text-sm text-amber-800 dark:text-amber-300">
+                            <p className="font-medium">Saldo insuficiente</p>
+                            <p>El monto ({formCurrency} {currentAmount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}) supera el saldo disponible ({formCurrency} {Number(accountBalance).toLocaleString("es-AR", { minimumFractionDigits: 2 })}).</p>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
                   <FormMessage />
                 </FormItem>
               )}
