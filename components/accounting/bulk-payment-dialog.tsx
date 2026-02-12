@@ -546,7 +546,7 @@ export function BulkPaymentDialog({
                   </span>
                 </div>
                 {selectedCurrency !== paymentCurrency && exchangeRate && parseFloat(exchangeRate) > 0 && (
-                  <div className="flex justify-between text-green-600">
+                  <div className="flex justify-between text-green-600 dark:text-green-400">
                     <span>Total a pagar en {paymentCurrency}:</span>
                     <span className="font-mono font-bold">
                       {paymentCurrency} {(Number(totalToPayInPaymentCurrency) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}

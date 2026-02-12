@@ -410,10 +410,10 @@ export function DebtsSalesPageClient({ sellers }: DebtsSalesPageClientProps) {
                                       <TableCell className="text-right font-mono">
                                         {formatCurrency(op.sale_amount_total, "USD")}
                                       </TableCell>
-                                      <TableCell className="text-right font-mono text-green-600">
+                                      <TableCell className="text-right font-mono text-green-600 dark:text-green-400">
                                         {formatCurrency(op.paid, "USD")}
                                       </TableCell>
-                                      <TableCell className="text-right font-mono font-bold text-red-600">
+                                      <TableCell className="text-right font-mono font-bold text-red-600 dark:text-red-400">
                                         {formatCurrency(op.debt, "USD")}
                                       </TableCell>
                                     </TableRow>

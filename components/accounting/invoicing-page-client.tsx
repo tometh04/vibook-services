@@ -182,7 +182,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
         </div>
         <div className="flex items-center gap-2">
           {isConfigured ? (
-            <Badge variant="default" className="bg-green-600">
+            <Badge variant="success">
               <CheckCircle2 className="h-3 w-3 mr-1" />
               Configurado
             </Badge>

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { LEDGER_TYPE_COLORS } from "@/lib/design-tokens"
 
 function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat("es-AR", {
@@ -58,13 +59,6 @@ const typeLabels: Record<string, string> = {
   OPERATOR_PAYMENT: "Pago Operador",
 }
 
-const typeColors: Record<string, string> = {
-  INCOME: "bg-amber-500",
-  EXPENSE: "bg-red-500",
-  FX_GAIN: "bg-amber-500",
-  FX_LOSS: "bg-orange-500",
-  OPERATOR_PAYMENT: "bg-purple-500",
-}
 
 export function LedgerTable({ filters }: LedgerTableProps) {
   const [movements, setMovements] = useState<LedgerMovement[]>([])
@@ -135,7 +129,7 @@ export function LedgerTable({ filters }: LedgerTableProps) {
                 {format(new Date(movement.created_at), "dd/MM/yyyy", { locale: es })}
               </TableCell>
               <TableCell>
-                <Badge className={typeColors[movement.type] || "bg-gray-500"}>
+                <Badge className={LEDGER_TYPE_COLORS[movement.type] || "bg-gray-500"}>
                   {typeLabels[movement.type] || movement.type}
                 </Badge>
               </TableCell>

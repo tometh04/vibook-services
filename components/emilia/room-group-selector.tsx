@@ -162,7 +162,7 @@ function RoomCard({
         {/* Badges de precio */}
         <div className="flex flex-wrap gap-1">
           {isCheapest && (
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <Badge variant="success-soft">
               💰 Mejor precio
             </Badge>
           )}

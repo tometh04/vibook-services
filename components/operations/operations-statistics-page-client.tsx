@@ -46,6 +46,7 @@ import {
   Legend,
 } from "recharts"
 import { formatUSD, formatUSDCompact } from "@/lib/currency"
+import { financialColor } from "@/lib/design-tokens"
 
 interface OperationStatistics {
   overview: {
@@ -247,7 +248,7 @@ export function OperationsStatisticsPageClient() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatUSD(stats.overview.totalMargin)}</div>
+            <div className={`text-2xl font-bold ${financialColor(stats.overview.totalMargin)}`}>{formatUSD(stats.overview.totalMargin)}</div>
             <p className="text-xs text-muted-foreground">
               {Math.round(stats.overview.avgMarginPercentage * 10) / 10}% margen promedio
             </p>
@@ -260,7 +261,7 @@ export function OperationsStatisticsPageClient() {
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.overview.conversionRate >= 20 ? 'text-green-600' : stats.overview.conversionRate >= 10 ? 'text-yellow-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${stats.overview.conversionRate >= 20 ? 'text-green-600 dark:text-green-400' : stats.overview.conversionRate >= 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
               {Math.round(stats.overview.conversionRate * 10) / 10}%
             </div>
             <p className="text-xs text-muted-foreground">

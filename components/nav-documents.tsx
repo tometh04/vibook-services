@@ -72,7 +72,7 @@ export function NavDocuments({
                   <span>Share</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600">
+                <DropdownMenuItem className="text-red-600 dark:text-red-400">
                   <IconTrash />
                   <span>Delete</span>
                 </DropdownMenuItem>

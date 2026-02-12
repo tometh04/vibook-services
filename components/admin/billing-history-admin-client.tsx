@@ -15,6 +15,7 @@ import {
 import { format } from "date-fns"
 import { es } from "date-fns/locale/es"
 import { Search, Calendar, DollarSign, CreditCard, Sparkles } from "lucide-react"
+import { BILLING_EVENT_STYLES } from "@/lib/design-tokens"
 
 interface BillingEvent {
   id: string
@@ -60,22 +61,16 @@ export function BillingHistoryAdminClient({ events }: BillingHistoryAdminClientP
   })
 
   const getEventTypeBadge = (eventType: string) => {
-    const variants: Record<string, { label: string; icon: any; className: string }> = {
-      SUBSCRIPTION_CREATED: { label: "Creada", icon: Calendar, className: "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300" },
-      SUBSCRIPTION_UPDATED: { label: "Actualizada", icon: Calendar, className: "border border-indigo-500/30 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300" },
-      SUBSCRIPTION_CANCELED: { label: "Cancelada", icon: Calendar, className: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300" },
-      SUBSCRIPTION_RENEWED: { label: "Renovada", icon: Calendar, className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
-      PAYMENT_SUCCEEDED: { label: "Pago Exitoso", icon: DollarSign, className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
-      PAYMENT_FAILED: { label: "Pago Fallido", icon: CreditCard, className: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300" },
-      TRIAL_EXTENDED_BY_ADMIN: { label: "Trial Extendido", icon: Calendar, className: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-      SUBSCRIPTION_PLAN_CHANGED: { label: "Plan Cambiado", icon: Calendar, className: "border border-purple-500/30 bg-purple-500/15 text-purple-600 dark:text-purple-300" },
+    const iconMap: Record<string, any> = {
+      PAYMENT_SUCCEEDED: DollarSign,
+      PAYMENT_FAILED: CreditCard,
     }
-    const config = variants[eventType] || { label: eventType, icon: Calendar, className: "border border-border text-muted-foreground" }
-    const Icon = config.icon
+    const styleConfig = BILLING_EVENT_STYLES[eventType] || { label: eventType, className: "border border-border text-muted-foreground" }
+    const Icon = iconMap[eventType] || Calendar
     return (
-      <Badge variant="outline" className={config.className}>
+      <Badge variant="outline" className={styleConfig.className}>
         <Icon className="h-3 w-3 mr-1" />
-        {config.label}
+        {styleConfig.label}
       </Badge>
     )
   }

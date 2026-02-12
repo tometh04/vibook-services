@@ -473,11 +473,11 @@ export function ImportSection({
                             Error
                           </Badge>
                         ) : row.warnings.length > 0 ? (
-                          <Badge variant="outline" className="text-xs text-yellow-600">
+                          <Badge variant="warning-soft" className="text-xs">
                             Advertencia
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-xs text-green-600">
+                          <Badge variant="success-soft" className="text-xs">
                             OK
                           </Badge>
                         )}
@@ -563,15 +563,15 @@ export function ImportSection({
           <CardContent>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
-                <p className="text-2xl font-bold text-green-600">{importResult.success}</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{importResult.success}</p>
                 <p className="text-sm text-muted-foreground">Importados</p>
               </div>
               <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
-                <p className="text-2xl font-bold text-yellow-600">{importResult.warnings}</p>
+                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{importResult.warnings}</p>
                 <p className="text-sm text-muted-foreground">Advertencias</p>
               </div>
               <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
-                <p className="text-2xl font-bold text-red-600">{importResult.errors}</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{importResult.errors}</p>
                 <p className="text-sm text-muted-foreground">Errores</p>
               </div>
             </div>

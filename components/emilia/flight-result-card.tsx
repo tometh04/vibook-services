@@ -261,7 +261,7 @@ function FlightLegCard({ leg, airlineCode, departureDate }: FlightLegCardProps) 
             <div className="text-base font-medium flex items-center justify-center gap-1">
               {leg.arrival?.time || "--:--"}
               {leg.arrival_next_day && (
-                <Badge variant="outline" className="text-[10px] h-4 px-1 bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800">
+                <Badge variant="warning-soft" className="text-[10px] h-4 px-1">
                   +1
                 </Badge>
               )}

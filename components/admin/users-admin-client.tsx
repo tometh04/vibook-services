@@ -24,6 +24,7 @@ import { Users, UserCheck, UserX, CreditCard, Loader2, Search } from "lucide-rea
 import { format } from "date-fns"
 import { es } from "date-fns/locale/es"
 import { toast } from "sonner"
+import { SUBSCRIPTION_STATUS_STYLES } from "@/lib/design-tokens"
 
 interface User {
   id: string
@@ -279,15 +280,7 @@ export function UsersAdminClient({ users, stats }: UsersAdminClientProps) {
   }, [filteredUsers])
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { label: string; className: string }> = {
-      ACTIVE: { label: "Activa", className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
-      TRIAL: { label: "Prueba", className: "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300" },
-      CANCELED: { label: "Cancelada", className: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300" },
-      UNPAID: { label: "Sin pago", className: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-      SUSPENDED: { label: "Suspendida", className: "border border-slate-400/40 bg-slate-500/10 text-slate-600 dark:text-slate-300" },
-      PAST_DUE: { label: "Vencida", className: "border border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300" },
-    }
-    const config = variants[status] || { label: status, className: "border border-border text-muted-foreground" }
+    const config = SUBSCRIPTION_STATUS_STYLES[status] || { label: status, className: "border border-border text-muted-foreground" }
     return <Badge variant="outline" className={config.className}>{config.label}</Badge>
   }
 

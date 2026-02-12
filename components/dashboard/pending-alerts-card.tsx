@@ -9,6 +9,7 @@ import { Bell, Calendar, DollarSign, FileText, AlertTriangle, ChevronRight } fro
 import { formatDistanceToNow, format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
+import { ALERT_TYPE_COLORS, ALERT_TYPE_LABELS } from "@/lib/design-tokens"
 
 interface Alert {
   id: string
@@ -24,13 +25,13 @@ interface Alert {
   } | null
 }
 
-const alertTypeConfig: Record<string, { icon: any; color: string; label: string }> = {
-  PAYMENT_DUE: { icon: DollarSign, color: "bg-amber-500", label: "Pago" },
-  UPCOMING_TRIP: { icon: Calendar, color: "bg-blue-500", label: "Viaje" },
-  MISSING_DOCUMENT: { icon: FileText, color: "bg-orange-500", label: "Doc" },
-  LOW_MARGIN: { icon: AlertTriangle, color: "bg-red-500", label: "Margen" },
-  QUOTATION_EXPIRING: { icon: Bell, color: "bg-purple-500", label: "Cotiz" },
-  RECURRING_PAYMENT: { icon: DollarSign, color: "bg-emerald-500", label: "Recurrente" },
+const alertTypeIcons: Record<string, any> = {
+  PAYMENT_DUE: DollarSign,
+  UPCOMING_TRIP: Calendar,
+  MISSING_DOCUMENT: FileText,
+  LOW_MARGIN: AlertTriangle,
+  QUOTATION_EXPIRING: Bell,
+  RECURRING_PAYMENT: DollarSign,
 }
 
 interface PendingAlertsCardProps {
@@ -74,7 +75,11 @@ export function PendingAlertsCard({ agencyId, sellerId }: PendingAlertsCardProps
   }, [fetchAlerts])
 
   const getAlertConfig = (type: string) => {
-    return alertTypeConfig[type] || { icon: Bell, color: "bg-gray-500", label: type }
+    return {
+      icon: alertTypeIcons[type] || Bell,
+      color: ALERT_TYPE_COLORS[type] || "bg-gray-500",
+      label: ALERT_TYPE_LABELS[type] || type,
+    }
   }
 
   const isOverdue = (dateStr: string) => {
@@ -118,7 +123,7 @@ export function PendingAlertsCard({ agencyId, sellerId }: PendingAlertsCardProps
     if (description.includes("Pasaporte")) {
       return "Pasaporte"
     }
-    return alertTypeConfig[type]?.label || type
+    return ALERT_TYPE_LABELS[type] || type
   }
 
   // Formatear fecha de vencimiento
@@ -194,7 +199,7 @@ export function PendingAlertsCard({ agencyId, sellerId }: PendingAlertsCardProps
                             <span className="text-[10px] font-medium text-foreground">
                               {alertTypeInfo}
                             </span>
-                            <Badge className="text-[9px] px-1 py-0 h-3.5 bg-amber-500 hover:bg-amber-600">
+                            <Badge variant="warning" className="text-[9px] px-1 py-0 h-3.5">
                               Vencida
                             </Badge>
                           </div>

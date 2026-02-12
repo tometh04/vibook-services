@@ -104,7 +104,7 @@ export function OperatorAccountSection({ operatorId, creditLimit }: OperatorAcco
     const isOverdue = status === "PENDING" && new Date(dateDue) < new Date()
     
     if (status === "PAID") {
-      return <Badge variant="default" className="bg-green-500">Pagado</Badge>
+      return <Badge variant="success">Pagado</Badge>
     }
     if (isOverdue) {
       return <Badge variant="destructive">Vencido</Badge>
@@ -244,9 +244,9 @@ export function OperatorAccountSection({ operatorId, creditLimit }: OperatorAcco
                           : "bg-yellow-100 dark:bg-yellow-900/30"
                       }`}>
                         {payment.status === "PAID" ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                         ) : (
-                          <Clock className="h-4 w-4 text-yellow-600" />
+                          <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                         )}
                       </div>
                       <div>

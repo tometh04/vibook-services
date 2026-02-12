@@ -272,7 +272,7 @@ export function LeadsStatisticsPageClient() {
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.overview.conversionRate >= 20 ? 'text-green-600' : stats.overview.conversionRate >= 10 ? 'text-yellow-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${stats.overview.conversionRate >= 20 ? 'text-green-600 dark:text-green-400' : stats.overview.conversionRate >= 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
               {Math.round(stats.overview.conversionRate * 10) / 10}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -287,7 +287,7 @@ export function LeadsStatisticsPageClient() {
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatUSD(stats.overview.totalDeposits)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatUSD(stats.overview.totalDeposits)}</div>
             <p className="text-xs text-muted-foreground">
               total en depósitos
             </p>

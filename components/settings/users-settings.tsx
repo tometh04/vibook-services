@@ -65,6 +65,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { USER_ROLE_COLORS, USER_ROLE_LABELS, USER_ROLE_DESCRIPTIONS } from "@/lib/design-tokens"
 
 interface User {
   id: string
@@ -81,29 +82,6 @@ interface Agency {
   name: string
 }
 
-const roleLabels: Record<string, string> = {
-  SUPER_ADMIN: "Super Admin",
-  ADMIN: "Administrador",
-  CONTABLE: "Contable",
-  SELLER: "Vendedor",
-  VIEWER: "Observador",
-}
-
-const roleColors: Record<string, string> = {
-  SUPER_ADMIN: "bg-purple-500",
-  ADMIN: "bg-blue-500",
-  CONTABLE: "bg-green-500",
-  SELLER: "bg-orange-500",
-  VIEWER: "bg-gray-500",
-}
-
-const roleDescriptions: Record<string, string> = {
-  SUPER_ADMIN: "Acceso total al sistema",
-  ADMIN: "Gestión completa sin eliminar",
-  CONTABLE: "Solo módulos financieros",
-  SELLER: "Solo sus propios datos",
-  VIEWER: "Solo lectura",
-}
 
 export function UsersSettings() {
   const [users, setUsers] = useState<User[]>([])
@@ -400,12 +378,12 @@ export function UsersSettings() {
                           <SelectValue placeholder="Seleccionar rol" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(roleLabels).map(([value, label]) => (
+                          {Object.entries(USER_ROLE_LABELS).map(([value, label]) => (
                             <SelectItem key={value} value={value}>
                               <div className="flex items-center gap-2">
                                 <span>{label}</span>
                                 <span className="text-xs text-muted-foreground">
-                                  - {roleDescriptions[value]}
+                                  - {USER_ROLE_DESCRIPTIONS[value]}
                                 </span>
                               </div>
                             </SelectItem>
@@ -495,8 +473,8 @@ export function UsersSettings() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={`${roleColors[user.role]} text-white`}>
-                      {roleLabels[user.role] || user.role}
+                    <Badge className={`${USER_ROLE_COLORS[user.role]} text-white`}>
+                      {USER_ROLE_LABELS[user.role] || user.role}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -515,12 +493,12 @@ export function UsersSettings() {
                   </TableCell>
                   <TableCell>
                     {user.is_active ? (
-                      <Badge variant="outline" className="text-green-600 border-green-600">
+                      <Badge variant="success-soft">
                         <CheckCircle2 className="mr-1 h-3 w-3" />
                         Activo
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-red-600 border-red-600">
+                      <Badge variant="destructive-soft">
                         <XCircle className="mr-1 h-3 w-3" />
                         Inactivo
                       </Badge>
@@ -603,18 +581,18 @@ export function UsersSettings() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(roleLabels).map(([role, label]) => (
+            {Object.entries(USER_ROLE_LABELS).map(([role, label]) => (
               <div
                 key={role}
                 className="border rounded-lg p-4 space-y-2"
               >
                 <div className="flex items-center gap-2">
-                  <Badge className={`${roleColors[role]} text-white`}>
+                  <Badge className={`${USER_ROLE_COLORS[role]} text-white`}>
                     {label}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {roleDescriptions[role]}
+                  {USER_ROLE_DESCRIPTIONS[role]}
                 </p>
                 <div className="text-xs space-y-1">
                   {role === "SUPER_ADMIN" && (

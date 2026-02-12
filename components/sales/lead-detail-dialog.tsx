@@ -24,24 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
+import { LEAD_REGION_COLORS, LEAD_STATUS_LABELS } from "@/lib/design-tokens"
 
-const regionColors: Record<string, string> = {
-  ARGENTINA: "bg-amber-400 dark:bg-amber-600",
-  CARIBE: "bg-amber-500 dark:bg-amber-500",
-  BRASIL: "bg-amber-600 dark:bg-amber-400",
-  EUROPA: "bg-amber-700 dark:bg-amber-300",
-  EEUU: "bg-amber-800 dark:bg-amber-200",
-  OTROS: "bg-amber-300 dark:bg-amber-700",
-  CRUCEROS: "bg-amber-900 dark:bg-amber-100",
-}
-
-const statusLabels: Record<string, string> = {
-  NEW: "Nuevo",
-  IN_PROGRESS: "En Progreso",
-  QUOTED: "Cotizado",
-  WON: "Ganado",
-  LOST: "Perdido",
-}
 
 /**
  * Componente que procesa el texto y convierte números de teléfono en enlaces de WhatsApp
@@ -435,7 +419,7 @@ export function LeadDetailDialog({
                   {lead.region}
                 </Badge>
                 <Badge variant="outline" className="text-xs font-medium">
-                  {statusLabels[lead.status] || lead.status}
+                  {LEAD_STATUS_LABELS[lead.status] || lead.status}
                 </Badge>
                 <Badge variant="outline" className="text-xs font-medium">
                   {lead.source}

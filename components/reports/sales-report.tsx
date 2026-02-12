@@ -36,6 +36,7 @@ import {
   Legend,
 } from "recharts"
 import { formatUSD, formatUSDCompact } from "@/lib/currency"
+import { financialColor } from "@/lib/design-tokens"
 
 interface SalesReportProps {
   userRole: string
@@ -369,7 +370,7 @@ export function SalesReport({ userRole, userId, sellers, agencies }: SalesReport
                     <TableCell className="text-right font-medium">
                       {formatUSD(s.sale_usd)}
                     </TableCell>
-                    <TableCell className="text-right text-green-600">
+                    <TableCell className={`text-right ${financialColor(s.margin_usd)}`}>
                       {formatUSD(s.margin_usd)}
                     </TableCell>
                   </TableRow>

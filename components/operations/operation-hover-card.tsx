@@ -12,6 +12,7 @@ import { CalendarDays, MapPin, Users, DollarSign, Plane } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { OPERATION_STATUS_COLORS, OPERATION_STATUS_LABELS, financialColor } from "@/lib/design-tokens"
 
 interface OperationHoverCardProps {
   operationId: string
@@ -36,24 +37,6 @@ interface OperationData {
   infants: number
   sellers?: { name: string } | null
   operators?: { name: string } | null
-}
-
-const statusLabels: Record<string, string> = {
-  PRE_RESERVATION: "Pre-reserva",
-  RESERVED: "Reservado",
-  CONFIRMED: "Confirmado",
-  CANCELLED: "Cancelado",
-  TRAVELLED: "Viajado",
-  CLOSED: "Cerrado",
-}
-
-const statusColors: Record<string, string> = {
-  PRE_RESERVATION: "bg-gray-500",
-  RESERVED: "bg-blue-500",
-  CONFIRMED: "bg-green-500",
-  CANCELLED: "bg-red-500",
-  TRAVELLED: "bg-purple-500",
-  CLOSED: "bg-slate-500",
 }
 
 export function OperationHoverCard({ operationId, children }: OperationHoverCardProps) {
@@ -118,8 +101,8 @@ export function OperationHoverCard({ operationId, children }: OperationHoverCard
                   {operation.origin && `${operation.origin} → `}{operation.destination}
                 </p>
               </div>
-              <Badge className={`${statusColors[operation.status]} text-white`}>
-                {statusLabels[operation.status] || operation.status}
+              <Badge className={`${OPERATION_STATUS_COLORS[operation.status]} text-white`}>
+                {OPERATION_STATUS_LABELS[operation.status] || operation.status}
               </Badge>
             </div>
 
@@ -161,7 +144,7 @@ export function OperationHoverCard({ operationId, children }: OperationHoverCard
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Margen:</span>
-                <span className={`font-medium ${operation.margin_amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                <span className={`font-medium ${financialColor(operation.margin_amount)}`}>
                   {formatCurrency(operation.margin_amount, operation.currency)} ({operation.margin_percentage.toFixed(1)}%)
                 </span>
               </div>

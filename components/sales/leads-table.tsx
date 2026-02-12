@@ -17,24 +17,8 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { ConvertLeadDialog } from "./convert-lead-dialog"
 import { ServerPagination } from "@/components/ui/server-pagination"
+import { LEAD_REGION_COLORS, LEAD_STATUS_LABELS } from "@/lib/design-tokens"
 
-const regionColors: Record<string, string> = {
-  ARGENTINA: "bg-blue-500",
-  CARIBE: "bg-cyan-500",
-  BRASIL: "bg-green-500",
-  EUROPA: "bg-purple-500",
-  EEUU: "bg-red-500",
-  OTROS: "bg-gray-500",
-  CRUCEROS: "bg-orange-500",
-}
-
-const statusLabels: Record<string, string> = {
-  NEW: "Nuevo",
-  IN_PROGRESS: "En Progreso",
-  QUOTED: "Cotizado",
-  WON: "Ganado",
-  LOST: "Perdido",
-}
 
 interface Lead {
   id: string
@@ -190,13 +174,13 @@ export function LeadsTable({
                 <TableCell>
                   <Badge
                     variant="outline"
-                    className={regionColors[lead.region] ? `${regionColors[lead.region]} text-white` : ""}
+                    className={LEAD_REGION_COLORS[lead.region] ? `${LEAD_REGION_COLORS[lead.region]} text-white` : ""}
                   >
                     {lead.region}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{statusLabels[lead.status] || lead.status}</Badge>
+                  <Badge variant="secondary">{LEAD_STATUS_LABELS[lead.status] || lead.status}</Badge>
                 </TableCell>
                 <TableCell>{lead.users?.name || "-"}</TableCell>
                 <TableCell>

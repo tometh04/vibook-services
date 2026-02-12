@@ -136,7 +136,7 @@ export function DocumentUploadDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {error && (
-              <Alert className="text-red-600">
+              <Alert className="text-red-600 dark:text-red-400">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}

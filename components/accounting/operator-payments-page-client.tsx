@@ -35,6 +35,7 @@ import { AlertTriangle, Download, HelpCircle, X, Search, CreditCard, Plus } from
 import * as XLSX from "xlsx"
 import { BulkPaymentDialog } from "./bulk-payment-dialog"
 import { ManualPaymentDialog } from "./manual-payment-dialog"
+import { PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from "@/lib/design-tokens"
 
 function formatCurrency(amount: number, currency: string = "ARS"): string {
   return new Intl.NumberFormat("es-AR", {
@@ -42,18 +43,6 @@ function formatCurrency(amount: number, currency: string = "ARS"): string {
     currency: currency === "USD" ? "USD" : "ARS",
     minimumFractionDigits: 2,
   }).format(amount)
-}
-
-const statusLabels: Record<string, string> = {
-  PENDING: "Pendiente",
-  PAID: "Pagado",
-  OVERDUE: "Vencido",
-}
-
-const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-500",
-  PAID: "bg-green-500",
-  OVERDUE: "bg-red-500",
 }
 
 interface OperatorPaymentsPageClientProps {
@@ -215,7 +204,7 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
         "Monto Pagado": paidAmount.toFixed(2),
         Pendiente: (amount - paidAmount).toFixed(2),
         "Fecha Vencimiento": p.due_date ? format(new Date(p.due_date), "dd/MM/yyyy") : "-",
-        Estado: isOverdue ? "Vencido" : statusLabels[p.status] || p.status,
+        Estado: isOverdue ? "Vencido" : PAYMENT_STATUS_LABELS[p.status] || p.status,
         "Fecha Pago": p.paid_at ? format(new Date(p.paid_at), "dd/MM/yyyy") : "-",
         Parcial: paidAmount > 0 && paidAmount < amount ? "Sí" : "No",
       }
@@ -526,10 +515,10 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
                       <TableCell className="font-medium">
                         {formatCurrency(amount, payment.currency)}
                       </TableCell>
-                      <TableCell className="text-green-600">
+                      <TableCell className="text-green-600 dark:text-green-400">
                         {paidAmount > 0 ? formatCurrency(paidAmount, payment.currency) : "-"}
                       </TableCell>
-                      <TableCell className={pendingAmount > 0 ? "text-orange-600 font-medium" : ""}>
+                      <TableCell className={pendingAmount > 0 ? "text-orange-600 dark:text-orange-400 font-medium" : ""}>
                         {formatCurrency(pendingAmount, payment.currency)}
                       </TableCell>
                       <TableCell>
@@ -542,8 +531,8 @@ export function OperatorPaymentsPageClient({ agencies, operators = [] }: Operato
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Badge className={statusColors[displayStatus] || "bg-gray-500"}>
-                            {statusLabels[displayStatus] || displayStatus}
+                          <Badge className={PAYMENT_STATUS_COLORS[displayStatus] || "bg-gray-500"}>
+                            {PAYMENT_STATUS_LABELS[displayStatus] || displayStatus}
                           </Badge>
                           {isPartial && (
                             <Badge variant="outline" className="text-xs">

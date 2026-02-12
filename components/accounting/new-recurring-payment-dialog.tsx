@@ -286,7 +286,7 @@ export function NewRecurringPaymentDialog({
                                     onSelect={handleCreateNewProvider}
                                     className="cursor-pointer"
                                   >
-                                    <Plus className="mr-2 h-4 w-4 text-green-500" />
+                                    <Plus className="mr-2 h-4 w-4 text-green-500 dark:text-green-400" />
                                     <span>Crear &quot;{providerSearch}&quot;</span>
                                   </CommandItem>
                                 </CommandGroup>

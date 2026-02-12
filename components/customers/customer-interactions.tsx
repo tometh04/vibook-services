@@ -32,6 +32,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { INTERACTION_TYPE_COLORS } from "@/lib/design-tokens"
 
 interface Interaction {
   id: string
@@ -65,19 +66,19 @@ interface CustomerInteractionsProps {
 }
 
 const interactionTypes = [
-  { value: 'call', label: 'Llamada', icon: Phone, color: 'bg-blue-500' },
-  { value: 'email', label: 'Email', icon: Mail, color: 'bg-amber-500' },
-  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: 'bg-green-500' },
-  { value: 'meeting', label: 'Reunión', icon: Users, color: 'bg-purple-500' },
-  { value: 'video_call', label: 'Videollamada', icon: Video, color: 'bg-indigo-500' },
-  { value: 'note', label: 'Nota', icon: FileText, color: 'bg-gray-500' },
-  { value: 'task', label: 'Tarea', icon: CheckCircle2, color: 'bg-cyan-500' },
-  { value: 'quote_sent', label: 'Cotización enviada', icon: FileText, color: 'bg-orange-500' },
-  { value: 'quote_approved', label: 'Cotización aprobada', icon: CheckCircle2, color: 'bg-emerald-500' },
-  { value: 'payment', label: 'Pago', icon: FileText, color: 'bg-green-600' },
-  { value: 'complaint', label: 'Reclamo', icon: AlertCircle, color: 'bg-red-500' },
-  { value: 'feedback', label: 'Feedback', icon: MessageSquare, color: 'bg-pink-500' },
-  { value: 'other', label: 'Otro', icon: MoreHorizontal, color: 'bg-slate-500' },
+  { value: 'call', label: 'Llamada', icon: Phone, color: INTERACTION_TYPE_COLORS.call },
+  { value: 'email', label: 'Email', icon: Mail, color: INTERACTION_TYPE_COLORS.email },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: INTERACTION_TYPE_COLORS.whatsapp },
+  { value: 'meeting', label: 'Reunión', icon: Users, color: INTERACTION_TYPE_COLORS.meeting },
+  { value: 'video_call', label: 'Videollamada', icon: Video, color: INTERACTION_TYPE_COLORS.video_call },
+  { value: 'note', label: 'Nota', icon: FileText, color: INTERACTION_TYPE_COLORS.note },
+  { value: 'task', label: 'Tarea', icon: CheckCircle2, color: INTERACTION_TYPE_COLORS.task },
+  { value: 'quote_sent', label: 'Cotización enviada', icon: FileText, color: INTERACTION_TYPE_COLORS.quote_sent },
+  { value: 'quote_approved', label: 'Cotización aprobada', icon: CheckCircle2, color: INTERACTION_TYPE_COLORS.quote_approved },
+  { value: 'payment', label: 'Pago', icon: FileText, color: INTERACTION_TYPE_COLORS.payment },
+  { value: 'complaint', label: 'Reclamo', icon: AlertCircle, color: INTERACTION_TYPE_COLORS.complaint },
+  { value: 'feedback', label: 'Feedback', icon: MessageSquare, color: INTERACTION_TYPE_COLORS.feedback },
+  { value: 'other', label: 'Otro', icon: MoreHorizontal, color: INTERACTION_TYPE_COLORS.other },
 ]
 
 const outcomeLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {

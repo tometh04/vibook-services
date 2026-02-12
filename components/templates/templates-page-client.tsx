@@ -356,7 +356,7 @@ export function TemplatesPageClient() {
                     {templateTypeLabels[template.template_type]}
                   </Badge>
                   {template.is_default && (
-                    <Badge className="bg-amber-500">
+                    <Badge variant="warning">
                       <Star className="h-3 w-3 mr-1" />
                       Default
                     </Badge>
@@ -648,7 +648,7 @@ export function TemplatesPageClient() {
                     {templateTypeLabels[selectedTemplate.template_type]}
                   </Badge>
                   {selectedTemplate.is_default && (
-                    <Badge className="bg-amber-500">
+                    <Badge variant="warning">
                       <Star className="h-3 w-3 mr-1" />
                       Default
                     </Badge>

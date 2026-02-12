@@ -771,7 +771,7 @@ export function OperationPaymentsSection({
               {" / "} Total: {currency} {saleAmount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
             </p>
             {customerDebt <= 0 && (
-              <Badge className="mt-2 bg-green-600">Pagado completo</Badge>
+              <Badge variant="success" className="mt-2">Pagado completo</Badge>
             )}
           </CardContent>
         </Card>
@@ -792,7 +792,7 @@ export function OperationPaymentsSection({
               {" / "} Total: {currency} {operatorCost.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
             </p>
             {operatorDebt <= 0 && (
-              <Badge className="mt-2 bg-green-600">Pagado completo</Badge>
+              <Badge variant="success" className="mt-2">Pagado completo</Badge>
             )}
           </CardContent>
         </Card>
@@ -1067,7 +1067,7 @@ export function OperationPaymentsSection({
                       <FormMessage />
                       {calculatedUSD && (
                         <p className="text-sm text-muted-foreground">
-                          Equivalente: <span className="font-semibold text-green-600">USD {calculatedUSD}</span>
+                          Equivalente: <span className="font-semibold text-green-600 dark:text-green-400">USD {calculatedUSD}</span>
                         </p>
                       )}
                     </FormItem>

@@ -31,15 +31,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { EditOperationDialog } from "./edit-operation-dialog"
 import { toast } from "sonner"
-
-const statusLabels: Record<string, string> = {
-  PRE_RESERVATION: "Pre-reserva",
-  RESERVED: "Reservado",
-  CONFIRMED: "Confirmado",
-  CANCELLED: "Cancelado",
-  TRAVELLED: "Viajado",
-  CLOSED: "Cerrado",
-}
+import { OPERATION_STATUS_LABELS } from "@/lib/design-tokens"
 
 interface Operation {
   id: string
@@ -486,7 +478,7 @@ export function OperationsTable({
         cell: ({ row }) => {
           const paid = Number(row.original.paid_amount) || 0
           return (
-            <div className="text-xs text-green-600 font-medium">
+            <div className="text-xs text-green-600 dark:text-green-400 font-medium">
               {row.original.currency} {Math.round(paid).toLocaleString("es-AR")}
             </div>
           )
@@ -504,7 +496,7 @@ export function OperationsTable({
           const paid = Number(row.original.paid_amount) || 0
           const pendingCalc = pending > 0 ? pending : Math.max(0, total - paid)
           return (
-            <div className="text-xs text-orange-600 font-medium">
+            <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">
               {row.original.currency} {Math.round(pendingCalc).toLocaleString("es-AR")}
             </div>
           )
@@ -525,7 +517,7 @@ export function OperationsTable({
                                    operation.operator_cost_currency || 
                                    row.original.currency || "ARS"
           return (
-            <div className="text-xs text-blue-600 font-medium">
+            <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
               {operatorCurrency} {Math.round(operatorPaid).toLocaleString("es-AR")}
             </div>
           )
@@ -546,7 +538,7 @@ export function OperationsTable({
                                    operation.operator_cost_currency || 
                                    row.original.currency || "ARS"
           return (
-            <div className="text-xs text-red-600 font-medium">
+            <div className="text-xs text-red-600 dark:text-red-400 font-medium">
               {operatorCurrency} {Math.round(operatorPending).toLocaleString("es-AR")}
             </div>
           )
@@ -577,7 +569,7 @@ export function OperationsTable({
         ),
         cell: ({ row }) => (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            {statusLabels[row.original.status] || row.original.status}
+            {OPERATION_STATUS_LABELS[row.original.status] || row.original.status}
           </Badge>
         ),
       },

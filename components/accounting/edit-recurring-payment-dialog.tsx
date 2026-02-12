@@ -457,7 +457,7 @@ export function EditRecurringPaymentDialog({
                 <Button
                   type="button"
                   variant="ghost"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-50"
                   onClick={() => setShowDeleteDialog(true)}
                   disabled={isLoading}
                 >

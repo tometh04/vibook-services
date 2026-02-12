@@ -342,7 +342,7 @@ export function RecurringPaymentsPageClient({ agencies }: RecurringPaymentsPageC
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">{stats.dueThisWeek}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.overdue > 0 && <span className="text-red-600">{stats.overdue} vencidos</span>}
+              {stats.overdue > 0 && <span className="text-red-600 dark:text-red-400">{stats.overdue} vencidos</span>}
             </p>
           </CardContent>
         </Card>
@@ -548,7 +548,7 @@ export function RecurringPaymentsPageClient({ agencies }: RecurringPaymentsPageC
                             })}
                           </span>
                           {daysUntilDue <= 0 && (
-                            <span className="text-xs text-red-500 font-medium">
+                            <span className="text-xs text-red-500 dark:text-red-400 font-medium">
                               {daysUntilDue === 0 ? "Vence hoy" : `Vencido hace ${Math.abs(daysUntilDue)} días`}
                             </span>
                           )}

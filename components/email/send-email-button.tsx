@@ -124,9 +124,9 @@ export function SendEmailButton({
         {sent ? (
           <div className="flex flex-col items-center justify-center py-8">
             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-              <Check className="h-6 w-6 text-green-600" />
+              <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
-            <p className="text-lg font-medium text-green-600">¡Email enviado!</p>
+            <p className="text-lg font-medium text-green-600 dark:text-green-400">¡Email enviado!</p>
           </div>
         ) : (
           <>

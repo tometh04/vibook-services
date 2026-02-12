@@ -30,21 +30,7 @@ import { EditCustomerDialog } from "./edit-customer-dialog"
 import { CustomerMessagesSection } from "@/components/whatsapp/customer-messages-section"
 import { CustomerInteractions } from "./customer-interactions"
 import { useRouter } from "next/navigation"
-
-const statusLabels: Record<string, string> = {
-  PRE_RESERVATION: "Pre-reserva",
-  RESERVED: "Reservado",
-  CONFIRMED: "Confirmado",
-  CANCELLED: "Cancelado",
-  TRAVELLED: "Viajado",
-  CLOSED: "Cerrado",
-}
-
-const paymentStatusLabels: Record<string, string> = {
-  PENDING: "Pendiente",
-  PAID: "Pagado",
-  OVERDUE: "Vencido",
-}
+import { OPERATION_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/design-tokens"
 
 interface Customer {
   id: string
@@ -202,7 +188,7 @@ export function CustomerDetailClient({
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Gastado</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                     {(() => {
                       // Sumar todos los pagos pagados del cliente (INCOME = pagos recibidos del cliente)
                       const totalPaid = payments
@@ -275,7 +261,7 @@ export function CustomerDetailClient({
                           {op.currency || "USD"} {op.sale_amount_total ? op.sale_amount_total.toLocaleString("es-AR", { minimumFractionDigits: 2 }) : "0,00"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{statusLabels[op.status] || op.status}</Badge>
+                          <Badge variant="secondary">{OPERATION_STATUS_LABELS[op.status] || op.status}</Badge>
                         </TableCell>
                         <TableCell>
                           <Link href={`/operations/${op.id}`}>
@@ -337,7 +323,7 @@ export function CustomerDetailClient({
                                 : "secondary"
                             }
                           >
-                            {paymentStatusLabels[payment.status] || payment.status}
+                            {PAYMENT_STATUS_LABELS[payment.status] || payment.status}
                           </Badge>
                         </TableCell>
                       </TableRow>

@@ -186,7 +186,7 @@ export function OnboardingGuard({ variant = "floating" }: OnboardingGuardProps) 
             {progress.steps.map((step) => (
               <div key={step.id} className="flex items-start gap-2">
                 {step.completed ? (
-                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-green-500" />
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-green-500 dark:text-green-400" />
                 ) : (
                   <Circle className="mt-0.5 h-3.5 w-3.5 text-sidebar-foreground/50" />
                 )}
@@ -259,7 +259,7 @@ export function OnboardingGuard({ variant = "floating" }: OnboardingGuardProps) 
             {progress.steps.map((step) => (
               <div key={step.id} className="flex items-start gap-2 text-xs">
                 {step.completed ? (
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-green-500" />
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-green-500 dark:text-green-400" />
                 ) : (
                   <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />
                 )}

@@ -182,6 +182,7 @@ const COLOR_SWATCHES = [
   { name: "Success", var: "--success", hex: "#059669" },
   { name: "Warning", var: "--warning", hex: "#F59E0B" },
   { name: "Destructive", var: "--destructive", hex: "#EF4444" },
+  { name: "Info", var: "--info", hex: "#2196F3" },
   { name: "Background", var: "--background", hex: "#FFFFFF" },
   { name: "Foreground", var: "--foreground", hex: "#0F172A" },
   { name: "Card", var: "--card", hex: "#FFFFFF" },
@@ -348,13 +349,24 @@ export default function UIKitPage() {
             {/* BADGES */}
             <Section id="badges" title="Badges" description="Indicadores visuales de estado y categorias">
               <div className="space-y-6">
-                <SectionGroup label="Variantes">
+                <SectionGroup label="Variantes solidas">
                   <div className="flex flex-wrap gap-3">
                     <Badge variant="default">Default</Badge>
                     <Badge variant="secondary">Secondary</Badge>
                     <Badge variant="destructive">Destructive</Badge>
                     <Badge variant="success">Success</Badge>
+                    <Badge variant="warning">Warning</Badge>
+                    <Badge variant="info">Info</Badge>
                     <Badge variant="outline">Outline</Badge>
+                  </div>
+                </SectionGroup>
+
+                <SectionGroup label="Variantes soft (bordes suaves)">
+                  <div className="flex flex-wrap gap-3">
+                    <Badge variant="success-soft">Success Soft</Badge>
+                    <Badge variant="destructive-soft">Destructive Soft</Badge>
+                    <Badge variant="warning-soft">Warning Soft</Badge>
+                    <Badge variant="info-soft">Info Soft</Badge>
                   </div>
                 </SectionGroup>
 
@@ -362,7 +374,7 @@ export default function UIKitPage() {
                   <div className="flex flex-wrap gap-3">
                     <Badge variant="success">Confirmada</Badge>
                     <Badge variant="default">En proceso</Badge>
-                    <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
+                    <Badge variant="warning">Pendiente</Badge>
                     <Badge variant="destructive">Cancelada</Badge>
                     <Badge variant="outline">Borrador</Badge>
                     <Badge variant="secondary">Archivada</Badge>
@@ -558,7 +570,7 @@ export default function UIKitPage() {
                     <TableCell className="font-medium">Bariloche</TableCell>
                     <TableCell>Juan Perez</TableCell>
                     <TableCell>20/04/2026</TableCell>
-                    <TableCell><Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge></TableCell>
+                    <TableCell><Badge variant="warning">Pendiente</Badge></TableCell>
                     <TableCell className="text-right">ARS 850.000</TableCell>
                   </TableRow>
                   <TableRow>

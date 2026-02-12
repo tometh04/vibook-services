@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency } from "@/lib/currency"
+import { financialColor } from "@/lib/design-tokens"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
 import {
   ChartConfig,
@@ -283,17 +284,17 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
           {/* Stats de ingresos/egresos */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="flex items-center gap-2 p-2 rounded-lg bg-green-50 dark:bg-green-950">
-              <ArrowUpCircle className="h-5 w-5 text-green-600" />
+              <ArrowUpCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               <div>
                 <p className="text-xs text-muted-foreground">Ingresos</p>
-                <p className="font-semibold text-green-600">{formatCurrency(stats.income, currency)}</p>
+                <p className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(stats.income, currency)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-950">
-              <ArrowDownCircle className="h-5 w-5 text-red-600" />
+              <ArrowDownCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
               <div>
                 <p className="text-xs text-muted-foreground">Egresos</p>
-                <p className="font-semibold text-red-600">{formatCurrency(stats.expense, currency)}</p>
+                <p className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(stats.expense, currency)}</p>
               </div>
             </div>
           </div>
@@ -331,7 +332,7 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
                         {mov.type === "INCOME" ? "Ingreso" : "Egreso"}
                       </Badge>
                     </TableCell>
-                    <TableCell className={`text-right font-medium ${mov.type === "EXPENSE" ? "text-red-600" : "text-green-600"}`}>
+                    <TableCell className={`text-right font-medium ${mov.type === "EXPENSE" ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
                       {mov.type === "EXPENSE" ? "-" : "+"}{formatCurrency(mov.amount || 0, currency)}
                     </TableCell>
                   </TableRow>
@@ -427,7 +428,7 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
                 <CardTitle className="text-sm font-medium">Ingresos Totales ARS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(totalIncome.ars, "ARS")}</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalIncome.ars, "ARS")}</div>
               </CardContent>
             </Card>
             <Card>
@@ -435,7 +436,7 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
                 <CardTitle className="text-sm font-medium">Ingresos Totales USD</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(totalIncome.usd, "USD")}</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalIncome.usd, "USD")}</div>
               </CardContent>
             </Card>
             <Card>
@@ -443,7 +444,7 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
                 <CardTitle className="text-sm font-medium">Egresos Totales ARS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses.ars, "ARS")}</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalExpenses.ars, "ARS")}</div>
               </CardContent>
             </Card>
             <Card>
@@ -451,7 +452,7 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
                 <CardTitle className="text-sm font-medium">Egresos Totales USD</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses.usd, "USD")}</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalExpenses.usd, "USD")}</div>
               </CardContent>
             </Card>
           </div>
@@ -577,7 +578,7 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
                         className="flex items-center justify-between p-2 border rounded hover:bg-muted/50"
                       >
                         <span className="text-sm">{account.name}</span>
-                        <span className={`font-medium ${(account.current_balance || 0) < 0 ? 'text-red-600' : ''}`}>
+                        <span className={`font-medium ${financialColor(account.current_balance || 0)}`}>
                           {formatCurrency(account.current_balance || 0, "USD")}
                         </span>
                       </div>
@@ -601,7 +602,7 @@ export function CashSummaryClient({ agencies, defaultDateFrom, defaultDateTo }: 
                         className="flex items-center justify-between p-2 border rounded hover:bg-muted/50"
                       >
                         <span className="text-sm">{account.name}</span>
-                        <span className={`font-medium ${(account.current_balance || 0) < 0 ? 'text-red-600' : ''}`}>
+                        <span className={`font-medium ${financialColor(account.current_balance || 0)}`}>
                           {formatCurrency(account.current_balance || 0, "ARS")}
                         </span>
                       </div>

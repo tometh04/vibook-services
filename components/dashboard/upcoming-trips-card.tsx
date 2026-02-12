@@ -10,6 +10,7 @@ import { Plane, ChevronRight, MapPin, Users, Calendar } from "lucide-react"
 import { format, differenceInDays } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
+import { getUrgencyColor } from "@/lib/design-tokens"
 
 interface Operation {
   id: string
@@ -69,13 +70,6 @@ export function UpcomingTripsCard({ agencyId, sellerId }: UpcomingTripsCardProps
 
   const getDaysUntilTrip = (dateStr: string) => {
     return differenceInDays(new Date(dateStr), new Date())
-  }
-
-  const getUrgencyColor = (days: number) => {
-    if (days <= 3) return "bg-red-500"
-    if (days <= 7) return "bg-amber-500"
-    if (days <= 14) return "bg-amber-400"
-    return "bg-green-500"
   }
 
   return (

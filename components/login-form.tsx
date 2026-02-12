@@ -121,7 +121,7 @@ export function LoginForm({
           </p>
         </div>
         {error && (
-          <Alert className="text-red-600">
+          <Alert className="text-red-600 dark:text-red-400">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}

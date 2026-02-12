@@ -17,6 +17,7 @@ import {
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
+import { SECURITY_SEVERITY_STYLES, SECURITY_CHECK_STATUS_STYLES } from "@/lib/design-tokens"
 
 interface SecurityDashboardClientProps {
   alerts: Array<{
@@ -74,19 +75,6 @@ export function SecurityDashboardClient({
     description: string
     affectedEntities: any
   } | null>(null)
-
-  const severityColors: Record<string, string> = {
-    CRITICAL: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300",
-    HIGH: "border border-orange-500/30 bg-orange-500/15 text-orange-700 dark:text-orange-300",
-    MEDIUM: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300",
-    LOW: "border border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-300",
-  }
-
-  const statusColors: Record<string, string> = {
-    PASS: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
-    FAIL: "border border-rose-500/30 bg-rose-500/15 text-rose-600 dark:text-rose-300",
-    WARNING: "border border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  }
 
   const runIntegrityCheck = async () => {
     setRunningCheck(true)
@@ -275,7 +263,7 @@ export function SecurityDashboardClient({
                   {alerts.map((alert) => (
                     <TableRow key={alert.id} className="odd:bg-muted/20">
                       <TableCell>
-                        <Badge variant="outline" className={severityColors[alert.severity] || "border border-border text-muted-foreground"}>
+                        <Badge variant="outline" className={SECURITY_SEVERITY_STYLES[alert.severity] || "border border-border text-muted-foreground"}>
                           {alert.severity}
                         </Badge>
                       </TableCell>
@@ -322,7 +310,7 @@ export function SecurityDashboardClient({
                     <TableRow key={check.id} className="odd:bg-muted/20">
                       <TableCell>{check.check_type}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={statusColors[check.status] || "border border-border text-muted-foreground"}>
+                        <Badge variant="outline" className={SECURITY_CHECK_STATUS_STYLES[check.status] || "border border-border text-muted-foreground"}>
                           {check.status}
                         </Badge>
                       </TableCell>

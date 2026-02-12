@@ -40,6 +40,7 @@ import {
 } from "recharts"
 import { useRouter } from "next/navigation"
 import { formatUSD } from "@/lib/currency"
+import { financialColor } from "@/lib/design-tokens"
 
 interface MarginsReportProps {
   userRole: string
@@ -322,10 +323,10 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Margen Total
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className={`text-2xl font-bold ${financialColor(totals.total_margin || 0)}`}>
               {formatUSD(totals.total_margin || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -406,7 +407,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                       <TableCell className="text-right text-muted-foreground">
                         {formatUSD(op.operator_cost_usd || 0)}
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${(op.margin_amount_usd || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <TableCell className={`text-right font-medium ${financialColor(op.margin_amount_usd || 0)}`}>
                         {formatUSD(op.margin_amount_usd || 0)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -464,7 +465,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                       <TableCell className="text-right text-muted-foreground">
                         {formatUSD(s.total_cost)}
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${s.total_margin >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <TableCell className={`text-right font-medium ${financialColor(s.total_margin)}`}>
                         {formatUSD(s.total_margin)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -508,7 +509,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                       <TableCell className="text-right text-muted-foreground">
                         {formatUSD(o.total_cost)}
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${o.total_margin >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <TableCell className={`text-right font-medium ${financialColor(o.total_margin)}`}>
                         {formatUSD(o.total_margin)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -553,7 +554,7 @@ export function MarginsReport({ userRole, userId, sellers, agencies }: MarginsRe
                         <TableCell className="text-right font-medium">
                           {formatUSD(p.total_sale)}
                         </TableCell>
-                        <TableCell className={`text-right font-medium ${p.total_margin >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        <TableCell className={`text-right font-medium ${financialColor(p.total_margin)}`}>
                           {formatUSD(p.total_margin)}
                         </TableCell>
                         <TableCell className="text-right">

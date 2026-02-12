@@ -36,6 +36,7 @@ import {
   Legend,
 } from "recharts"
 import { formatUSD, formatUSDCompact } from "@/lib/currency"
+import { financialColor } from "@/lib/design-tokens"
 
 const categoryLabels: Record<string, string> = {
   PAGO_CLIENTE: "Pago de Cliente",
@@ -280,7 +281,7 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
             <ArrowUpCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-green-600">
+            <div className="text-xl font-bold text-green-600 dark:text-green-400">
               {formatUSD(totals.income_usd || 0)}
             </div>
           </CardContent>
@@ -293,7 +294,7 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-red-600">
+            <div className="text-xl font-bold text-red-600 dark:text-red-400">
               {formatUSD(totals.expense_usd || 0)}
             </div>
           </CardContent>
@@ -306,7 +307,7 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-xl font-bold ${(totals.net_usd || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-xl font-bold ${financialColor(totals.net_usd || 0)}`}>
               {formatUSD(totals.net_usd || 0)}
             </div>
           </CardContent>
@@ -374,14 +375,14 @@ export function CashFlowReport({ agencies }: CashFlowReportProps) {
                       <TableCell className="font-medium">
                         {categoryLabels[c.category] || c.category}
                       </TableCell>
-                      <TableCell className="text-right text-green-600">
+                      <TableCell className="text-right text-green-600 dark:text-green-400">
                         {c.income_usd > 0 ? formatUSD(c.income_usd) : "-"}
                       </TableCell>
-                      <TableCell className="text-right text-red-600">
+                      <TableCell className="text-right text-red-600 dark:text-red-400">
                         {c.expense_usd > 0 ? formatUSD(c.expense_usd) : "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className={`font-medium ${netUsd >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        <div className={`font-medium ${financialColor(netUsd)}`}>
                           {netUsd !== 0 && formatUSD(netUsd)}
                         </div>
                       </TableCell>

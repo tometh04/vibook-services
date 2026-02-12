@@ -51,6 +51,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { NewCustomerDialog } from "@/components/customers/new-customer-dialog"
+import { financialColor } from "@/lib/design-tokens"
 
 // Configuración de operaciones
 interface OperationSettings {
@@ -930,7 +931,7 @@ export function NewOperationDialog({
                     </div>
                     <div className="flex justify-between items-center text-sm mt-1">
                       <span className="font-medium">Margen Calculado:</span>
-                      <span className={`font-bold ${calculatedMargin >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      <span className={`font-bold ${financialColor(calculatedMargin)}`}>
                         {form.watch("currency") || "ARS"} {calculatedMargin.toLocaleString("es-AR", { minimumFractionDigits: 2 })} ({calculatedMarginPercent.toFixed(1)}%)
                       </span>
                     </div>

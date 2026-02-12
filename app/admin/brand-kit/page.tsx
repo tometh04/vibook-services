@@ -42,6 +42,8 @@ const SECTIONS = [
   { id: "spacing", label: "Espaciado & Radius" },
   { id: "darkmode", label: "Dark Mode" },
   { id: "palettes", label: "Paletas Tenant" },
+  { id: "tokens", label: "Design Tokens" },
+  { id: "conventions", label: "Convenciones" },
 ]
 
 function Section({ id, title, description, children }: {
@@ -97,6 +99,14 @@ const BRAND_COLORS = [
     hsl: "0 84% 60%",
     var: "--destructive",
     bg: "bg-destructive",
+  },
+  {
+    name: "Info",
+    semantic: "Informacion contextual, estados neutrales",
+    hex: "#2196F3",
+    hsl: "210 92% 56%",
+    var: "--info",
+    bg: "bg-info",
   },
   {
     name: "Background",
@@ -606,6 +616,141 @@ export default function BrandKitPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </Section>
+
+          {/* DESIGN TOKENS */}
+          <Section id="tokens" title="Design Tokens" description="Mapas de colores centralizados por dominio (lib/design-tokens.ts)">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Operaciones</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Pre-reserva", color: "bg-gray-500" },
+                    { label: "Reservado", color: "bg-blue-500" },
+                    { label: "Confirmado", color: "bg-green-500" },
+                    { label: "Cancelado", color: "bg-red-500" },
+                    { label: "Viajado", color: "bg-purple-500" },
+                    { label: "Cerrado", color: "bg-slate-500" },
+                  ].map((s) => (
+                    <span key={s.label} className={`${s.color} text-white text-xs px-2.5 py-1 rounded-full`}>{s.label}</span>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pagos</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Pendiente", color: "bg-yellow-500" },
+                    { label: "Pagado", color: "bg-green-500" },
+                    { label: "Vencido", color: "bg-red-500" },
+                  ].map((s) => (
+                    <span key={s.label} className={`${s.color} text-white text-xs px-2.5 py-1 rounded-full`}>{s.label}</span>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Roles de Usuario</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Super Admin", color: "bg-purple-500" },
+                    { label: "Administrador", color: "bg-blue-500" },
+                    { label: "Contable", color: "bg-green-500" },
+                    { label: "Vendedor", color: "bg-orange-500" },
+                    { label: "Observador", color: "bg-gray-500" },
+                  ].map((s) => (
+                    <span key={s.label} className={`${s.color} text-white text-xs px-2.5 py-1 rounded-full`}>{s.label}</span>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Regiones de Leads</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Argentina", color: "bg-blue-500" },
+                    { label: "Caribe", color: "bg-cyan-500" },
+                    { label: "Brasil", color: "bg-green-500" },
+                    { label: "Europa", color: "bg-purple-500" },
+                    { label: "EEUU", color: "bg-red-500" },
+                    { label: "Cruceros", color: "bg-orange-500" },
+                    { label: "Otros", color: "bg-gray-500" },
+                  ].map((s) => (
+                    <span key={s.label} className={`${s.color} text-white text-xs px-2.5 py-1 rounded-full`}>{s.label}</span>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Contabilidad (Ledger)</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Ingreso", color: "bg-amber-500" },
+                    { label: "Egreso", color: "bg-red-500" },
+                    { label: "Ganancia Cambio", color: "bg-amber-500" },
+                    { label: "Perdida Cambio", color: "bg-orange-500" },
+                    { label: "Pago Operador", color: "bg-purple-500" },
+                  ].map((s) => (
+                    <span key={s.label} className={`${s.color} text-white text-xs px-2.5 py-1 rounded-full`}>{s.label}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* CONVENCIONES DE COLOR */}
+          <Section id="conventions" title="Convenciones de Color" description="Reglas de uso de colores en el sistema">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-success" />
+                    <span className="font-medium text-sm">Verde (Success)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Valores positivos, ingresos, estados exitosos, confirmaciones, activos contables</p>
+                </div>
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-destructive" />
+                    <span className="font-medium text-sm">Rojo (Destructive)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Valores negativos, egresos, errores, cancelaciones, pasivos contables</p>
+                </div>
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-warning" />
+                    <span className="font-medium text-sm">Amarillo (Warning)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Pendientes, alertas, precauciones, estados que requieren atencion</p>
+                </div>
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-info" />
+                    <span className="font-medium text-sm">Azul (Info)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Informacion contextual, estados neutros, reservas, datos informativos</p>
+                </div>
+              </div>
+              <div className="border rounded-lg p-4 space-y-3">
+                <p className="font-medium text-sm">Reglas de uso</p>
+                <ul className="text-xs text-muted-foreground space-y-1.5">
+                  <li>Usar <code className="bg-muted px-1 rounded">financialColor(value)</code> para colorear valores monetarios positivos/negativos</li>
+                  <li>Usar <code className="bg-muted px-1 rounded">Badge variant=&quot;success-soft&quot;</code> para estados suaves en paneles admin</li>
+                  <li>Siempre incluir variante <code className="bg-muted px-1 rounded">dark:</code> cuando se usen colores hardcodeados</li>
+                  <li>Importar color maps desde <code className="bg-muted px-1 rounded">@/lib/design-tokens</code>, nunca definir localmente</li>
+                  <li>Para botones destructivos usar <code className="bg-muted px-1 rounded">variant=&quot;destructive&quot;</code> en vez de <code className="bg-muted px-1 rounded">className=&quot;bg-red-600&quot;</code></li>
+                </ul>
+              </div>
             </div>
           </Section>
 

@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, AlertTriangle, Building2, Loader2 } from "lucide-react"
+import { financialColor } from "@/lib/design-tokens"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
@@ -718,9 +719,7 @@ export function FinancialAccountsPageClient({ agencies: initialAgencies }: Finan
                   </TableCell>
                         <TableCell className="text-right">
                     <span
-                      className={`font-bold ${
-                              (account.current_balance || 0) >= 0 ? "text-amber-600" : "text-red-600"
-                      }`}
+                      className={`font-bold ${financialColor(account.current_balance || 0)}`}
                     >
                       {formatCurrency(account.current_balance || 0, account.currency)}
                     </span>

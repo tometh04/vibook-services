@@ -109,7 +109,7 @@ export function BirthdaysTodayCard() {
                   size="sm"
                   variant="outline"
                   onClick={() => openWhatsApp(customer)}
-                  className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="gap-1 text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50"
                 >
                   <MessageSquare className="h-3 w-3" />
                   Saludar

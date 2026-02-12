@@ -320,7 +320,7 @@ export function PaymentPlanGenerator({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Diferencia:</span>
-                  <span className={`font-semibold ${Math.abs(difference) > 1 ? "text-destructive" : "text-green-600"}`}>
+                  <span className={`font-semibold ${Math.abs(difference) > 1 ? "text-destructive" : "text-green-600 dark:text-green-400"}`}>
                     {currency} {difference.toLocaleString("es-AR")}
                   </span>
                 </div>

@@ -32,6 +32,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { OPERATION_STATUS_COLORS, financialColor } from "@/lib/design-tokens"
 
 const operationSchema = z.object({
   agency_id: z.string().min(1, "La agencia es requerida"),
@@ -69,12 +70,12 @@ const operationTypeOptions = [
 ]
 
 const standardStatusOptions = [
-  { value: "PRE_RESERVATION", label: "Pre-reserva", color: "bg-gray-500" },
-  { value: "RESERVED", label: "Reservado", color: "bg-blue-500" },
-  { value: "CONFIRMED", label: "Confirmado", color: "bg-green-500" },
-  { value: "CANCELLED", label: "Cancelado", color: "bg-red-500" },
-  { value: "TRAVELLED", label: "Viajado", color: "bg-purple-500" },
-  { value: "CLOSED", label: "Cerrado", color: "bg-slate-500" },
+  { value: "PRE_RESERVATION", label: "Pre-reserva", color: OPERATION_STATUS_COLORS.PRE_RESERVATION },
+  { value: "RESERVED", label: "Reservado", color: OPERATION_STATUS_COLORS.RESERVED },
+  { value: "CONFIRMED", label: "Confirmado", color: OPERATION_STATUS_COLORS.CONFIRMED },
+  { value: "CANCELLED", label: "Cancelado", color: OPERATION_STATUS_COLORS.CANCELLED },
+  { value: "TRAVELLED", label: "Viajado", color: OPERATION_STATUS_COLORS.TRAVELLED },
+  { value: "CLOSED", label: "Cerrado", color: OPERATION_STATUS_COLORS.CLOSED },
 ]
 
 interface Operation {
@@ -331,13 +332,13 @@ export function EditOperationDialog({
                 <p className="text-sm text-muted-foreground">Margen Calculado</p>
                 <p className={cn(
                   "text-2xl font-bold",
-                  marginInfo.isPositive ? "text-green-600" : "text-red-600"
+                  financialColor(marginInfo.amount)
                 )}>
                   {form.watch("currency")} {marginInfo.amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                 </p>
                 <p className={cn(
                   "text-sm",
-                  marginInfo.isPositive ? "text-green-600" : "text-red-600"
+                  financialColor(marginInfo.amount)
                 )}>
                   ({marginInfo.percentage.toFixed(1)}%)
                 </p>

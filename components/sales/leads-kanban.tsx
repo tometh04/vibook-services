@@ -10,6 +10,7 @@ import { ExternalLink, DollarSign, UserPlus, Loader2, ArrowRight, GripVertical }
 import Link from "next/link"
 import { LeadDetailDialog } from "@/components/sales/lead-detail-dialog"
 import { toast } from "sonner"
+import { LEAD_REGION_COLORS } from "@/lib/design-tokens"
 
 const statusColumns = [
   { id: "NEW", label: "Nuevo", color: "bg-blue-500/10", borderColor: "border-blue-500/30" },
@@ -19,15 +20,6 @@ const statusColumns = [
   { id: "LOST", label: "Perdido", color: "bg-blue-600/10", borderColor: "border-blue-600/30" },
 ]
 
-const regionColors: Record<string, string> = {
-  ARGENTINA: "bg-blue-500",
-  CARIBE: "bg-cyan-500",
-  BRASIL: "bg-green-500",
-  EUROPA: "bg-purple-500",
-  EEUU: "bg-red-500",
-  OTROS: "bg-gray-500",
-  CRUCEROS: "bg-orange-500",
-}
 
 interface Lead {
   id: string
@@ -276,7 +268,7 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge
                           variant="outline"
-                          className={`text-[10px] px-1.5 py-0 ${regionColors[lead.region] ? `${regionColors[lead.region]} text-white border-0` : ""}`}
+                          className={`text-[10px] px-1.5 py-0 ${LEAD_REGION_COLORS[lead.region] ? `${LEAD_REGION_COLORS[lead.region]} text-white border-0` : ""}`}
                         >
                           {lead.region}
                         </Badge>

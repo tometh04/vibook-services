@@ -21,6 +21,7 @@ import { formatDistanceToNow, format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
 import { toast } from "sonner"
+import { WHATSAPP_CATEGORY_COLORS } from "@/lib/design-tokens"
 
 interface Message {
   id: string
@@ -53,16 +54,6 @@ interface MessageCardProps {
   message: Message
   onMarkSent: () => void
   onSkip: () => void
-}
-
-const categoryColors: Record<string, string> = {
-  PAYMENT: "bg-amber-100 text-amber-800",
-  TRIP: "bg-blue-100 text-blue-800",
-  QUOTATION: "bg-purple-100 text-purple-800",
-  BIRTHDAY: "bg-pink-100 text-pink-800",
-  ANNIVERSARY: "bg-rose-100 text-rose-800",
-  MARKETING: "bg-green-100 text-green-800",
-  CUSTOM: "bg-muted text-foreground",
 }
 
 export function MessageCard({ message, onMarkSent, onSkip }: MessageCardProps) {
@@ -133,7 +124,7 @@ export function MessageCard({ message, onMarkSent, onSkip }: MessageCardProps) {
               </div>
               <div className="flex items-center gap-2">
                 {message.message_templates?.category && (
-                  <Badge className={categoryColors[message.message_templates.category] || ""}>
+                  <Badge className={WHATSAPP_CATEGORY_COLORS[message.message_templates.category] || ""}>
                     {message.message_templates.category}
                   </Badge>
                 )}
@@ -225,7 +216,7 @@ export function MessageCard({ message, onMarkSent, onSkip }: MessageCardProps) {
               </>
             )}
             {isSent && (
-              <div className="flex items-center justify-center text-green-600">
+              <div className="flex items-center justify-center text-green-600 dark:text-green-400">
                 <CheckCircle className="h-5 w-5 mr-2" />
                 Enviado
               </div>

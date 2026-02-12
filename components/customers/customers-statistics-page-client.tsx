@@ -46,6 +46,7 @@ import {
   Legend,
 } from "recharts"
 import { formatUSD } from "@/lib/currency"
+import { trendColor } from "@/lib/design-tokens"
 
 interface CustomerStatistics {
   overview: {
@@ -212,13 +213,13 @@ export function CustomersStatisticsPageClient() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Crecimiento</CardTitle>
             {stats.overview.growthPercentage >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-green-500" />
+              <TrendingUp className={`h-4 w-4 ${trendColor(stats.overview.growthPercentage)}`} />
             ) : (
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <TrendingDown className={`h-4 w-4 ${trendColor(stats.overview.growthPercentage)}`} />
             )}
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.overview.growthPercentage >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div className={`text-2xl font-bold ${trendColor(stats.overview.growthPercentage)}`}>
               {stats.overview.growthPercentage >= 0 ? '+' : ''}{Math.round(stats.overview.growthPercentage * 10) / 10}%
             </div>
             <p className="text-xs text-muted-foreground">

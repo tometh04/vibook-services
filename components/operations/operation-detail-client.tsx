@@ -17,6 +17,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
 import { ArrowLeft, Pencil, AlertCircle, Trash2, Loader2, RefreshCw } from "lucide-react"
+import { OPERATION_STATUS_LABELS, financialColor } from "@/lib/design-tokens"
 import { DocumentsSection } from "@/components/documents/documents-section"
 import { OperationAccountingSection } from "@/components/operations/operation-accounting-section"
 import { OperationPaymentsSection } from "@/components/operations/operation-payments-section"
@@ -30,15 +31,6 @@ import {
 } from "@/components/ui/breadcrumb"
 import { EditOperationDialog } from "./edit-operation-dialog"
 import { useRouter } from "next/navigation"
-
-const statusLabels: Record<string, string> = {
-  PRE_RESERVATION: "Pre-reserva",
-  RESERVED: "Reservado",
-  CONFIRMED: "Confirmado",
-  CANCELLED: "Cancelado",
-  TRAVELLED: "Viajado",
-  CLOSED: "Cerrado",
-}
 
 const typeLabels: Record<string, string> = {
   FLIGHT: "Vuelo",
@@ -160,7 +152,7 @@ export function OperationDetailClient({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">{statusLabels[operation.status] || operation.status}</Badge>
+          <Badge variant="secondary">{OPERATION_STATUS_LABELS[operation.status] || operation.status}</Badge>
           <Button onClick={() => setEditDialogOpen(true)}>
             <Pencil className="mr-2 h-4 w-4" />
             Editar
@@ -192,7 +184,7 @@ export function OperationDetailClient({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Estado</p>
-                    <Badge variant="secondary">{statusLabels[operation.status] || operation.status}</Badge>
+                    <Badge variant="secondary">{OPERATION_STATUS_LABELS[operation.status] || operation.status}</Badge>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Origen</p>
@@ -268,13 +260,13 @@ export function OperationDetailClient({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Margen</p>
-                    <p className="text-lg font-semibold text-green-600">
+                    <p className={`text-lg font-semibold ${financialColor(operation.margin_amount)}`}>
                       {operation.currency} {operation.margin_amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Margen %</p>
-                    <p className="text-lg font-semibold text-green-600">
+                    <p className={`text-lg font-semibold ${financialColor(operation.margin_amount)}`}>
                       {operation.margin_percentage.toFixed(1)}%
                     </p>
                   </div>

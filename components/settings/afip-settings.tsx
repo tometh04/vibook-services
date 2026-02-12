@@ -154,7 +154,7 @@ export function AfipSettings({ agencies, defaultAgencyId }: AfipSettingsProps) {
               </div>
               <div>
                 <span className="text-muted-foreground">Estado:</span>
-                <Badge variant="default" className="ml-2 bg-green-500">Activo</Badge>
+                <Badge variant="success" className="ml-2">Activo</Badge>
               </div>
             </div>
           </CardContent>

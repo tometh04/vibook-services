@@ -283,7 +283,7 @@ export function DocumentsSection({ documents: initialDocuments, operationId, cus
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Badge variant="outline">{getDocumentTypeLabel(doc.type)}</Badge>
                       {doc.scanned_data && (
-                        <Badge variant="default" className="bg-green-600">
+                        <Badge variant="success">
                           <CheckCircle2 className="h-3 w-3 mr-1" />
                           Escaneado
                         </Badge>
@@ -377,13 +377,13 @@ export function DocumentsSection({ documents: initialDocuments, operationId, cus
                                   </Badge>
                                 )}
                                 {status.status === "WARNING" && (
-                                  <Badge variant="outline" className="ml-2 border-yellow-500 text-yellow-600">
+                                  <Badge variant="warning-soft" className="ml-2">
                                     <AlertTriangle className="h-3 w-3 mr-1" />
                                     {status.message}
                                   </Badge>
                                 )}
                                 {status.status === "OK" && (
-                                  <Badge variant="outline" className="ml-2 border-green-500 text-green-600">
+                                  <Badge variant="success-soft" className="ml-2">
                                     <CheckCircle2 className="h-3 w-3 mr-1" />
                                     {status.message}
                                   </Badge>
