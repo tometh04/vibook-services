@@ -4,6 +4,7 @@ import OpenAI from "openai"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
+import { checkRateLimit } from "@/lib/rate-limit"
 
 // Esquema REAL de la base de datos - Actualizado 2025-01-28
 const DATABASE_SCHEMA = `
@@ -452,6 +453,20 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
+    // Rate limiting: 15 requests por minuto por usuario
+    const rateLimit = checkRateLimit('/api/ai', user.id)
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Demasiadas consultas. Esperá un momento antes de intentar de nuevo." },
+        { status: 429, headers: {
+          'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+          'X-RateLimit-Limit': '15',
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.resetAt),
+        }}
+      )
     }
 
     const featureAccess = await verifyFeatureAccess(user.id, user.role, "cerebro")

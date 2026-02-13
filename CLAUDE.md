@@ -246,12 +246,11 @@ Run tests before committing changes to accounting/permission logic.
 
 ## Important Implementation Notes
 
-### Authentication Bypass in Development
+### Authentication
 
-**CURRENT STATE**: Authentication is bypassed when `DISABLE_AUTH=true` in `.env.local`
-- Located in: `middleware.ts` and `lib/auth.ts`
-- Returns mock SUPER_ADMIN user in development
-- **TODO**: REMOVE before production deployment
+Authentication is always enforced via Supabase Auth. No development bypass exists.
+- `DISABLE_AUTH` was removed from the codebase (subscription-middleware, operations, customers)
+- All endpoints require valid Supabase session
 
 ### File Upload & OCR
 
@@ -300,7 +299,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 OPENAI_API_KEY=your_openai_key  # Optional, for OCR and AI Copilot
 EMILIA_API_KEY=your_emilia_api_key           # Required for Emilia/Vibook travel search (wsk_xxx format)
 EMILIA_API_URL=https://api.vibook.ai/search  # Optional, defaults to vibook.ai
-DISABLE_AUTH=true                # DEVELOPMENT ONLY - Remove for production
+# DISABLE_AUTH was removed - authentication is always enforced
 ```
 
 ## Database Schema Notes

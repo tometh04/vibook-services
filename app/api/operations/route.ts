@@ -113,16 +113,11 @@ export async function POST(request: Request) {
     })
 
     if (limitError) {
-      // En desarrollo local, permitir continuar si la RPC no existe (SOLO desarrollo)
-      if (process.env.DISABLE_AUTH === "true" && process.env.NODE_ENV === "development") {
-        console.warn("⚠️ check_and_increment_operation_limit falló en dev, se omite el bloqueo:", limitError)
-      } else {
-        console.error("Error checking operation limit:", limitError)
-        return NextResponse.json(
-          { error: "Error al verificar límite de operaciones. Por favor, intentá nuevamente." },
-          { status: 500 }
-        )
-      }
+      console.error("Error checking operation limit:", limitError)
+      return NextResponse.json(
+        { error: "Error al verificar límite de operaciones. Por favor, intentá nuevamente." },
+        { status: 500 }
+      )
     } else {
       const limitCheck = limitResult as any
       if (!limitCheck.allowed || limitCheck.limit_reached) {

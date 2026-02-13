@@ -148,8 +148,54 @@ export async function getLastVoucherNumber(
 }
 
 /**
+ * Determina si un error es transitorios (network, timeout, 5xx) y se puede reintentar
+ */
+function isTransientError(error: any): boolean {
+  if (!error) return false
+  const status = error?.status || error?.response?.status
+  if (status && status >= 500) return true
+  const msg = (error?.message || error?.code || '').toLowerCase()
+  return msg.includes('timeout') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused') ||
+    msg.includes('socket hang up') ||
+    msg.includes('network') ||
+    msg.includes('enotfound') ||
+    msg.includes('etimedout')
+}
+
+/**
+ * Ejecuta una función con retry y exponential backoff
+ * Solo reintenta errores transitorios (network, timeout, 5xx)
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+  maxAttempts: number = 3
+): Promise<T> {
+  let lastError: any
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (error: any) {
+      lastError = error
+      if (attempt === maxAttempts || !isTransientError(error)) {
+        throw error
+      }
+      const baseDelay = Math.pow(2, attempt - 1) * 1000 // 1s, 2s, 4s
+      const jitter = Math.random() * 500
+      const delay = baseDelay + jitter
+      console.warn(`[AFIP SDK] ${label} intento ${attempt}/${maxAttempts} falló (transient), reintentando en ${Math.round(delay)}ms...`, error?.message || '')
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+  throw lastError
+}
+
+/**
  * Crea una factura electrónica usando el SDK de AFIP
  * Usa createNextVoucher que obtiene el último número automáticamente
+ * Incluye retry con exponential backoff para errores transitorios
  */
 export async function createInvoice(
   request: CreateInvoiceRequest,
@@ -220,8 +266,11 @@ export async function createInvoice(
 
     console.log('[AFIP SDK] createNextVoucher data:', JSON.stringify(voucherData))
 
-    // Paso 1: obtener último comprobante
-    const lastVoucher = await afip.ElectronicBilling.getLastVoucher(request.PtoVta, request.CbteTipo)
+    // Paso 1: obtener último comprobante (con retry)
+    const lastVoucher = await withRetry<number>(
+      () => afip.ElectronicBilling.getLastVoucher(request.PtoVta, request.CbteTipo),
+      'getLastVoucher'
+    )
     const voucherNumber = lastVoucher + 1
 
     console.log('[AFIP SDK] lastVoucher:', lastVoucher, 'next:', voucherNumber)
@@ -230,8 +279,11 @@ export async function createInvoice(
     voucherData.CbteDesde = voucherNumber
     voucherData.CbteHasta = voucherNumber
 
-    // Paso 3: crear comprobante con returnResponse=true para ver respuesta completa de AFIP
-    const fullResponse = await afip.ElectronicBilling.createVoucher(voucherData, true)
+    // Paso 3: crear comprobante con retry para errores transitorios
+    const fullResponse = await withRetry<any>(
+      () => afip.ElectronicBilling.createVoucher(voucherData, true),
+      'createVoucher'
+    )
 
     console.log('[AFIP SDK] createVoucher fullResponse:', JSON.stringify(fullResponse).substring(0, 1000))
 

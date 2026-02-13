@@ -5,7 +5,6 @@ import { getUserAgencyIds } from "@/lib/permissions-api"
 import { canAccessModule } from "@/lib/permissions"
 import {
   createInvoice,
-  isAfipConfigured,
   getAgencyAfipConfig,
   formatDate,
 } from "@/lib/afip/afip-client"
@@ -31,14 +30,6 @@ export async function POST(
       )
     }
 
-    // Verificar que AFIP está configurado
-    if (!isAfipConfigured()) {
-      return NextResponse.json(
-        { error: "AFIP SDK no está configurado. Configure las variables de entorno." },
-        { status: 400 }
-      )
-    }
-
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
 
@@ -52,11 +43,6 @@ export async function POST(
       .in("agency_id", agencyIds)
       .single()
 
-    // Obtener config AFIP de la agencia de la factura
-    const afipConfig = invoice?.agency_id
-      ? await getAgencyAfipConfig(supabase, invoice.agency_id)
-      : null
-
     if (fetchError || !invoice) {
       return NextResponse.json(
         { error: "Factura no encontrada" },
@@ -64,8 +50,21 @@ export async function POST(
       )
     }
 
-    // Verificar que la factura está en estado válido
-    if (invoice.status !== 'draft' && invoice.status !== 'pending') {
+    // Obtener config AFIP de la agencia de la factura
+    const afipConfig = invoice.agency_id
+      ? await getAgencyAfipConfig(supabase, invoice.agency_id)
+      : null
+
+    // Verificar que AFIP está configurado para esta agencia
+    if (!afipConfig) {
+      return NextResponse.json(
+        { error: "AFIP no está configurado para esta agencia. Configuralo desde Ajustes > AFIP." },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que la factura está en estado válido (draft, pending o rejected para reintentar)
+    if (invoice.status !== 'draft' && invoice.status !== 'pending' && invoice.status !== 'rejected') {
       return NextResponse.json(
         { error: `No se puede autorizar una factura en estado '${invoice.status}'` },
         { status: 400 }

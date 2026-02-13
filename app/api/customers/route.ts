@@ -283,25 +283,6 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    // Fallback para entornos legacy donde customers.agency_id no existe (SOLO desarrollo)
-    if (
-      createError &&
-      process.env.DISABLE_AUTH === "true" &&
-      process.env.NODE_ENV === "development" &&
-      (createError as any)?.code === "PGRST204" &&
-      String((createError as any)?.message || "").includes("agency_id")
-    ) {
-      console.warn("[POST /api/customers] agency_id column missing, retrying without agency_id")
-      const legacyPayload = { ...customerPayload }
-      delete legacyPayload.agency_id
-      const retry = await (supabase.from("customers") as any)
-        .insert(legacyPayload)
-        .select()
-        .single()
-      customer = retry.data
-      createError = retry.error
-    }
-
     if (createError || !customer) {
       console.error("[POST /api/customers] Error creating customer:", createError)
       return NextResponse.json({ error: "Error al crear cliente" }, { status: 400 })

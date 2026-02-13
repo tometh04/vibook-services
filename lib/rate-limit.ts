@@ -17,6 +17,7 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
   '/api/settings/users/invite': { maxRequests: 10, windowMs: 60 * 1000 }, // 10 requests por minuto
   '/api/leads': { maxRequests: 30, windowMs: 60 * 1000 }, // 30 requests por minuto (POST)
   '/api/customers': { maxRequests: 30, windowMs: 60 * 1000 }, // 30 requests por minuto (POST)
+  '/api/ai': { maxRequests: 15, windowMs: 60 * 1000 }, // 15 requests por minuto (Cerebro)
 }
 
 // In-memory store (en producción usar Redis)
