@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     }
 
     if (!preapprovalId) {
-      return NextResponse.redirect(new URL('/pricing?error=no_preapproval_id', request.url))
+      return NextResponse.redirect(new URL('/paywall?error=no_preapproval_id', request.url))
     }
 
     // Obtener información del preapproval de Mercado Pago
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
       preapproval = preapprovalResponse as any
     } catch (error: any) {
       console.error('Error obteniendo preapproval:', error)
-      return NextResponse.redirect(new URL('/pricing?error=preapproval_not_found', request.url))
+      return NextResponse.redirect(new URL('/paywall?error=preapproval_not_found', request.url))
     }
 
     // IMPORTANTE: Usar external_reference del preapproval para obtener agency_id
@@ -119,49 +119,53 @@ export async function GET(request: Request) {
 
     if (!agencyId) {
       console.error('No se pudo determinar agency_id para preapproval:', preapprovalId)
-      return NextResponse.redirect(new URL('/pricing?error=no_agency', request.url))
+      return NextResponse.redirect(new URL('/paywall?error=no_agency', request.url))
     }
 
     // Determinar el plan: usar planId del external_reference si está disponible,
-    // sino determinar por el monto del preapproval (fallback)
+    // sino determinar por el monto del preapproval buscando en la DB
     if (!planId) {
       const amount = preapproval.auto_recurring?.transaction_amount
-      let planName = 'STARTER' // Default
-      
-      // Precios actuales: Starter $79.990, Pro $99.990
-      if (amount === 79990) {
-        planName = 'STARTER'
-      } else if (amount === 99990) {
-        planName = 'PRO'
-      } else {
-        // Fallback para precios antiguos (por compatibilidad)
-        if (amount === 399000) {
-          planName = 'BUSINESS'
-        } else if (amount === 79000) {
-          planName = 'STARTER'
-        } else if (amount === 129000) {
-          planName = 'PRO'
-        } else if (amount === 15000) {
-          planName = 'STARTER'
-        } else if (amount === 50000) {
-          planName = 'PRO'
-        }
+      console.log('[Preapproval Callback] Determining plan by amount from DB:', { amount })
+
+      // Buscar el plan que coincida con el precio mensual en la DB
+      let planData: any = null
+      let planError: any = null
+
+      if (amount) {
+        // Buscar plan cuyo price_monthly coincida exactamente con el monto
+        const result = await (supabaseAdmin
+          .from("subscription_plans") as any)
+          .select("id, name, price_monthly")
+          .eq("price_monthly", amount)
+          .neq("name", "FREE")
+          .neq("name", "TESTER")
+          .limit(1)
+          .maybeSingle()
+
+        planData = result.data
+        planError = result.error
       }
 
-      console.log('[Preapproval Callback] Determining plan by amount:', { amount, planName })
+      // Si no se encontró por precio exacto, usar STARTER como fallback
+      if (!planData) {
+        console.warn('[Preapproval Callback] No plan found for amount:', amount, '- falling back to STARTER')
+        const fallback = await (supabaseAdmin
+          .from("subscription_plans") as any)
+          .select("id, name")
+          .eq("name", "STARTER")
+          .single()
 
-      // Obtener el plan de la base de datos
-      const { data: planData, error: planError } = await (supabaseAdmin
-        .from("subscription_plans") as any)
-        .select("id")
-        .eq("name", planName)
-        .single()
+        planData = fallback.data
+        planError = fallback.error
+      }
 
       if (planError || !planData) {
         console.error('Error obteniendo plan:', planError)
-        return NextResponse.redirect(new URL('/pricing?error=plan_not_found', request.url))
+        return NextResponse.redirect(new URL('/paywall?error=plan_not_found', request.url))
       }
 
+      console.log('[Preapproval Callback] Matched plan:', { id: planData.id, name: planData.name, price: planData.price_monthly })
       planId = (planData as any).id
     }
 
@@ -364,6 +368,6 @@ export async function GET(request: Request) {
     }
   } catch (error: any) {
     console.error('Error en preapproval callback:', error)
-    return NextResponse.redirect(new URL('/pricing?error=callback_error', request.url))
+    return NextResponse.redirect(new URL('/paywall?error=callback_error', request.url))
   }
 }

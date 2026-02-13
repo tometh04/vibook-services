@@ -77,7 +77,7 @@ export function PaywallGate({
                 </Badge>
               )}
               <Button asChild onClick={() => setShowUpgrade(true)}>
-                <Link href="/pricing">
+                <Link href="/paywall">
                   Ver Planes
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -106,7 +106,7 @@ export function PaywallGate({
               Cancelar
             </Button>
             <Button asChild>
-              <Link href="/pricing">
+              <Link href="/paywall">
                 Ver Planes Disponibles
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

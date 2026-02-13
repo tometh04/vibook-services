@@ -171,7 +171,58 @@ export async function GET(request: Request) {
         console.error("❌ Error creating agency:", agencyError)
       }
     } else if (existingUser && existingUser.is_active) {
-      // Usuario existe y está activo, redirigir al dashboard
+      // Usuario existe y está activo - verificar suscripción antes de redirigir
+      // Buscar la agencia del usuario
+      const { data: userAgency } = await (supabaseAdmin
+        .from("user_agencies") as any)
+        .select("agency_id")
+        .eq("user_id", existingUser.id)
+        .limit(1)
+        .maybeSingle()
+
+      if (userAgency?.agency_id) {
+        // Verificar si tiene suscripción activa
+        const { data: subscription } = await (supabaseAdmin
+          .from("subscriptions") as any)
+          .select("id, status, trial_end, plan:subscription_plans(name)")
+          .eq("agency_id", userAgency.agency_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (!subscription) {
+          // Sin suscripción → paywall
+          return NextResponse.redirect(`${origin}/paywall`)
+        }
+
+        const subStatus = subscription.status as string
+        const planName = subscription.plan?.name as string
+
+        // TESTER siempre tiene acceso
+        if (planName === 'TESTER') {
+          return NextResponse.redirect(`${origin}/dashboard`)
+        }
+
+        // ACTIVE tiene acceso
+        if (subStatus === 'ACTIVE') {
+          return NextResponse.redirect(`${origin}/dashboard`)
+        }
+
+        // TRIAL solo si no expiró
+        if (subStatus === 'TRIAL') {
+          const trialEnd = subscription.trial_end ? new Date(subscription.trial_end) : null
+          if (!trialEnd || trialEnd >= new Date()) {
+            return NextResponse.redirect(`${origin}/dashboard`)
+          }
+          // Trial expirado → paywall
+          return NextResponse.redirect(`${origin}/paywall?trial_expired=true`)
+        }
+
+        // Cualquier otro estado (CANCELED, SUSPENDED, UNPAID, PAST_DUE) → paywall
+        return NextResponse.redirect(`${origin}/paywall?status=${subStatus.toLowerCase()}`)
+      }
+
+      // Sin agencia (caso raro) → dashboard
       return NextResponse.redirect(`${origin}/dashboard`)
     } else if (existingUser && !existingUser.is_active) {
       return NextResponse.redirect(`${origin}/login?error=account_inactive`)

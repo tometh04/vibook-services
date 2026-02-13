@@ -283,10 +283,11 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    // Fallback para entornos legacy donde customers.agency_id no existe
+    // Fallback para entornos legacy donde customers.agency_id no existe (SOLO desarrollo)
     if (
       createError &&
       process.env.DISABLE_AUTH === "true" &&
+      process.env.NODE_ENV === "development" &&
       (createError as any)?.code === "PGRST204" &&
       String((createError as any)?.message || "").includes("agency_id")
     ) {

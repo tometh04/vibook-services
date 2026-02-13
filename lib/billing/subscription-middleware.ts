@@ -35,8 +35,8 @@ export async function verifySubscriptionAccess(
   userRole: string
 ): Promise<SubscriptionCheckResult> {
   try {
-    // Bypass para desarrollo local cuando la auth está deshabilitada
-    if (process.env.DISABLE_AUTH === "true") {
+    // Bypass para desarrollo local SOLO en entorno de desarrollo
+    if (process.env.DISABLE_AUTH === "true" && process.env.NODE_ENV === "development") {
       return {
         hasAccess: true,
         subscription: {
@@ -49,7 +49,7 @@ export async function verifySubscriptionAccess(
 
     const supabase = await createServerClient()
     const supabaseAdmin = createAdminSupabaseClient()
-    
+
     // Obtener agencias del usuario
     const agencyIds = await getUserAgencyIds(supabase, userId, userRole as any)
     
@@ -169,8 +169,8 @@ export async function verifyFeatureAccess(
   agencyId?: string
 ): Promise<FeatureAccessResult> {
   try {
-    // Bypass para desarrollo local cuando la auth está deshabilitada
-    if (process.env.DISABLE_AUTH === "true") {
+    // Bypass para desarrollo local SOLO en entorno de desarrollo
+    if (process.env.DISABLE_AUTH === "true" && process.env.NODE_ENV === "development") {
       return { hasAccess: true, agencyId }
     }
 

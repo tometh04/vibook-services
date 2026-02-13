@@ -427,7 +427,7 @@ const sections: HelpSection[] = [
     ],
     links: [
       { label: "Ver Suscripción", href: "/settings/billing" },
-      { label: "Ver planes", href: "/pricing" },
+      { label: "Ver planes", href: "/paywall" },
     ],
   },
   {

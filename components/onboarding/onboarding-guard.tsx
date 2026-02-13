@@ -47,7 +47,7 @@ const ALWAYS_ALLOWED = [
   "/calendar",
   "/alerts",
   "/resources",
-  "/pricing",
+  "/paywall",
   "/my",
 ]
 

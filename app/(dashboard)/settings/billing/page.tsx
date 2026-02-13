@@ -170,7 +170,7 @@ export default function BillingPage() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            No se encontró una suscripción activa. <a href="/pricing" className="underline">Elegí un plan</a> para comenzar.
+            No se encontró una suscripción activa. <a href="/paywall" className="underline">Elegí un plan</a> para comenzar.
           </AlertDescription>
         </Alert>
       </div>
@@ -246,7 +246,7 @@ export default function BillingPage() {
 
           <div className="flex gap-2 pt-4 border-t flex-wrap">
             <Button variant="outline" asChild>
-              <a href="/pricing">
+              <a href="/paywall">
                 Cambiar Plan
               </a>
             </Button>
