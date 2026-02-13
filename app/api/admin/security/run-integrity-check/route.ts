@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { verifyAdminAuth } from "@/lib/admin/verify-admin-auth"
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    // CRÍTICO: Verificar autenticación admin directamente
+    const adminAuth = await verifyAdminAuth(request)
+    if (!adminAuth.valid) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     const supabase = createAdminSupabaseClient()
 
     // Ejecutar todas las verificaciones de integridad

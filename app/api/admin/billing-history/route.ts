@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { verifyAdminAuth } from "@/lib/admin/verify-admin-auth"
 
 /**
  * GET /api/admin/billing-history
@@ -7,6 +8,12 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin"
  */
 export async function GET(request: Request) {
   try {
+    // CRÍTICO: Verificar autenticación admin directamente
+    const adminAuth = await verifyAdminAuth(request)
+    if (!adminAuth.valid) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const agencyId = searchParams.get("agencyId")
 

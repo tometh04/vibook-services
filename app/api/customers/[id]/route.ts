@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifySubscriptionAccess } from "@/lib/billing/subscription-middleware"
 import { canAccessModule } from "@/lib/permissions"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { sendCustomerNotifications } from "@/lib/customers/customer-service"
@@ -89,7 +90,12 @@ export async function PATCH(
 ) {
   try {
     const { user } = await getCurrentUser()
-    
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
+    }
+
     // Verificar permiso de escritura
     if (!canAccessModule(user.role as any, "customers")) {
       return NextResponse.json({ error: "No tiene permiso para editar clientes" }, { status: 403 })
@@ -207,7 +213,12 @@ export async function DELETE(
 ) {
   try {
     const { user } = await getCurrentUser()
-    
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
+    }
+
     // Verificar permiso de escritura
     if (!canAccessModule(user.role as any, "customers")) {
       return NextResponse.json({ error: "No tiene permiso para eliminar clientes" }, { status: 403 })

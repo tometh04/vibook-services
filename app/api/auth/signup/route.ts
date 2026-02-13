@@ -3,6 +3,68 @@ import { createClient } from "@supabase/supabase-js"
 
 export const runtime = 'nodejs'
 
+// ============================================================
+// Rate Limiting para prevenir abuso de trials y spam de signups
+// ============================================================
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutos
+const MAX_SIGNUPS_PER_IP = 3 // Máximo 3 signups por IP cada 15 minutos
+const MAX_SIGNUPS_PER_EMAIL_DOMAIN = 10 // Máximo 10 signups por dominio de email
+const signupAttempts = new Map<string, { count: number; firstAttempt: number }>()
+
+function checkRateLimit(ip: string, emailDomain?: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now()
+
+  // Limpiar entradas expiradas cada 100 intentos
+  if (signupAttempts.size > 100) {
+    const keysToDelete: string[] = []
+    signupAttempts.forEach((value, key) => {
+      if (now - value.firstAttempt > RATE_LIMIT_WINDOW_MS) {
+        keysToDelete.push(key)
+      }
+    })
+    keysToDelete.forEach(key => signupAttempts.delete(key))
+  }
+
+  // Verificar por IP
+  const ipKey = `ip:${ip}`
+  const ipRecord = signupAttempts.get(ipKey)
+
+  if (ipRecord) {
+    if (now - ipRecord.firstAttempt > RATE_LIMIT_WINDOW_MS) {
+      // Ventana expirada, resetear
+      signupAttempts.set(ipKey, { count: 1, firstAttempt: now })
+    } else if (ipRecord.count >= MAX_SIGNUPS_PER_IP) {
+      const retryAfter = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - ipRecord.firstAttempt)) / 1000)
+      return { allowed: false, retryAfter }
+    } else {
+      ipRecord.count++
+    }
+  } else {
+    signupAttempts.set(ipKey, { count: 1, firstAttempt: now })
+  }
+
+  // Verificar por dominio de email (previene registro masivo con emails desechables)
+  if (emailDomain) {
+    const domainKey = `domain:${emailDomain}`
+    const domainRecord = signupAttempts.get(domainKey)
+
+    if (domainRecord) {
+      if (now - domainRecord.firstAttempt > RATE_LIMIT_WINDOW_MS) {
+        signupAttempts.set(domainKey, { count: 1, firstAttempt: now })
+      } else if (domainRecord.count >= MAX_SIGNUPS_PER_EMAIL_DOMAIN) {
+        const retryAfter = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - domainRecord.firstAttempt)) / 1000)
+        return { allowed: false, retryAfter }
+      } else {
+        domainRecord.count++
+      }
+    } else {
+      signupAttempts.set(domainKey, { count: 1, firstAttempt: now })
+    }
+  }
+
+  return { allowed: true }
+}
+
 // Validar variables de entorno al inicio
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -63,6 +125,41 @@ export async function POST(request: Request) {
     if (!name || !email || !password || !agencyName || !city) {
       return NextResponse.json(
         { error: "Todos los campos son requeridos" },
+        { status: 400 }
+      )
+    }
+
+    // ============================================================
+    // SEGURIDAD: Rate limiting por IP y dominio de email
+    // Previene abuso de trials y registro masivo de cuentas
+    // ============================================================
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
+    const emailDomain = email.split('@')[1]?.toLowerCase()
+
+    const rateCheck = checkRateLimit(clientIp, emailDomain)
+    if (!rateCheck.allowed) {
+      console.warn(`🚨 Rate limit exceeded for signup: IP=${clientIp}, domain=${emailDomain}`)
+      return NextResponse.json(
+        { error: "Demasiados intentos de registro. Por favor esperá unos minutos antes de intentar nuevamente." },
+        { status: 429, headers: { 'Retry-After': String(rateCheck.retryAfter || 900) } }
+      )
+    }
+
+    // Validar formato de email básico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "El formato del email no es válido" },
+        { status: 400 }
+      )
+    }
+
+    // Validar largo de password
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: "La contraseña debe tener al menos 6 caracteres" },
         { status: 400 }
       )
     }

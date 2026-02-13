@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { verifyAdminAuth } from "@/lib/admin/verify-admin-auth"
 
 /**
  * POST /api/admin/subscriptions/[id]/extend-trial
@@ -10,6 +11,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // CRÍTICO: Verificar autenticación admin directamente
+    const adminAuth = await verifyAdminAuth(request)
+    if (!adminAuth.valid) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     const { id: subscriptionId } = await params
     const body = await request.json()
     const { additionalDays } = body

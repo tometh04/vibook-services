@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth"
+import { verifySubscriptionAccess } from "@/lib/billing/subscription-middleware"
 import { createServerClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -81,6 +82,11 @@ export async function DELETE(
     const { user } = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
     }
 
     const { id: conversationId } = await params

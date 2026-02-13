@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifySubscriptionAccess } from "@/lib/billing/subscription-middleware"
 import { createClient } from "@supabase/supabase-js"
 
 /**
@@ -12,6 +13,11 @@ export async function DELETE(
 ) {
   try {
     const { user } = await getCurrentUser()
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
+    }
     const { id: leadId, documentId } = await params
     
     // Usar service role key para bypass RLS (ya validamos autenticación arriba)

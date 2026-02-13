@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifySubscriptionAccess } from "@/lib/billing/subscription-middleware"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 import { z } from "zod"
 
@@ -76,6 +77,12 @@ export async function PUT(
   try {
     const { id } = await params
     const { user } = await getCurrentUser()
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
+    }
+
     const supabase = await createServerClient()
 
     // Verificar permisos (solo admins)
@@ -156,6 +163,12 @@ export async function DELETE(
   try {
     const { id } = await params
     const { user } = await getCurrentUser()
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
+    }
+
     const supabase = await createServerClient()
 
     // Verificar permisos (solo admins)

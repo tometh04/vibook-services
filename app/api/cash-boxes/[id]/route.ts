@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifySubscriptionAccess } from "@/lib/billing/subscription-middleware"
 import { canPerformAction } from "@/lib/permissions-api"
 
 export async function GET(
@@ -49,6 +50,12 @@ export async function PATCH(
 ) {
   try {
     const { user } = await getCurrentUser()
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
+    }
+
 
     if (!canPerformAction(user, "cash", "write")) {
       return NextResponse.json({ error: "No tiene permiso para actualizar cajas" }, { status: 403 })

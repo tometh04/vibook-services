@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { verifyAdminAuth } from "@/lib/admin/verify-admin-auth"
 
 /**
  * POST /api/admin/subscriptions/create
@@ -7,7 +8,12 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin"
  */
 export async function POST(request: Request) {
   try {
-    // El middleware ya verifica que viene del subdominio admin
+    // CRÍTICO: Verificar autenticación admin directamente
+    const adminAuth = await verifyAdminAuth(request)
+    if (!adminAuth.valid) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     const body = await request.json()
     const { agency_id, plan_id } = body
 

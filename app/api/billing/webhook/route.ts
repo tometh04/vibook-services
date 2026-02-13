@@ -183,6 +183,8 @@ export async function POST(request: Request) {
 
 // GET - IPN de Mercado Pago (legacy, mantenido por compatibilidad)
 // Mercado Pago también usa GET para verificar la URL y para IPN legacy
+// SEGURIDAD: En producción, el GET legacy está deshabilitado si hay webhook secret configurado
+// ya que todas las notificaciones deberían llegar por POST con firma.
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -195,6 +197,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ received: true, message: 'Webhook configurado correctamente' })
     }
 
+    // SEGURIDAD: En producción, si tenemos webhook secret, rechazar GET requests
+    // Las notificaciones reales de MP deberían llegar como POST con firma HMAC
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+    if (isProduction && WEBHOOK_SECRET) {
+      console.warn('🚨 GET webhook rechazado en producción (usar POST con firma):', { topic, id })
+      return NextResponse.json(
+        { error: "Legacy IPN deshabilitado en producción. Usar webhook POST con firma." },
+        { status: 403 }
+      )
+    }
+
     console.log('📥 GET webhook de Mercado Pago (IPN legacy):', { topic, id })
 
     // Si es un ID de prueba (123456), solo retornar éxito sin procesar
@@ -204,7 +217,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ received: true, message: 'Webhook configurado correctamente' })
     }
 
-    // Procesar notificaciones reales
+    // Validar formato del ID (solo alfanumérico y guiones, prevenir inyección)
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+      console.warn('⚠️ ID con formato inválido rechazado:', id)
+      return NextResponse.json({ error: "Invalid ID format" }, { status: 400 })
+    }
+
+    // Procesar notificaciones reales (solo en desarrollo)
     if (topic === 'payment') {
       await handlePaymentNotification(id).catch((err: any) => {
         console.error('Error procesando payment notification:', err)

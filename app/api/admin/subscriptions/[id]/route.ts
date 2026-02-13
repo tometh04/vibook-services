@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { verifyAdminAuth } from "@/lib/admin/verify-admin-auth"
 
 /**
  * PATCH /api/admin/subscriptions/[id]
@@ -10,7 +11,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // El middleware ya verifica que viene del subdominio admin
+    // CRÍTICO: Verificar autenticación admin directamente (no depender del middleware)
+    const adminAuth = await verifyAdminAuth(request)
+    if (!adminAuth.valid) {
+      return NextResponse.json(
+        { error: "No autorizado. Se requiere sesión de administrador." },
+        { status: 401 }
+      )
+    }
+
     const { id: subscriptionId } = await params
     const body = await request.json()
 
@@ -180,12 +189,11 @@ export async function PATCH(
         .eq("id", subscriptionId)
         .single()
 
-      // Obtener info del admin desde headers (inyectados por middleware)
-      const requestHeaders = request.headers
-      const adminId = requestHeaders.get('x-admin-id') || 'unknown'
-      const adminEmail = requestHeaders.get('x-admin-email') || 'unknown'
-      const ipAddress = requestHeaders.get('x-forwarded-for') || requestHeaders.get('x-real-ip') || 'unknown'
-      const userAgent = requestHeaders.get('user-agent') || 'unknown'
+      // Usar identidad verificada del JWT (NO confiar en headers)
+      const adminId = adminAuth.adminId || 'unknown'
+      const adminEmail = adminAuth.adminEmail || 'unknown'
+      const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+      const userAgent = request.headers.get('user-agent') || 'unknown'
 
       await supabase.rpc('log_admin_action', {
         admin_user_id_param: adminId, // ✅ RESUELTO: Obtenido del JWT del admin via middleware

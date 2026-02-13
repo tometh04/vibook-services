@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { verifySubscriptionAccess } from "@/lib/billing/subscription-middleware"
 import { canPerformAction } from "@/lib/permissions-api"
 
 export async function DELETE(request: Request) {
   try {
     const { user } = await getCurrentUser()
+    // Verificar suscripción activa para operaciones de escritura
+    const subCheck = await verifySubscriptionAccess(user.id, user.role)
+    if (!subCheck.hasAccess) {
+      return NextResponse.json({ error: subCheck.message || "Suscripción no activa" }, { status: 403 })
+    }
 
     // Verificar permisos de escritura en operaciones
     if (!canPerformAction(user, "operations", "write")) {
