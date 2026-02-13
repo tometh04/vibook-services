@@ -17,11 +17,11 @@ export default function SignupPage() {
           src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=2000&q=80"
           alt="Paisaje de viajes"
           fill
-          className="object-cover opacity-40"
+          className="object-cover opacity-70"
           priority
         />
         {/* Overlay gradiente */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-slate-900/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent" />
 
         {/* Logo arriba */}
         <div className="relative z-10 p-10">
