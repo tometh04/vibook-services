@@ -14,7 +14,15 @@ function isMissingTableError(error: any) {
 
 export async function GET() {
   try {
-    const { user } = await getCurrentUser()
+    let user: any
+    try {
+      const result = await getCurrentUser()
+      user = result.user
+    } catch (e: any) {
+      // getCurrentUser() uses redirect() which throws NEXT_REDIRECT
+      if (e?.digest?.startsWith?.("NEXT_REDIRECT")) throw e
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+    }
     const supabase = await createServerClient()
     const admin = createAdminSupabaseClient()
 
@@ -153,6 +161,8 @@ export async function GET() {
       mode,
     })
   } catch (error: any) {
+    // Re-throw NEXT_REDIRECT so Next.js handles it properly
+    if (error?.digest?.startsWith?.("NEXT_REDIRECT")) throw error
     console.error("Error in GET /api/onboarding/progress:", error)
     return NextResponse.json(
       { error: error.message || "Error al obtener progreso" },

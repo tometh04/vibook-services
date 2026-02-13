@@ -8,7 +8,14 @@ export const runtime = "nodejs"
 
 export async function POST(request: Request) {
   try {
-    const { user } = await getCurrentUser()
+    let user: any
+    try {
+      const result = await getCurrentUser()
+      user = result.user
+    } catch (e: any) {
+      if (e?.digest?.startsWith?.("NEXT_REDIRECT")) throw e
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+    }
     const supabase = await createServerClient()
     const admin = createAdminSupabaseClient()
 
@@ -60,6 +67,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    if (error?.digest?.startsWith?.("NEXT_REDIRECT")) throw error
     console.error("Error in POST /api/onboarding/track:", error)
     return NextResponse.json(
       { error: error.message || "Error al registrar evento" },

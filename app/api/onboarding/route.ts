@@ -4,7 +4,14 @@ import { createServerClient } from "@/lib/supabase/server"
 
 export async function POST(request: Request) {
   try {
-    const { user } = await getCurrentUser()
+    let user: any
+    try {
+      const result = await getCurrentUser()
+      user = result.user
+    } catch (e: any) {
+      if (e?.digest?.startsWith?.("NEXT_REDIRECT")) throw e
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+    }
     const supabase = await createServerClient()
     const body = await request.json()
     const { agencyName, city, timezone, brandName } = body
@@ -86,6 +93,7 @@ export async function POST(request: Request) {
       message: "Onboarding completado exitosamente",
     })
   } catch (error: any) {
+    if (error?.digest?.startsWith?.("NEXT_REDIRECT")) throw error
     console.error("❌ Error in onboarding:", error)
     return NextResponse.json(
       { error: error.message || "Error al completar el onboarding" },

@@ -1,38 +1,101 @@
-import { GalleryVerticalEnd } from "lucide-react"
+"use client"
+
 import Image from "next/image"
 import Link from "next/link"
 import { SignupForm } from "@/components/auth/signup-form"
+import { Plane, Globe, TrendingUp, Shield } from "lucide-react"
 
 export const dynamic = 'force-dynamic'
 
 export default function SignupPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
-      {/* Imagen de viajes a la izquierda */}
-      <div className="bg-slate-900/5 relative hidden lg:block">
+      {/* Panel izquierdo - Hero */}
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-900">
+        {/* Imagen de fondo */}
         <Image
-          src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2000&q=80"
-          alt="Viajes"
+          src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=2000&q=80"
+          alt="Paisaje de viajes"
           fill
-          className="object-cover"
+          className="object-cover opacity-40"
           priority
         />
-        {/* Overlay con gradiente */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/65 via-slate-900/10 to-transparent" />
-        <div className="absolute bottom-8 left-8 right-8 text-white">
-          <h2 className="text-3xl font-bold mb-2">Gestioná tu agencia de viajes</h2>
-          <p className="text-white/80">Operaciones, clientes, finanzas y más en un solo lugar</p>
+        {/* Overlay gradiente */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-slate-900/30" />
+
+        {/* Logo arriba */}
+        <div className="relative z-10 p-10">
+          <Image
+            src="/logo-white-2.png"
+            alt="Vibook"
+            width={130}
+            height={44}
+            className="h-9 w-auto object-contain"
+            unoptimized
+          />
+        </div>
+
+        {/* Contenido central */}
+        <div className="relative z-10 flex-1 flex flex-col justify-center px-10">
+          <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
+            Empezá a gestionar<br />
+            tu agencia <span className="text-sky-400">hoy</span>
+          </h2>
+          <p className="text-white/60 text-lg mt-4 max-w-lg">
+            Creá tu cuenta en minutos y organizá operaciones, clientes y finanzas desde un solo lugar.
+          </p>
+        </div>
+
+        {/* Feature pills abajo */}
+        <div className="relative z-10 p-10 pt-0">
+          <div className="flex flex-wrap gap-3">
+            {[
+              { icon: Plane, label: "Operaciones" },
+              { icon: Globe, label: "CRM & Clientes" },
+              { icon: TrendingUp, label: "Finanzas" },
+              { icon: Shield, label: "Contabilidad" },
+            ].map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 px-4 py-2 text-sm text-white/80"
+              >
+                <Icon className="h-4 w-4 text-sky-400" />
+                {label}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      {/* Signup centrado a la derecha */}
+
+      {/* Panel derecho - Formulario de signup */}
       <div className="flex flex-1 items-center justify-center p-6 md:p-10 bg-white">
         <div className="w-full max-w-md">
-          <div className="flex justify-center gap-2 mb-8">
-            <Link href="/" className="flex items-center gap-2 font-medium text-xl">
-              <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
-                <GalleryVerticalEnd className="size-5" />
-              </div>
-              Vibook Gestión
+          {/* Logo para mobile */}
+          <div className="flex justify-center mb-8 lg:hidden">
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/logo-black-2.png"
+                alt="Vibook"
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+                unoptimized
+              />
+            </Link>
+          </div>
+          {/* Logo para desktop */}
+          <div className="hidden lg:flex justify-center mb-8">
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/logo-black-2.png"
+                alt="Vibook"
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+                unoptimized
+              />
             </Link>
           </div>
           <SignupForm />

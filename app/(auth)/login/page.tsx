@@ -3,47 +3,92 @@
 import Image from "next/image"
 import Link from "next/link"
 import { LoginForm } from "@/components/auth/login-form"
+import { Plane, Globe, TrendingUp, Shield } from "lucide-react"
 
 export default function LoginPage() {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
-      {/* Panel izquierdo con branding moderno */}
-      <div className="bg-[#0b1220] relative hidden lg:flex items-center justify-center overflow-hidden">
-        {/* Animated background gradient orbs */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-[520px] h-[520px] bg-sky-500/20 rounded-full blur-[130px] animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-[420px] h-[420px] bg-blue-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[640px] bg-cyan-400/10 rounded-full blur-[160px]" />
+      {/* Panel izquierdo - Hero */}
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-900">
+        {/* Imagen de fondo */}
+        <Image
+          src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80"
+          alt="Playa paradisíaca"
+          fill
+          className="object-cover opacity-40"
+          priority
+        />
+        {/* Overlay gradiente */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-slate-900/30" />
+
+        {/* Logo arriba */}
+        <div className="relative z-10 p-10">
+          <Image
+            src="/logo-white-2.png"
+            alt="Vibook"
+            width={130}
+            height={44}
+            className="h-9 w-auto object-contain"
+            unoptimized
+          />
         </div>
 
-        {/* Grid pattern overlay */}
-        <div 
-          className="absolute inset-0 opacity-[0.15]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
-          }}
-        />
-
-        {/* Contenido del panel */}
-        <div className="relative z-10 px-8 text-white">
-          <h2 className="text-4xl font-bold mb-4 leading-tight">
-            El sistema de gestión definitivo<br />
-            para <span className="bg-gradient-to-r from-sky-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">AGENCIAS</span> de viajes
+        {/* Contenido central */}
+        <div className="relative z-10 flex-1 flex flex-col justify-center px-10">
+          <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
+            Gestioná tu agencia<br />
+            de viajes con <span className="text-sky-400">Vibook</span>
           </h2>
-          <p className="text-slate-300 text-lg">Operaciones, clientes, finanzas y más en un solo lugar</p>
+          <p className="text-white/60 text-lg mt-4 max-w-lg">
+            Operaciones, clientes, finanzas y contabilidad integrados en una sola plataforma.
+          </p>
+        </div>
+
+        {/* Feature pills abajo */}
+        <div className="relative z-10 p-10 pt-0">
+          <div className="flex flex-wrap gap-3">
+            {[
+              { icon: Plane, label: "Operaciones" },
+              { icon: Globe, label: "CRM & Clientes" },
+              { icon: TrendingUp, label: "Finanzas" },
+              { icon: Shield, label: "Contabilidad" },
+            ].map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 px-4 py-2 text-sm text-white/80"
+              >
+                <Icon className="h-4 w-4 text-sky-400" />
+                {label}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      {/* Login centrado a la derecha */}
+
+      {/* Panel derecho - Formulario de login */}
       <div className="flex flex-1 items-center justify-center p-6 md:p-10 bg-white">
         <div className="w-full max-w-md">
-          <div className="flex justify-center mb-8">
+          {/* Logo para mobile */}
+          <div className="flex justify-center mb-8 lg:hidden">
             <Link href="/" className="flex items-center">
-              <Image 
-                src="/logo-black-2.png" 
-                alt="Vibook" 
-                width={120} 
+              <Image
+                src="/logo-black-2.png"
+                alt="Vibook"
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+                unoptimized
+              />
+            </Link>
+          </div>
+          {/* Logo para desktop */}
+          <div className="hidden lg:flex justify-center mb-8">
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/logo-black-2.png"
+                alt="Vibook"
+                width={120}
                 height={40}
                 className="h-10 w-auto object-contain"
                 priority
