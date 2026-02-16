@@ -133,6 +133,20 @@ export function useSubscription() {
         return hasFeature
       }
       
+      // Período de gracia: si canceló pero aún está en el período pagado, permitir acceso
+      if (subscription.status === 'CANCELED' && (subscription as any).current_period_end) {
+        const periodEnd = new Date((subscription as any).current_period_end)
+        if (periodEnd > new Date()) {
+          // Todavía en período pagado, verificar features como si estuviera ACTIVE
+          let features = subscription.plan.features
+          if (typeof features === 'string') {
+            try { features = JSON.parse(features) } catch { return false }
+          }
+          if (!features || typeof features !== 'object') return false
+          return (features as Record<string, boolean>)[feature] === true
+        }
+      }
+
       // Cualquier otro estado (CANCELED, SUSPENDED, PAST_DUE, UNPAID, etc.) = bloqueado
       console.log('[canUseFeature] Blocked - status:', subscription.status)
       return false

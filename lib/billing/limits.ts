@@ -76,13 +76,29 @@ export async function checkSubscriptionLimit(
 
     // Bloquear si la suscripción está cancelada, suspendida o sin pagar
     const subscriptionStatus = subscriptionData.status as string
-    if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' || 
+    if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' ||
         subscriptionStatus === 'PAST_DUE' || subscriptionStatus === 'UNPAID') {
-      return {
-        limitReached: true,
-        limit: null,
-        current: 0,
-        message: `Tu suscripción está ${subscriptionStatus === 'CANCELED' ? 'cancelada' : subscriptionStatus === 'SUSPENDED' ? 'suspendida' : 'pendiente de pago'}. Por favor, actualizá tu plan para continuar.`,
+      // Período de gracia: si canceló pero aún está dentro del período pagado, permitir acceso
+      if (subscriptionStatus === 'CANCELED' && subscriptionData.current_period_end) {
+        const periodEnd = new Date(subscriptionData.current_period_end)
+        if (periodEnd > new Date()) {
+          // Todavía está en el período que pagó, permitir acceso
+          // (continuar con verificación de límites normalmente)
+        } else {
+          return {
+            limitReached: true,
+            limit: null,
+            current: 0,
+            message: "Tu suscripción fue cancelada y el período pagado ya finalizó. Por favor, elegí un nuevo plan para continuar.",
+          }
+        }
+      } else {
+        return {
+          limitReached: true,
+          limit: null,
+          current: 0,
+          message: `Tu suscripción está ${subscriptionStatus === 'CANCELED' ? 'cancelada' : subscriptionStatus === 'SUSPENDED' ? 'suspendida' : 'pendiente de pago'}. Por favor, actualizá tu plan para continuar.`,
+        }
       }
     }
     
@@ -229,11 +245,24 @@ export async function checkFeatureAccess(
     const subscriptionStatus = subscription.status as string
     
     // Bloquear acceso si la suscripción está cancelada, suspendida o sin pagar
-    if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' || 
+    if (subscriptionStatus === 'CANCELED' || subscriptionStatus === 'SUSPENDED' ||
         subscriptionStatus === 'PAST_DUE' || subscriptionStatus === 'UNPAID') {
-      return {
-        hasAccess: false,
-        message: `Tu suscripción está ${subscriptionStatus === 'CANCELED' ? 'cancelada' : subscriptionStatus === 'SUSPENDED' ? 'suspendida' : 'pendiente de pago'}. Por favor, actualizá tu plan para continuar usando el servicio.`,
+      // Período de gracia: si canceló pero aún está dentro del período pagado, permitir acceso
+      if (subscriptionStatus === 'CANCELED' && subscription.current_period_end) {
+        const periodEnd = new Date(subscription.current_period_end as string)
+        if (periodEnd > new Date()) {
+          // Todavía en período pagado, continuar con verificación de features
+        } else {
+          return {
+            hasAccess: false,
+            message: "Tu suscripción fue cancelada y el período pagado ya finalizó. Por favor, elegí un nuevo plan para continuar.",
+          }
+        }
+      } else {
+        return {
+          hasAccess: false,
+          message: `Tu suscripción está ${subscriptionStatus === 'CANCELED' ? 'cancelada' : subscriptionStatus === 'SUSPENDED' ? 'suspendida' : 'pendiente de pago'}. Por favor, actualizá tu plan para continuar usando el servicio.`,
+        }
       }
     }
 

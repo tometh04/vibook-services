@@ -76,15 +76,29 @@ export async function POST(request: Request) {
     }
 
     if (action === 'cancel') {
+      // Protección contra doble cancelación
+      if (subData.status === 'CANCELED') {
+        return NextResponse.json({
+          success: true,
+          message: "La suscripción ya fue cancelada anteriormente."
+        })
+      }
+
       // Cancelar preapproval en Mercado Pago
       try {
         await cancelPreApproval(subData.mp_preapproval_id)
       } catch (error: any) {
         console.error("Error cancelando preapproval en MP:", error)
-        return NextResponse.json(
-          { error: "Mercado Pago no pudo cancelar la suscripción. Intenta nuevamente." },
-          { status: 502 }
-        )
+        // Si MP dice que ya está cancelado, continuar con la actualización de DB
+        const errorMsg = error?.message || error?.cause?.message || ''
+        const alreadyCancelled = errorMsg.includes('cancelled') || errorMsg.includes('canceled') || error?.status === 400
+        if (!alreadyCancelled) {
+          return NextResponse.json(
+            { error: "Mercado Pago no pudo cancelar la suscripción. Intenta nuevamente." },
+            { status: 502 }
+          )
+        }
+        console.warn("MP preapproval ya estaba cancelado, continuando con update de DB")
       }
 
       // Actualizar suscripción
@@ -127,6 +141,14 @@ export async function POST(request: Request) {
         message: "Suscripción cancelada exitosamente"
       })
     } else if (action === 'pause') {
+      // Protección contra doble pausa
+      if (subData.status === 'SUSPENDED') {
+        return NextResponse.json({
+          success: true,
+          message: "La suscripción ya fue pausada anteriormente."
+        })
+      }
+
       // Pausar preapproval en Mercado Pago
       try {
         await updatePreApproval(subData.mp_preapproval_id, {
@@ -134,10 +156,15 @@ export async function POST(request: Request) {
         })
       } catch (error: any) {
         console.error("Error pausando preapproval en MP:", error)
-        return NextResponse.json(
-          { error: "Mercado Pago no pudo pausar la suscripción. Intenta nuevamente." },
-          { status: 502 }
-        )
+        const errorMsg = error?.message || error?.cause?.message || ''
+        const alreadyPaused = errorMsg.includes('paused') || error?.status === 400
+        if (!alreadyPaused) {
+          return NextResponse.json(
+            { error: "Mercado Pago no pudo pausar la suscripción. Intenta nuevamente." },
+            { status: 502 }
+          )
+        }
+        console.warn("MP preapproval ya estaba pausado, continuando con update de DB")
       }
 
       // Actualizar suscripción
