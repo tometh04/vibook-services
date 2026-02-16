@@ -55,6 +55,7 @@ export async function verifySubscriptionAccess(
         id,
         status,
         trial_end,
+        current_period_end,
         plan:subscription_plans(name, display_name)
       `)
       .in("agency_id", agencyIds)
@@ -76,10 +77,15 @@ export async function verifySubscriptionAccess(
       }
     }
 
-    // Buscar la suscripción más relevante: ACTIVE > TRIAL > más reciente
+    // Buscar la suscripción más relevante: ACTIVE > TRIAL > CANCELED con grace period > más reciente
     const activeSubscription = subscriptions.find((s: any) => s.status === 'ACTIVE')
     const trialSubscription = subscriptions.find((s: any) => s.status === 'TRIAL')
-    const subscription = activeSubscription || trialSubscription || subscriptions[0]
+    const canceledWithGrace = subscriptions.find((s: any) => {
+      if (s.status !== 'CANCELED') return false
+      if (!s.current_period_end) return false
+      return new Date(s.current_period_end) > new Date()
+    })
+    const subscription = activeSubscription || trialSubscription || canceledWithGrace || subscriptions[0]
 
     const status = subscription.status as string
     const planName = subscription.plan?.name as string
@@ -112,9 +118,25 @@ export async function verifySubscriptionAccess(
       }
     }
 
+    // Período de gracia: si CANCELED pero dentro del período pagado, permitir acceso
+    if (status === 'CANCELED') {
+      const periodEndRaw = subscription.current_period_end as string | null | undefined
+      const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null
+      if (periodEnd && periodEnd > new Date()) {
+        return {
+          hasAccess: true,
+          subscription: {
+            id: subscription.id,
+            status,
+            planName
+          }
+        }
+      }
+    }
+
     // Cualquier otro estado = bloqueado
     const statusMessages: Record<string, string> = {
-      CANCELED: "Tu suscripción está cancelada",
+      CANCELED: "Tu suscripción fue cancelada y el período pagado ya finalizó.",
       SUSPENDED: "Tu suscripción está suspendida",
       PAST_DUE: "Tu suscripción tiene pagos pendientes",
       UNPAID: "Tu suscripción no está pagada",

@@ -66,6 +66,11 @@ export function useSubscription() {
     isActive: (() => {
       if (!subscription) return false
       if (subscription.status === "ACTIVE") return true
+      // Período de gracia: CANCELED pero dentro del período pagado
+      if (subscription.status === "CANCELED" && (subscription as any).current_period_end) {
+        const periodEnd = new Date((subscription as any).current_period_end)
+        if (periodEnd > new Date()) return true
+      }
       if (subscription.status !== "TRIAL" || subscription.plan?.name === "FREE") return false
       if (!subscription.trial_end) return true
       return new Date(subscription.trial_end) >= new Date()

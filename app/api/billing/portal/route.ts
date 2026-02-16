@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
-import { cancelPreApproval, updatePreApproval } from "@/lib/mercadopago/client"
+import { cancelPreApproval, getPreApproval, updatePreApproval } from "@/lib/mercadopago/client"
 
 export const runtime = 'nodejs'
 
@@ -84,21 +84,46 @@ export async function POST(request: Request) {
         })
       }
 
-      // Cancelar preapproval en Mercado Pago
+      // Cancelar preapproval en Mercado Pago con verificación
+      let mpConfirmedCancelled = false
       try {
         await cancelPreApproval(subData.mp_preapproval_id)
+        console.log("✅ Preapproval cancelado exitosamente en MP:", subData.mp_preapproval_id)
+        mpConfirmedCancelled = true
       } catch (error: any) {
         console.error("Error cancelando preapproval en MP:", error)
-        // Si MP dice que ya está cancelado, continuar con la actualización de DB
-        const errorMsg = error?.message || error?.cause?.message || ''
-        const alreadyCancelled = errorMsg.includes('cancelled') || errorMsg.includes('canceled') || error?.status === 400
-        if (!alreadyCancelled) {
-          return NextResponse.json(
-            { error: "Mercado Pago no pudo cancelar la suscripción. Intenta nuevamente." },
-            { status: 502 }
-          )
+        // Verificar el estado actual en MP para confirmar si ya estaba cancelado
+        try {
+          const currentState = await getPreApproval(subData.mp_preapproval_id)
+          const mpCurrentStatus = (currentState as any)?.status
+          console.log("Estado actual del preapproval en MP:", mpCurrentStatus)
+          if (mpCurrentStatus === 'cancelled' || mpCurrentStatus === 'canceled') {
+            console.warn("✓ Preapproval ya estaba cancelado en MP")
+            mpConfirmedCancelled = true
+          } else {
+            console.error("✗ Preapproval NO está cancelado en MP. Estado:", mpCurrentStatus)
+          }
+        } catch (checkErr: any) {
+          console.error("Error verificando estado del preapproval:", checkErr)
         }
-        console.warn("MP preapproval ya estaba cancelado, continuando con update de DB")
+      }
+
+      // Si MP no confirmó la cancelación, no actualizar DB y retornar error
+      if (!mpConfirmedCancelled) {
+        // Registrar evento de fallo
+        try {
+          await (supabaseAdmin.from("billing_events") as any).insert({
+            agency_id: agencyId,
+            subscription_id: subData.id,
+            event_type: 'CANCELLATION_FAILED',
+            mp_notification_id: subData.mp_preapproval_id,
+          })
+        } catch (_) { /* no fallar por log */ }
+
+        return NextResponse.json(
+          { error: "No se pudo cancelar la suscripción en Mercado Pago. Por favor, intentá nuevamente o contactá a soporte." },
+          { status: 502 }
+        )
       }
 
       // Actualizar suscripción
@@ -149,22 +174,35 @@ export async function POST(request: Request) {
         })
       }
 
-      // Pausar preapproval en Mercado Pago
+      // Pausar preapproval en Mercado Pago con verificación
+      let mpConfirmedPaused = false
       try {
         await updatePreApproval(subData.mp_preapproval_id, {
           status: 'paused'
         })
+        console.log("✅ Preapproval pausado exitosamente en MP:", subData.mp_preapproval_id)
+        mpConfirmedPaused = true
       } catch (error: any) {
         console.error("Error pausando preapproval en MP:", error)
-        const errorMsg = error?.message || error?.cause?.message || ''
-        const alreadyPaused = errorMsg.includes('paused') || error?.status === 400
-        if (!alreadyPaused) {
-          return NextResponse.json(
-            { error: "Mercado Pago no pudo pausar la suscripción. Intenta nuevamente." },
-            { status: 502 }
-          )
+        // Verificar estado actual
+        try {
+          const currentState = await getPreApproval(subData.mp_preapproval_id)
+          const mpCurrentStatus = (currentState as any)?.status
+          console.log("Estado actual del preapproval en MP:", mpCurrentStatus)
+          if (mpCurrentStatus === 'paused') {
+            console.warn("✓ Preapproval ya estaba pausado en MP")
+            mpConfirmedPaused = true
+          }
+        } catch (checkErr: any) {
+          console.error("Error verificando estado del preapproval:", checkErr)
         }
-        console.warn("MP preapproval ya estaba pausado, continuando con update de DB")
+      }
+
+      if (!mpConfirmedPaused) {
+        return NextResponse.json(
+          { error: "No se pudo pausar la suscripción en Mercado Pago. Por favor, intentá nuevamente." },
+          { status: 502 }
+        )
       }
 
       // Actualizar suscripción

@@ -46,6 +46,7 @@ export default async function DashboardLayout({
         mp_preapproval_id,
         created_at,
         trial_end,
+        current_period_end,
         plan:subscription_plans(name)
       `)
       .in("agency_id", agencyIds)
@@ -86,10 +87,15 @@ export default async function DashboardLayout({
       const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null
       const trialActive = status === 'TRIAL' && (!trialEndDate || trialEndDate >= new Date())
 
-      if (planName === 'TESTER' || status === 'ACTIVE' || trialActive) {
-        console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida:', { status, planName })
+      // Período de gracia: si CANCELED pero aún dentro del período pagado, permitir acceso
+      const currentPeriodEndRaw = subscription.current_period_end as string | null | undefined
+      const currentPeriodEnd = currentPeriodEndRaw ? new Date(currentPeriodEndRaw) : null
+      const canceledWithGrace = status === 'CANCELED' && currentPeriodEnd && currentPeriodEnd > new Date()
+
+      if (planName === 'TESTER' || status === 'ACTIVE' || trialActive || canceledWithGrace) {
+        console.log('[Dashboard Layout] Permitiendo acceso - suscripción válida:', { status, planName, canceledWithGrace, currentPeriodEnd: currentPeriodEndRaw })
       } else {
-        console.log('[Dashboard Layout] Bloqueando acceso - estado inválido:', { status, planName })
+        console.log('[Dashboard Layout] Bloqueando acceso - estado inválido:', { status, planName, currentPeriodEnd: currentPeriodEndRaw })
         redirect('/paywall')
       }
     } else {
