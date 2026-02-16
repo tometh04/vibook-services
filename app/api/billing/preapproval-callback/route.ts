@@ -203,19 +203,24 @@ export async function GET(request: Request) {
       updated_at: new Date().toISOString()
     }
 
-    // Actualizar fechas si están disponibles
-    if (preapproval.auto_recurring?.start_date) {
-      subscriptionData.current_period_start = new Date(preapproval.auto_recurring.start_date).toISOString()
+    // Actualizar fechas del período de facturación
+    // IMPORTANTE: next_payment_date es la fecha del próximo cobro (= fin del período actual)
+    // auto_recurring.start_date/end_date son las fechas de la suscripción completa, NO del período
+    subscriptionData.current_period_start = new Date().toISOString()
+
+    if (preapproval.next_payment_date) {
+      subscriptionData.current_period_end = new Date(preapproval.next_payment_date).toISOString()
     } else {
-      subscriptionData.current_period_start = new Date().toISOString()
+      // Fallback: calcular próximo período basado en frequency (30 días por defecto)
+      const frequency = preapproval.auto_recurring?.frequency || 30
+      subscriptionData.current_period_end = new Date(Date.now() + frequency * 24 * 60 * 60 * 1000).toISOString()
     }
 
-    if (preapproval.auto_recurring?.end_date) {
-      subscriptionData.current_period_end = new Date(preapproval.auto_recurring.end_date).toISOString()
-    } else {
-      // Calcular próximo período (30 días desde ahora)
-      subscriptionData.current_period_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    }
+    console.log('[Preapproval Callback] Fechas calculadas:', {
+      next_payment_date: preapproval.next_payment_date,
+      current_period_start: subscriptionData.current_period_start,
+      current_period_end: subscriptionData.current_period_end,
+    })
 
     // Verificar si es upgrade durante trial o si ya usó trial
     let isUpgrade = false

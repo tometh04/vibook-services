@@ -386,16 +386,31 @@ async function handlePreApprovalNotification(preapprovalId: string) {
       updated_at: new Date().toISOString()
     }
 
-    // Actualizar fechas si están disponibles
-    if (preapproval.auto_recurring?.start_date) {
-      updateData.current_period_start = new Date(preapproval.auto_recurring.start_date).toISOString()
-    }
-    if (preapproval.auto_recurring?.end_date) {
-      updateData.current_period_end = new Date(preapproval.auto_recurring.end_date).toISOString()
+    // Actualizar fechas del período de facturación
+    // IMPORTANTE: next_payment_date es la fecha del próximo cobro (= fin del período actual)
+    // auto_recurring.start_date/end_date son las fechas de la suscripción completa, NO del período
+    if (preapproval.next_payment_date) {
+      // next_payment_date marca el fin del período actual y start del próximo
+      updateData.current_period_end = new Date(preapproval.next_payment_date).toISOString()
+      // El inicio del período actual es ahora (o la fecha del último cobro)
+      if (preapproval.date_created) {
+        // Si es la primera vez, usar date_created; sino, el período empieza "ahora"
+        const lastPaymentDate = preapproval.last_modified || preapproval.date_created
+        updateData.current_period_start = new Date(lastPaymentDate).toISOString()
+      }
     } else {
-      // Calcular próximo período (30 días desde ahora)
-      updateData.current_period_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      // Fallback: calcular próximo período basado en frequency (30 días por defecto)
+      const frequency = preapproval.auto_recurring?.frequency || 30
+      updateData.current_period_end = new Date(Date.now() + frequency * 24 * 60 * 60 * 1000).toISOString()
     }
+
+    console.log('[Webhook] Fechas calculadas:', {
+      next_payment_date: preapproval.next_payment_date,
+      current_period_start: updateData.current_period_start,
+      current_period_end: updateData.current_period_end,
+      auto_recurring_start: preapproval.auto_recurring?.start_date,
+      auto_recurring_end: preapproval.auto_recurring?.end_date,
+    })
 
     if (subscription) {
       const subData = subscription as any
