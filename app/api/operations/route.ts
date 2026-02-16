@@ -8,7 +8,7 @@ import { createOperatorPayment, calculateDueDate } from "@/lib/accounting/operat
 import { canPerformAction } from "@/lib/permissions-api"
 import { revalidateTag, CACHE_TAGS } from "@/lib/cache"
 import { generateMessagesFromAlerts } from "@/lib/whatsapp/alert-messages"
-import { getExchangeRate, getLatestExchangeRate } from "@/lib/accounting/exchange-rates"
+// exchange-rates import moved to dynamic import where needed (upsertExchangeRate)
 import { sendCustomerNotifications } from "@/lib/customers/customer-service"
 
 export async function POST(request: Request) {
@@ -63,6 +63,8 @@ export async function POST(request: Request) {
       // Códigos de reserva (opcionales)
       reservation_code_air,
       reservation_code_hotel,
+      // Tipo de cambio proporcionado por el usuario
+      exchange_rate: bodyExchangeRate,
     } = body
 
     // Obtener configuración de operaciones
@@ -232,11 +234,11 @@ export async function POST(request: Request) {
 
       let latestRate: number | null = null
       if (needsRate) {
-        const rateValue = await getLatestExchangeRate(supabase)
-        latestRate = rateValue ? Number(rateValue) : null
+        // Usar el tipo de cambio proporcionado por el usuario desde el formulario
+        latestRate = bodyExchangeRate ? Number(bodyExchangeRate) : null
         if (!latestRate || latestRate <= 0) {
           return NextResponse.json(
-            { error: "No hay tipo de cambio cargado para convertir ARS a USD. Cargalo en Configuración Financiera." },
+            { error: "Ingresá el tipo de cambio (USD/ARS) para operaciones con moneda ARS." },
             { status: 400 }
           )
         }
@@ -332,6 +334,20 @@ export async function POST(request: Request) {
     // Use sale_currency, fallback to currency
     const finalSaleCurrency = sale_currency || currency || "ARS"
 
+    // Determinar si se necesita tipo de cambio (cuando alguna moneda es ARS)
+    // Esto cubre el caso donde la venta es ARS pero no hay operadores
+    const globalNeedsRate = finalSaleCurrency === "ARS" || finalOperatorCostCurrency === "ARS"
+    let operationExchangeRate: number | null = null
+    if (globalNeedsRate) {
+      operationExchangeRate = bodyExchangeRate ? Number(bodyExchangeRate) : null
+      if (!operationExchangeRate || operationExchangeRate <= 0) {
+        return NextResponse.json(
+          { error: "Ingresá el tipo de cambio (USD/ARS) para operaciones con moneda ARS." },
+          { status: 400 }
+        )
+      }
+    }
+
     const operationData: Record<string, any> = {
       agency_id,
       lead_id: lead_id || null,
@@ -361,6 +377,8 @@ export async function POST(request: Request) {
       margin_percentage: marginPercentage,
       billing_margin_amount: billingMarginAmount,
       billing_margin_percentage: billingMarginPercentage,
+      // Tipo de cambio USD/ARS usado para esta operación
+      exchange_rate: operationExchangeRate,
       // Códigos de reserva (opcionales)
       reservation_code_air: reservation_code_air || null,
       reservation_code_hotel: reservation_code_hotel || null,
@@ -422,6 +440,16 @@ export async function POST(request: Request) {
     // Update operation object with file_code
     op.file_code = fileCode
 
+    // Guardar el tipo de cambio en la tabla global para referencia de reportes
+    if (operationExchangeRate && operationExchangeRate > 0) {
+      try {
+        const { upsertExchangeRate } = await import("@/lib/accounting/exchange-rates")
+        await upsertExchangeRate(supabase, new Date().toISOString().split("T")[0], operationExchangeRate)
+      } catch (err) {
+        console.warn("⚠️ No se pudo guardar TC en exchange_rates (no bloquea):", err)
+      }
+    }
+
     // Auto-generate IVA records
     try {
       if (sale_amount_total > 0) {
@@ -431,25 +459,20 @@ export async function POST(request: Request) {
         // Convertir costo del operador a la misma moneda de venta si es necesario
         let operatorCostForIVA = totalOperatorCost
         if (finalOperatorCostCurrency !== finalSaleCurrency && totalOperatorCost > 0) {
-          // Si las monedas son diferentes, necesitamos convertir
-          try {
-            const exchangeRate = await getExchangeRate(supabase, dateForIVA)
-            if (exchangeRate) {
-              if (finalOperatorCostCurrency === "USD" && finalSaleCurrency === "ARS") {
-                // Convertir USD a ARS
-                operatorCostForIVA = totalOperatorCost * exchangeRate
-              } else if (finalOperatorCostCurrency === "ARS" && finalSaleCurrency === "USD") {
-                // Convertir ARS a USD
-                operatorCostForIVA = totalOperatorCost / exchangeRate
-              } else {
-                console.warn(`⚠️ Conversión de moneda no soportada: ${finalOperatorCostCurrency} → ${finalSaleCurrency}`)
-              }
+          // Si las monedas son diferentes, usar el TC de la operación
+          const rateForConversion = operationExchangeRate
+          if (rateForConversion && rateForConversion > 0) {
+            if (finalOperatorCostCurrency === "USD" && finalSaleCurrency === "ARS") {
+              // Convertir USD a ARS
+              operatorCostForIVA = totalOperatorCost * rateForConversion
+            } else if (finalOperatorCostCurrency === "ARS" && finalSaleCurrency === "USD") {
+              // Convertir ARS a USD
+              operatorCostForIVA = totalOperatorCost / rateForConversion
             } else {
-              console.warn(`⚠️ No se encontró tasa de cambio para ${dateForIVA}, usando costo sin convertir`)
+              console.warn(`⚠️ Conversión de moneda no soportada: ${finalOperatorCostCurrency} → ${finalSaleCurrency}`)
             }
-          } catch (error) {
-            console.error("Error convirtiendo moneda para IVA:", error)
-            // Continuar con el costo sin convertir
+          } else {
+            console.warn(`⚠️ No se proporcionó tipo de cambio, usando costo sin convertir`)
           }
         }
         
@@ -588,12 +611,8 @@ export async function POST(request: Request) {
         let saleAmountARS: number
         
         if (finalSaleCurrency === "ARS") {
-          // Para ARS, el tipo de cambio es obligatorio (debería venir del frontend)
-          const dateForExchange = departure_date || operation_date || new Date().toISOString().split("T")[0]
-          saleExchangeRate = await getExchangeRate(supabase, new Date(dateForExchange))
-          if (!saleExchangeRate) {
-            saleExchangeRate = await getLatestExchangeRate(supabase)
-          }
+          // Usar el tipo de cambio proporcionado por el usuario
+          saleExchangeRate = operationExchangeRate
           if (!saleExchangeRate || saleExchangeRate <= 0) {
             throw new Error("El tipo de cambio es obligatorio para operaciones en ARS")
           }
@@ -668,12 +687,8 @@ export async function POST(request: Request) {
           let costAmountARS: number
           
           if (finalOperatorCostCurrency === "ARS") {
-            // Para ARS, el tipo de cambio es obligatorio (debería venir del frontend)
-            const dateForExchange = departure_date || operation_date || new Date().toISOString().split("T")[0]
-            costExchangeRate = await getExchangeRate(supabase, new Date(dateForExchange))
-            if (!costExchangeRate) {
-              costExchangeRate = await getLatestExchangeRate(supabase)
-            }
+            // Usar el tipo de cambio proporcionado por el usuario
+            costExchangeRate = operationExchangeRate
             if (!costExchangeRate || costExchangeRate <= 0) {
               throw new Error("El tipo de cambio es obligatorio para operaciones en ARS")
             }

@@ -53,6 +53,7 @@ const operationSchema = z.object({
   sale_amount_total: z.coerce.number().min(0, "El monto debe ser mayor a 0"),
   operator_cost: z.coerce.number().min(0, "El costo debe ser mayor a 0"),
   currency: z.enum(["ARS", "USD"]),
+  exchange_rate: z.coerce.number().min(1, "El tipo de cambio debe ser mayor a 0").optional().nullable(),
   // Códigos de reserva (opcionales)
   reservation_code_air: z.string().optional().nullable(),
   reservation_code_hotel: z.string().optional().nullable(),
@@ -98,6 +99,7 @@ interface Operation {
   currency: string
   margin_amount?: number
   margin_percentage?: number
+  exchange_rate?: number | null
   // Códigos de reserva
   reservation_code_air?: string | null
   reservation_code_hotel?: string | null
@@ -179,6 +181,7 @@ export function EditOperationDialog({
       sale_amount_total: operation.sale_amount_total || 0,
       operator_cost: operation.operator_cost || 0,
       currency: (operation.currency as any) || "ARS",
+      exchange_rate: operation.exchange_rate || null,
       // Códigos de reserva
       reservation_code_air: operation.reservation_code_air || null,
       reservation_code_hotel: operation.reservation_code_hotel || null,
@@ -205,6 +208,7 @@ export function EditOperationDialog({
         sale_amount_total: operation.sale_amount_total || 0,
         operator_cost: operation.operator_cost || 0,
         currency: (operation.currency as any) || "ARS",
+        exchange_rate: operation.exchange_rate || null,
         // Códigos de reserva
         reservation_code_air: operation.reservation_code_air || null,
         reservation_code_hotel: operation.reservation_code_hotel || null,
@@ -227,6 +231,10 @@ export function EditOperationDialog({
       isPositive: margin >= 0,
     }
   }, [saleAmount, operatorCost])
+
+  // Detectar si se necesita tipo de cambio
+  const watchedCurrency = form.watch("currency")
+  const needsExchangeRate = watchedCurrency === "ARS"
 
   // Función para crear nuevo operador
   const handleCreateOperator = async () => {
@@ -285,6 +293,7 @@ export function EditOperationDialog({
           origin: values.origin || null,
           return_date: values.return_date ? format(values.return_date, "yyyy-MM-dd") : null,
           departure_date: format(values.departure_date, "yyyy-MM-dd"),
+          exchange_rate: needsExchangeRate ? (values.exchange_rate || null) : null,
         }),
       })
 
@@ -712,6 +721,34 @@ export function EditOperationDialog({
                 )}
               />
             </div>
+
+            {/* Tipo de Cambio - solo visible cuando se usa ARS */}
+            {needsExchangeRate && (
+              <FormField
+                control={form.control}
+                name="exchange_rate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Cambio (USD/ARS) *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="1"
+                        placeholder="Ej: 1200"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Valor del dólar en pesos para esta operación
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Códigos de Reserva */}
             <div className="border-t pt-4">

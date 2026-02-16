@@ -256,18 +256,16 @@ export async function PATCH(
         // Convertir costo del operador a la misma moneda de venta si es necesario
         let operatorCostForIVA = newOperatorCost
         if (operatorCostCurrency !== saleCurrency && newOperatorCost > 0) {
-          try {
-            const { getExchangeRate } = await import("@/lib/accounting/exchange-rates")
-            const exchangeRate = await getExchangeRate(supabase, op.departure_date || op.created_at)
-            if (exchangeRate) {
-              if (operatorCostCurrency === "USD" && saleCurrency === "ARS") {
-                operatorCostForIVA = newOperatorCost * exchangeRate
-              } else if (operatorCostCurrency === "ARS" && saleCurrency === "USD") {
-                operatorCostForIVA = newOperatorCost / exchangeRate
-              }
+          // Usar el TC de la operación (del body o el existente)
+          const opExchangeRate = body.exchange_rate ? Number(body.exchange_rate) : (op.exchange_rate ? Number(op.exchange_rate) : null)
+          if (opExchangeRate && opExchangeRate > 0) {
+            if (operatorCostCurrency === "USD" && saleCurrency === "ARS") {
+              operatorCostForIVA = newOperatorCost * opExchangeRate
+            } else if (operatorCostCurrency === "ARS" && saleCurrency === "USD") {
+              operatorCostForIVA = newOperatorCost / opExchangeRate
             }
-          } catch (error) {
-            console.error("Error convirtiendo moneda para IVA en actualización:", error)
+          } else {
+            console.warn("⚠️ No hay tipo de cambio para convertir moneda en actualización de IVA")
           }
         }
         

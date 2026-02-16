@@ -91,6 +91,7 @@ const operationSchema = z.object({
   sale_amount_total: z.coerce.number().min(0, "El monto debe ser mayor a 0"),
   operator_cost: z.coerce.number().min(0, "El costo debe ser mayor a 0").optional(),
   currency: z.enum(["ARS", "USD"]).default("ARS").optional(),
+  exchange_rate: z.coerce.number().min(1, "El tipo de cambio debe ser mayor a 0").optional().nullable(),
   notes: z.string().optional().nullable(),
   // Códigos de reserva (opcionales)
   reservation_code_air: z.string().optional().nullable(),
@@ -287,6 +288,7 @@ export function NewOperationDialog({
       sale_amount_total: 0,
       operator_cost: 0,
       currency: "ARS",
+      exchange_rate: null,
       operators: [],
       notes: null,
       // Códigos de reserva
@@ -389,6 +391,10 @@ export function NewOperationDialog({
   const saleAmount = form.watch("sale_amount_total")
   const calculatedMargin = saleAmount - totalOperatorCost
   const calculatedMarginPercent = saleAmount > 0 ? (calculatedMargin / saleAmount) * 100 : 0
+
+  // Detectar si se necesita tipo de cambio (cuando alguna moneda es ARS)
+  const watchedCurrency = form.watch("currency")
+  const needsExchangeRate = watchedCurrency === "ARS" || operatorList.some(op => op.cost_currency === "ARS")
 
   // Actualizar operator_cost cuando cambia la lista de operadores
   React.useEffect(() => {
@@ -493,6 +499,8 @@ export function NewOperationDialog({
         // Si hay múltiples operadores, el costo total ya está calculado en operator_cost
         operator_cost: useMultipleOperators ? totalOperatorCost : (values.operator_cost ?? 0),
         notes: values.notes || null,
+        // Tipo de cambio (solo si se usa ARS)
+        exchange_rate: needsExchangeRate ? (values.exchange_rate || null) : null,
         // Códigos de reserva
         reservation_code_air: values.reservation_code_air || null,
         reservation_code_hotel: values.reservation_code_hotel || null,
@@ -1235,6 +1243,33 @@ export function NewOperationDialog({
               />
             </div>
 
+            {/* Tipo de Cambio - solo visible cuando se usa ARS */}
+            {needsExchangeRate && (
+              <FormField
+                control={form.control}
+                name="exchange_rate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Cambio (USD/ARS) *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="1"
+                        placeholder="Ej: 1200"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Valor del dólar en pesos para esta operación
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
               <FormField
