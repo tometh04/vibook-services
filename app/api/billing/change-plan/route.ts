@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { getUserAgencyIds } from "@/lib/permissions-api"
-import { createPreference } from "@/lib/mercadopago/client"
+import { createPreference, updatePreApproval } from "@/lib/mercadopago/client"
 
 export const dynamic = 'force-dynamic'
 
@@ -205,6 +205,24 @@ export async function POST(request: Request) {
         { error: "Error al actualizar suscripción" },
         { status: 500 }
       )
+    }
+
+    // Actualizar el monto recurrente en MercadoPago si hay preapproval activo
+    const mpPreapprovalId = (currentSubscription as any).mp_preapproval_id
+    if (mpPreapprovalId && newPrice > 0) {
+      try {
+        await updatePreApproval(mpPreapprovalId, {
+          reason: `Suscripción ${(newPlan as any).display_name} - Vibook Gestión`,
+          auto_recurring: {
+            transaction_amount: newPrice,
+            currency_id: 'ARS'
+          }
+        })
+        console.log(`[Change Plan] Preapproval ${mpPreapprovalId} actualizado a $${newPrice}`)
+      } catch (err: any) {
+        console.error('[Change Plan] Error actualizando preapproval en MercadoPago:', err)
+        // No fallar el cambio de plan por esto, pero loggear para investigar
+      }
     }
 
     // Si es upgrade y hay diferencia a cobrar, crear pago inmediato

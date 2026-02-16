@@ -110,21 +110,27 @@ export async function getPreApproval(preapprovalId: string) {
   return await preApproval.get({ id: preapprovalId })
 }
 
-// Helper para actualizar preapproval
+// Helper para actualizar preapproval (status, reason, y/o monto recurrente)
 export async function updatePreApproval(preapprovalId: string, data: {
   status?: 'authorized' | 'paused' | 'cancelled'
   reason?: string
+  auto_recurring?: {
+    transaction_amount: number
+    currency_id?: 'ARS'
+  }
 }) {
   if (!preApproval || !client) {
     throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
   }
 
+  const body: any = {}
+  if (data.status) body.status = data.status
+  if (data.reason) body.reason = data.reason
+  if (data.auto_recurring) body.auto_recurring = data.auto_recurring
+
   return await preApproval.update({
     id: preapprovalId,
-    body: {
-      status: data.status,
-      reason: data.reason
-    }
+    body
   })
 }
 
