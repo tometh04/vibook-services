@@ -207,12 +207,14 @@ export default function BillingPage() {
                 {formatPrice(plan.price_monthly)}
               </p>
               <p className="text-xs text-muted-foreground">
-                /mes
+                {subscription.status === 'CANCELED' ? 'sin renovación' : '/mes'}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Próximo Pago</p>
-              <p className="text-lg font-semibold">
+              <p className="text-sm text-muted-foreground">
+                {subscription.status === 'CANCELED' ? 'Acceso hasta' : 'Próximo Pago'}
+              </p>
+              <p className={`text-lg font-semibold ${subscription.status === 'CANCELED' ? 'text-orange-600' : ''}`}>
                 {formatDistanceToNow(new Date(subscription.current_period_end), {
                   addSuffix: true,
                   locale: es,
@@ -401,6 +403,19 @@ export default function BillingPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Tu último pago falló. Por favor, actualiza tu método de pago para continuar usando el servicio.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Alerta si está cancelada con grace period */}
+      {subscription.status === 'CANCELED' && subscription.current_period_end && new Date(subscription.current_period_end) > new Date() && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Tu suscripción fue cancelada. Podés seguir usando el servicio hasta el{' '}
+            <strong>{new Date(subscription.current_period_end).toLocaleDateString('es-AR')}</strong>.
+            Después de esa fecha, tu acceso será restringido.{' '}
+            <a href="/paywall" className="underline text-primary">Reactivar suscripción</a>
           </AlertDescription>
         </Alert>
       )}
