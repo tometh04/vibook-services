@@ -140,3 +140,37 @@ export async function POST(request: Request) {
     )
   }
 }
+
+// DELETE: Desconectar AFIP (desactivar config)
+export async function DELETE() {
+  try {
+    const { user } = await getCurrentUser()
+
+    if (!hasPermission(user.role as UserRole, "settings", "write")) {
+      return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
+    }
+
+    const supabase = await createServerClient()
+    const { data: userAgency } = await supabase
+      .from("user_agencies")
+      .select("agency_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle()
+
+    if (!userAgency?.agency_id) {
+      return NextResponse.json({ error: "Usuario sin agencia" }, { status: 400 })
+    }
+
+    const adminSupabase = createAdminSupabaseClient()
+    await (adminSupabase as any)
+      .from("afip_config")
+      .update({ is_active: false })
+      .eq("agency_id", userAgency.agency_id)
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error("[api/afip/config DELETE]", error)
+    return NextResponse.json({ error: "Error interno" }, { status: 500 })
+  }
+}

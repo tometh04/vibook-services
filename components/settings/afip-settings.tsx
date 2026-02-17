@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Loader2, CheckCircle2, XCircle, Link2 } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, Link2, Unlink } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ export function AfipSettings() {
   const [config, setConfig] = useState<AfipConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
 
   // Form state
   const [cuit, setCuit] = useState("")
@@ -108,6 +109,28 @@ export function AfipSettings() {
     }
   }
 
+  async function handleDisconnect() {
+    setDisconnecting(true)
+    try {
+      const res = await fetch("/api/afip/config", { method: "DELETE" })
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || "Error al desconectar")
+        return
+      }
+
+      setConfig(null)
+      setCuit("")
+      setPuntoVenta("1")
+      toast.success("AFIP desconectado")
+    } catch (error: any) {
+      toast.error(error?.message || "Error al desconectar")
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
   if (loading) {
     return (
       <Card>
@@ -147,15 +170,31 @@ export function AfipSettings() {
         </CardHeader>
         {isConnected && config && (
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">CUIT:</span>{" "}
-                <span className="font-medium">{config.cuit}</span>
+            <div className="flex items-center justify-between">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">CUIT:</span>{" "}
+                  <span className="font-medium">{config.cuit}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Punto de Venta:</span>{" "}
+                  <span className="font-medium">{config.punto_venta}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Punto de Venta:</span>{" "}
-                <span className="font-medium">{config.punto_venta}</span>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="text-destructive hover:text-destructive"
+              >
+                {disconnecting ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Unlink className="mr-2 h-3.5 w-3.5" />
+                )}
+                Desconectar
+              </Button>
             </div>
           </CardContent>
         )}
