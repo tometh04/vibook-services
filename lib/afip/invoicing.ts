@@ -79,7 +79,8 @@ export function dateStringToAfip(dateStr: string): number {
 }
 
 /**
- * Crea un comprobante electrónico en AFIP.
+ * Crea un comprobante electrónico en AFIP usando createNextVoucher.
+ * createNextVoucher maneja automáticamente la numeración (getLastVoucher + 1).
  * Para Factura C (CbteTipo=11): ImpIVA=0, ImpNeto=ImpTotal, sin array Iva.
  */
 export async function createAfipVoucher(
@@ -87,18 +88,11 @@ export async function createAfipVoucher(
   input: CreateVoucherInput
 ): Promise<VoucherResult> {
   try {
-    // 1. Obtener último comprobante
-    const lastVoucher = await afip.ElectronicBilling.getLastVoucher(
-      input.ptoVta,
-      input.cbteTipo
-    )
-    const cbteNro = lastVoucher + 1
-
-    // 2. Fecha de hoy en formato AFIP (number YYYYMMDD)
+    // Fecha de hoy en formato AFIP (number YYYYMMDD)
     const today = formatDateAfip(new Date())
 
-    // 3. Armar datos del comprobante
-    // IMPORTANTE: CbteFch y fechas deben ser NUMBER, no string
+    // Armar datos del comprobante
+    // IMPORTANTE: Todos los valores numéricos deben ser number, no string
     const voucherData: any = {
       CantReg: 1,
       PtoVta: input.ptoVta,
@@ -106,8 +100,6 @@ export async function createAfipVoucher(
       Concepto: input.concepto,
       DocTipo: input.docTipo,
       DocNro: input.docTipo === 99 ? 0 : Number(input.docNro),
-      CbteDesde: cbteNro,
-      CbteHasta: cbteNro,
       CbteFch: today,
       ImpTotal: Number(input.impTotal),
       ImpTotConc: 0,
@@ -119,7 +111,7 @@ export async function createAfipVoucher(
       MonCotiz: Number(input.cotizacion),
     }
 
-    // Condición IVA del receptor — siempre incluir para Factura C
+    // Condición IVA del receptor
     if (input.condicionIvaReceptor) {
       voucherData.CondicionIVAReceptorId = input.condicionIvaReceptor
     }
@@ -131,27 +123,32 @@ export async function createAfipVoucher(
       voucherData.FchVtoPago = input.fchVtoPago ? dateStringToAfip(input.fchVtoPago) : today
     }
 
-    // 4. Crear comprobante en AFIP
-    console.log("[AFIP createVoucher] Enviando a AFIP:", JSON.stringify(voucherData, null, 2))
-    const result = await afip.ElectronicBilling.createVoucher(voucherData, true)
+    // Usar createNextVoucher — maneja automáticamente CbteDesde/CbteHasta
+    console.log("[AFIP createNextVoucher] Enviando a AFIP:", JSON.stringify(voucherData, null, 2))
+    const result = await afip.ElectronicBilling.createNextVoucher(voucherData)
+
+    console.log("[AFIP createNextVoucher] Resultado:", JSON.stringify(result, null, 2))
 
     return {
       success: true,
       CAE: result.CAE,
       CAEFchVto: result.CAEFchVto,
-      CbteNro: cbteNro,
+      CbteNro: result.voucherNumber || result.voucher_number,
       afipResponse: result,
     }
   } catch (error: any) {
-    console.error("[AFIP createVoucher] Error completo:", JSON.stringify({
+    // Log completo del error para debug en Vercel
+    console.error("[AFIP createNextVoucher] Error completo:", JSON.stringify({
       message: error?.message,
+      code: error?.code,
       status: error?.status,
+      statusText: error?.statusText,
       data: error?.data,
-      response: error?.response?.data,
-      stack: error?.stack?.substring(0, 500),
+      responseData: error?.response?.data,
     }, null, 2))
 
-    // El SDK de AFIP puede devolver el error en distintos lugares
+    // El SDK enriches errors con: { message, status, statusText, data }
+    // AfipWebServiceError tiene: { message: "(CODE) Msg", code }
     const afipMsg =
       error?.data?.message ||
       error?.data?.error ||

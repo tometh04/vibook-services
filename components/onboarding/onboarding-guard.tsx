@@ -87,10 +87,15 @@ export function OnboardingGuard({ variant = "floating" }: OnboardingGuardProps) 
     refresh()
   }, [pathname])
 
+  // Solo pollear si el onboarding está activo y no se completó
   useEffect(() => {
+    // Si ya sabemos que no está activo o ya se completó, no pollear
+    if (progress && (!progress.active || (progress.completedCount === progress.totalCount))) {
+      return
+    }
     const interval = setInterval(refresh, 8000)
     return () => clearInterval(interval)
-  }, [])
+  }, [progress?.active, progress?.completedCount, progress?.totalCount])
 
   useEffect(() => {
     if (loading || skipRequested || !progress?.active || !progress.currentStep || !pathname) return
