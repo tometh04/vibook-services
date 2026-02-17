@@ -43,48 +43,57 @@ export async function POST(request: Request) {
     } = body
 
     // Validar campos requeridos (operation_id puede ser null para pagos manuales)
-    if (!payer_type || !direction || !amount || !currency || !account_id) {
+    // account_id es obligatorio solo para pagos PAID (los PENDING se asignan al marcar como pagado)
+    const isPendingPayment = status === "PENDING"
+    const basicFieldsMissing = !amount || !currency
+    const paidFieldsMissing = !isPendingPayment && !account_id
+
+    if (basicFieldsMissing || paidFieldsMissing) {
       const missingFields = []
-      if (!payer_type) missingFields.push("payer_type")
-      if (!direction) missingFields.push("direction")
       if (!amount) missingFields.push("amount")
       if (!currency) missingFields.push("currency")
-      if (!account_id) missingFields.push("account_id")
+      if (!isPendingPayment && !account_id) missingFields.push("account_id")
       return NextResponse.json({
-        error: `Faltan campos requeridos: ${missingFields.join(", ")}. account_id es obligatorio para todos los pagos.`
+        error: `Faltan campos requeridos: ${missingFields.join(", ")}.${!isPendingPayment ? " account_id es obligatorio para pagos realizados." : ""}`
       }, { status: 400 })
     }
 
-    // Validar que la cuenta financiera existe y está activa
-    const { data: account, error: accountError } = await (supabase.from("financial_accounts") as any)
-      .select("id, is_active, currency, agency_id")
-      .eq("id", account_id)
-      .single()
+    // Validar cuenta financiera solo si se proporcionó (obligatoria para pagos PAID, opcional para PENDING)
+    let account: any = null
+    if (account_id) {
+      const { data: accountData, error: accountError } = await (supabase.from("financial_accounts") as any)
+        .select("id, is_active, currency, agency_id")
+        .eq("id", account_id)
+        .single()
 
-    if (accountError || !account) {
-      return NextResponse.json({ error: "Cuenta financiera no encontrada" }, { status: 400 })
-    }
+      if (accountError || !accountData) {
+        return NextResponse.json({ error: "Cuenta financiera no encontrada" }, { status: 400 })
+      }
 
-    if (!account.is_active) {
-      return NextResponse.json({ error: "La cuenta financiera seleccionada no está activa" }, { status: 400 })
-    }
+      if (!accountData.is_active) {
+        return NextResponse.json({ error: "La cuenta financiera seleccionada no está activa" }, { status: 400 })
+      }
 
-    // Validar que la moneda del pago coincida con la moneda de la cuenta
-    // O que se proporcione un tipo de cambio si son diferentes
-    if (currency !== account.currency) {
-      if (!exchange_rate || exchange_rate <= 0) {
-        return NextResponse.json(
-          { 
-            error: `La moneda del pago (${currency}) no coincide con la moneda de la cuenta (${account.currency}). Se requiere un tipo de cambio explícito.` 
-          },
-          { status: 400 }
+      account = accountData
+
+      // Validar que la moneda del pago coincida con la moneda de la cuenta
+      // O que se proporcione un tipo de cambio si son diferentes
+      if (currency !== account.currency) {
+        if (!exchange_rate || exchange_rate <= 0) {
+          return NextResponse.json(
+            {
+              error: `La moneda del pago (${currency}) no coincide con la moneda de la cuenta (${account.currency}). Se requiere un tipo de cambio explícito.`
+            },
+            { status: 400 }
         )
+      }
       }
     }
 
     // Validar que para pagos en ARS se incluya el tipo de cambio (necesario para convertir a USD para contabilidad)
     // Para pagos en USD NO se requiere tipo de cambio (el sistema trabaja en USD)
-    if (currency === "ARS" && (!exchange_rate || exchange_rate <= 0)) {
+    // Solo validar para pagos PAID (los PENDING no necesitan TC todavía)
+    if (!isPendingPayment && currency === "ARS" && (!exchange_rate || exchange_rate <= 0)) {
       return NextResponse.json({ error: "El tipo de cambio es obligatorio para pagos en ARS" }, { status: 400 })
     }
 
@@ -146,7 +155,7 @@ export async function POST(request: Request) {
       date_due: date_due || date_paid,
       status: status || "PENDING", // Cambiar default a PENDING para evitar duplicados
       reference: notes || null,
-      account_id, // Cuenta financiera obligatoria
+      account_id: account_id || null, // Cuenta financiera (obligatoria para PAID, opcional para PENDING)
     }
 
     const { data: payment, error: paymentError } = await (supabase.from("payments") as any)
@@ -206,37 +215,39 @@ export async function POST(request: Request) {
         }, { status: 201 }) // 201 porque el pago se creó y el saldo se actualizó
       }
     } else {
-      // PENDING: Solo crear movimiento en la cuenta financiera para actualizar el saldo
+      // PENDING: Solo crear movimiento en la cuenta financiera si se proporcionó account_id
       // Los movimientos de resultado y cash_movement se crearán cuando se marque como PAID
-      try {
-        const { createFinancialAccountMovement } = await import("@/lib/accounting/create-financial-account-movement")
-        await createFinancialAccountMovement({
-          paymentId: payment.id,
-          accountId: account_id,
-          amount: parseFloat(amount),
-          currency: currency as "ARS" | "USD",
-          direction: direction as "INCOME" | "EXPENSE",
-          operationId: operation_id || null,
-          datePaid: date_paid || undefined,
-          reference: notes || null,
-          method: method || "Transferencia",
-          userId: user.id,
-          supabase,
-          exchangeRate: exchange_rate ? parseFloat(exchange_rate) : null,
-        })
-        console.log(`✅ Movimiento en cuenta financiera creado para pago PENDING ${payment.id}`)
-      } catch (financialAccountError: any) {
-        console.error("❌ Error creando movimiento en cuenta financiera para PENDING:", financialAccountError)
-        // Eliminar el pago si no se pudo crear el movimiento
-        await (supabase.from("payments") as any)
-          .delete()
-          .eq("id", payment.id)
+      if (account_id) {
+        try {
+          const { createFinancialAccountMovement } = await import("@/lib/accounting/create-financial-account-movement")
+          await createFinancialAccountMovement({
+            paymentId: payment.id,
+            accountId: account_id,
+            amount: parseFloat(amount),
+            currency: currency as "ARS" | "USD",
+            direction: direction as "INCOME" | "EXPENSE",
+            operationId: operation_id || null,
+            datePaid: date_paid || undefined,
+            reference: notes || null,
+            method: method || "Transferencia",
+            userId: user.id,
+            supabase,
+            exchangeRate: exchange_rate ? parseFloat(exchange_rate) : null,
+          })
+          console.log(`✅ Movimiento en cuenta financiera creado para pago PENDING ${payment.id}`)
+        } catch (financialAccountError: any) {
+          console.error("❌ Error creando movimiento en cuenta financiera para PENDING:", financialAccountError)
+          // Eliminar el pago si no se pudo crear el movimiento
+          await (supabase.from("payments") as any)
+            .delete()
+            .eq("id", payment.id)
 
-        return NextResponse.json({
-          error: "Error crítico: No se pudo crear movimiento en cuenta financiera: " + (financialAccountError.message || "Error desconocido")
-        }, { status: 500 })
+          return NextResponse.json({
+            error: "Error crítico: No se pudo crear movimiento en cuenta financiera: " + (financialAccountError.message || "Error desconocido")
+          }, { status: 500 })
+        }
       }
-      console.log(`ℹ️ Pago ${payment.id} creado con status PENDING, movimientos de resultado se crearán cuando se marque como PAID`)
+      console.log(`ℹ️ Pago ${payment.id} creado con status PENDING${account_id ? " con movimiento en cuenta financiera" : " sin cuenta financiera asignada"}, movimientos de resultado se crearán cuando se marque como PAID`)
     }
 
     return NextResponse.json({ payment })

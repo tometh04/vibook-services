@@ -153,12 +153,13 @@ export function PaymentPlanGenerator({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             operation_id: operationId,
+            payer_type: "CUSTOMER",
+            direction: "INCOME",
             amount: payment.amount,
             currency,
             date_due: payment.dueDate.toISOString(),
-            description: payment.description,
+            notes: payment.description,
             status: "PENDING",
-            direction: "CUSTOMER_TO_AGENCY",
           }),
         })
 

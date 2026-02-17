@@ -44,7 +44,8 @@ export async function GET(request: Request) {
 
     if (accountsError) {
       console.error("Error fetching financial accounts:", accountsError)
-      return NextResponse.json({ error: "Error al obtener cuentas financieras" }, { status: 500 })
+      // Devolver lista vacía en vez de error para no romper la UI
+      return NextResponse.json({ accounts: [], total: 0, warning: "No se pudieron cargar las cuentas financieras." })
     }
 
     // OPTIMIZACIÓN: Filtrar cuentas contables en batch si se solicita

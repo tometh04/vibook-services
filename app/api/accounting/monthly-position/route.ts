@@ -103,7 +103,18 @@ export async function GET(request: Request) {
 
     if (faError) {
       console.error("Error fetching financial accounts:", faError)
-      return NextResponse.json({ error: "Error al obtener cuentas financieras" }, { status: 500 })
+      // Devolver posición vacía en vez de error 500 cuando no hay cuentas financieras configuradas
+      return NextResponse.json({
+        year,
+        month,
+        dateTo,
+        activo: { corriente: { ars: 0, usd: 0 }, no_corriente: { ars: 0, usd: 0 }, total: { ars: 0, usd: 0 } },
+        pasivo: { corriente: { ars: 0, usd: 0 }, no_corriente: { ars: 0, usd: 0 }, total: { ars: 0, usd: 0 } },
+        patrimonio_neto: { total: 0 },
+        resultado: { ingresos: 0, costos: 0, gastos: 0, total: 0 },
+        accounts: [],
+        warning: "No se pudieron cargar las cuentas financieras. Configuralas en Finanzas > Contabilidad > Cuentas Financieras.",
+      })
     }
 
     // Obtener movimientos del ledger hasta la fecha de corte
