@@ -7,6 +7,7 @@ import { BrandingSettings } from "@/components/settings/branding-settings"
 import { SeedMockData } from "@/components/settings/seed-mock-data"
 import { MigrateHistoricalAccounting } from "@/components/settings/migrate-historical-accounting"
 import { ImportSettings } from "@/components/settings/import-settings"
+import { AfipSettings } from "@/components/settings/afip-settings"
 
 interface SettingsPageClientProps {
   userRole: string
@@ -29,6 +30,9 @@ export function SettingsPageClient({ userRole, agencies, firstAgencyId, defaultT
           <TabsTrigger value="agencies">Agencias</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
+          {(userRole === "SUPER_ADMIN" || userRole === "ADMIN") && (
+            <TabsTrigger value="afip">AFIP</TabsTrigger>
+          )}
           {userRole === "SUPER_ADMIN" && <TabsTrigger value="seed">Seed Data</TabsTrigger>}
         </TabsList>
         <TabsContent value="users">
@@ -43,6 +47,11 @@ export function SettingsPageClient({ userRole, agencies, firstAgencyId, defaultT
         <TabsContent value="import">
           <ImportSettings />
         </TabsContent>
+        {(userRole === "SUPER_ADMIN" || userRole === "ADMIN") && (
+          <TabsContent value="afip">
+            <AfipSettings />
+          </TabsContent>
+        )}
         {userRole === "SUPER_ADMIN" && (
           <TabsContent value="seed" className="space-y-4">
             <SeedMockData />

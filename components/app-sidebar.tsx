@@ -124,6 +124,7 @@ const allNavigation: NavItem[] = [
         title: "Contabilidad",
         url: "/accounting/ledger",
         items: [
+          { title: "Facturación", url: "/accounting/invoicing" },
           { title: "Libro Mayor", url: "/accounting/ledger" },
           { title: "IVA", url: "/accounting/iva" },
           { title: "Cuentas Financieras", url: "/accounting/financial-accounts" },
