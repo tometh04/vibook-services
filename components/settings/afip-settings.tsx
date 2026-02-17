@@ -352,10 +352,10 @@ export function AfipSettings() {
                     <p className="font-medium">Pasos para crearlo:</p>
                     <ol className="list-decimal list-inside space-y-1 ml-1">
                       <li>Entrá a ARCA con tu CUIT/clave fiscal</li>
-                      <li>Buscá <strong>"Administración de Puntos de Venta y Domicilios"</strong></li>
-                      <li>Click en <strong>"A/B/M de puntos de venta"</strong> → <strong>"Agregar"</strong></li>
-                      <li>Seleccioná: <strong>"Factura Electrónica - Monotributo - Web Service"</strong></li>
-                      <li>Confirmá con <strong>"Aceptar"</strong></li>
+                      <li>Buscá <strong>&ldquo;Administración de Puntos de Venta y Domicilios&rdquo;</strong></li>
+                      <li>Click en <strong>&ldquo;A/B/M de puntos de venta&rdquo;</strong> → <strong>&ldquo;Agregar&rdquo;</strong></li>
+                      <li>Seleccioná: <strong>&ldquo;Factura Electrónica - Monotributo - Web Service&rdquo;</strong></li>
+                      <li>Confirmá con <strong>&ldquo;Aceptar&rdquo;</strong></li>
                     </ol>
                   </div>
                   <div className="flex items-center gap-2 pt-1">
