@@ -3,18 +3,32 @@ import Afip from "@afipsdk/afip.js"
 /**
  * Crea una instancia del cliente AFIP SDK.
  * El access_token es la API key de app.afipsdk.com (env var AFIP_SDK_TOKEN o AFIP_SDK_API_KEY).
+ * Para operaciones que requieren autenticación WSFE (facturación), se necesitan cert y key.
  */
-export function getAfipClient(cuit: number): InstanceType<typeof Afip> {
+export function getAfipClient(
+  cuit: number,
+  opts?: { cert?: string; key?: string }
+): InstanceType<typeof Afip> {
   const token = process.env.AFIP_SDK_TOKEN || process.env.AFIP_SDK_API_KEY
   if (!token) {
     throw new Error("AFIP_SDK_TOKEN no está configurado en las variables de entorno")
   }
 
-  return new Afip({
+  const config: any = {
     CUIT: cuit,
     access_token: token,
     production: true,
-  })
+  }
+
+  // Agregar certificado y key si están disponibles (requeridos para facturación)
+  if (opts?.cert) {
+    config.cert = opts.cert
+  }
+  if (opts?.key) {
+    config.key = opts.key
+  }
+
+  return new Afip(config)
 }
 
 /**

@@ -36,8 +36,18 @@ export async function GET() {
       .eq("is_active", true)
       .maybeSingle()
 
+    // No devolver cert/key/credenciales al frontend
+    let safeConfig = null
+    if (config) {
+      const { temp_username, temp_password, afip_cert, afip_key, ...safe } = config
+      safeConfig = {
+        ...safe,
+        has_cert: Boolean(afip_cert && afip_key),
+      }
+    }
+
     return NextResponse.json({
-      config: config || null,
+      config: safeConfig,
       agency_id: userAgency.agency_id,
     })
   } catch (error: any) {

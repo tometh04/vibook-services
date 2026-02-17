@@ -44,6 +44,29 @@ export async function GET() {
       return NextResponse.json({ error: "No hay configuración AFIP activa" }, { status: 404 })
     }
 
+    const adminSupabase = createAdminSupabaseClient()
+    const cuitNum = Number(config.cuit)
+
+    // Si ya terminó pero faltan cert/key, intentar recuperarlos de la automation
+    if (config.automation_status === "complete" && !config.afip_cert && config.cert_automation_id) {
+      console.log("[automation-status] Config complete pero sin cert/key. Intentando recuperar...")
+      try {
+        const certResult = await checkAutomationStatus(cuitNum, config.cert_automation_id)
+        if (certResult.status === "complete" && certResult.data?.cert && certResult.data?.key) {
+          await (adminSupabase as any)
+            .from("afip_config")
+            .update({
+              afip_cert: certResult.data.cert,
+              afip_key: certResult.data.key,
+            })
+            .eq("id", config.id)
+          console.log("[automation-status] Cert/key recuperados y guardados!")
+        }
+      } catch (e: any) {
+        console.warn("[automation-status] No se pudo recuperar cert/key:", e?.message)
+      }
+    }
+
     // Si ya terminó, retornar directo
     if (config.automation_status === "complete" || config.automation_status === "failed") {
       return NextResponse.json({
@@ -52,16 +75,28 @@ export async function GET() {
       })
     }
 
-    const adminSupabase = createAdminSupabaseClient()
-    const cuitNum = Number(config.cuit)
-
     // === PASO 1: Checkear cert automation ===
     if (config.cert_automation_id && !config.wsfe_automation_id) {
       const certResult = await checkAutomationStatus(cuitNum, config.cert_automation_id)
       console.log("[automation-status] Cert status:", certResult.status, certResult)
 
       if (certResult.status === "complete") {
-        // Cert completó → lanzar WSFE
+        // Cert completó → guardar cert y key, luego lanzar WSFE
+        // La automation devuelve { data: { cert: "-----BEGIN...", key: "-----BEGIN..." } }
+        const certData = certResult.data
+        if (certData?.cert && certData?.key) {
+          console.log("[automation-status] Guardando cert y key en DB...")
+          await (adminSupabase as any)
+            .from("afip_config")
+            .update({
+              afip_cert: certData.cert,
+              afip_key: certData.key,
+            })
+            .eq("id", config.id)
+        } else {
+          console.warn("[automation-status] Cert completó pero no devolvió cert/key:", certData)
+        }
+
         if (config.temp_username && config.temp_password) {
           const wsfeResult = await startWsfeAutomation(cuitNum, config.temp_username, config.temp_password)
 
@@ -205,7 +240,7 @@ async function markFailed(adminSupabase: any, configId: string) {
 }
 
 function sanitizeConfig(config: any) {
-  // Nunca devolver credenciales al frontend
-  const { temp_username, temp_password, ...safe } = config
+  // Nunca devolver credenciales ni certificados al frontend
+  const { temp_username, temp_password, afip_cert, afip_key, ...safe } = config
   return safe
 }

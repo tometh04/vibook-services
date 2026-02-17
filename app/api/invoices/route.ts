@@ -147,9 +147,20 @@ export async function POST(request: Request) {
       )
     }
 
-    // Crear instancia AFIP
+    // Verificar que tenemos certificado
+    if (!afipConfig.afip_cert || !afipConfig.afip_key) {
+      return NextResponse.json(
+        { error: "Certificado AFIP no encontrado. Reconectá AFIP desde Configuración." },
+        { status: 400 }
+      )
+    }
+
+    // Crear instancia AFIP con certificado y key
     const cuit = Number(afipConfig.cuit)
-    const afip = getAfipClient(cuit)
+    const afip = getAfipClient(cuit, {
+      cert: afipConfig.afip_cert,
+      key: afipConfig.afip_key,
+    })
     const ptoVta = afipConfig.punto_venta || 1
 
     // Determinar moneda AFIP
