@@ -137,29 +137,37 @@ export async function createAfipVoucher(
       afipResponse: result,
     }
   } catch (error: any) {
-    // Log completo del error para debug en Vercel
-    console.error("[AFIP createNextVoucher] Error completo:", JSON.stringify({
-      message: error?.message,
-      code: error?.code,
-      status: error?.status,
-      statusText: error?.statusText,
-      data: error?.data,
-      responseData: error?.response?.data,
-    }, null, 2))
+    // Log exhaustivo — el SDK asigna .data .status al Error object
+    const errData = error?.data
+    const errStatus = error?.status
+    const errMsg = error?.message
+    const errCode = error?.code
 
-    // El SDK enriches errors con: { message, status, statusText, data }
-    // AfipWebServiceError tiene: { message: "(CODE) Msg", code }
-    const afipMsg =
-      error?.data?.message ||
-      error?.data?.error ||
-      error?.response?.data?.message ||
-      error?.message ||
-      "Error al emitir comprobante en AFIP"
+    console.error("[AFIP createNextVoucher] message:", errMsg)
+    console.error("[AFIP createNextVoucher] status:", errStatus)
+    console.error("[AFIP createNextVoucher] code:", errCode)
+    console.error("[AFIP createNextVoucher] data:", JSON.stringify(errData))
+    console.error("[AFIP createNextVoucher] keys:", Object.getOwnPropertyNames(error))
+
+    // Extraer mensaje útil — el SDK pone el detalle en error.data
+    let afipMsg = "Error al emitir comprobante en AFIP"
+
+    if (errData && typeof errData === "object") {
+      // El server de afipsdk.com devuelve { message: "...", ... }
+      afipMsg = errData.message || errData.error || JSON.stringify(errData)
+    } else if (errData && typeof errData === "string") {
+      afipMsg = errData
+    } else if (errCode && errMsg) {
+      // AfipWebServiceError: "(CODE) Msg"
+      afipMsg = errMsg
+    } else if (errMsg && errMsg !== "Request failed with status code 400") {
+      afipMsg = errMsg
+    }
 
     return {
       success: false,
       error: afipMsg,
-      afipResponse: error?.data || error?.response?.data || null,
+      afipResponse: errData || null,
     }
   }
 }
