@@ -6,6 +6,9 @@ import { hasPermission, type UserRole } from "@/lib/permissions"
 import { getAfipClient } from "@/lib/afip/client"
 import { createAfipVoucher, formatDateAfip } from "@/lib/afip/invoicing"
 
+// Vercel serverless: permitir hasta 25s para llamadas al SDK de AFIP
+export const maxDuration = 25
+
 // GET: Listar facturas de la agencia
 export async function GET(request: Request) {
   try {

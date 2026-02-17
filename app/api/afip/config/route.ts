@@ -5,6 +5,9 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { testAfipConnection } from "@/lib/afip/client"
 import { hasPermission, type UserRole } from "@/lib/permissions"
 
+// Vercel serverless: permitir hasta 25s (free tier max 60s, dejamos margen)
+export const maxDuration = 25
+
 // GET: Obtener configuración AFIP de la agencia del usuario
 export async function GET() {
   try {
@@ -85,19 +88,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Usuario sin agencia" }, { status: 400 })
     }
 
-    // Probar conexión directa con AFIP (sin automations)
-    const testResult = await testAfipConnection(cuitNum, ptoVta)
-
-    // Guardar config
     const adminSupabase = createAdminSupabaseClient()
 
-    // Desactivar configs previas
+    // 1. Desactivar configs previas
     await (adminSupabase as any)
       .from("afip_config")
       .update({ is_active: false })
       .eq("agency_id", userAgency.agency_id)
 
-    // Insertar nueva config
+    // 2. Guardar config PRIMERO (con status pending)
     const { data: newConfig, error: insertError } = await (adminSupabase as any)
       .from("afip_config")
       .insert({
@@ -106,7 +105,7 @@ export async function POST(request: Request) {
         environment: "production",
         punto_venta: ptoVta,
         is_active: true,
-        automation_status: testResult.connected ? "complete" : "failed",
+        automation_status: "pending",
       })
       .select()
       .single()
@@ -115,6 +114,18 @@ export async function POST(request: Request) {
       console.error("[api/afip/config POST] Insert error:", insertError)
       return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 })
     }
+
+    // 3. Testear conexión con AFIP (con timeout de 15s)
+    const testResult = await testAfipConnection(cuitNum, ptoVta)
+
+    // 4. Actualizar status según resultado del test
+    const finalStatus = testResult.connected ? "complete" : "failed"
+    await (adminSupabase as any)
+      .from("afip_config")
+      .update({ automation_status: finalStatus })
+      .eq("id", newConfig.id)
+
+    newConfig.automation_status = finalStatus
 
     return NextResponse.json({
       success: true,

@@ -84,7 +84,22 @@ export async function setupAfipCertificate(
 }
 
 /**
+ * Wraps a promise with a timeout. Rejects if the promise doesn't resolve in time.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout: ${label} tardó más de ${ms / 1000}s`))
+    }, ms)
+    promise
+      .then((val) => { clearTimeout(timer); resolve(val) })
+      .catch((err) => { clearTimeout(timer); reject(err) })
+  })
+}
+
+/**
  * Prueba la conexión con AFIP intentando obtener el último comprobante.
+ * Tiene un timeout de 15 segundos para no colgar en Vercel.
  */
 export async function testAfipConnection(
   cuit: number,
@@ -92,7 +107,11 @@ export async function testAfipConnection(
 ): Promise<{ connected: boolean; lastVoucher?: number; error?: string }> {
   try {
     const afip = getAfipClient(cuit)
-    const lastVoucher = await afip.ElectronicBilling.getLastVoucher(ptoVta, 11) // Factura C
+    const lastVoucher = await withTimeout(
+      afip.ElectronicBilling.getLastVoucher(ptoVta, 11), // Factura C
+      15000,
+      "getLastVoucher"
+    )
     return { connected: true, lastVoucher }
   } catch (error: any) {
     console.error("[AFIP Test] Error:", {
@@ -100,9 +119,10 @@ export async function testAfipConnection(
       status: error?.status,
       data: error?.data,
     })
+    const msg = error?.data?.message || error?.message || "No se pudo conectar con AFIP"
     return {
       connected: false,
-      error: error?.data?.message || error?.message || "No se pudo conectar con AFIP",
+      error: msg,
     }
   }
 }
