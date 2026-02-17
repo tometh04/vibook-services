@@ -368,10 +368,12 @@ export function buildInvoiceHtml(data: InvoicePdfData): string {
  */
 export function prepareInvoicePdfData(invoice: any, agency: any, afipConfig: any): InvoicePdfData {
   return {
-    razonSocial: agency.name || "Sin razón social",
-    domicilioComercial: agency.company_address_line1 || agency.city || "-",
-    condicionIva: "Monotributo", // Factura C = Monotributista
+    // Prioridad: datos fiscales cargados en afip_config > datos de agencia > fallback
+    razonSocial: afipConfig.razon_social || agency.name || "Sin razón social",
+    domicilioComercial: afipConfig.domicilio_comercial || agency.company_address_line1 || agency.city || "-",
+    condicionIva: afipConfig.condicion_iva || "Monotributo",
     cuit: afipConfig.cuit,
+    inicioActividades: afipConfig.inicio_actividades ? formatAfipDate(afipConfig.inicio_actividades) : undefined,
 
     tipoComprobante: "C",
     tipoComprobanteNombre: "Factura",

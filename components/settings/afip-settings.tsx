@@ -26,6 +26,11 @@ interface AfipConfig {
   cert_automation_id?: string
   wsfe_automation_id?: string
   has_cert?: boolean
+  // Datos fiscales
+  razon_social?: string | null
+  domicilio_comercial?: string | null
+  condicion_iva?: string | null
+  inicio_actividades?: string | null
 }
 
 export function AfipSettings() {
@@ -48,6 +53,14 @@ export function AfipSettings() {
   const [needsSalesPoint, setNeedsSalesPoint] = useState(false)
   const [checkingSalesPoints, setCheckingSalesPoints] = useState(false)
 
+  // Datos fiscales state
+  const [razonSocial, setRazonSocial] = useState("")
+  const [domicilioComercial, setDomicilioComercial] = useState("")
+  const [condicionIva, setCondicionIva] = useState("Monotributo")
+  const [inicioActividades, setInicioActividades] = useState("")
+  const [savingFiscal, setSavingFiscal] = useState(false)
+  const [fiscalSaved, setFiscalSaved] = useState(false)
+
   useEffect(() => {
     fetchConfig()
     return () => {
@@ -62,6 +75,12 @@ export function AfipSettings() {
       if (data.config) {
         setConfig(data.config)
         setCuit(data.config.cuit || "")
+        // Cargar datos fiscales si existen
+        if (data.config.razon_social) setRazonSocial(data.config.razon_social)
+        if (data.config.domicilio_comercial) setDomicilioComercial(data.config.domicilio_comercial)
+        if (data.config.condicion_iva) setCondicionIva(data.config.condicion_iva)
+        if (data.config.inicio_actividades) setInicioActividades(data.config.inicio_actividades)
+        if (data.config.razon_social && data.config.domicilio_comercial) setFiscalSaved(true)
         // Si está en running, empezar polling
         if (data.config.automation_status === "running") {
           startPolling()
@@ -246,6 +265,45 @@ export function AfipSettings() {
     }
   }
 
+  async function handleSaveFiscalData() {
+    if (!razonSocial.trim()) {
+      toast.error("Ingresá la razón social tal como figura en AFIP")
+      return
+    }
+    if (!domicilioComercial.trim()) {
+      toast.error("Ingresá el domicilio comercial")
+      return
+    }
+
+    setSavingFiscal(true)
+    try {
+      const res = await fetch("/api/afip/config/fiscal-data", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          razon_social: razonSocial,
+          domicilio_comercial: domicilioComercial,
+          condicion_iva: condicionIva,
+          inicio_actividades: inicioActividades || null,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || "Error al guardar datos fiscales")
+        return
+      }
+
+      setFiscalSaved(true)
+      toast.success("Datos fiscales guardados correctamente")
+    } catch (error: any) {
+      toast.error(error?.message || "Error al guardar datos fiscales")
+    } finally {
+      setSavingFiscal(false)
+    }
+  }
+
   if (loading) {
     return (
       <Card>
@@ -390,6 +448,109 @@ export function AfipSettings() {
           </CardContent>
         )}
       </Card>
+
+      {/* Datos Fiscales del Emisor */}
+      {isConnected && config && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Datos Fiscales del Emisor</CardTitle>
+                <CardDescription>
+                  Estos datos aparecen en las facturas PDF. Deben coincidir con los registrados en ARCA/AFIP.
+                </CardDescription>
+              </div>
+              {fiscalSaved && (
+                <Badge variant="success-soft" className="gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Configurado
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!fiscalSaved && (
+              <Alert className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-sm text-yellow-700 dark:text-yellow-300">
+                  <strong>Importante:</strong> Completá estos datos antes de emitir facturas. La razón social y el domicilio deben ser los que figuran en ARCA para tu CUIT.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="razon_social">Razón Social *</Label>
+              <Input
+                id="razon_social"
+                placeholder="Ej: SANCHEZ TOMAS ALEJANDRO"
+                value={razonSocial}
+                onChange={(e) => { setRazonSocial(e.target.value); setFiscalSaved(false) }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Nombre o razón social tal como figura en AFIP para el CUIT {config.cuit}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="domicilio_comercial">Domicilio Comercial *</Label>
+              <Input
+                id="domicilio_comercial"
+                placeholder="Ej: Av. Rivadavia 1234, CABA"
+                value={domicilioComercial}
+                onChange={(e) => { setDomicilioComercial(e.target.value); setFiscalSaved(false) }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Domicilio fiscal registrado en AFIP
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="condicion_iva">Condición frente al IVA</Label>
+                <select
+                  id="condicion_iva"
+                  value={condicionIva}
+                  onChange={(e) => { setCondicionIva(e.target.value); setFiscalSaved(false) }}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="Monotributo">Monotributo</option>
+                  <option value="Responsable Inscripto">Responsable Inscripto</option>
+                  <option value="Exento">Exento</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="inicio_actividades">Inicio de Actividades</Label>
+                <Input
+                  id="inicio_actividades"
+                  type="date"
+                  value={inicioActividades}
+                  onChange={(e) => { setInicioActividades(e.target.value); setFiscalSaved(false) }}
+                />
+                <p className="text-xs text-muted-foreground">Opcional</p>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSaveFiscalData}
+              disabled={savingFiscal}
+              className="w-full sm:w-auto"
+            >
+              {savingFiscal ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Guardar Datos Fiscales
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Formulario de conexión */}
       {!isRunning && !isConnected && (

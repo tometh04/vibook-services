@@ -73,10 +73,10 @@ export async function GET(
       company_address_line1: agencySettings?.company_address_line1 || null,
     }
 
-    // Obtener config AFIP
+    // Obtener config AFIP (incluye datos fiscales)
     const { data: afipConfig } = await supabase
       .from("afip_config")
-      .select("cuit, afip_cert, afip_key")
+      .select("cuit, afip_cert, afip_key, razon_social, domicilio_comercial, condicion_iva, inicio_actividades")
       .eq("agency_id", userAgency.agency_id)
       .eq("is_active", true)
       .maybeSingle()

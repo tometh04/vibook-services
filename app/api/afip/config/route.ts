@@ -43,6 +43,11 @@ export async function GET() {
       safeConfig = {
         ...safe,
         has_cert: Boolean(afip_cert && afip_key),
+        // Datos fiscales (pueden ser null si no se cargaron aún)
+        razon_social: config.razon_social || null,
+        domicilio_comercial: config.domicilio_comercial || null,
+        condicion_iva: config.condicion_iva || null,
+        inicio_actividades: config.inicio_actividades || null,
       }
     }
 
