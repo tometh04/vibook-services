@@ -157,6 +157,7 @@ export async function POST(request: Request) {
     const cotizacion = moneda === "USD" ? 1 : 1 // Para USD usamos cotización 1 (declarado en dólares)
 
     // Emitir en AFIP
+    // Las fechas se pasan como "YYYY-MM-DD" — createAfipVoucher las convierte a number YYYYMMDD
     const result = await createAfipVoucher(afip, {
       ptoVta,
       cbteTipo: 11, // Factura C
@@ -167,9 +168,9 @@ export async function POST(request: Request) {
       moneda: monAfip,
       cotizacion,
       condicionIvaReceptor: receptor_condicion_iva ? Number(receptor_condicion_iva) : undefined,
-      fchServDesde: fch_serv_desde ? fch_serv_desde.replace(/-/g, "") : undefined,
-      fchServHasta: fch_serv_hasta ? fch_serv_hasta.replace(/-/g, "") : undefined,
-      fchVtoPago: fch_serv_hasta ? fch_serv_hasta.replace(/-/g, "") : undefined,
+      fchServDesde: fch_serv_desde || undefined,
+      fchServHasta: fch_serv_hasta || undefined,
+      fchVtoPago: fch_serv_hasta || undefined,
     })
 
     // Guardar en DB (admin client para bypass RLS)

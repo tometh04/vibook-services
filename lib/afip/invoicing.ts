@@ -41,9 +41,9 @@ export interface CreateVoucherInput {
   impTotal: number
   moneda: string       // "PES" o "DOL"
   cotizacion: number   // 1 para PES
-  fchServDesde?: string // YYYYMMDD - requerido si concepto >= 2
-  fchServHasta?: string // YYYYMMDD
-  fchVtoPago?: string  // YYYYMMDD
+  fchServDesde?: string // YYYY-MM-DD - requerido si concepto >= 2
+  fchServHasta?: string // YYYY-MM-DD
+  fchVtoPago?: string  // YYYY-MM-DD
   condicionIvaReceptor?: number
 }
 
@@ -61,13 +61,21 @@ export interface VoucherResult {
 // ============================================
 
 /**
- * Formatea una fecha Date a YYYYMMDD para AFIP.
+ * Formatea una fecha Date a YYYYMMDD (number) para AFIP.
+ * Ajusta por timezone para evitar problemas con UTC.
  */
-export function formatDateAfip(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}${m}${d}`
+export function formatDateAfip(date: Date): number {
+  // Ajustar por timezone para obtener fecha local correcta
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  const str = local.toISOString().split("T")[0].replace(/-/g, "")
+  return parseInt(str)
+}
+
+/**
+ * Convierte fecha string "YYYY-MM-DD" a number YYYYMMDD para AFIP.
+ */
+export function dateStringToAfip(dateStr: string): number {
+  return parseInt(dateStr.replace(/-/g, ""))
 }
 
 /**
@@ -86,10 +94,11 @@ export async function createAfipVoucher(
     )
     const cbteNro = lastVoucher + 1
 
-    // 2. Fecha de hoy en formato AFIP
+    // 2. Fecha de hoy en formato AFIP (number YYYYMMDD)
     const today = formatDateAfip(new Date())
 
     // 3. Armar datos del comprobante
+    // IMPORTANTE: CbteFch y fechas deben ser NUMBER, no string
     const voucherData: any = {
       CantReg: 1,
       PtoVta: input.ptoVta,
@@ -100,29 +109,30 @@ export async function createAfipVoucher(
       CbteDesde: cbteNro,
       CbteHasta: cbteNro,
       CbteFch: today,
-      ImpTotal: input.impTotal,
+      ImpTotal: Number(input.impTotal),
       ImpTotConc: 0,
-      ImpNeto: input.impTotal, // Factura C: todo es neto
+      ImpNeto: Number(input.impTotal), // Factura C: todo es neto
       ImpOpEx: 0,
       ImpTrib: 0,
       ImpIVA: 0, // Factura C: sin IVA discriminado
       MonId: input.moneda,
-      MonCotiz: input.cotizacion,
+      MonCotiz: Number(input.cotizacion),
     }
 
-    // Condición IVA del receptor (si se provee)
+    // Condición IVA del receptor — siempre incluir para Factura C
     if (input.condicionIvaReceptor) {
       voucherData.CondicionIVAReceptorId = input.condicionIvaReceptor
     }
 
-    // Si es servicio (concepto >= 2), agregar fechas de servicio
+    // Si es servicio (concepto >= 2), agregar fechas de servicio como numbers
     if (input.concepto >= 2) {
-      voucherData.FchServDesde = input.fchServDesde || today
-      voucherData.FchServHasta = input.fchServHasta || today
-      voucherData.FchVtoPago = input.fchVtoPago || today
+      voucherData.FchServDesde = input.fchServDesde ? dateStringToAfip(input.fchServDesde) : today
+      voucherData.FchServHasta = input.fchServHasta ? dateStringToAfip(input.fchServHasta) : today
+      voucherData.FchVtoPago = input.fchVtoPago ? dateStringToAfip(input.fchVtoPago) : today
     }
 
     // 4. Crear comprobante en AFIP
+    console.log("[AFIP createVoucher] Enviando a AFIP:", JSON.stringify(voucherData, null, 2))
     const result = await afip.ElectronicBilling.createVoucher(voucherData, true)
 
     return {
@@ -133,11 +143,26 @@ export async function createAfipVoucher(
       afipResponse: result,
     }
   } catch (error: any) {
-    console.error("[AFIP createVoucher] Error:", error?.message || error)
+    console.error("[AFIP createVoucher] Error completo:", JSON.stringify({
+      message: error?.message,
+      status: error?.status,
+      data: error?.data,
+      response: error?.response?.data,
+      stack: error?.stack?.substring(0, 500),
+    }, null, 2))
+
+    // El SDK de AFIP puede devolver el error en distintos lugares
+    const afipMsg =
+      error?.data?.message ||
+      error?.data?.error ||
+      error?.response?.data?.message ||
+      error?.message ||
+      "Error al emitir comprobante en AFIP"
+
     return {
       success: false,
-      error: error?.message || "Error al emitir comprobante en AFIP",
-      afipResponse: error?.response?.data || null,
+      error: afipMsg,
+      afipResponse: error?.data || error?.response?.data || null,
     }
   }
 }
