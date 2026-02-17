@@ -32,6 +32,7 @@ export async function GET() {
     const invoicedOpIds = (invoicedOps || []).map((i: any) => i.operation_id).filter(Boolean)
 
     // Get operations that are confirmed+ and NOT already invoiced
+    // Valid DB statuses: PRE_RESERVATION, RESERVED, CONFIRMED, CANCELLED, TRAVELLED, CLOSED
     let query = supabase
       .from("operations")
       .select(`
@@ -39,15 +40,24 @@ export async function GET() {
         file_code,
         destination,
         sale_amount_total,
-        sale_currency,
+        currency,
         departure_date,
         return_date,
         status,
-        customer_id,
-        customers:customer_id(id, first_name, last_name, document_type, document_number, email)
+        operation_customers(
+          role,
+          customers:customer_id(
+            id,
+            first_name,
+            last_name,
+            document_type,
+            document_number,
+            email
+          )
+        )
       `)
       .in("agency_id", agencyIds)
-      .in("status", ["CONFIRMED", "TRAVELLING", "TRAVELLED", "CLOSED"])
+      .in("status", ["CONFIRMED", "TRAVELLED", "CLOSED"])
       .order("created_at", { ascending: false })
       .limit(50)
 
@@ -63,22 +73,30 @@ export async function GET() {
       return NextResponse.json({ operations: [], warning: error.message })
     }
 
-    const formattedOperations = (operations || []).map((op: any) => ({
-      id: op.id,
-      file_code: op.file_code,
-      customer_id: op.customer_id,
-      customer_name: op.customers
-        ? `${op.customers.first_name} ${op.customers.last_name}`
-        : "Sin cliente",
-      customer_doc_type: op.customers?.document_type || null,
-      customer_doc_number: op.customers?.document_number || null,
-      destination: op.destination || "-",
-      sale_amount_total: parseFloat(op.sale_amount_total) || 0,
-      sale_currency: op.sale_currency || "ARS",
-      departure_date: op.departure_date,
-      return_date: op.return_date,
-      status: op.status,
-    }))
+    const formattedOperations = (operations || []).map((op: any) => {
+      // Get main customer from operation_customers junction table
+      const mainCustomerRelation = op.operation_customers?.find(
+        (oc: any) => oc.role === "MAIN"
+      ) || op.operation_customers?.[0]
+      const customer = mainCustomerRelation?.customers || null
+
+      return {
+        id: op.id,
+        file_code: op.file_code,
+        customer_id: customer?.id || null,
+        customer_name: customer
+          ? `${customer.first_name} ${customer.last_name}`
+          : "Sin cliente",
+        customer_doc_type: customer?.document_type || null,
+        customer_doc_number: customer?.document_number || null,
+        destination: op.destination || "-",
+        sale_amount_total: parseFloat(op.sale_amount_total) || 0,
+        sale_currency: op.currency || "ARS",
+        departure_date: op.departure_date,
+        return_date: op.return_date,
+        status: op.status,
+      }
+    })
 
     return NextResponse.json({ operations: formattedOperations })
   } catch (error: any) {
