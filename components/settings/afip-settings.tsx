@@ -110,7 +110,13 @@ export function AfipSettings() {
           setPolling(false)
           setPollMessage("")
           setConfig(data.config)
-          toast.success("¡AFIP configurado correctamente!")
+          if (data.connection_test?.connected) {
+            toast.success(`¡AFIP configurado! Último comprobante: ${data.connection_test.lastVoucher ?? 0}`)
+          } else if (data.connection_test?.error) {
+            toast.warning(`Certificado creado, pero falló el test: ${data.connection_test.error}. Verificá el punto de venta.`)
+          } else {
+            toast.success("¡Certificado AFIP configurado correctamente!")
+          }
         } else if (data.status === "failed") {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
           setPolling(false)
