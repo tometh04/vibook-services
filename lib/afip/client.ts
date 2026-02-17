@@ -18,67 +18,95 @@ export function getAfipClient(cuit: number): InstanceType<typeof Afip> {
 }
 
 /**
- * Ejecuta las automations del SDK para:
+ * Lanza las automations del SDK de forma ASÍNCRONA (wait=false):
  * 1. Crear certificado de producción
  * 2. Autorizar el web service de facturación electrónica (WSFE)
  *
- * Las credenciales ARCA (usuario/contraseña) NO se guardan — solo se usan aquí.
- * Si el certificado ya existe, intenta igualmente autorizar el WSFE.
+ * Retorna inmediatamente con los IDs de las automations.
+ * El frontend debe hacer polling a checkAutomationStatus() para ver cuándo terminan.
+ *
+ * Las credenciales ARCA NO se guardan — solo se usan aquí.
  */
-export async function setupAfipCertificate(
+export async function startAfipSetup(
   cuit: number,
   username: string,
   password: string
-): Promise<{ success: boolean; error?: string; details?: any }> {
+): Promise<{ success: boolean; automationIds?: { cert?: string; wsfe?: string }; error?: string }> {
   const afip = getAfipClient(cuit)
-  const alias = `vibook${cuit}` // Solo alfanumérico, sin guiones
+  const alias = `vibook${cuit}`
 
-  // Paso 1: Crear certificado de producción
-  let certCreated = false
+  const automationIds: { cert?: string; wsfe?: string } = {}
+
+  // Paso 1: Lanzar creación de certificado (wait=false → retorna inmediato)
   try {
-    console.log("[AFIP Setup] Creando certificado...", { cuit, alias })
+    console.log("[AFIP Setup] Lanzando creación de certificado...", { cuit, alias })
     const certResult = await afip.CreateAutomation(
       "create-cert-prod",
       { cuit: String(cuit), username, password, alias },
-      true
+      false
     )
-    console.log("[AFIP Setup] Certificado creado:", certResult?.status)
-    certCreated = true
+    console.log("[AFIP Setup] Cert automation lanzada:", certResult)
+    automationIds.cert = certResult.id
   } catch (error: any) {
-    console.error("[AFIP Setup] Error creando certificado:", {
+    console.error("[AFIP Setup] Error lanzando cert automation:", {
       message: error?.message,
       status: error?.status,
       data: error?.data,
     })
-    // Si falla, puede ser que ya exista — intentamos el paso 2 igualmente
+    return {
+      success: false,
+      error: error?.data?.message || error?.message || "Error al iniciar creación de certificado",
+    }
   }
 
-  // Paso 2: Autorizar WSFE (facturación electrónica)
+  // Paso 2: Lanzar autorización WSFE (wait=false)
   try {
-    console.log("[AFIP Setup] Autorizando WSFE...", { cuit, alias })
+    console.log("[AFIP Setup] Lanzando autorización WSFE...", { cuit, alias })
     const authResult = await afip.CreateAutomation(
       "auth-web-service-prod",
       { cuit: String(cuit), username, password, alias, service: "wsfe" },
-      true
+      false
     )
-    console.log("[AFIP Setup] WSFE autorizado:", authResult?.status)
-    return { success: true }
+    console.log("[AFIP Setup] WSFE automation lanzada:", authResult)
+    automationIds.wsfe = authResult.id
   } catch (error: any) {
-    const errorDetail = {
+    console.error("[AFIP Setup] Error lanzando WSFE automation:", {
       message: error?.message,
       status: error?.status,
-      statusText: error?.statusText,
       data: error?.data,
-    }
-    console.error("[AFIP Setup] Error autorizando WSFE:", errorDetail)
-
-    const errorMsg = error?.data?.message || error?.message || "Error desconocido"
+    })
+    // El cert ya se lanzó, retornamos con lo que tenemos
     return {
-      success: false,
-      error: certCreated
-        ? `Certificado creado, pero falló la autorización WSFE: ${errorMsg}`
-        : `Error en la configuración AFIP: ${errorMsg}`,
-      details: errorDetail,
+      success: true,
+      automationIds,
+    }
+  }
+
+  return { success: true, automationIds }
+}
+
+/**
+ * Checkea el status de una automation sin esperar (wait=false).
+ * Retorna el status actual: 'pending', 'running', 'complete', 'error', etc.
+ */
+export async function checkAutomationStatus(
+  cuit: number,
+  automationId: string
+): Promise<{ id: string; status: string; data?: any; error?: string }> {
+  try {
+    const afip = getAfipClient(cuit)
+    const result = await afip.GetAutomationDetails(automationId, false)
+    return result
+  } catch (error: any) {
+    console.error("[AFIP Check] Error:", {
+      message: error?.message,
+      status: error?.status,
+      data: error?.data,
+    })
+    return {
+      id: automationId,
+      status: "error",
+      error: error?.data?.message || error?.message || "Error verificando automation",
     }
   }
 }

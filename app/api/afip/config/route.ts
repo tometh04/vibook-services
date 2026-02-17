@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
-import { testAfipConnection } from "@/lib/afip/client"
+import { testAfipConnection, startAfipSetup } from "@/lib/afip/client"
 import { hasPermission, type UserRole } from "@/lib/permissions"
 
 // Vercel serverless: permitir hasta 25s (free tier max 60s, dejamos margen)
@@ -46,7 +46,9 @@ export async function GET() {
   }
 }
 
-// POST: Guardar config y probar conexión directa (sin automations)
+// POST: Guardar config AFIP
+// - Con username/password: lanza automations asíncronas para crear certificado
+// - Sin username/password: solo prueba conexión directa (cert ya existe)
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { cuit, punto_venta } = body
+    const { cuit, punto_venta, username, password } = body
 
     if (!cuit || !punto_venta) {
       return NextResponse.json(
@@ -90,48 +92,89 @@ export async function POST(request: Request) {
 
     const adminSupabase = createAdminSupabaseClient()
 
-    // 1. Desactivar configs previas
+    // Desactivar configs previas
     await (adminSupabase as any)
       .from("afip_config")
       .update({ is_active: false })
       .eq("agency_id", userAgency.agency_id)
 
-    // 2. Guardar config PRIMERO (con status pending)
-    const { data: newConfig, error: insertError } = await (adminSupabase as any)
-      .from("afip_config")
-      .insert({
-        agency_id: userAgency.agency_id,
-        cuit: String(cuit),
-        environment: "production",
-        punto_venta: ptoVta,
-        is_active: true,
-        automation_status: "pending",
+    const hasCredentials = username && password
+
+    if (hasCredentials) {
+      // === MODO CERTIFICADO: Lanzar automations async ===
+      const setupResult = await startAfipSetup(cuitNum, username, password)
+
+      if (!setupResult.success) {
+        return NextResponse.json(
+          { error: setupResult.error || "Error al iniciar configuración AFIP" },
+          { status: 500 }
+        )
+      }
+
+      // Guardar config con automation IDs para polling posterior
+      const { data: newConfig, error: insertError } = await (adminSupabase as any)
+        .from("afip_config")
+        .insert({
+          agency_id: userAgency.agency_id,
+          cuit: String(cuit),
+          environment: "production",
+          punto_venta: ptoVta,
+          is_active: true,
+          automation_status: "running",
+          cert_automation_id: setupResult.automationIds?.cert || null,
+          wsfe_automation_id: setupResult.automationIds?.wsfe || null,
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error("[api/afip/config POST] Insert error:", insertError)
+        return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        config: newConfig,
+        mode: "setup",
+        message: "Configurando certificado AFIP. Esto puede tardar hasta 2 minutos...",
       })
-      .select()
-      .single()
+    } else {
+      // === MODO RÁPIDO: Solo test de conexión directa ===
+      const { data: newConfig, error: insertError } = await (adminSupabase as any)
+        .from("afip_config")
+        .insert({
+          agency_id: userAgency.agency_id,
+          cuit: String(cuit),
+          environment: "production",
+          punto_venta: ptoVta,
+          is_active: true,
+          automation_status: "pending",
+        })
+        .select()
+        .single()
 
-    if (insertError) {
-      console.error("[api/afip/config POST] Insert error:", insertError)
-      return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 })
+      if (insertError) {
+        console.error("[api/afip/config POST] Insert error:", insertError)
+        return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 })
+      }
+
+      const testResult = await testAfipConnection(cuitNum, ptoVta)
+      const finalStatus = testResult.connected ? "complete" : "failed"
+
+      await (adminSupabase as any)
+        .from("afip_config")
+        .update({ automation_status: finalStatus })
+        .eq("id", newConfig.id)
+
+      newConfig.automation_status = finalStatus
+
+      return NextResponse.json({
+        success: true,
+        config: newConfig,
+        mode: "quick",
+        connection_test: testResult,
+      })
     }
-
-    // 3. Testear conexión con AFIP (con timeout de 15s)
-    const testResult = await testAfipConnection(cuitNum, ptoVta)
-
-    // 4. Actualizar status según resultado del test
-    const finalStatus = testResult.connected ? "complete" : "failed"
-    await (adminSupabase as any)
-      .from("afip_config")
-      .update({ automation_status: finalStatus })
-      .eq("id", newConfig.id)
-
-    newConfig.automation_status = finalStatus
-
-    return NextResponse.json({
-      success: true,
-      config: newConfig,
-      connection_test: testResult,
-    })
   } catch (error: any) {
     console.error("[api/afip/config POST]", error)
     return NextResponse.json(
