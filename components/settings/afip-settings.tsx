@@ -96,8 +96,10 @@ export function AfipSettings() {
         const res = await fetch("/api/afip/automation-status")
         const data = await res.json()
 
-        // Actualizar mensaje de progreso
-        if (data.cert_status && data.wsfe_status) {
+        // Actualizar mensaje de progreso según el paso actual
+        if (data.message) {
+          setPollMessage(data.message)
+        } else if (data.cert_status && data.wsfe_status) {
           const certLabel = data.cert_status === "complete" ? "✓" : "..."
           const wsfeLabel = data.wsfe_status === "complete" ? "✓" : "..."
           setPollMessage(`Certificado: ${certLabel}  |  Autorización WSFE: ${wsfeLabel}`)

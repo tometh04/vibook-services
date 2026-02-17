@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
-import { testAfipConnection, startAfipSetup } from "@/lib/afip/client"
+import { testAfipConnection, startCertAutomation } from "@/lib/afip/client"
 import { hasPermission, type UserRole } from "@/lib/permissions"
 
 // Vercel serverless: permitir hasta 25s (free tier max 60s, dejamos margen)
@@ -101,17 +101,18 @@ export async function POST(request: Request) {
     const hasCredentials = username && password
 
     if (hasCredentials) {
-      // === MODO CERTIFICADO: Lanzar automations async ===
-      const setupResult = await startAfipSetup(cuitNum, username, password)
+      // === MODO CERTIFICADO: Lanzar SOLO cert automation (WSFE se lanza después) ===
+      const certResult = await startCertAutomation(cuitNum, username, password)
 
-      if (!setupResult.success) {
+      if (!certResult.success) {
         return NextResponse.json(
-          { error: setupResult.error || "Error al iniciar configuración AFIP" },
+          { error: certResult.error || "Error al iniciar creación de certificado" },
           { status: 500 }
         )
       }
 
-      // Guardar config con automation IDs para polling posterior
+      // Guardar config con cert automation ID + credenciales temporales para WSFE posterior
+      // Las credenciales se borran del registro cuando el setup completa
       const { data: newConfig, error: insertError } = await (adminSupabase as any)
         .from("afip_config")
         .insert({
@@ -121,8 +122,11 @@ export async function POST(request: Request) {
           punto_venta: ptoVta,
           is_active: true,
           automation_status: "running",
-          cert_automation_id: setupResult.automationIds?.cert || null,
-          wsfe_automation_id: setupResult.automationIds?.wsfe || null,
+          cert_automation_id: certResult.automationId || null,
+          wsfe_automation_id: null,
+          // Credenciales temporales — se borran cuando el setup completa
+          temp_username: username,
+          temp_password: password,
         })
         .select()
         .single()
@@ -134,7 +138,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        config: newConfig,
+        config: { ...newConfig, temp_username: undefined, temp_password: undefined },
         mode: "setup",
         message: "Configurando certificado AFIP. Esto puede tardar hasta 2 minutos...",
       })

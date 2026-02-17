@@ -18,35 +18,27 @@ export function getAfipClient(cuit: number): InstanceType<typeof Afip> {
 }
 
 /**
- * Lanza las automations del SDK de forma ASÍNCRONA (wait=false):
- * 1. Crear certificado de producción
- * 2. Autorizar el web service de facturación electrónica (WSFE)
- *
- * Retorna inmediatamente con los IDs de las automations.
- * El frontend debe hacer polling a checkAutomationStatus() para ver cuándo terminan.
- *
- * Las credenciales ARCA NO se guardan — solo se usan aquí.
+ * Lanza SOLO la creación de certificado (wait=false, retorna inmediato).
+ * La autorización WSFE se lanza DESPUÉS, cuando el cert esté completo.
+ * Las credenciales ARCA NO se guardan.
  */
-export async function startAfipSetup(
+export async function startCertAutomation(
   cuit: number,
   username: string,
   password: string
-): Promise<{ success: boolean; automationIds?: { cert?: string; wsfe?: string }; error?: string }> {
+): Promise<{ success: boolean; automationId?: string; error?: string }> {
   const afip = getAfipClient(cuit)
   const alias = `vibook${cuit}`
 
-  const automationIds: { cert?: string; wsfe?: string } = {}
-
-  // Paso 1: Lanzar creación de certificado (wait=false → retorna inmediato)
   try {
     console.log("[AFIP Setup] Lanzando creación de certificado...", { cuit, alias })
-    const certResult = await afip.CreateAutomation(
+    const result = await afip.CreateAutomation(
       "create-cert-prod",
       { cuit: String(cuit), username, password, alias },
       false
     )
-    console.log("[AFIP Setup] Cert automation lanzada:", certResult)
-    automationIds.cert = certResult.id
+    console.log("[AFIP Setup] Cert automation lanzada:", result)
+    return { success: true, automationId: result.id }
   } catch (error: any) {
     console.error("[AFIP Setup] Error lanzando cert automation:", {
       message: error?.message,
@@ -58,31 +50,40 @@ export async function startAfipSetup(
       error: error?.data?.message || error?.message || "Error al iniciar creación de certificado",
     }
   }
+}
 
-  // Paso 2: Lanzar autorización WSFE (wait=false)
+/**
+ * Lanza SOLO la autorización WSFE (wait=false, retorna inmediato).
+ * Debe ejecutarse DESPUÉS de que el certificado esté creado.
+ */
+export async function startWsfeAutomation(
+  cuit: number,
+  username: string,
+  password: string
+): Promise<{ success: boolean; automationId?: string; error?: string }> {
+  const afip = getAfipClient(cuit)
+  const alias = `vibook${cuit}`
+
   try {
     console.log("[AFIP Setup] Lanzando autorización WSFE...", { cuit, alias })
-    const authResult = await afip.CreateAutomation(
+    const result = await afip.CreateAutomation(
       "auth-web-service-prod",
       { cuit: String(cuit), username, password, alias, service: "wsfe" },
       false
     )
-    console.log("[AFIP Setup] WSFE automation lanzada:", authResult)
-    automationIds.wsfe = authResult.id
+    console.log("[AFIP Setup] WSFE automation lanzada:", result)
+    return { success: true, automationId: result.id }
   } catch (error: any) {
     console.error("[AFIP Setup] Error lanzando WSFE automation:", {
       message: error?.message,
       status: error?.status,
       data: error?.data,
     })
-    // El cert ya se lanzó, retornamos con lo que tenemos
     return {
-      success: true,
-      automationIds,
+      success: false,
+      error: error?.data?.message || error?.message || "Error al autorizar WSFE",
     }
   }
-
-  return { success: true, automationIds }
 }
 
 /**

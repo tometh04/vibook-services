@@ -9,3 +9,8 @@ ALTER TABLE afip_config ADD CONSTRAINT afip_config_automation_status_check
 -- IDs de las automations lanzadas
 ALTER TABLE afip_config ADD COLUMN IF NOT EXISTS cert_automation_id TEXT;
 ALTER TABLE afip_config ADD COLUMN IF NOT EXISTS wsfe_automation_id TEXT;
+
+-- Credenciales temporales para el flujo secuencial de automations
+-- Se borran cuando el setup completa exitosamente
+ALTER TABLE afip_config ADD COLUMN IF NOT EXISTS temp_username TEXT;
+ALTER TABLE afip_config ADD COLUMN IF NOT EXISTS temp_password TEXT;

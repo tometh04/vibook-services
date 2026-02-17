@@ -2,13 +2,17 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
-import { checkAutomationStatus, testAfipConnection } from "@/lib/afip/client"
+import { checkAutomationStatus, startWsfeAutomation, testAfipConnection } from "@/lib/afip/client"
 import { hasPermission, type UserRole } from "@/lib/permissions"
 
 export const maxDuration = 25
 
-// GET: Polling del estado de las automations AFIP
-// El frontend llama cada 5s mientras automation_status === 'running'
+/**
+ * Flujo secuencial de automations AFIP:
+ * 1. Cert automation se lanza desde POST /api/afip/config
+ * 2. Polling detecta cert complete → lanza WSFE automation
+ * 3. Polling detecta WSFE complete → test conexión → done
+ */
 export async function GET() {
   try {
     const { user } = await getCurrentUser()
@@ -29,7 +33,6 @@ export async function GET() {
       return NextResponse.json({ error: "Usuario sin agencia" }, { status: 400 })
     }
 
-    // Buscar config activa
     const { data: config } = await supabase
       .from("afip_config")
       .select("*")
@@ -41,77 +44,135 @@ export async function GET() {
       return NextResponse.json({ error: "No hay configuración AFIP activa" }, { status: 404 })
     }
 
-    // Si ya está completo o fallido, retornar directo
+    // Si ya terminó, retornar directo
     if (config.automation_status === "complete" || config.automation_status === "failed") {
       return NextResponse.json({
         status: config.automation_status,
-        config,
+        config: sanitizeConfig(config),
       })
     }
 
-    // Si está en running, checkear las automations en el SDK
+    const adminSupabase = createAdminSupabaseClient()
     const cuitNum = Number(config.cuit)
-    let certStatus = "unknown"
-    let wsfeStatus = "unknown"
-    let certError: string | undefined
-    let wsfeError: string | undefined
 
-    if (config.cert_automation_id) {
+    // === PASO 1: Checkear cert automation ===
+    if (config.cert_automation_id && !config.wsfe_automation_id) {
       const certResult = await checkAutomationStatus(cuitNum, config.cert_automation_id)
-      certStatus = certResult.status
-      if (certResult.error) certError = certResult.error
+      console.log("[automation-status] Cert status:", certResult.status, certResult)
+
+      if (certResult.status === "complete") {
+        // Cert completó → lanzar WSFE
+        if (config.temp_username && config.temp_password) {
+          const wsfeResult = await startWsfeAutomation(cuitNum, config.temp_username, config.temp_password)
+
+          if (wsfeResult.success && wsfeResult.automationId) {
+            await (adminSupabase as any)
+              .from("afip_config")
+              .update({ wsfe_automation_id: wsfeResult.automationId })
+              .eq("id", config.id)
+
+            return NextResponse.json({
+              status: "running",
+              step: "wsfe",
+              message: "Certificado creado. Autorizando servicio de facturación...",
+              cert_status: "complete",
+              wsfe_status: "pending",
+              config: sanitizeConfig(config),
+            })
+          } else {
+            // WSFE no pudo lanzarse
+            await markFailed(adminSupabase, config.id)
+            return NextResponse.json({
+              status: "failed",
+              error: wsfeResult.error || "Error al lanzar autorización WSFE",
+              cert_status: "complete",
+              config: sanitizeConfig({ ...config, automation_status: "failed" }),
+            })
+          }
+        } else {
+          // No hay credenciales para lanzar WSFE — esto no debería pasar
+          await markFailed(adminSupabase, config.id)
+          return NextResponse.json({
+            status: "failed",
+            error: "Credenciales no disponibles para autorizar WSFE. Intentá de nuevo.",
+            config: sanitizeConfig({ ...config, automation_status: "failed" }),
+          })
+        }
+      } else if (certResult.status === "error" || certResult.status === "failed") {
+        await markFailed(adminSupabase, config.id)
+        return NextResponse.json({
+          status: "failed",
+          error: certResult.error || "Error creando certificado AFIP",
+          cert_status: certResult.status,
+          config: sanitizeConfig({ ...config, automation_status: "failed" }),
+        })
+      } else {
+        // Cert todavía en proceso (pending/running)
+        return NextResponse.json({
+          status: "running",
+          step: "cert",
+          message: "Creando certificado de producción...",
+          cert_status: certResult.status,
+          config: sanitizeConfig(config),
+        })
+      }
     }
 
+    // === PASO 2: Checkear WSFE automation ===
     if (config.wsfe_automation_id) {
       const wsfeResult = await checkAutomationStatus(cuitNum, config.wsfe_automation_id)
-      wsfeStatus = wsfeResult.status
-      if (wsfeResult.error) wsfeError = wsfeResult.error
+      console.log("[automation-status] WSFE status:", wsfeResult.status, wsfeResult)
+
+      if (wsfeResult.status === "complete") {
+        // Todo completó → test conexión real
+        const testResult = await testAfipConnection(cuitNum, config.punto_venta)
+        const finalStatus = testResult.connected ? "complete" : "failed"
+
+        // Limpiar credenciales temporales y marcar status final
+        await (adminSupabase as any)
+          .from("afip_config")
+          .update({
+            automation_status: finalStatus,
+            temp_username: null,
+            temp_password: null,
+          })
+          .eq("id", config.id)
+
+        return NextResponse.json({
+          status: finalStatus,
+          cert_status: "complete",
+          wsfe_status: "complete",
+          connection_test: testResult,
+          config: sanitizeConfig({ ...config, automation_status: finalStatus }),
+        })
+      } else if (wsfeResult.status === "error" || wsfeResult.status === "failed") {
+        await markFailed(adminSupabase, config.id)
+        return NextResponse.json({
+          status: "failed",
+          error: wsfeResult.error || "Error autorizando servicio de facturación",
+          cert_status: "complete",
+          wsfe_status: wsfeResult.status,
+          config: sanitizeConfig({ ...config, automation_status: "failed" }),
+        })
+      } else {
+        // WSFE todavía en proceso
+        return NextResponse.json({
+          status: "running",
+          step: "wsfe",
+          message: "Autorizando servicio de facturación electrónica...",
+          cert_status: "complete",
+          wsfe_status: wsfeResult.status,
+          config: sanitizeConfig(config),
+        })
+      }
     }
 
-    // Determinar status final
-    const adminSupabase = createAdminSupabaseClient()
-
-    if (certStatus === "error" || wsfeStatus === "error") {
-      // Alguna automation falló
-      await (adminSupabase as any)
-        .from("afip_config")
-        .update({ automation_status: "failed" })
-        .eq("id", config.id)
-
-      return NextResponse.json({
-        status: "failed",
-        cert_status: certStatus,
-        wsfe_status: wsfeStatus,
-        error: certError || wsfeError || "Error en la configuración automática",
-        config: { ...config, automation_status: "failed" },
-      })
-    }
-
-    if (certStatus === "complete" && wsfeStatus === "complete") {
-      // Ambas completaron → probar conexión real
-      const testResult = await testAfipConnection(cuitNum, config.punto_venta)
-
-      const finalStatus = testResult.connected ? "complete" : "failed"
-      await (adminSupabase as any)
-        .from("afip_config")
-        .update({ automation_status: finalStatus })
-        .eq("id", config.id)
-
-      return NextResponse.json({
-        status: finalStatus,
-        cert_status: certStatus,
-        wsfe_status: wsfeStatus,
-        connection_test: testResult,
-        config: { ...config, automation_status: finalStatus },
-      })
-    }
-
-    // Todavía en proceso
+    // === Edge case: no hay automation IDs ===
+    await markFailed(adminSupabase, config.id)
     return NextResponse.json({
-      status: "running",
-      cert_status: certStatus,
-      wsfe_status: wsfeStatus,
-      config,
+      status: "failed",
+      error: "No se encontraron automations en proceso. Intentá conectar de nuevo.",
+      config: sanitizeConfig({ ...config, automation_status: "failed" }),
     })
   } catch (error: any) {
     console.error("[api/afip/automation-status]", error)
@@ -120,4 +181,22 @@ export async function GET() {
       { status: 500 }
     )
   }
+}
+
+// Helpers
+async function markFailed(adminSupabase: any, configId: string) {
+  await adminSupabase
+    .from("afip_config")
+    .update({
+      automation_status: "failed",
+      temp_username: null,
+      temp_password: null,
+    })
+    .eq("id", configId)
+}
+
+function sanitizeConfig(config: any) {
+  // Nunca devolver credenciales al frontend
+  const { temp_username, temp_password, ...safe } = config
+  return safe
 }
