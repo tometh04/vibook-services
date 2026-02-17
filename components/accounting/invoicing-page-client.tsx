@@ -39,7 +39,6 @@ import {
   Receipt,
   DollarSign,
   Building2,
-  HelpCircle,
   Plus,
   Send,
   Eye,
@@ -50,12 +49,6 @@ import {
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import Link from "next/link"
 import { COMPROBANTE_LABELS } from "@/lib/afip/types"
 
@@ -241,6 +234,9 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
 
   // ── Invoice dialog: from operation ──
 
+  // Factura C: IVA siempre 0 (no discrimina)
+  const esFacturaC = invoiceForm.cbte_tipo === "11"
+
   const openFromOperation = (op: PendingInvoice) => {
     setSelectedOp(op)
     setDialogMode("from_operation")
@@ -254,6 +250,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
     }
 
     const cbteTipo = docTipo === "80" ? "6" : "11"
+    const isC = cbteTipo === "11"
 
     setInvoiceForm({
       cbte_tipo: cbteTipo,
@@ -268,7 +265,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
         descripcion: `Servicios turísticos - ${op.destination} - File ${op.file_code}`,
         cantidad: 1,
         precio_unitario: op.sale_amount_total,
-        iva_porcentaje: 21,
+        iva_porcentaje: isC ? 0 : 21,
       },
     ])
     setInvoiceDialogOpen(true)
@@ -287,7 +284,8 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
       condicion_iva: "5",
       concepto: "2",
     })
-    setItems([{ descripcion: "", cantidad: 1, precio_unitario: 0, iva_porcentaje: 21 }])
+    // Factura C default → IVA 0%
+    setItems([{ descripcion: "", cantidad: 1, precio_unitario: 0, iva_porcentaje: 0 }])
     setInvoiceDialogOpen(true)
   }
 
@@ -309,7 +307,8 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
 
   const calcItemTotal = (item: InvoiceItem) => {
     const subtotal = item.cantidad * item.precio_unitario
-    const ivaImporte = subtotal * (item.iva_porcentaje / 100)
+    // Factura C: IVA = 0 siempre
+    const ivaImporte = esFacturaC ? 0 : subtotal * (item.iva_porcentaje / 100)
     return { subtotal, ivaImporte, total: subtotal + ivaImporte }
   }
 
@@ -380,7 +379,12 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
 
       // Step 2: Authorize with AFIP
       const authRes = await fetch(`/api/invoices/${invoice.id}/authorize`, { method: "POST" })
-      const authData = await authRes.json()
+      let authData: any
+      try {
+        authData = await authRes.json()
+      } catch {
+        throw new Error("Error de red al autorizar con AFIP")
+      }
 
       if (authData.success) {
         toast.success(`Factura autorizada — CAE: ${authData.data.cae}`)
@@ -388,7 +392,15 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
         fetchPendingInvoices()
         fetchInvoices()
       } else {
-        toast.error(authData.error || "AFIP rechazó la factura")
+        // Mostrar error detallado de AFIP
+        const errMsg = authData.error || "AFIP rechazó la factura"
+        const details = authData.details
+        if (details && Array.isArray(details)) {
+          const detailText = details.map((d: any) => `(${d.Code}) ${d.Msg}`).join(" | ")
+          toast.error(`${errMsg}: ${detailText}`, { duration: 10000 })
+        } else {
+          toast.error(errMsg, { duration: 8000 })
+        }
         console.error("[AFIP] Rechazo:", authData)
         fetchInvoices()
       }
@@ -406,12 +418,26 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
     setAuthorizing(invoiceId)
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/authorize`, { method: "POST" })
-      const data = await res.json()
+      let data: any
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error("Error de red al autorizar con AFIP")
+      }
       if (data.success) {
         toast.success(`Factura autorizada — CAE: ${data.data.cae}`)
         fetchInvoices()
+        fetchPendingInvoices()
       } else {
-        toast.error(data.error || "Error al autorizar")
+        const errMsg = data.error || "Error al autorizar"
+        const details = data.details
+        if (details && Array.isArray(details)) {
+          const detailText = details.map((d: any) => `(${d.Code}) ${d.Msg}`).join(" | ")
+          toast.error(`${errMsg}: ${detailText}`, { duration: 10000 })
+        } else {
+          toast.error(errMsg, { duration: 8000 })
+        }
+        console.error("[AFIP] Rechazo:", data)
       }
     } catch (error: any) {
       toast.error(error.message || "Error al autorizar")
@@ -443,41 +469,31 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <h1 className="text-3xl font-bold">Facturación Electrónica</h1>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-sm">
-                <p>Emití facturas electrónicas con CAE a través de AFIP/ARCA, vinculadas a operaciones o de forma libre.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-2xl sm:text-3xl font-bold">Facturación Electrónica</h1>
           {isConfigured ? (
-            <Badge variant="success">
+            <Badge variant="success" className="shrink-0">
               <CheckCircle2 className="h-3 w-3 mr-1" />
-              AFIP Configurado
+              Configurado
             </Badge>
           ) : (
-            <Badge variant="destructive">
+            <Badge variant="destructive" className="shrink-0">
               <AlertCircle className="h-3 w-3 mr-1" />
               Sin configurar
             </Badge>
           )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           {isConfigured && (
-            <Button onClick={openFreeInvoice}>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button onClick={openFreeInvoice} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
               Nueva Factura
             </Button>
           )}
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" asChild>
             <Link href="/settings?tab=afip">
-              <Settings className="h-4 w-4 mr-2" />
+              <Settings className="h-4 w-4 mr-1" />
               Config AFIP
             </Link>
           </Button>
@@ -511,7 +527,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
       {isConfigured && config && (
         <>
           {/* KPIs */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Pendientes</CardTitle>
@@ -580,39 +596,41 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
                       <p className="text-sm mt-1">Las operaciones deben estar en estado Confirmada o superior</p>
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Código</TableHead>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Destino</TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead className="text-right">Monto</TableHead>
-                          <TableHead></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingInvoices.map((op) => (
-                          <TableRow key={op.id}>
-                            <TableCell className="font-mono font-medium">{op.file_code}</TableCell>
-                            <TableCell>{op.customer_name}</TableCell>
-                            <TableCell>{op.destination}</TableCell>
-                            <TableCell>
-                              {op.departure_date ? format(new Date(op.departure_date), "dd/MM/yyyy", { locale: es }) : "-"}
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatCurrency(op.sale_amount_total, op.sale_currency)}
-                            </TableCell>
-                            <TableCell>
-                              <Button size="sm" onClick={() => openFromOperation(op)}>
-                                <FileText className="h-4 w-4 mr-2" />
-                                Facturar
-                              </Button>
-                            </TableCell>
+                    <div className="overflow-x-auto -mx-6 px-6">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Código</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead className="hidden sm:table-cell">Destino</TableHead>
+                            <TableHead className="hidden md:table-cell">Fecha</TableHead>
+                            <TableHead className="text-right">Monto</TableHead>
+                            <TableHead></TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {pendingInvoices.map((op) => (
+                            <TableRow key={op.id}>
+                              <TableCell className="font-mono font-medium text-xs sm:text-sm">{op.file_code}</TableCell>
+                              <TableCell className="max-w-[120px] truncate">{op.customer_name}</TableCell>
+                              <TableCell className="hidden sm:table-cell">{op.destination}</TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                {op.departure_date ? format(new Date(op.departure_date), "dd/MM/yyyy", { locale: es }) : "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-medium whitespace-nowrap">
+                                {formatCurrency(op.sale_amount_total, op.sale_currency)}
+                              </TableCell>
+                              <TableCell>
+                                <Button size="sm" onClick={() => openFromOperation(op)}>
+                                  <FileText className="h-4 w-4 sm:mr-2" />
+                                  <span className="hidden sm:inline">Facturar</span>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -622,13 +640,13 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
             <TabsContent value="history" className="space-y-4">
               <Card>
                 <CardContent className="pt-6">
-                  <div className="flex gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <div className="flex-1 relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Buscar por cliente, CUIT, número o CAE..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+                      <Input placeholder="Buscar por cliente, CUIT, CAE..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
                     </div>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[200px]">
+                      <SelectTrigger className="w-full sm:w-[180px]">
                         <Filter className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Estado" />
                       </SelectTrigger>
@@ -648,71 +666,73 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
                   {loadingInvoices ? (
                     <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Comprobante</TableHead>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>CUIT/DNI</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                          <TableHead>CAE</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredInvoices.map((inv) => (
-                          <TableRow key={inv.id}>
-                            <TableCell>
-                              <div className="font-medium">
-                                {COMPROBANTE_LABELS[inv.cbte_tipo as keyof typeof COMPROBANTE_LABELS] || `Tipo ${inv.cbte_tipo}`}
-                              </div>
-                              {inv.cbte_nro && (
-                                <div className="text-sm text-muted-foreground">
-                                  {String(inv.pto_vta).padStart(4, "0")}-{String(inv.cbte_nro).padStart(8, "0")}
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell>{inv.receptor_nombre}</TableCell>
-                            <TableCell className="font-mono text-sm">{inv.receptor_doc_nro}</TableCell>
-                            <TableCell className="text-right font-medium">{formatCurrency(inv.imp_total)}</TableCell>
-                            <TableCell>
-                              {inv.cae ? <code className="text-xs bg-muted px-1 py-0.5 rounded">{inv.cae}</code> : <span className="text-muted-foreground">-</span>}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={STATUS_LABELS[inv.status]?.variant || "outline"}>
-                                {STATUS_LABELS[inv.status]?.label || inv.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {inv.fecha_emision
-                                ? format(new Date(inv.fecha_emision), "dd/MM/yyyy", { locale: es })
-                                : format(new Date(inv.created_at), "dd/MM/yyyy", { locale: es })}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" onClick={() => setSelectedInvoice(inv)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                {(inv.status === "draft" || inv.status === "rejected") && (
-                                  <Button size="sm" onClick={() => authorizeExisting(inv.id)} disabled={authorizing === inv.id}>
-                                    {authorizing === inv.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="mr-1 h-4 w-4" />Autorizar</>}
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {filteredInvoices.length === 0 && (
+                    <div className="overflow-x-auto -mx-6 px-6">
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                              {search || statusFilter !== "ALL" ? "No se encontraron facturas con esos filtros" : "No hay facturas emitidas aún"}
-                            </TableCell>
+                            <TableHead>Comprobante</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead className="hidden md:table-cell">CUIT/DNI</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="hidden lg:table-cell">CAE</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead className="hidden sm:table-cell">Fecha</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
                           </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredInvoices.map((inv) => (
+                            <TableRow key={inv.id}>
+                              <TableCell>
+                                <div className="font-medium text-xs sm:text-sm">
+                                  {COMPROBANTE_LABELS[inv.cbte_tipo as keyof typeof COMPROBANTE_LABELS] || `Tipo ${inv.cbte_tipo}`}
+                                </div>
+                                {inv.cbte_nro && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {String(inv.pto_vta).padStart(4, "0")}-{String(inv.cbte_nro).padStart(8, "0")}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="max-w-[120px] truncate">{inv.receptor_nombre}</TableCell>
+                              <TableCell className="font-mono text-sm hidden md:table-cell">{inv.receptor_doc_nro}</TableCell>
+                              <TableCell className="text-right font-medium whitespace-nowrap">{formatCurrency(inv.imp_total)}</TableCell>
+                              <TableCell className="hidden lg:table-cell">
+                                {inv.cae ? <code className="text-xs bg-muted px-1 py-0.5 rounded">{inv.cae}</code> : <span className="text-muted-foreground">-</span>}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={STATUS_LABELS[inv.status]?.variant || "outline"} className="text-xs">
+                                  {STATUS_LABELS[inv.status]?.label || inv.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="hidden sm:table-cell whitespace-nowrap">
+                                {inv.fecha_emision
+                                  ? format(new Date(inv.fecha_emision), "dd/MM/yyyy", { locale: es })
+                                  : format(new Date(inv.created_at), "dd/MM/yyyy", { locale: es })}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedInvoice(inv)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  {(inv.status === "draft" || inv.status === "rejected") && (
+                                    <Button size="sm" onClick={() => authorizeExisting(inv.id)} disabled={authorizing === inv.id}>
+                                      {authorizing === inv.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Autorizar</span></>}
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {filteredInvoices.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                {search || statusFilter !== "ALL" ? "No se encontraron facturas con esos filtros" : "No hay facturas emitidas aún"}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -723,7 +743,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
 
       {/* Dialog: Create Invoice */}
       <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogMode === "from_operation" ? "Facturar Operación" : "Nueva Factura"}</DialogTitle>
             <DialogDescription>
@@ -736,10 +756,16 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo de Comprobante</Label>
-                <Select value={invoiceForm.cbte_tipo} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, cbte_tipo: v })}>
+                <Select value={invoiceForm.cbte_tipo} onValueChange={(v) => {
+                  setInvoiceForm({ ...invoiceForm, cbte_tipo: v })
+                  // Factura C → forzar IVA 0% en todos los items
+                  if (v === "11") {
+                    setItems(prev => prev.map(item => ({ ...item, iva_porcentaje: 0 })))
+                  }
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CBTE_TIPOS.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
@@ -757,7 +783,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo Documento</Label>
                 <Select value={invoiceForm.doc_tipo} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, doc_tipo: v })}>
@@ -804,15 +830,19 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
                     </div>
                     <div>
                       <Label className="text-xs">IVA %</Label>
-                      <Select value={item.iva_porcentaje.toString()} onValueChange={(v) => updateItem(idx, "iva_porcentaje", parseFloat(v))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">0%</SelectItem>
-                          <SelectItem value="10.5">10.5%</SelectItem>
-                          <SelectItem value="21">21%</SelectItem>
-                          <SelectItem value="27">27%</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {esFacturaC ? (
+                        <Input value="0% (Factura C)" disabled className="text-xs" />
+                      ) : (
+                        <Select value={item.iva_porcentaje.toString()} onValueChange={(v) => updateItem(idx, "iva_porcentaje", parseFloat(v))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0%</SelectItem>
+                            <SelectItem value="10.5">10.5%</SelectItem>
+                            <SelectItem value="21">21%</SelectItem>
+                            <SelectItem value="27">27%</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -833,14 +863,21 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
 
             {/* Totals */}
             <div className="rounded-md border p-3 bg-muted/50 text-sm space-y-1">
+              {esFacturaC && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  Factura C: no discrimina IVA. El total es el importe neto.
+                </p>
+              )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Neto gravado:</span>
+                <span className="text-muted-foreground">{esFacturaC ? "Importe:" : "Neto gravado:"}</span>
                 <span className="font-medium">{formatCurrency(Math.round(totals.neto * 100) / 100)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">IVA:</span>
-                <span className="font-medium">{formatCurrency(Math.round(totals.iva * 100) / 100)}</span>
-              </div>
+              {!esFacturaC && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">IVA:</span>
+                  <span className="font-medium">{formatCurrency(Math.round(totals.iva * 100) / 100)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-1">
                 <span className="font-medium">Total:</span>
                 <span className="font-bold">{formatCurrency(Math.round(totals.total * 100) / 100)}</span>
@@ -859,7 +896,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
 
       {/* Dialog: Invoice Detail */}
       <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedInvoice && COMPROBANTE_LABELS[selectedInvoice.cbte_tipo as keyof typeof COMPROBANTE_LABELS]}

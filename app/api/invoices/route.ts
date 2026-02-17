@@ -130,6 +130,9 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validatedData = createInvoiceSchema.parse(body)
 
+    // Determinar si es Factura C (no discrimina IVA)
+    const esFacturaC = validatedData.cbte_tipo === 11
+
     // Calcular totales
     let impNeto = 0
     let impIva = 0
@@ -137,7 +140,8 @@ export async function POST(request: Request) {
 
     const itemsWithTotals = validatedData.items.map((item, index) => {
       const subtotal = item.cantidad * item.precio_unitario
-      const ivaImporte = subtotal * (item.iva_porcentaje / 100)
+      // Factura C: IVA = 0 siempre (no discrimina)
+      const ivaImporte = esFacturaC ? 0 : subtotal * (item.iva_porcentaje / 100)
       const total = subtotal + ivaImporte
 
       impNeto += subtotal
@@ -148,19 +152,28 @@ export async function POST(request: Request) {
         ...item,
         subtotal,
         iva_importe: ivaImporte,
+        iva_porcentaje: esFacturaC ? 0 : item.iva_porcentaje,
+        iva_id: esFacturaC ? 3 : item.iva_id, // 3 = 0%
         total,
         orden: index,
       }
     })
 
-    // Obtener punto de venta de configuración
-    const { data: financialSettings } = await supabase
-      .from("financial_settings")
-      .select("default_point_of_sale")
-      .eq("agency_id", agencyIds[0])
-      .single()
+    // Factura C: ImpNeto = ImpTotal, ImpIVA = 0
+    if (esFacturaC) {
+      impIva = 0
+      impTotal = impNeto
+    }
 
-    const ptoVta = (financialSettings as any)?.default_point_of_sale || 1
+    // Obtener punto de venta de configuración AFIP de la agencia
+    const { data: afipConfig } = await supabase
+      .from("afip_config")
+      .select("punto_venta")
+      .eq("agency_id", agencyIds[0])
+      .eq("is_active", true)
+      .maybeSingle()
+
+    const ptoVta = (afipConfig as any)?.punto_venta || 1
 
     // Crear factura
     const { data: invoice, error: invoiceError } = await (supabase.from("invoices") as any)
