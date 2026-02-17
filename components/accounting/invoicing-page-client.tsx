@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Loader2, Plus, FileText, AlertCircle, Settings } from "lucide-react"
+import { Loader2, Plus, FileText, AlertCircle, Settings, Eye, ShieldCheck, CheckCircle2, XCircle } from "lucide-react"
+import { toast } from "sonner"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 import { NewInvoiceDialog } from "@/components/accounting/new-invoice-dialog"
 
@@ -64,6 +74,15 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<{
+    exists: boolean
+    voucherInfo?: any
+    message?: string
+    error?: string
+  } | null>(null)
 
   // Filtros
   const [statusFilter, setStatusFilter] = useState("ALL")
@@ -174,6 +193,49 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
     return `${symbol} ${amount.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`
   }
 
+  async function verifyInAfip(invoice: Invoice) {
+    if (!invoice.cbte_nro || !invoice.pto_vta || !invoice.cbte_tipo) {
+      toast.error("La factura no tiene datos de comprobante completos")
+      return
+    }
+
+    try {
+      setVerifying(true)
+      setVerifyResult(null)
+
+      const response = await fetch("/api/invoices/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cbteNro: invoice.cbte_nro,
+          ptoVta: invoice.pto_vta,
+          cbteTipo: invoice.cbte_tipo,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setVerifyResult({ exists: false, error: data.error })
+        toast.error(data.error || "No se pudo consultar AFIP")
+        return
+      }
+
+      setVerifyResult(data)
+
+      if (data.exists) {
+        toast.success(`CAE ${data.voucherInfo.CAE} confirmado en AFIP`)
+      } else {
+        toast.error(data.message || "El comprobante no fue encontrado en AFIP")
+      }
+    } catch (error: any) {
+      setVerifyResult({ exists: false, error: error.message })
+      toast.error(error.message || "Error al verificar en AFIP")
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -243,6 +305,7 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
                 <TableHead className="text-right">Importe</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>CAE</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -278,6 +341,16 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {inv.cae || "-"}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => { setSelectedInvoice(inv); setVerifyResult(null) }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 )
               })}
@@ -292,6 +365,138 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
         onOpenChange={setDialogOpen}
         onCreated={fetchInvoices}
       />
+
+      {/* Dialog detalle de factura */}
+      <Dialog open={!!selectedInvoice} onOpenChange={() => { setSelectedInvoice(null); setVerifyResult(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Factura C {selectedInvoice?.cbte_nro
+                ? formatInvoiceNumber(selectedInvoice.pto_vta, selectedInvoice.cbte_nro)
+                : ""}
+            </DialogTitle>
+            <DialogDescription>Detalle del comprobante</DialogDescription>
+          </DialogHeader>
+
+          {selectedInvoice && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="text-muted-foreground">Cliente</Label>
+                  <p className="font-medium">{selectedInvoice.receptor_nombre}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Fecha</Label>
+                  <p>{formatDate(selectedInvoice.fecha_emision)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Importe</Label>
+                  <p className="font-medium">{formatCurrency(selectedInvoice.imp_total, selectedInvoice.moneda)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Estado</Label>
+                  <div className="mt-0.5">
+                    <Badge variant={(STATUS_LABELS[selectedInvoice.status] || { variant: "secondary" }).variant}>
+                      {(STATUS_LABELS[selectedInvoice.status] || { label: selectedInvoice.status }).label}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {selectedInvoice.cae && (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <Label className="text-muted-foreground">CAE</Label>
+                    <p className="font-mono text-xs">{selectedInvoice.cae}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Nro Comprobante</Label>
+                    <p className="font-mono">{formatInvoiceNumber(selectedInvoice.pto_vta, selectedInvoice.cbte_nro)}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedInvoice.notes && (
+                <div className="text-sm">
+                  <Label className="text-muted-foreground">Descripción</Label>
+                  <p>{selectedInvoice.notes}</p>
+                </div>
+              )}
+
+              {/* Verificación AFIP */}
+              {selectedInvoice.cae && (
+                <div className="border-t pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">Verificación AFIP</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => verifyInAfip(selectedInvoice)}
+                      disabled={verifying}
+                    >
+                      {verifying ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verificando...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                          Verificar en AFIP
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {verifyResult && verifyResult.exists && (
+                    <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800 p-4 space-y-2">
+                      <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Comprobante verificado en AFIP
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">CAE:</span>{" "}
+                          <span className="font-mono text-xs">{verifyResult.voucherInfo.CAE}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Vto. CAE:</span>{" "}
+                          <span>{verifyResult.voucherInfo.CAEFchVto}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Resultado:</span>{" "}
+                          <Badge variant={verifyResult.voucherInfo.Resultado === "A" ? "default" : "destructive"}>
+                            {verifyResult.voucherInfo.Resultado === "A" ? "Aprobado" : "Rechazado"}
+                          </Badge>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Importe:</span>{" "}
+                          <span>$ {verifyResult.voucherInfo.ImpTotal}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {verifyResult && !verifyResult.exists && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 p-4">
+                      <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-medium">
+                        <XCircle className="h-4 w-4" />
+                        {verifyResult.error || verifyResult.message || "Comprobante no encontrado en AFIP"}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setSelectedInvoice(null); setVerifyResult(null) }}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
