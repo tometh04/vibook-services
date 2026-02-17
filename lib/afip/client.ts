@@ -5,7 +5,7 @@ import Afip from "@afipsdk/afip.js"
  * El access_token es la API key de app.afipsdk.com (env var AFIP_SDK_TOKEN).
  */
 export function getAfipClient(cuit: number): InstanceType<typeof Afip> {
-  const token = process.env.AFIP_SDK_TOKEN
+  const token = process.env.AFIP_SDK_TOKEN || process.env.AFIP_SDK_API_KEY
   if (!token) {
     throw new Error("AFIP_SDK_TOKEN no está configurado en las variables de entorno")
   }
