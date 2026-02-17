@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Loader2, CheckCircle2, XCircle, Link2, Unlink, ShieldCheck, Eye, EyeOff } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, Link2, Unlink, ShieldCheck, Eye, EyeOff, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ interface AfipConfig {
   is_active: boolean
   cert_automation_id?: string
   wsfe_automation_id?: string
+  has_cert?: boolean
 }
 
 export function AfipSettings() {
@@ -36,13 +37,16 @@ export function AfipSettings() {
 
   // Form state
   const [cuit, setCuit] = useState("")
-  const [puntoVenta, setPuntoVenta] = useState("1")
   const [password, setPassword] = useState("")
 
   // Polling state
   const [polling, setPolling] = useState(false)
   const [pollMessage, setPollMessage] = useState("")
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Punto de venta state
+  const [needsSalesPoint, setNeedsSalesPoint] = useState(false)
+  const [checkingSalesPoints, setCheckingSalesPoints] = useState(false)
 
   useEffect(() => {
     fetchConfig()
@@ -58,16 +62,52 @@ export function AfipSettings() {
       if (data.config) {
         setConfig(data.config)
         setCuit(data.config.cuit || "")
-        setPuntoVenta(String(data.config.punto_venta || "1"))
         // Si está en running, empezar polling
         if (data.config.automation_status === "running") {
           startPolling()
+        }
+        // Si está complete y tiene cert, verificar punto de venta
+        if (data.config.automation_status === "complete" && data.config.has_cert && !data.config.punto_venta) {
+          checkSalesPoints()
         }
       }
     } catch (error) {
       console.error("Error fetching AFIP config:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function checkSalesPoints() {
+    setCheckingSalesPoints(true)
+    try {
+      const res = await fetch("/api/afip/sales-points")
+      const data = await res.json()
+
+      if (data.salesPoints && data.salesPoints.length > 0) {
+        // Hay puntos de venta para WebServices — usar el primero activo
+        const activePto = data.salesPoints.find((sp: any) => sp.Bloqueado === "N") || data.salesPoints[0]
+        const ptoVtaNum = activePto.Nro
+
+        // Guardar en DB
+        await fetch("/api/afip/config/update-pto-vta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ punto_venta: ptoVtaNum }),
+        })
+
+        setConfig(prev => prev ? { ...prev, punto_venta: ptoVtaNum } : prev)
+        setNeedsSalesPoint(false)
+        toast.success(`Punto de venta ${ptoVtaNum} configurado automáticamente`)
+      } else {
+        // No hay puntos de venta para WebServices
+        setNeedsSalesPoint(true)
+      }
+    } catch (error: any) {
+      console.error("Error checking sales points:", error)
+      setNeedsSalesPoint(true)
+    } finally {
+      setCheckingSalesPoints(false)
     }
   }
 
@@ -110,13 +150,11 @@ export function AfipSettings() {
           setPolling(false)
           setPollMessage("")
           setConfig(data.config)
-          if (data.connection_test?.connected) {
-            toast.success(`¡AFIP configurado! Último comprobante: ${data.connection_test.lastVoucher ?? 0}`)
-          } else if (data.connection_test?.error) {
-            toast.warning(`Certificado creado, pero falló el test: ${data.connection_test.error}. Verificá el punto de venta.`)
-          } else {
-            toast.success("¡Certificado AFIP configurado correctamente!")
-          }
+          toast.success("¡Certificado AFIP configurado correctamente!")
+
+          // Ahora buscar puntos de venta automáticamente
+          setPollMessage("Buscando puntos de venta habilitados...")
+          setTimeout(() => checkSalesPoints(), 1500)
         } else if (data.status === "failed") {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
           setPolling(false)
@@ -132,8 +170,8 @@ export function AfipSettings() {
   }, [])
 
   async function handleConnect() {
-    if (!cuit || !puntoVenta) {
-      toast.error("Completá CUIT y punto de venta")
+    if (!cuit) {
+      toast.error("Completá el CUIT")
       return
     }
 
@@ -154,7 +192,7 @@ export function AfipSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cuit,
-          punto_venta: Number(puntoVenta),
+          punto_venta: 1, // temporal, se actualiza al detectar puntos de venta
           username: cuit, // En ARCA el usuario es el CUIT
           password,
         }),
@@ -177,16 +215,6 @@ export function AfipSettings() {
         startPolling()
         // Limpiar contraseña del form (no se guarda)
         setPassword("")
-      } else if (data.mode === "quick") {
-        // Modo rápido
-        if (data.connection_test?.connected) {
-          toast.success(`Conectado a AFIP. Último comprobante: ${data.connection_test.lastVoucher ?? 0}`)
-        } else {
-          toast.error(
-            data.connection_test?.error ||
-            "No se pudo conectar con AFIP. Verificá que el certificado esté creado y el punto de venta habilitado."
-          )
-        }
       }
     } catch (error: any) {
       toast.error(error?.message || "Error al conectar con AFIP")
@@ -208,8 +236,8 @@ export function AfipSettings() {
 
       setConfig(null)
       setCuit("")
-      setPuntoVenta("1")
       setPassword("")
+      setNeedsSalesPoint(false)
       toast.success("AFIP desconectado")
     } catch (error: any) {
       toast.error(error?.message || "Error al desconectar")
@@ -229,6 +257,7 @@ export function AfipSettings() {
   }
 
   const isConnected = config?.automation_status === "complete" && config?.is_active
+  const isFullyReady = isConnected && config?.punto_venta && config.punto_venta > 0 && !needsSalesPoint
   const isRunning = config?.automation_status === "running" || polling
 
   return (
@@ -248,10 +277,15 @@ export function AfipSettings() {
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Configurando...
               </Badge>
-            ) : isConnected ? (
+            ) : isFullyReady ? (
               <Badge variant="success-soft" className="gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Conectado
+              </Badge>
+            ) : isConnected && needsSalesPoint ? (
+              <Badge variant="outline" className="gap-1 border-yellow-500 text-yellow-600">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Falta punto de venta
               </Badge>
             ) : (
               <Badge variant="destructive-soft" className="gap-1">
@@ -272,17 +306,19 @@ export function AfipSettings() {
           </CardContent>
         )}
         {isConnected && config && (
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">CUIT:</span>{" "}
                   <span className="font-medium">{config.cuit}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Punto de Venta:</span>{" "}
-                  <span className="font-medium">{config.punto_venta}</span>
-                </div>
+                {config.punto_venta && !needsSalesPoint && (
+                  <div>
+                    <span className="text-muted-foreground">Punto de Venta:</span>{" "}
+                    <span className="font-medium">{config.punto_venta}</span>
+                  </div>
+                )}
               </div>
               <Button
                 variant="outline"
@@ -299,45 +335,82 @@ export function AfipSettings() {
                 Desconectar
               </Button>
             </div>
+
+            {/* Alerta de punto de venta faltante */}
+            {needsSalesPoint && (
+              <Alert className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="space-y-3">
+                  <p className="font-medium text-yellow-800 dark:text-yellow-200">
+                    No se encontró un punto de venta habilitado para Web Services
+                  </p>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    El certificado AFIP está creado correctamente, pero necesitás un punto de venta
+                    habilitado para <strong>Factura Electrónica - Web Service</strong> en ARCA.
+                  </p>
+                  <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                    <p className="font-medium">Pasos para crearlo:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-1">
+                      <li>Entrá a ARCA con tu CUIT/clave fiscal</li>
+                      <li>Buscá <strong>"Administración de Puntos de Venta y Domicilios"</strong></li>
+                      <li>Click en <strong>"A/B/M de puntos de venta"</strong> → <strong>"Agregar"</strong></li>
+                      <li>Seleccioná: <strong>"Factura Electrónica - Monotributo - Web Service"</strong></li>
+                      <li>Confirmá con <strong>"Aceptar"</strong></li>
+                    </ol>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => checkSalesPoints()}
+                      disabled={checkingSalesPoints}
+                      className="border-yellow-500/50 hover:bg-yellow-100 dark:hover:bg-yellow-950/40"
+                    >
+                      {checkingSalesPoints ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Verificar de nuevo
+                    </Button>
+                    <a
+                      href="https://auth.afip.gob.ar/contribuyente_/login.xhtml"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="sm" variant="outline" className="border-yellow-500/50">
+                        <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                        Ir a ARCA
+                      </Button>
+                    </a>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         )}
       </Card>
 
       {/* Formulario de conexión */}
-      {!isRunning && (
+      {!isRunning && !isConnected && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">
-              {isConnected ? "Reconectar AFIP" : "Conectar con AFIP"}
-            </CardTitle>
+            <CardTitle className="text-lg">Conectar con AFIP</CardTitle>
             <CardDescription>
-              Ingresá tu CUIT, contraseña de clave fiscal y punto de venta.
-              Se creará automáticamente el certificado de producción.
+              Ingresá tu CUIT y contraseña de clave fiscal.
+              Se crearán automáticamente el certificado y la autorización de facturación.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cuit">CUIT</Label>
-                <Input
-                  id="cuit"
-                  placeholder="20123456789"
-                  value={cuit}
-                  onChange={(e) => setCuit(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                  maxLength={11}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="punto_venta">Punto de Venta</Label>
-                <Input
-                  id="punto_venta"
-                  type="number"
-                  min={1}
-                  placeholder="1"
-                  value={puntoVenta}
-                  onChange={(e) => setPuntoVenta(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="cuit">CUIT</Label>
+              <Input
+                id="cuit"
+                placeholder="20123456789"
+                value={cuit}
+                onChange={(e) => setCuit(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                maxLength={11}
+              />
             </div>
 
             <div className="space-y-2">
@@ -383,7 +456,7 @@ export function AfipSettings() {
               ) : (
                 <>
                   <Link2 className="mr-2 h-4 w-4" />
-                  {isConnected ? "Reconectar" : "Conectar con AFIP"}
+                  Conectar con AFIP
                 </>
               )}
             </Button>
