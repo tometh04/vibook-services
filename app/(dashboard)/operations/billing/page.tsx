@@ -1,23 +1,5 @@
-import { getCurrentUser } from "@/lib/auth"
-import { canAccessModule } from "@/lib/permissions"
-import { InvoicesPageClient } from "@/components/invoices/invoices-page-client"
+import { redirect } from "next/navigation"
 
-export const dynamic = 'force-dynamic'
-
-export default async function OperationsBillingPage() {
-  const { user } = await getCurrentUser()
-  
-  if (!canAccessModule(user.role as any, "cash")) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Facturación Electrónica</h1>
-          <p className="text-muted-foreground">No tiene permiso para acceder a esta sección</p>
-        </div>
-      </div>
-    )
-  }
-
-  return <InvoicesPageClient />
+export default function OperationsBillingPage() {
+  redirect("/accounting/invoicing")
 }
-
