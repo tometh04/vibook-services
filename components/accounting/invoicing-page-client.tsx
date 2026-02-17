@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Loader2, Plus, FileText, AlertCircle, Settings, Eye, ShieldCheck, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, Plus, FileText, AlertCircle, Settings, Eye, ShieldCheck, CheckCircle2, XCircle, Download } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -83,6 +83,7 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
     message?: string
     error?: string
   } | null>(null)
+  const [downloading, setDownloading] = useState(false)
 
   // Filtros
   const [statusFilter, setStatusFilter] = useState("ALL")
@@ -236,6 +237,37 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
     }
   }
 
+  async function downloadPdf(invoice: Invoice) {
+    if (!invoice.cae || invoice.status !== "authorized") {
+      toast.error("Solo se pueden descargar facturas autorizadas con CAE")
+      return
+    }
+
+    try {
+      setDownloading(true)
+      toast.info("Generando PDF...")
+
+      const response = await fetch(`/api/invoices/${invoice.id}/pdf`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || "Error al generar PDF")
+        return
+      }
+
+      if (data.file) {
+        window.open(data.file, "_blank")
+        toast.success("PDF generado correctamente")
+      } else {
+        toast.error("No se recibió el archivo PDF")
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Error al descargar PDF")
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -305,7 +337,7 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
                 <TableHead className="text-right">Importe</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>CAE</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-[90px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -342,14 +374,32 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
                       {inv.cae || "-"}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => { setSelectedInvoice(inv); setVerifyResult(null) }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => { setSelectedInvoice(inv); setVerifyResult(null) }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {inv.cae && inv.status === "authorized" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => downloadPdf(inv)}
+                            disabled={downloading}
+                            title="Descargar PDF"
+                          >
+                            {downloading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -490,10 +540,28 @@ export function InvoicingPageClient({ agencies }: InvoicingPageClientProps) {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex flex-row gap-2 sm:justify-between">
             <Button variant="outline" onClick={() => { setSelectedInvoice(null); setVerifyResult(null) }}>
               Cerrar
             </Button>
+            {selectedInvoice?.cae && selectedInvoice?.status === "authorized" && (
+              <Button
+                onClick={() => downloadPdf(selectedInvoice)}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generando PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Descargar PDF
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
