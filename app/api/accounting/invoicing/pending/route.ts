@@ -14,7 +14,6 @@ export async function GET() {
     const supabase = await createServerClient()
 
     // Obtener operaciones confirmadas que no tienen factura
-    // Por ahora usamos status = CONFIRMED, TRAVELLING, TRAVELLED
     const { data: operations, error } = await supabase
       .from("operations")
       .select(`
@@ -26,7 +25,7 @@ export async function GET() {
         departure_date,
         status,
         customer_id,
-        customers:customer_id(first_name, last_name)
+        customers:customer_id(id, first_name, last_name, document_type, document_number, email)
       `)
       .in("status", ["CONFIRMED", "TRAVELLING", "TRAVELLED", "CLOSED"])
       .is("invoice_cae", null) // Sin CAE = sin factura
@@ -42,9 +41,12 @@ export async function GET() {
     const formattedOperations = (operations || []).map((op: any) => ({
       id: op.id,
       file_code: op.file_code,
-      customer_name: op.customers 
+      customer_id: op.customer_id,
+      customer_name: op.customers
         ? `${op.customers.first_name} ${op.customers.last_name}`
         : "Sin cliente",
+      customer_doc_type: op.customers?.document_type || null,
+      customer_doc_number: op.customers?.document_number || null,
       destination: op.destination || "-",
       sale_amount_total: parseFloat(op.sale_amount_total) || 0,
       sale_currency: op.sale_currency || "ARS",

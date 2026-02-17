@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -14,6 +16,21 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   FileText,
   Settings,
   AlertCircle,
@@ -24,6 +41,7 @@ import {
   Building2,
   HelpCircle,
 } from "lucide-react"
+import { toast } from "sonner"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
@@ -53,7 +71,10 @@ interface InvoicingPageClientProps {
 interface PendingInvoice {
   id: string
   file_code: string
+  customer_id: string | null
   customer_name: string
+  customer_doc_type: string | null
+  customer_doc_number: string | null
   destination: string
   sale_amount_total: number
   sale_currency: string
@@ -61,15 +82,49 @@ interface PendingInvoice {
   status: string
 }
 
+const CBTE_TIPOS = [
+  { value: "6", label: "Factura B" },
+  { value: "11", label: "Factura C" },
+  { value: "1", label: "Factura A" },
+] as const
+
+const DOC_TIPOS = [
+  { value: "80", label: "CUIT" },
+  { value: "96", label: "DNI" },
+  { value: "86", label: "CUIL" },
+  { value: "99", label: "Otro" },
+] as const
+
+const CONDICION_IVA = [
+  { value: "5", label: "Consumidor Final" },
+  { value: "1", label: "Responsable Inscripto" },
+  { value: "6", label: "Monotributista" },
+  { value: "4", label: "Exento" },
+] as const
+
 export function InvoicingPageClient({ agencies, userRole, afipConfig: initialConfig }: InvoicingPageClientProps) {
   const [activeTab, setActiveTab] = useState("pending")
   const [loading, setLoading] = useState(false)
   const [pendingInvoices, setPendingInvoices] = useState<PendingInvoice[]>([])
 
+  // Invoice dialog state
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
+  const [selectedOp, setSelectedOp] = useState<PendingInvoice | null>(null)
+  const [invoicing, setInvoicing] = useState(false)
+  const [invoiceForm, setInvoiceForm] = useState({
+    cbte_tipo: "6",
+    doc_tipo: "96",
+    doc_nro: "",
+    receptor_nombre: "",
+    condicion_iva: "5",
+    concepto: "2", // Servicios (agencia de viajes)
+    descripcion: "",
+    iva_porcentaje: "21",
+  })
+
   const config = initialConfig
   const isConfigured = !!(config?.cuit && config?.is_active && config?.automation_status === "complete")
 
-  // Fetch pending invoices (operations without invoice)
   const fetchPendingInvoices = useCallback(async () => {
     setLoading(true)
     try {
@@ -91,12 +146,123 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
     }
   }, [fetchPendingInvoices, isConfigured])
 
+  const openInvoiceDialog = (op: PendingInvoice) => {
+    setSelectedOp(op)
+
+    // Map customer doc_type to AFIP doc_tipo
+    let docTipo = "96" // DNI default
+    if (op.customer_doc_type) {
+      const t = op.customer_doc_type.toUpperCase()
+      if (t === "CUIT") docTipo = "80"
+      else if (t === "CUIL") docTipo = "86"
+      else if (t === "DNI") docTipo = "96"
+    }
+
+    // Determine cbte_tipo based on doc_tipo
+    // CUIT -> Factura A o B, DNI -> Factura B o C
+    const cbteTipo = docTipo === "80" ? "6" : "11" // B if CUIT, C if DNI/other
+
+    setInvoiceForm({
+      cbte_tipo: cbteTipo,
+      doc_tipo: docTipo,
+      doc_nro: op.customer_doc_number || "",
+      receptor_nombre: op.customer_name || "",
+      condicion_iva: docTipo === "80" ? "1" : "5", // RI if CUIT, CF if DNI
+      concepto: "2",
+      descripcion: `Servicios turísticos - ${op.destination} - File ${op.file_code}`,
+      iva_porcentaje: "21",
+    })
+    setInvoiceDialogOpen(true)
+  }
+
+  const handleInvoice = async () => {
+    if (!selectedOp) return
+
+    const docNroClean = invoiceForm.doc_nro.replace(/\D/g, "")
+    if (!docNroClean) {
+      toast.error("Ingresá el número de documento del receptor")
+      return
+    }
+    if (!invoiceForm.receptor_nombre.trim()) {
+      toast.error("Ingresá el nombre del receptor")
+      return
+    }
+
+    setInvoicing(true)
+    try {
+      // Calculate amounts
+      const total = selectedOp.sale_amount_total
+      const ivaPct = parseInt(invoiceForm.iva_porcentaje, 10)
+      const neto = Math.round((total / (1 + ivaPct / 100)) * 100) / 100
+      const iva = Math.round((total - neto) * 100) / 100
+
+      // IVA id mapping: 21% = 5, 10.5% = 4, 27% = 6, 0% = 3
+      let ivaId = 5
+      if (ivaPct === 0) ivaId = 3
+      else if (ivaPct === 10.5 || ivaPct === 10) ivaId = 4
+      else if (ivaPct === 27) ivaId = 6
+
+      // Step 1: Create draft invoice
+      const createRes = await fetch("/api/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operation_id: selectedOp.id,
+          customer_id: selectedOp.customer_id,
+          cbte_tipo: parseInt(invoiceForm.cbte_tipo, 10),
+          concepto: parseInt(invoiceForm.concepto, 10),
+          receptor_doc_tipo: parseInt(invoiceForm.doc_tipo, 10),
+          receptor_doc_nro: docNroClean,
+          receptor_nombre: invoiceForm.receptor_nombre,
+          receptor_condicion_iva: parseInt(invoiceForm.condicion_iva, 10),
+          moneda: selectedOp.sale_currency === "USD" ? "DOL" : "PES",
+          cotizacion: 1,
+          items: [
+            {
+              descripcion: invoiceForm.descripcion,
+              cantidad: 1,
+              precio_unitario: neto,
+              iva_id: ivaId,
+              iva_porcentaje: ivaPct,
+            },
+          ],
+        }),
+      })
+
+      if (!createRes.ok) {
+        const err = await createRes.json()
+        throw new Error(err.error || "Error al crear factura borrador")
+      }
+
+      const { invoice } = await createRes.json()
+      toast.info("Factura creada, autorizando en AFIP...")
+
+      // Step 2: Authorize with AFIP
+      const authRes = await fetch(`/api/invoices/${invoice.id}/authorize`, {
+        method: "POST",
+      })
+
+      const authData = await authRes.json()
+
+      if (authData.success) {
+        toast.success(`Factura autorizada - CAE: ${authData.data.cae}`)
+        setInvoiceDialogOpen(false)
+        fetchPendingInvoices()
+      } else {
+        toast.error(authData.error || "AFIP rechazó la factura")
+        console.error("[AFIP] Rechazo:", authData)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Error al facturar")
+      console.error("Error invoicing:", error)
+    } finally {
+      setInvoicing(false)
+    }
+  }
+
   const formatCurrency = (amount: number, currency: string = "ARS") => {
     if (currency === "USD") {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount)
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
     }
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
@@ -263,7 +429,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
                               {formatCurrency(op.sale_amount_total, op.sale_currency)}
                             </TableCell>
                             <TableCell>
-                              <Button size="sm" disabled>
+                              <Button size="sm" onClick={() => openInvoiceDialog(op)}>
                                 <FileText className="h-4 w-4 mr-2" />
                                 Facturar
                               </Button>
@@ -296,6 +462,194 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
           </Tabs>
         </>
       )}
+
+      {/* Dialog de Facturación */}
+      <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Emitir Factura Electrónica</DialogTitle>
+            <DialogDescription>
+              {selectedOp && (
+                <>
+                  Operación <span className="font-mono font-medium">{selectedOp.file_code}</span>
+                  {" — "}
+                  {formatCurrency(selectedOp.sale_amount_total, selectedOp.sale_currency)}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Tipo de Comprobante */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo de Comprobante</Label>
+                <Select
+                  value={invoiceForm.cbte_tipo}
+                  onValueChange={(v) => setInvoiceForm({ ...invoiceForm, cbte_tipo: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CBTE_TIPOS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Condición IVA Receptor</Label>
+                <Select
+                  value={invoiceForm.condicion_iva}
+                  onValueChange={(v) => setInvoiceForm({ ...invoiceForm, condicion_iva: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONDICION_IVA.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Datos del receptor */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo Documento</Label>
+                <Select
+                  value={invoiceForm.doc_tipo}
+                  onValueChange={(v) => setInvoiceForm({ ...invoiceForm, doc_tipo: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DOC_TIPOS.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Nro. Documento</Label>
+                <Input
+                  placeholder="20123456789"
+                  value={invoiceForm.doc_nro}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, doc_nro: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nombre / Razón Social</Label>
+              <Input
+                value={invoiceForm.receptor_nombre}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, receptor_nombre: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Descripción</Label>
+              <Input
+                value={invoiceForm.descripcion}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, descripcion: e.target.value })}
+              />
+            </div>
+
+            {/* Montos */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>IVA</Label>
+                <Select
+                  value={invoiceForm.iva_porcentaje}
+                  onValueChange={(v) => setInvoiceForm({ ...invoiceForm, iva_porcentaje: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="21">21%</SelectItem>
+                    <SelectItem value="10.5">10.5%</SelectItem>
+                    <SelectItem value="27">27%</SelectItem>
+                    <SelectItem value="0">0% (Exento)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Concepto</Label>
+                <Select
+                  value={invoiceForm.concepto}
+                  onValueChange={(v) => setInvoiceForm({ ...invoiceForm, concepto: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Productos</SelectItem>
+                    <SelectItem value="2">Servicios</SelectItem>
+                    <SelectItem value="3">Productos y Servicios</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Resumen */}
+            {selectedOp && (
+              <div className="rounded-md border p-3 bg-muted/50 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Neto gravado:</span>
+                  <span className="font-medium">
+                    {formatCurrency(
+                      Math.round((selectedOp.sale_amount_total / (1 + parseInt(invoiceForm.iva_porcentaje, 10) / 100)) * 100) / 100,
+                      selectedOp.sale_currency
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">IVA ({invoiceForm.iva_porcentaje}%):</span>
+                  <span className="font-medium">
+                    {formatCurrency(
+                      Math.round((selectedOp.sale_amount_total - selectedOp.sale_amount_total / (1 + parseInt(invoiceForm.iva_porcentaje, 10) / 100)) * 100) / 100,
+                      selectedOp.sale_currency
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t pt-1">
+                  <span className="font-medium">Total:</span>
+                  <span className="font-bold">
+                    {formatCurrency(selectedOp.sale_amount_total, selectedOp.sale_currency)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInvoiceDialogOpen(false)} disabled={invoicing}>
+              Cancelar
+            </Button>
+            <Button onClick={handleInvoice} disabled={invoicing}>
+              {invoicing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Emitiendo...
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Emitir Factura
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
