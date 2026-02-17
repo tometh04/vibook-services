@@ -132,6 +132,10 @@ export async function POST(
         : formatDate(new Date()),
     }
 
+    // Log para debug
+    console.log('[AUTHORIZE] afipRequest:', JSON.stringify(afipRequest))
+    console.log('[AUTHORIZE] afipConfig:', JSON.stringify({ cuit: afipConfig?.cuit, environment: afipConfig?.environment }))
+
     // Enviar a AFIP (usa config de la agencia si existe)
     const afipResponse = await createInvoice(
       afipRequest,
@@ -179,6 +183,7 @@ export async function POST(
           error: afipResponse.error || "Error al autorizar factura en AFIP",
           details: afipResponse.data?.Errores,
           afip_debug: afipResponse,
+          request_sent: afipRequest,
         },
         { status: 400 }
       )

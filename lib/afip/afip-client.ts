@@ -267,10 +267,26 @@ export async function createInvoice(
     console.log('[AFIP SDK] createNextVoucher data:', JSON.stringify(voucherData))
 
     // Paso 1: obtener último comprobante (con retry)
-    const lastVoucher = await withRetry<number>(
-      () => afip.ElectronicBilling.getLastVoucher(request.PtoVta, request.CbteTipo),
-      'getLastVoucher'
-    )
+    let lastVoucher: number
+    try {
+      lastVoucher = await withRetry<number>(
+        () => afip.ElectronicBilling.getLastVoucher(request.PtoVta, request.CbteTipo),
+        'getLastVoucher'
+      )
+    } catch (stepError: any) {
+      const errData = stepError?.data || stepError?.response?.data
+      const errMsg = errData?.message || errData?.error || stepError?.message || 'Error desconocido'
+      console.error('[AFIP SDK] getLastVoucher FAILED:', errMsg, JSON.stringify(errData || {}).substring(0, 1000))
+      return {
+        success: false,
+        error: `Error al consultar último comprobante en AFIP: ${errMsg}`,
+        data: {
+          CAE: '', CAEFchVto: '', CbteDesde: 0, CbteHasta: 0,
+          FchProceso: new Date().toISOString(), Resultado: 'R',
+          Errores: [{ Code: 0, Msg: `getLastVoucher: ${errMsg}` }],
+        },
+      }
+    }
     const voucherNumber = lastVoucher + 1
 
     console.log('[AFIP SDK] lastVoucher:', lastVoucher, 'next:', voucherNumber)
@@ -280,10 +296,26 @@ export async function createInvoice(
     voucherData.CbteHasta = voucherNumber
 
     // Paso 3: crear comprobante con retry para errores transitorios
-    const fullResponse = await withRetry<any>(
-      () => afip.ElectronicBilling.createVoucher(voucherData, true),
-      'createVoucher'
-    )
+    let fullResponse: any
+    try {
+      fullResponse = await withRetry<any>(
+        () => afip.ElectronicBilling.createVoucher(voucherData, true),
+        'createVoucher'
+      )
+    } catch (stepError: any) {
+      const errData = stepError?.data || stepError?.response?.data
+      const errMsg = errData?.message || errData?.error || stepError?.message || 'Error desconocido'
+      console.error('[AFIP SDK] createVoucher FAILED:', errMsg, JSON.stringify(errData || {}).substring(0, 1000))
+      return {
+        success: false,
+        error: `Error al crear comprobante en AFIP: ${errMsg}`,
+        data: {
+          CAE: '', CAEFchVto: '', CbteDesde: voucherNumber, CbteHasta: voucherNumber,
+          FchProceso: new Date().toISOString(), Resultado: 'R',
+          Errores: [{ Code: 0, Msg: `createVoucher: ${errMsg}` }],
+        },
+      }
+    }
 
     console.log('[AFIP SDK] createVoucher fullResponse:', JSON.stringify(fullResponse).substring(0, 1000))
 
@@ -328,12 +360,28 @@ export async function createInvoice(
       }
     }
   } catch (error: any) {
-    // El SDK intercepta axios errors: error.data contiene la respuesta del servidor
+    // El SDK de AFIP envuelve errores de axios con distintas estructuras
+    // Intentamos extraer el mensaje de error de todas las fuentes posibles
     const afipErrorData = error?.data || error?.response?.data
-    const afipErrorMsg = afipErrorData?.message || afipErrorData?.error || error.message || 'Error al crear factura'
+    const allPossibleMessages = [
+      afipErrorData?.message,
+      afipErrorData?.error,
+      afipErrorData?.msg,
+      afipErrorData?.detail,
+      error?.response?.statusText,
+      error?.message,
+    ].filter(Boolean)
+
+    const afipErrorMsg = allPossibleMessages[0] || 'Error al crear factura'
+
+    // Log completo para debug
     console.error('[AFIP SDK] createInvoice error:', afipErrorMsg)
-    console.error('[AFIP SDK] error.data:', JSON.stringify(afipErrorData || {}).substring(0, 1000))
-    console.error('[AFIP SDK] error.status:', error?.status)
+    console.error('[AFIP SDK] error keys:', Object.keys(error || {}))
+    console.error('[AFIP SDK] error.data:', JSON.stringify(afipErrorData || {}).substring(0, 2000))
+    console.error('[AFIP SDK] error.message:', error?.message)
+    console.error('[AFIP SDK] error.status:', error?.status || error?.response?.status)
+    console.error('[AFIP SDK] full error:', JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2).substring(0, 2000))
+
     return {
       success: false,
       error: afipErrorMsg,
