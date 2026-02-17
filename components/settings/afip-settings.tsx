@@ -30,10 +30,9 @@ export function AfipSettings() {
   const [saving, setSaving] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
 
-  // Form state
+  // Form state — solo 3 campos
   const [cuit, setCuit] = useState("")
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
+  const [claveFiscal, setClaveFiscal] = useState("")
   const [puntoVenta, setPuntoVenta] = useState("1")
 
   useEffect(() => {
@@ -57,7 +56,7 @@ export function AfipSettings() {
   }
 
   async function handleConnect() {
-    if (!cuit || !username || !password || !puntoVenta) {
+    if (!cuit || !claveFiscal || !puntoVenta) {
       toast.error("Completá todos los campos")
       return
     }
@@ -74,8 +73,8 @@ export function AfipSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cuit,
-          username,
-          password,
+          username: cuit, // El usuario de ARCA es el CUIT
+          password: claveFiscal,
           punto_venta: Number(puntoVenta),
         }),
       })
@@ -99,9 +98,8 @@ export function AfipSettings() {
         )
       }
 
-      // Limpiar credenciales sensibles
-      setUsername("")
-      setPassword("")
+      // Limpiar contraseña
+      setClaveFiscal("")
     } catch (error: any) {
       toast.error(error?.message || "Error al conectar con AFIP")
     } finally {
@@ -207,20 +205,30 @@ export function AfipSettings() {
             {isConnected ? "Reconectar AFIP" : "Conectar con AFIP"}
           </CardTitle>
           <CardDescription>
-            Ingresá tus datos de ARCA (ex AFIP) para habilitar la facturación electrónica.
-            Las credenciales se usan solo para la configuración inicial y no se guardan.
+            Ingresá tu CUIT, contraseña de clave fiscal y punto de venta.
+            La contraseña se usa solo para la configuración inicial y no se guarda.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="cuit">CUIT (11 dígitos)</Label>
+              <Label htmlFor="cuit">CUIT</Label>
               <Input
                 id="cuit"
                 placeholder="20123456789"
                 value={cuit}
                 onChange={(e) => setCuit(e.target.value.replace(/\D/g, "").slice(0, 11))}
                 maxLength={11}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clave_fiscal">Contraseña Clave Fiscal</Label>
+              <Input
+                id="clave_fiscal"
+                type="password"
+                placeholder="Tu clave fiscal"
+                value={claveFiscal}
+                onChange={(e) => setClaveFiscal(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -232,28 +240,6 @@ export function AfipSettings() {
                 placeholder="1"
                 value={puntoVenta}
                 onChange={(e) => setPuntoVenta(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Usuario ARCA (Clave Fiscal)</Label>
-              <Input
-                id="username"
-                placeholder="Tu usuario de ARCA"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña ARCA</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Tu contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           </div>
