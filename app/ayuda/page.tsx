@@ -224,24 +224,6 @@ const sections: HelpSection[] = [
     ],
   },
   {
-    id: "facturacion",
-    title: "Facturación AFIP",
-    summary: "Emite comprobantes para operaciones reales sin salir del sistema.",
-    goal: [
-      "Cumplir con AFIP desde un solo lugar.",
-      "Tener trazabilidad entre venta, cobro y factura.",
-    ],
-    usage: [
-      "Generá comprobantes desde operaciones o desde contabilidad.",
-      "Verificá que los datos fiscales estén completos.",
-    ],
-    expected: [
-      "Facturas emitidas sin errores.",
-      "Menos trabajo manual y mejor control fiscal.",
-    ],
-    links: [{ label: "Ir a Facturación", href: "/accounting/invoicing" }],
-  },
-  {
     id: "reportes",
     title: "Reportes",
     summary: "Convierte datos en decisiones: ventas, cobros, performance y tendencias.",

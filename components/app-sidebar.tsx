@@ -132,7 +132,6 @@ const allNavigation: NavItem[] = [
           { title: "Pagos a Operadores", url: "/accounting/operator-payments" },
           { title: "Pagos Recurrentes", url: "/accounting/recurring-payments" },
           { title: "Cuentas de Socios", url: "/accounting/partner-accounts" },
-          { title: "Facturación Electrónica", url: "/accounting/invoicing" },
         ],
       },
       // Items directos sin submenú
