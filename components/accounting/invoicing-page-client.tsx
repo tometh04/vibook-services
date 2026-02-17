@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -16,33 +14,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { 
-  FileText, 
-  Settings, 
-  AlertCircle, 
-  CheckCircle2, 
+  FileText,
+  Settings,
+  AlertCircle,
+  CheckCircle2,
   Loader2,
-  ExternalLink,
   Receipt,
   DollarSign,
   Building2,
   HelpCircle,
 } from "lucide-react"
-import { toast } from "sonner"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
@@ -51,14 +32,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import Link from "next/link"
 
 interface AfipConfig {
   id?: string
+  agency_id?: string
   cuit: string
-  access_token: string
   environment: "sandbox" | "production"
   punto_venta: number
   is_active: boolean
+  automation_status?: string
 }
 
 interface InvoicingPageClientProps {
@@ -82,21 +65,9 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
   const [activeTab, setActiveTab] = useState("pending")
   const [loading, setLoading] = useState(false)
   const [pendingInvoices, setPendingInvoices] = useState<PendingInvoice[]>([])
-  
-  // Config state
-  const [configOpen, setConfigOpen] = useState(false)
-  const [config, setConfig] = useState<AfipConfig>(
-    initialConfig || {
-      cuit: "",
-      access_token: "",
-      environment: "sandbox",
-      punto_venta: 1,
-      is_active: false,
-    }
-  )
-  const [savingConfig, setSavingConfig] = useState(false)
 
-  const isConfigured = config.cuit && config.access_token && config.is_active
+  const config = initialConfig
+  const isConfigured = !!(config?.cuit && config?.is_active && config?.automation_status === "complete")
 
   // Fetch pending invoices (operations without invoice)
   const fetchPendingInvoices = useCallback(async () => {
@@ -119,34 +90,6 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
       fetchPendingInvoices()
     }
   }, [fetchPendingInvoices, isConfigured])
-
-  const handleSaveConfig = async () => {
-    if (!config.cuit || !config.access_token) {
-      toast.error("CUIT y Access Token son requeridos")
-      return
-    }
-
-    setSavingConfig(true)
-    try {
-      const response = await fetch("/api/accounting/invoicing/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error)
-      }
-
-      toast.success("Configuración guardada correctamente")
-      setConfigOpen(false)
-    } catch (error: any) {
-      toast.error(error.message || "Error al guardar configuración")
-    } finally {
-      setSavingConfig(false)
-    }
-  }
 
   const formatCurrency = (amount: number, currency: string = "ARS") => {
     if (currency === "USD") {
@@ -175,7 +118,7 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
                 <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-sm">
-                <p>Integración con AFIP SDK para emitir facturas electrónicas con CAE directamente desde las operaciones.</p>
+                <p>Integración con AFIP/ARCA para emitir facturas electrónicas con CAE directamente desde las operaciones.</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -192,9 +135,11 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
               Sin configurar
             </Badge>
           )}
-          <Button variant="outline" onClick={() => setConfigOpen(true)}>
-            <Settings className="h-4 w-4 mr-2" />
-            Configuración
+          <Button variant="outline" asChild>
+            <Link href="/settings?tab=afip">
+              <Settings className="h-4 w-4 mr-2" />
+              Configuración AFIP
+            </Link>
           </Button>
         </div>
       </div>
@@ -208,28 +153,22 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
               <div>
                 <h3 className="text-lg font-semibold">Configuración Requerida</h3>
                 <p className="text-muted-foreground mt-1">
-                  Para emitir facturas electrónicas necesitás configurar tu cuenta de AFIP SDK.
+                  Para emitir facturas electrónicas necesitás vincular tu cuenta de ARCA (ex-AFIP) desde la configuración.
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" asChild>
-                  <a href="https://afipsdk.com" target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Obtener Access Token
-                  </a>
-                </Button>
-                <Button onClick={() => setConfigOpen(true)}>
+              <Button asChild>
+                <Link href="/settings?tab=afip">
                   <Settings className="h-4 w-4 mr-2" />
-                  Configurar
-                </Button>
-              </div>
+                  Ir a Configuración AFIP
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Configurado - Mostrar contenido */}
-      {isConfigured && (
+      {isConfigured && config && (
         <>
           {/* KPIs */}
           <div className="grid gap-4 md:grid-cols-3">
@@ -357,108 +296,6 @@ export function InvoicingPageClient({ agencies, userRole, afipConfig: initialCon
           </Tabs>
         </>
       )}
-
-      {/* Dialog de Configuración */}
-      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Configuración AFIP SDK</DialogTitle>
-            <DialogDescription>
-              Configurá tu cuenta de AFIP SDK para emitir facturas electrónicas.
-              <a 
-                href="https://afipsdk.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline ml-1"
-              >
-                Obtener credenciales →
-              </a>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>CUIT</Label>
-              <Input
-                placeholder="20123456789"
-                value={config.cuit}
-                onChange={(e) => setConfig({ ...config, cuit: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Access Token (AFIP SDK)</Label>
-              <Input
-                type="password"
-                placeholder="Tu access token de afipsdk.com"
-                value={config.access_token}
-                onChange={(e) => setConfig({ ...config, access_token: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Obtené tu token en{" "}
-                <a href="https://afipsdk.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  afipsdk.com
-                </a>
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Punto de Venta</Label>
-              <Input
-                type="number"
-                placeholder="1"
-                min="1"
-                value={config.punto_venta}
-                onChange={(e) => setConfig({ ...config, punto_venta: parseInt(e.target.value) || 1 })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Entorno</Label>
-              <Select
-                value={config.environment}
-                onValueChange={(value: "sandbox" | "production") => 
-                  setConfig({ ...config, environment: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sandbox">Sandbox (Pruebas)</SelectItem>
-                  <SelectItem value="production">Producción</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Usá Sandbox para probar antes de ir a Producción
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="is_active"
-                checked={config.is_active}
-                onChange={(e) => setConfig({ ...config, is_active: e.target.checked })}
-                className="rounded border-border"
-              />
-              <Label htmlFor="is_active">Activar facturación electrónica</Label>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfigOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveConfig} disabled={savingConfig}>
-              {savingConfig ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function InvoicingPage() {
   const { user } = await getCurrentUser()
-  
+
   if (!canAccessModule(user.role as any, "accounting")) {
     redirect("/dashboard")
   }
@@ -26,15 +26,24 @@ export default async function InvoicingPage() {
     name: ua.agencies?.name || "Sin nombre",
   }))
 
-  // Get AFIP configuration if exists
-  const { data: afipConfig } = await supabase
-    .from("afip_config")
-    .select("*")
-    .maybeSingle()
+  // Get AFIP configuration for user's first agency (ARCA automation flow)
+  const firstAgencyId = agencies[0]?.id
+  let afipConfig = null
+
+  if (firstAgencyId) {
+    const { data } = await supabase
+      .from("afip_config")
+      .select("id, agency_id, cuit, environment, punto_venta, is_active, automation_status")
+      .eq("agency_id", firstAgencyId)
+      .eq("is_active", true)
+      .maybeSingle()
+
+    afipConfig = data
+  }
 
   return (
-    <InvoicingPageClient 
-      agencies={agencies} 
+    <InvoicingPageClient
+      agencies={agencies}
       userRole={user.role}
       afipConfig={afipConfig}
     />
