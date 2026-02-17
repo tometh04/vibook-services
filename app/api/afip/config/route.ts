@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { createServerClient } from "@/lib/supabase/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
-import { setupAfipCertificate, testAfipConnection } from "@/lib/afip/client"
+import { testAfipConnection } from "@/lib/afip/client"
 import { hasPermission, type UserRole } from "@/lib/permissions"
 
 // GET: Obtener configuración AFIP de la agencia del usuario
@@ -15,7 +15,6 @@ export async function GET() {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
     }
 
-    // Obtener agency_id del usuario
     const { data: userAgency } = await supabase
       .from("user_agencies")
       .select("agency_id")
@@ -27,7 +26,6 @@ export async function GET() {
       return NextResponse.json({ error: "Usuario sin agencia" }, { status: 400 })
     }
 
-    // Buscar config AFIP activa
     const { data: config } = await supabase
       .from("afip_config")
       .select("*")
@@ -45,7 +43,7 @@ export async function GET() {
   }
 }
 
-// POST: Configurar conexión AFIP (ejecuta automations del SDK)
+// POST: Guardar config y probar conexión directa (sin automations)
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
@@ -55,11 +53,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { cuit, username, password, punto_venta } = body
+    const { cuit, punto_venta } = body
 
-    if (!cuit || !username || !password || !punto_venta) {
+    if (!cuit || !punto_venta) {
       return NextResponse.json(
-        { error: "Completá todos los campos: CUIT, usuario ARCA, contraseña y punto de venta" },
+        { error: "Completá CUIT y punto de venta" },
         { status: 400 }
       )
     }
@@ -87,22 +85,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Usuario sin agencia" }, { status: 400 })
     }
 
-    // Ejecutar automations del SDK
-    const setupResult = await setupAfipCertificate(cuitNum, username, password)
-    if (!setupResult.success) {
-      return NextResponse.json(
-        { error: `Error al configurar AFIP: ${setupResult.error}` },
-        { status: 400 }
-      )
-    }
-
-    // Probar conexión
+    // Probar conexión directa con AFIP (sin automations)
     const testResult = await testAfipConnection(cuitNum, ptoVta)
 
-    // Guardar/actualizar config usando admin client (para bypass RLS)
+    // Guardar config
     const adminSupabase = createAdminSupabaseClient()
 
-    // Desactivar configs previas de esta agencia
+    // Desactivar configs previas
     await (adminSupabase as any)
       .from("afip_config")
       .update({ is_active: false })
@@ -135,13 +124,13 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("[api/afip/config POST]", error)
     return NextResponse.json(
-      { error: error?.message || "Error interno al configurar AFIP" },
+      { error: error?.message || "Error interno" },
       { status: 500 }
     )
   }
 }
 
-// DELETE: Desconectar AFIP (desactivar config)
+// DELETE: Desconectar AFIP
 export async function DELETE() {
   try {
     const { user } = await getCurrentUser()

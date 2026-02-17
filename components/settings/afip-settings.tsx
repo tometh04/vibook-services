@@ -30,9 +30,8 @@ export function AfipSettings() {
   const [saving, setSaving] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
 
-  // Form state — solo 3 campos
+  // Form state — solo 2 campos
   const [cuit, setCuit] = useState("")
-  const [claveFiscal, setClaveFiscal] = useState("")
   const [puntoVenta, setPuntoVenta] = useState("1")
 
   useEffect(() => {
@@ -56,8 +55,8 @@ export function AfipSettings() {
   }
 
   async function handleConnect() {
-    if (!cuit || !claveFiscal || !puntoVenta) {
-      toast.error("Completá todos los campos")
+    if (!cuit || !puntoVenta) {
+      toast.error("Completá CUIT y punto de venta")
       return
     }
 
@@ -73,8 +72,6 @@ export function AfipSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cuit,
-          username: cuit, // El usuario de ARCA es el CUIT
-          password: claveFiscal,
           punto_venta: Number(puntoVenta),
         }),
       })
@@ -91,15 +88,13 @@ export function AfipSettings() {
       }
 
       if (data.connection_test?.connected) {
-        toast.success("AFIP conectado correctamente")
+        toast.success(`Conectado a AFIP. Último comprobante: ${data.connection_test.lastVoucher ?? 0}`)
       } else {
-        toast.warning(
-          `Configuración guardada, pero la prueba de conexión falló: ${data.connection_test?.error || "Error desconocido"}`
+        toast.error(
+          data.connection_test?.error ||
+          "No se pudo conectar con AFIP. Verificá que el certificado esté creado en app.afipsdk.com y que el punto de venta esté habilitado."
         )
       }
-
-      // Limpiar contraseña
-      setClaveFiscal("")
     } catch (error: any) {
       toast.error(error?.message || "Error al conectar con AFIP")
     } finally {
@@ -205,12 +200,14 @@ export function AfipSettings() {
             {isConnected ? "Reconectar AFIP" : "Conectar con AFIP"}
           </CardTitle>
           <CardDescription>
-            Ingresá tu CUIT, contraseña de clave fiscal y punto de venta.
-            La contraseña se usa solo para la configuración inicial y no se guarda.
+            Ingresá tu CUIT y punto de venta. El certificado debe estar previamente creado en{" "}
+            <a href="https://app.afipsdk.com" target="_blank" rel="noopener noreferrer" className="underline">
+              app.afipsdk.com
+            </a>.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="cuit">CUIT</Label>
               <Input
@@ -219,16 +216,6 @@ export function AfipSettings() {
                 value={cuit}
                 onChange={(e) => setCuit(e.target.value.replace(/\D/g, "").slice(0, 11))}
                 maxLength={11}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clave_fiscal">Contraseña Clave Fiscal</Label>
-              <Input
-                id="clave_fiscal"
-                type="password"
-                placeholder="Tu clave fiscal"
-                value={claveFiscal}
-                onChange={(e) => setClaveFiscal(e.target.value)}
               />
             </div>
             <div className="space-y-2">
