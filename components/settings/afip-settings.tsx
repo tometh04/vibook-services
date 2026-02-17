@@ -37,7 +37,6 @@ export function AfipSettings() {
   // Form state
   const [cuit, setCuit] = useState("")
   const [puntoVenta, setPuntoVenta] = useState("1")
-  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
 
   // Polling state
@@ -135,8 +134,8 @@ export function AfipSettings() {
       return
     }
 
-    if (!username || !password) {
-      toast.error("Ingresá tu usuario y contraseña de ARCA (clave fiscal)")
+    if (!password) {
+      toast.error("Ingresá tu contraseña de clave fiscal de ARCA")
       return
     }
 
@@ -148,7 +147,7 @@ export function AfipSettings() {
         body: JSON.stringify({
           cuit,
           punto_venta: Number(puntoVenta),
-          username,
+          username: cuit, // En ARCA el usuario es el CUIT
           password,
         }),
       })
@@ -168,8 +167,7 @@ export function AfipSettings() {
         // Modo async: empezar polling
         toast.info("Configurando certificado AFIP. Esto puede tardar hasta 2 minutos...")
         startPolling()
-        // Limpiar credenciales del form (no se guardan)
-        setUsername("")
+        // Limpiar contraseña del form (no se guarda)
         setPassword("")
       } else if (data.mode === "quick") {
         // Modo rápido
@@ -203,7 +201,6 @@ export function AfipSettings() {
       setConfig(null)
       setCuit("")
       setPuntoVenta("1")
-      setUsername("")
       setPassword("")
       toast.success("AFIP desconectado")
     } catch (error: any) {
@@ -306,7 +303,7 @@ export function AfipSettings() {
               {isConnected ? "Reconectar AFIP" : "Conectar con AFIP"}
             </CardTitle>
             <CardDescription>
-              Ingresá tu CUIT, credenciales de ARCA (clave fiscal) y punto de venta.
+              Ingresá tu CUIT, contraseña de clave fiscal y punto de venta.
               Se creará automáticamente el certificado de producción.
             </CardDescription>
           </CardHeader>
@@ -335,42 +332,30 @@ export function AfipSettings() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Usuario ARCA (Clave Fiscal)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña Clave Fiscal (ARCA)</Label>
+              <div className="relative">
                 <Input
-                  id="username"
-                  placeholder="Tu CUIT o usuario de ARCA"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Tu contraseña de clave fiscal"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   autoComplete="off"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña ARCA</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Tu contraseña de clave fiscal"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="off"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
               </div>
             </div>
 
