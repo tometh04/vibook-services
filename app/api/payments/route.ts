@@ -12,6 +12,7 @@ import {
   getLatestExchangeRate,
 } from "@/lib/accounting/exchange-rates"
 import { revalidateTag, CACHE_TAGS } from "@/lib/cache"
+import { getUserAgencyIds } from "@/lib/permissions-api"
 
 /**
  * POST /api/payments
@@ -418,14 +419,23 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "paymentId es requerido" }, { status: 400 })
     }
 
-    // 1. Obtener el pago con su ledger_movement_id
+    // 1. Obtener el pago con su ledger_movement_id y validar acceso por agency_id
     const { data: payment, error: fetchError } = await (supabase.from("payments") as any)
-      .select("*, operation_id")
+      .select("*, operation_id, operations(agency_id)")
       .eq("id", paymentId)
       .single()
 
     if (fetchError || !payment) {
       return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 })
+    }
+
+    // Verificar que el pago pertenece a una operación de la agencia del usuario
+    if (user.role !== "SUPER_ADMIN") {
+      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
+      const paymentAgencyId = payment.operations?.agency_id
+      if (!paymentAgencyId || !agencyIds.includes(paymentAgencyId)) {
+        return NextResponse.json({ error: "No tiene permiso para eliminar este pago" }, { status: 403 })
+      }
     }
 
     // 2. Eliminar movimiento de caja relacionado

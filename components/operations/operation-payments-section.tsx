@@ -668,18 +668,21 @@ export function OperationPaymentsSection({
   // Si la operación es USD: sumar amount_usd (equivalente USD de cada pago)
   const toOperationCurrency = (p: any): number => {
     if (currency === "USD") {
-      // Operación en USD: usar el equivalente USD del pago
+      // Operación en USD: necesitamos el equivalente USD del pago
       if (p.currency === "USD") return Number(p.amount)
+      // Pago en ARS: usar amount_usd precalculado si existe
       if (p.amount_usd != null) return Number(p.amount_usd)
-      if (p.exchange_rate && Number(p.exchange_rate) > 0) return Number(p.amount) / Number(p.exchange_rate)
-      return Number(p.amount)
+      // Pago en ARS: convertir dividiendo por exchange_rate
+      if (p.currency === "ARS" && p.exchange_rate && Number(p.exchange_rate) > 0) return Number(p.amount) / Number(p.exchange_rate)
+      // Sin info de conversión: no podemos sumar un monto en ARS a un total en USD
+      return 0
     } else {
-      // Operación en ARS: usar el monto en ARS directo
+      // Operación en ARS: necesitamos el monto en ARS
       if (p.currency === "ARS") return Number(p.amount)
       // Pago en USD → convertir a ARS multiplicando por exchange_rate
       if (p.currency === "USD" && p.exchange_rate && Number(p.exchange_rate) > 0) return Number(p.amount) * Number(p.exchange_rate)
-      // Fallback: usar amount directo
-      return Number(p.amount)
+      // Sin info de conversión: no podemos sumar un monto en USD a un total en ARS
+      return 0
     }
   }
 

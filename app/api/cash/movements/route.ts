@@ -34,15 +34,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
     }
 
-    // Get default cash box if not provided
+    // Get default cash box if not provided - SIEMPRE filtrar por agency_id del usuario
     let finalCashBoxId = cash_box_id
     if (!finalCashBoxId) {
+      const { getUserAgencyIds: getAgencyIds } = await import("@/lib/permissions-api")
+      const userAgencyIds = await getAgencyIds(supabase, user.id, user.role as any)
       const { data: defaultCashBox } = await supabase
         .from("cash_boxes")
         .select("id")
         .eq("currency", currency)
         .eq("is_default", true)
         .eq("is_active", true)
+        .in("agency_id", userAgencyIds)
         .maybeSingle()
       finalCashBoxId = (defaultCashBox as any)?.id || null
     }

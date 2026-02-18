@@ -362,7 +362,7 @@ export function DebtsSalesPageClient({ sellers }: DebtsSalesPageClientProps) {
                           <Badge variant="outline">{debtor.operationsWithDebt.length}</Badge>
                         </TableCell>
                         <TableCell className="text-right font-bold text-red-600">
-                          {formatCurrency(debtor.totalDebt, "USD")}
+                          {formatCurrency(debtor.totalDebt, debtor.currency || "USD")}
                         </TableCell>
                         <TableCell>
                           <Link href={`/customers/${debtor.customer.id}`} onClick={(e) => e.stopPropagation()}>
@@ -408,13 +408,13 @@ export function DebtsSalesPageClient({ sellers }: DebtsSalesPageClientProps) {
                                       </TableCell>
                                       <TableCell>{op.seller_name || "-"}</TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(op.sale_amount_total, "USD")}
+                                        {formatCurrency(op.sale_amount_total, op.currency || "USD")}
                                       </TableCell>
                                       <TableCell className="text-right font-mono text-green-600 dark:text-green-400">
-                                        {formatCurrency(op.paid, "USD")}
+                                        {formatCurrency(op.paid, op.currency || "USD")}
                                       </TableCell>
                                       <TableCell className="text-right font-mono font-bold text-red-600 dark:text-red-400">
-                                        {formatCurrency(op.debt, "USD")}
+                                        {formatCurrency(op.debt, op.currency || "USD")}
                                       </TableCell>
                                     </TableRow>
                                   ))}
