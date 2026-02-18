@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 
-const VALID_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST", "ARCHIVED"]
+const VALID_STATUSES = ["NEW", "IN_PROGRESS", "QUOTED", "CONTACTED", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST", "ARCHIVED"]
 
 export async function POST(request: Request) {
   try {
