@@ -663,32 +663,28 @@ export function OperationPaymentsSection({
   const customerPayments = payments.filter(p => p.payer_type === "CUSTOMER" && p.status === "PAID")
   const operatorPayments = payments.filter(p => p.payer_type === "OPERATOR" && p.status === "PAID")
 
-  // IMPORTANTE: Usar amount_usd si está disponible para manejar correctamente pagos en ARS
-  const totalPaidByCustomer = customerPayments.reduce((sum, p) => {
-    if (p.amount_usd != null) {
-      return sum + Number(p.amount_usd)
+  // Calcular totales SIEMPRE en la moneda de la operación (currency prop)
+  // Si la operación es ARS: sumar pagos en ARS directo, convertir USD→ARS multiplicando por exchange_rate
+  // Si la operación es USD: sumar amount_usd (equivalente USD de cada pago)
+  const toOperationCurrency = (p: any): number => {
+    if (currency === "USD") {
+      // Operación en USD: usar el equivalente USD del pago
+      if (p.currency === "USD") return Number(p.amount)
+      if (p.amount_usd != null) return Number(p.amount_usd)
+      if (p.exchange_rate && Number(p.exchange_rate) > 0) return Number(p.amount) / Number(p.exchange_rate)
+      return Number(p.amount)
+    } else {
+      // Operación en ARS: usar el monto en ARS directo
+      if (p.currency === "ARS") return Number(p.amount)
+      // Pago en USD → convertir a ARS multiplicando por exchange_rate
+      if (p.currency === "USD" && p.exchange_rate && Number(p.exchange_rate) > 0) return Number(p.amount) * Number(p.exchange_rate)
+      // Fallback: usar amount directo
+      return Number(p.amount)
     }
-    if (p.currency === "USD") {
-      return sum + Number(p.amount)
-    }
-    if (p.currency === "ARS" && p.exchange_rate) {
-      return sum + (Number(p.amount) / Number(p.exchange_rate))
-    }
-    return sum + Number(p.amount) // Fallback
-  }, 0)
+  }
 
-  const totalPaidToOperator = operatorPayments.reduce((sum, p) => {
-    if (p.amount_usd != null) {
-      return sum + Number(p.amount_usd)
-    }
-    if (p.currency === "USD") {
-      return sum + Number(p.amount)
-    }
-    if (p.currency === "ARS" && p.exchange_rate) {
-      return sum + (Number(p.amount) / Number(p.exchange_rate))
-    }
-    return sum + Number(p.amount) // Fallback
-  }, 0)
+  const totalPaidByCustomer = customerPayments.reduce((sum, p) => sum + toOperationCurrency(p), 0)
+  const totalPaidToOperator = operatorPayments.reduce((sum, p) => sum + toOperationCurrency(p), 0)
 
   const customerDebt = saleAmount - totalPaidByCustomer
   const operatorDebt = operatorCost - totalPaidToOperator
