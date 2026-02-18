@@ -132,7 +132,8 @@ const DATABASE_SCHEMA = `
 - En payments la fecha de vencimiento es "date_due" (NO "due_date")
 - En operator_payments la fecha es "due_date" (NO "date_due")
 - ⚠️ En operations la columna es "checkin_date" (NO "check_in_date") y "checkout_date" (NO "check_out_date")
-- ⚠️⚠️ PROHIBIDO usar columnas: created_at, updated_at, deleted_at en queries (causan error de validación). ALTERNATIVAS: Para filtrar por fecha de creación usa operation_date en operations, date_due en payments, o movement_date en cash_movements. Si necesitas la fecha de creación de clientes/leads, ordena por id DESC en su lugar.
+- ⚠️⚠️ PROHIBIDO usar columnas: created_at, updated_at, deleted_at en queries (causan error de validación). ALTERNATIVAS: Para filtrar por fecha de creación usa operation_date en operations, date_due en payments, date_paid en payments (cuando el pago fue cobrado), o movement_date en cash_movements. Si necesitas la fecha de creación de clientes/leads, ordena por id DESC en su lugar.
+- ⚠️ En payments: "date_due" = fecha de vencimiento (cuándo vence). "date_paid" = fecha en que se cobró/pagó efectivamente (cuándo entró la plata). Para "cuánto cobré/ingresó hoy" SIEMPRE usar date_paid con status='PAID', NUNCA date_due.
 - Para deudores: sale_amount_total - COALESCE(SUM(pagos donde direction='INCOME' AND status='PAID'), 0) = deuda cliente
 - Para deuda operadores: operator_payments WHERE status IN ('PENDING','OVERDUE')
 - Margen = sale_amount_total - operator_cost
@@ -208,6 +209,59 @@ SELECT COUNT(*) as cantidad, COALESCE(SUM(sale_amount_total), 0) as total
 FROM operations
 WHERE operation_date >= date_trunc('month', CURRENT_DATE) AND status NOT IN ('CANCELLED')
 AND agency_id = ANY({{agency_ids}})
+
+-- Ingresos de HOY: cuánto cobré/entró hoy (usar date_paid con status PAID, NO date_due)
+SELECT p.currency, SUM(p.amount) as total_ingresado, COUNT(*) as cantidad_pagos
+FROM payments p
+JOIN operations op ON op.id = p.operation_id
+WHERE p.status = 'PAID'
+AND p.direction = 'INCOME'
+AND p.date_paid = CURRENT_DATE
+AND op.agency_id = ANY({{agency_ids}})
+GROUP BY p.currency
+
+-- Egresos de HOY: cuánto pagué/salió hoy a operadores
+SELECT p.currency, SUM(p.amount) as total_egresado, COUNT(*) as cantidad_pagos
+FROM payments p
+JOIN operations op ON op.id = p.operation_id
+WHERE p.status = 'PAID'
+AND p.direction = 'EXPENSE'
+AND p.date_paid = CURRENT_DATE
+AND op.agency_id = ANY({{agency_ids}})
+GROUP BY p.currency
+
+-- Detalle de pagos cobrados HOY (con cliente y operación)
+SELECT p.amount, p.currency, p.method, op.file_code, op.destination,
+  c.first_name || ' ' || c.last_name as cliente
+FROM payments p
+JOIN operations op ON op.id = p.operation_id
+LEFT JOIN operation_customers oc ON oc.operation_id = op.id AND oc.role = 'MAIN'
+LEFT JOIN customers c ON c.id = oc.customer_id
+WHERE p.status = 'PAID'
+AND p.direction = 'INCOME'
+AND p.date_paid = CURRENT_DATE
+AND op.agency_id = ANY({{agency_ids}})
+ORDER BY p.amount DESC
+
+-- Ingresos de esta semana
+SELECT p.currency, SUM(p.amount) as total_ingresado, COUNT(*) as cantidad_pagos
+FROM payments p
+JOIN operations op ON op.id = p.operation_id
+WHERE p.status = 'PAID'
+AND p.direction = 'INCOME'
+AND p.date_paid >= date_trunc('week', CURRENT_DATE)
+AND op.agency_id = ANY({{agency_ids}})
+GROUP BY p.currency
+
+-- Ingresos de este mes (cobros efectivos, usar date_paid)
+SELECT p.currency, SUM(p.amount) as total_ingresado, COUNT(*) as cantidad_pagos
+FROM payments p
+JOIN operations op ON op.id = p.operation_id
+WHERE p.status = 'PAID'
+AND p.direction = 'INCOME'
+AND p.date_paid >= date_trunc('month', CURRENT_DATE)
+AND op.agency_id = ANY({{agency_ids}})
+GROUP BY p.currency
 
 -- Leads por estado (usar id para filtrar por mes, NO created_at)
 SELECT status, COUNT(*) as cantidad FROM leads
