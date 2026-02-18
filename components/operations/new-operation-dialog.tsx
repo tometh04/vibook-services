@@ -52,6 +52,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { NewCustomerDialog } from "@/components/customers/new-customer-dialog"
 import { financialColor } from "@/lib/design-tokens"
+import { CitySearch } from "@/components/ui/city-search"
 
 // Configuración de operaciones
 interface OperationSettings {
@@ -1029,7 +1030,11 @@ export function NewOperationDialog({
                   <FormItem>
                     <FormLabel>Origen</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ciudad de origen" {...field} />
+                      <CitySearch
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Ciudad de origen"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1043,7 +1048,11 @@ export function NewOperationDialog({
                   <FormItem>
                     <FormLabel>Destino *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ciudad de destino" {...field} />
+                      <CitySearch
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Ciudad de destino"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

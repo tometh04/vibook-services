@@ -157,8 +157,6 @@ export async function PUT(request: Request) {
 
     const updateData = {
       ...validatedData,
-      updated_by: user.id,
-      updated_at: new Date().toISOString(),
     }
 
     let result

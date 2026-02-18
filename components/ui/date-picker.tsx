@@ -57,6 +57,9 @@ export function DatePicker({
               onChange(format(selectedDate, "yyyy-MM-dd"))
             }
           }}
+          captionLayout="dropdown"
+          fromYear={2000}
+          toYear={new Date().getFullYear() + 5}
           initialFocus
           disabled={(d) => {
             if (minDate && startOfDay(d) < startOfDay(minDate)) return true
