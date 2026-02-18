@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { verifyFeatureAccess } from "@/lib/billing/subscription-middleware"
 import { getUserAgencyIds } from "@/lib/permissions-api"
 
-const VALID_STATUSES = ["NEW", "IN_PROGRESS", "QUOTED", "CONTACTED", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST", "ARCHIVED"]
+// Must match the CHECK constraint in the DB and the 5 Kanban columns in leads-kanban.tsx
+const VALID_STATUSES = ["NEW", "IN_PROGRESS", "QUOTED", "WON", "LOST"]
 
 export async function POST(request: Request) {
   try {
