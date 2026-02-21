@@ -18,6 +18,7 @@ export type Module =
   | "reports"
   | "settings"
   | "documents"
+  | "tasks"
 
 export type Permission = "read" | "write" | "delete" | "export"
 
@@ -48,6 +49,7 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     reports: { read: true, write: true, delete: true, export: true },
     settings: { read: true, write: true, delete: true, export: true },
     documents: { read: true, write: true, delete: true, export: true },
+    tasks: { read: true, write: true, delete: true, export: true },
   },
   ADMIN: {
     dashboard: { read: true, write: true, delete: false, export: true },
@@ -61,6 +63,7 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     reports: { read: true, write: true, delete: false, export: true },
     settings: { read: true, write: true, delete: true, export: true }, // ADMIN puede gestionar settings
     documents: { read: true, write: true, delete: false, export: true },
+    tasks: { read: true, write: true, delete: false, export: false },
   },
   CONTABLE: {
     dashboard: { read: false, write: false, delete: false, export: false }, // No ve dashboard general
@@ -74,6 +77,7 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     reports: { read: true, write: false, delete: false, export: true }, // Solo reportes financieros
     settings: { read: false, write: false, delete: false, export: false }, // No ve settings
     documents: { read: false, write: false, delete: false, export: false }, // No ve documentos
+    tasks: { read: true, write: true, delete: false, export: false },
   },
   SELLER: {
     dashboard: { read: true, write: false, delete: false, export: false, ownDataOnly: true }, // Solo sus datos
@@ -87,6 +91,7 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     reports: { read: true, write: false, delete: false, export: true, ownDataOnly: true }, // Solo reportes propios
     settings: { read: false, write: false, delete: false, export: false }, // No ve settings
     documents: { read: true, write: true, delete: false, export: false, ownDataOnly: true }, // Solo documentos de sus operaciones
+    tasks: { read: true, write: true, delete: false, export: false, ownDataOnly: true },
   },
   VIEWER: {
     dashboard: { read: true, write: false, delete: false, export: false },
@@ -100,6 +105,7 @@ const PERMISSIONS: Record<UserRole, RolePermissions> = {
     reports: { read: true, write: false, delete: false, export: true },
     settings: { read: false, write: false, delete: false, export: false },
     documents: { read: true, write: false, delete: false, export: false },
+    tasks: { read: true, write: false, delete: false, export: false },
   },
 }
 
@@ -146,12 +152,12 @@ export function getAccessibleModules(role: UserRole): Module[] {
 export function shouldShowInSidebar(role: UserRole, module: Module): boolean {
   // CONTABLE no ve dashboard, leads, customers
   if (role === "CONTABLE") {
-    return ["operations", "operators", "cash", "accounting", "alerts", "reports"].includes(module)
+    return ["operations", "operators", "cash", "accounting", "alerts", "reports", "tasks"].includes(module)
   }
 
   // SELLER no ve operators, cash, accounting, settings
   if (role === "SELLER") {
-    return ["dashboard", "leads", "operations", "customers", "alerts", "reports", "documents"].includes(module)
+    return ["dashboard", "leads", "operations", "customers", "alerts", "reports", "documents", "tasks"].includes(module)
   }
 
   // VIEWER ve todo excepto settings
