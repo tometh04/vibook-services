@@ -1,8 +1,5 @@
 export const ONBOARDING_EVENT_TYPES = {
   visited_finances: "visited_finances",
-  visited_reports: "visited_reports",
-  used_cerebro: "used_cerebro",
-  used_emilia: "used_emilia",
   skipped_onboarding: "skipped_onboarding",
 } as const
 

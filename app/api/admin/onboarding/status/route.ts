@@ -32,16 +32,18 @@ async function fetchGroupedCounts(
   agencyIds: string[]
 ) {
   const leadsMap = new Map<string, number>()
+  const customersMap = new Map<string, number>()
+  const operatorsMap = new Map<string, number>()
   const operationsMap = new Map<string, number>()
   const paymentsMap = new Map<string, number>()
 
   if (agencyIds.length === 0) {
-    return { leadsMap, operationsMap, paymentsMap }
+    return { leadsMap, customersMap, operatorsMap, operationsMap, paymentsMap }
   }
 
   const safeIds = agencyIds.filter(isUuid)
   if (safeIds.length === 0) {
-    return { leadsMap, operationsMap, paymentsMap }
+    return { leadsMap, customersMap, operatorsMap, operationsMap, paymentsMap }
   }
 
   const idList = safeIds.map((id) => `'${id}'`).join(",")
@@ -57,9 +59,15 @@ async function fetchGroupedCounts(
   }
 
   try {
-    const [leadsRows, operationsRows, paymentsRows] = await Promise.all([
+    const [leadsRows, customersRows, operatorsRows, operationsRows, paymentsRows] = await Promise.all([
       runQuery(
         `SELECT agency_id, COUNT(*)::int AS total FROM leads WHERE agency_id IN (${idList}) GROUP BY agency_id`
+      ),
+      runQuery(
+        `SELECT agency_id, COUNT(*)::int AS total FROM customers WHERE agency_id IN (${idList}) GROUP BY agency_id`
+      ),
+      runQuery(
+        `SELECT agency_id, COUNT(*)::int AS total FROM operators WHERE agency_id IN (${idList}) GROUP BY agency_id`
       ),
       runQuery(
         `SELECT agency_id, COUNT(*)::int AS total FROM operations WHERE agency_id IN (${idList}) GROUP BY agency_id`
@@ -76,6 +84,12 @@ async function fetchGroupedCounts(
     for (const row of leadsRows) {
       leadsMap.set(row.agency_id, Number(row.total) || 0)
     }
+    for (const row of customersRows) {
+      customersMap.set(row.agency_id, Number(row.total) || 0)
+    }
+    for (const row of operatorsRows) {
+      operatorsMap.set(row.agency_id, Number(row.total) || 0)
+    }
     for (const row of operationsRows) {
       operationsMap.set(row.agency_id, Number(row.total) || 0)
     }
@@ -85,8 +99,10 @@ async function fetchGroupedCounts(
   } catch (error) {
     // Fallback: counts por agencia (más lento, pero seguro)
     for (const agencyId of safeIds) {
-      const [leadsRes, operationsRes, paymentsRes] = await Promise.all([
+      const [leadsRes, customersRes, operatorsRes, operationsRes, paymentsRes] = await Promise.all([
         supabase.from("leads").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
+        supabase.from("customers").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
+        supabase.from("operators").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
         supabase.from("operations").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
         supabase
           .from("payments")
@@ -94,12 +110,14 @@ async function fetchGroupedCounts(
           .eq("operations.agency_id", agencyId),
       ])
       leadsMap.set(agencyId, leadsRes.count || 0)
+      customersMap.set(agencyId, customersRes.count || 0)
+      operatorsMap.set(agencyId, operatorsRes.count || 0)
       operationsMap.set(agencyId, operationsRes.count || 0)
       paymentsMap.set(agencyId, paymentsRes.count || 0)
     }
   }
 
-  return { leadsMap, operationsMap, paymentsMap }
+  return { leadsMap, customersMap, operatorsMap, operationsMap, paymentsMap }
 }
 
 export async function POST(request: Request) {
@@ -210,12 +228,11 @@ export async function POST(request: Request) {
 
       const completionMap: Record<string, boolean> = {
         lead: (counts.leadsMap.get(pair.agency_id) || 0) > 0,
+        customer: (counts.customersMap.get(pair.agency_id) || 0) > 0,
+        wholesaler: (counts.operatorsMap.get(pair.agency_id) || 0) > 0,
         operation: (counts.operationsMap.get(pair.agency_id) || 0) > 0,
         payment: (counts.paymentsMap.get(pair.agency_id) || 0) > 0,
         finance: eventsSet.has("visited_finances"),
-        reports: eventsSet.has("visited_reports"),
-        cerebro: eventsSet.has("used_cerebro"),
-        emilia: eventsSet.has("used_emilia"),
       }
 
       const steps = ONBOARDING_STEPS.filter((step) => {

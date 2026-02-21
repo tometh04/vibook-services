@@ -84,8 +84,10 @@ export async function GET() {
     }
 
     // Counts principales
-    const [leadsRes, operationsRes, paymentsRes, eventsRes, controlRes] = await Promise.all([
+    const [leadsRes, customersRes, operatorsRes, operationsRes, paymentsRes, eventsRes, controlRes] = await Promise.all([
       admin.from("leads").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
+      admin.from("customers").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
+      admin.from("operators").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
       admin.from("operations").select("id", { count: "exact", head: true }).eq("agency_id", agencyId),
       // payments no tiene agency_id; contamos operaciones con al menos un pago
       admin
@@ -104,6 +106,8 @@ export async function GET() {
     ])
 
     const leadsCount = leadsRes?.count || 0
+    const customersCount = customersRes?.count || 0
+    const operatorsCount = operatorsRes?.count || 0
     const operationsCount = operationsRes?.count || 0
     const paymentsCount = paymentsRes?.count || 0
 
@@ -119,12 +123,11 @@ export async function GET() {
 
     const completionMap: Record<string, boolean> = {
       lead: leadsCount > 0,
+      customer: customersCount > 0,
+      wholesaler: operatorsCount > 0,
       operation: operationsCount > 0,
       payment: paymentsCount > 0,
       finance: events.has("visited_finances"),
-      reports: events.has("visited_reports"),
-      cerebro: events.has("used_cerebro"),
-      emilia: events.has("used_emilia"),
     }
 
     const mode = (controlRes?.data as any)?.mode || "AUTO"

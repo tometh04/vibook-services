@@ -1,11 +1,10 @@
 export type OnboardingStepId =
   | "lead"
+  | "customer"
+  | "wholesaler"
   | "operation"
   | "payment"
   | "finance"
-  | "reports"
-  | "cerebro"
-  | "emilia"
 
 export interface OnboardingStepDefinition {
   id: OnboardingStepId
@@ -28,9 +27,25 @@ export const ONBOARDING_STEPS: OnboardingStepDefinition[] = [
     feature: "crm",
   },
   {
+    id: "customer",
+    title: "Creá tu primer cliente",
+    description: "Cargá un cliente para poder asignarlo a operaciones.",
+    actionLabel: "Ir a Clientes",
+    actionPath: "/customers",
+    allowedPrefixes: ["/customers"],
+  },
+  {
+    id: "wholesaler",
+    title: "Creá tu primer mayorista",
+    description: "Cargá un operador mayorista para asignarlo a tus operaciones.",
+    actionLabel: "Ir a Operadores",
+    actionPath: "/operators",
+    allowedPrefixes: ["/operators"],
+  },
+  {
     id: "operation",
     title: "Generá tu primera operación",
-    description: "Convertí un lead en operación para activar el flujo comercial.",
+    description: "Creá una operación con el cliente y mayorista que ya tenés.",
     actionLabel: "Ir a Operaciones",
     actionPath: "/operations",
     allowedPrefixes: ["/operations"],
@@ -50,32 +65,5 @@ export const ONBOARDING_STEPS: OnboardingStepDefinition[] = [
     actionLabel: "Ir a Finanzas",
     actionPath: "/cash/summary",
     allowedPrefixes: ["/cash", "/accounting", "/finances"],
-  },
-  {
-    id: "reports",
-    title: "Revisá un reporte",
-    description: "Abrí el panel de reportes para ver métricas clave.",
-    actionLabel: "Ver Reportes",
-    actionPath: "/reports",
-    allowedPrefixes: ["/reports"],
-    feature: "reports",
-  },
-  {
-    id: "cerebro",
-    title: "Usá Cerebro",
-    description: "Hacé tu primera consulta al asistente IA.",
-    actionLabel: "Abrir Cerebro",
-    actionPath: "/tools/cerebro",
-    allowedPrefixes: ["/tools/cerebro"],
-    feature: "cerebro",
-  },
-  {
-    id: "emilia",
-    title: "Usá Emilia",
-    description: "Pedí una búsqueda de viaje para probar Emilia.",
-    actionLabel: "Abrir Emilia",
-    actionPath: "/emilia",
-    allowedPrefixes: ["/emilia"],
-    feature: "emilia",
   },
 ]
