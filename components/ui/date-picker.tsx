@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { format, startOfDay } from "date-fns"
+import { format, startOfDay, parse } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon } from "lucide-react"
 
@@ -31,7 +31,8 @@ export function DatePicker({
   minDate,
   maxDate,
 }: DatePickerProps) {
-  const date = value ? new Date(value) : undefined
+  // Parsear como fecha LOCAL (no UTC) para evitar desfase de timezone
+  const date = value ? parse(value.split("T")[0], "yyyy-MM-dd", new Date()) : undefined
 
   return (
     <Popover>
