@@ -187,7 +187,6 @@ export async function POST(request: Request) {
         currency_id: 'ARS',
         start_date: startDate.toISOString()
       },
-      payer_email: user.email,
       external_reference: JSON.stringify({
         agency_id: agencyId,
         plan_id: planId,

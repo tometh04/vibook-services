@@ -72,7 +72,7 @@ export async function createPreApproval(data: {
     start_date?: string // ISO date
     end_date?: string // ISO date (opcional)
   }
-  payer_email: string
+  payer_email?: string // Opcional: si no se envía, MP usa el email de la cuenta del pagador
   card_token_id?: string
   external_reference?: string
   back_url?: string
@@ -82,16 +82,17 @@ export async function createPreApproval(data: {
   }
 
   try {
-    const result = await preApproval.create({
-      body: {
-        reason: data.reason,
-        auto_recurring: data.auto_recurring,
-        payer_email: data.payer_email,
-        card_token_id: data.card_token_id,
-        external_reference: data.external_reference,
-        back_url: data.back_url
-      } as any
-    })
+    const body: any = {
+      reason: data.reason,
+      auto_recurring: data.auto_recurring,
+      external_reference: data.external_reference,
+      back_url: data.back_url,
+    }
+    // Solo enviar payer_email si se proporciona explícitamente
+    if (data.payer_email) body.payer_email = data.payer_email
+    if (data.card_token_id) body.card_token_id = data.card_token_id
+
+    const result = await preApproval.create({ body })
     
     return result as any
   } catch (error: any) {
