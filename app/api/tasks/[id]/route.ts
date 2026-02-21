@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getCurrentUser } from "@/lib/auth"
 
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const { user } = await getCurrentUser()
-    const supabase = await createServerClient()
+    const supabase = createAdminSupabaseClient()
     const { id } = await params
 
     const { data: task, error } = await (supabase
@@ -53,7 +53,7 @@ export async function PATCH(
 ) {
   try {
     const { user } = await getCurrentUser()
-    const supabase = await createServerClient()
+    const supabase = createAdminSupabaseClient()
     const { id } = await params
     const body = await request.json()
 
@@ -94,7 +94,10 @@ export async function PATCH(
     }
     if (body.priority !== undefined) updates.priority = body.priority
     if (body.assigned_to !== undefined) updates.assigned_to = body.assigned_to
-    if (body.due_date !== undefined) updates.due_date = body.due_date || null
+    if (body.due_date !== undefined) {
+      const dd = body.due_date
+      updates.due_date = dd ? (dd.includes("T") ? dd : `${dd}T12:00:00`) : null
+    }
     if (body.reminder_minutes !== undefined) {
       updates.reminder_minutes = body.reminder_minutes || null
       updates.reminder_sent = false // Reset reminder when changed
@@ -135,7 +138,7 @@ export async function DELETE(
 ) {
   try {
     const { user } = await getCurrentUser()
-    const supabase = await createServerClient()
+    const supabase = createAdminSupabaseClient()
     const { id } = await params
 
     // Fetch existing task

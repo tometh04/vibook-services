@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getCurrentUser, getUserAgencies } from "@/lib/auth"
 
 const TASK_SELECT = `
@@ -30,7 +30,7 @@ async function getRoleFilter(user: any): Promise<{ type: "or" | "eq" | "none"; v
 export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
-    const supabase = await createServerClient()
+    const supabase = createAdminSupabaseClient()
     const { searchParams } = new URL(request.url)
 
     const status = searchParams.get("status")
@@ -236,7 +236,7 @@ async function buildAndExecuteQuery(
 export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
-    const supabase = await createServerClient()
+    const supabase = createAdminSupabaseClient()
     const body = await request.json()
 
     const { title, description, priority, assigned_to, due_date, reminder_minutes, operation_id, customer_id, agency_id } = body
@@ -260,7 +260,7 @@ export async function POST(request: Request) {
       priority: priority || "MEDIUM",
       created_by: user.id,
       assigned_to,
-      due_date: due_date || null,
+      due_date: due_date ? (due_date.includes("T") ? due_date : `${due_date}T12:00:00`) : null,
       reminder_minutes: due_date && reminder_minutes ? reminder_minutes : null,
       reminder_sent: false,
       operation_id: operation_id || null,

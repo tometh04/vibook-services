@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { sendPushToUser } from "@/lib/push"
 
 export async function GET() {
   try {
-    const supabase = await createServerClient()
+    const supabase = createAdminSupabaseClient()
     const now = new Date()
 
     // Buscar tareas que necesitan recordatorio:
