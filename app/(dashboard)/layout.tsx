@@ -10,6 +10,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
 import { BrandingProvider } from "@/components/branding-provider"
 import { OnboardingTracker } from "@/components/onboarding/onboarding-tracker"
+import { TaskShortcutProvider } from "@/components/tasks/task-shortcut-provider"
 
 export default async function DashboardLayout({
   children,
@@ -134,6 +135,10 @@ export default async function DashboardLayout({
           </div>
         </div>
       </SidebarInset>
+      <TaskShortcutProvider
+        currentUserId={user.id}
+        agencyId={activeAgencyId || ""}
+      />
     </SidebarProvider>
   )
 }
