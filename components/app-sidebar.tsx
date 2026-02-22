@@ -28,6 +28,7 @@ import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { ThemeToggleSidebar } from "@/components/theme-toggle-sidebar"
 import { OnboardingGuard } from "@/components/onboarding/onboarding-guard"
+import { useUnreadMessages } from "@/hooks/use-unread-messages"
 import {
   Sidebar,
   SidebarContent,
@@ -51,6 +52,7 @@ interface NavSubItem {
   url: string
   items?: NavSubSubItem[]
   module?: "dashboard" | "leads" | "operations" | "customers" | "operators" | "cash" | "accounting" | "alerts" | "reports" | "settings"
+  badge?: number
 }
 
 interface NavItem {
@@ -60,6 +62,7 @@ interface NavItem {
   items?: NavSubItem[]
   module?: "dashboard" | "leads" | "operations" | "customers" | "operators" | "cash" | "accounting" | "alerts" | "reports" | "settings"
   collapsible?: boolean
+  badge?: number
 }
 
 const allNavigation: NavItem[] = [
@@ -202,6 +205,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarProps) {
   const pathname = usePathname()
   const { branding, isLoading: brandingLoading } = useTenantBranding(agencyId)
+  const unreadMessages = useUnreadMessages()
 
   // Filtrar navegación según permisos
   const navigation = allNavigation
@@ -251,6 +255,21 @@ export function AppSidebar({ userRole, user, agencyId, ...props }: AppSidebarPro
         return userRole === "SELLER"
       }
       return true
+    })
+    // Inyectar badge de mensajes no leídos en "Mensajería" y su padre "Herramientas"
+    .map((item) => {
+      if (item.title === "Herramientas" && item.items && unreadMessages > 0) {
+        return {
+          ...item,
+          badge: unreadMessages,
+          items: item.items.map((sub) =>
+            sub.url === "/tools/messaging"
+              ? { ...sub, badge: unreadMessages }
+              : sub
+          ),
+        }
+      }
+      return item
     })
 
   return (

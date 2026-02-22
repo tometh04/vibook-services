@@ -29,6 +29,7 @@ interface NavSubItem {
   title: string
   url: string
   items?: NavSubSubItem[]
+  badge?: number
 }
 
 interface NavItem {
@@ -37,6 +38,7 @@ interface NavItem {
   icon?: React.ComponentType<{ className?: string }>
   items?: NavSubItem[]
   collapsible?: boolean
+  badge?: number
 }
 
 interface NavMainProps {
@@ -81,6 +83,11 @@ export function NavMain({ items, pathname }: NavMainProps) {
                     <SidebarMenuButton tooltip={item.title}>
                       {item.icon && <item.icon />}
                       <span>{item.title}</span>
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+                          {item.badge > 99 ? "99+" : item.badge}
+                        </span>
+                      )}
                       <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
@@ -133,6 +140,11 @@ export function NavMain({ items, pathname }: NavMainProps) {
                             <SidebarMenuSubButton asChild isActive={subIsActive}>
                               <Link href={subItem.url}>
                                 <span>{subItem.title}</span>
+                                {subItem.badge !== undefined && subItem.badge > 0 && (
+                                  <span className="ml-auto flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+                                    {subItem.badge > 99 ? "99+" : subItem.badge}
+                                  </span>
+                                )}
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>

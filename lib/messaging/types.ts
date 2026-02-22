@@ -23,6 +23,8 @@ export interface TeamChannelWithMeta extends TeamChannel {
     name: string
     email: string
   }
+  // Nombre de la agencia a la que pertenece el canal
+  agency_name?: string
 }
 
 export interface TeamMessage {

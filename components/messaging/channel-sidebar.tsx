@@ -15,6 +15,7 @@ interface ChannelSidebarProps {
   onCreateChannel: () => void
   onStartDM: () => void
   userRole: string
+  hasMultipleAgencies?: boolean
 }
 
 export function ChannelSidebar({
@@ -24,6 +25,7 @@ export function ChannelSidebar({
   onCreateChannel,
   onStartDM,
   userRole,
+  hasMultipleAgencies = false,
 }: ChannelSidebarProps) {
   const [search, setSearch] = useState("")
   const canCreateChannel = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
@@ -89,7 +91,14 @@ export function ChannelSidebar({
                 }`}
               >
                 <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate flex-1 text-left">{ch.name}</span>
+                <div className="truncate flex-1 text-left">
+                  <span>{ch.name}</span>
+                  {hasMultipleAgencies && ch.agency_name && (
+                    <span className="text-[10px] text-muted-foreground ml-1">
+                      · {ch.agency_name}
+                    </span>
+                  )}
+                </div>
                 {ch.unread_count > 0 && (
                   <Badge
                     variant="destructive"

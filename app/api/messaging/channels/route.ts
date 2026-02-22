@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     // Obtener canales donde el usuario es miembro
     let query = (supabase as any)
       .from("team_channel_members")
-      .select("channel_id, last_read_at, team_channels(*)")
+      .select("channel_id, last_read_at, team_channels(*, agencies:agency_id(id, name))")
       .eq("user_id", user.id)
 
     const { data: memberships, error } = await query
@@ -136,6 +136,7 @@ export async function GET(request: Request) {
               }
             : null,
           dm_partner: dmPartners[ch.id] || null,
+          agency_name: ch.agencies?.name || null,
         }
       })
       .sort((a: any, b: any) => {

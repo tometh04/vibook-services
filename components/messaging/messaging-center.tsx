@@ -211,9 +211,17 @@ export function MessagingCenter({
 
   const selectedChannel = channels.find((ch) => ch.id === selectedChannelId)
 
+  // Detectar si el usuario tiene canales de múltiples agencias
+  const agencyIds = new Set(channels.map((ch) => ch.agency_id))
+  const hasMultipleAgencies = agencyIds.size > 1
+
   const getChannelDisplayName = (ch: TeamChannelWithMeta) => {
     if (ch.type === "dm") return ch.dm_partner?.name || "Usuario"
-    return ch.name || "Canal"
+    const name = ch.name || "Canal"
+    if (hasMultipleAgencies && ch.agency_name) {
+      return `${name} · ${ch.agency_name}`
+    }
+    return name
   }
 
   if (loading) {
@@ -235,6 +243,7 @@ export function MessagingCenter({
           onCreateChannel={() => setCreateChannelOpen(true)}
           onStartDM={() => setStartDMOpen(true)}
           userRole={userRole}
+          hasMultipleAgencies={hasMultipleAgencies}
         />
       </div>
 
