@@ -61,8 +61,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "No se pudo determinar la agencia" }, { status: 400 })
       }
 
+      // Usar admin client para bypass RLS en user_agencies
+      const { createAdminSupabaseClient } = await import("@/lib/supabase/admin")
+      const adminForLink = createAdminSupabaseClient()
+
       // Verificar qué agencias ya tiene vinculadas
-      const { data: existingLinks } = await (supabase.from("user_agencies") as any)
+      const { data: existingLinks } = await (adminForLink.from("user_agencies") as any)
         .select("agency_id")
         .eq("user_id", existingUserId)
 
@@ -74,7 +78,7 @@ export async function POST(request: Request) {
       }
 
       // Vincular a las nuevas agencias
-      const { error: linkError } = await (supabase.from("user_agencies") as any)
+      const { error: linkError } = await (adminForLink.from("user_agencies") as any)
         .insert(newAgencies.map((agencyId: string) => ({
           user_id: existingUserId,
           agency_id: agencyId,
