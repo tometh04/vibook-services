@@ -378,7 +378,9 @@ export function UsersSettings() {
                           <SelectValue placeholder="Seleccionar rol" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.entries(USER_ROLE_LABELS).map(([value, label]) => (
+                          {Object.entries(USER_ROLE_LABELS)
+                            .filter(([value]) => value !== "SUPER_ADMIN")
+                            .map(([value, label]) => (
                             <SelectItem key={value} value={value}>
                               <div className="flex items-center gap-2">
                                 <span>{label}</span>

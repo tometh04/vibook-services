@@ -29,21 +29,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos requeridos: nombre, email y rol son obligatorios" }, { status: 400 })
     }
 
-    // Validar rol
-    const validRoles = ["SUPER_ADMIN", "ADMIN", "CONTABLE", "SELLER", "VIEWER"]
+    // Validar rol - SUPER_ADMIN no se puede asignar desde invitaciones
+    const validRoles = ["ADMIN", "CONTABLE", "SELLER", "VIEWER"]
     if (!validRoles.includes(role)) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 })
     }
 
-    // Verificar si el email ya existe
+    // Verificar si el email ya existe en nuestra tabla de usuarios
     const { data: existingUser } = await supabase
       .from("users")
       .select("id, email")
       .eq("email", email)
       .maybeSingle()
 
+    // Si el usuario ya existe, vincularlo a las agencias seleccionadas
     if (existingUser) {
-      return NextResponse.json({ error: "El email ya está registrado en el sistema" }, { status: 400 })
+      const existingUserId = (existingUser as any).id
+      const defaultAgencyId = (await supabase
+        .from("user_agencies")
+        .select("agency_id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle()
+      ).data
+
+      const targetAgencies = Array.isArray(agencies) && agencies.length > 0
+        ? agencies
+        : (defaultAgencyId ? [(defaultAgencyId as any).agency_id] : [])
+
+      if (targetAgencies.length === 0) {
+        return NextResponse.json({ error: "No se pudo determinar la agencia" }, { status: 400 })
+      }
+
+      // Verificar qué agencias ya tiene vinculadas
+      const { data: existingLinks } = await (supabase.from("user_agencies") as any)
+        .select("agency_id")
+        .eq("user_id", existingUserId)
+
+      const alreadyLinked = new Set((existingLinks || []).map((l: any) => l.agency_id))
+      const newAgencies = targetAgencies.filter((id: string) => !alreadyLinked.has(id))
+
+      if (newAgencies.length === 0) {
+        return NextResponse.json({ error: "Este usuario ya está vinculado a todas las agencias seleccionadas" }, { status: 400 })
+      }
+
+      // Vincular a las nuevas agencias
+      const { error: linkError } = await (supabase.from("user_agencies") as any)
+        .insert(newAgencies.map((agencyId: string) => ({
+          user_id: existingUserId,
+          agency_id: agencyId,
+        })))
+
+      if (linkError) {
+        console.error("Error linking existing user to agencies:", linkError)
+        return NextResponse.json({ error: "Error al vincular usuario a la agencia" }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        user: existingUser,
+        message: `${email} ya existía en el sistema y fue vinculado a la agencia.`
+      })
     }
 
     // Verificar límite de usuarios del plan
@@ -131,10 +177,37 @@ export async function POST(request: Request) {
     if (authError || !authData.user) {
       console.error("❌ Error inviting user:", authError)
       
-      // Si el error es que el usuario ya existe en auth pero no en nuestra tabla
+      // Si el usuario ya existe en auth pero no en nuestra tabla, buscarlo y vincularlo
       if (authError?.message?.includes("already been registered")) {
-        return NextResponse.json({ 
-          error: "Este email ya está registrado en el sistema de autenticación" 
+        // Buscar el usuario en auth por email
+        const { data: authUsers } = await adminClient.auth.admin.listUsers()
+        const existingAuthUser = authUsers?.users?.find((u: any) => u.email === email)
+
+        if (existingAuthUser) {
+          // Crear registro en nuestra tabla
+          const { data: newUserData, error: createErr } = await (supabase.from("users") as any)
+            .insert({ auth_id: existingAuthUser.id, name, email, role, is_active: true })
+            .select()
+            .single()
+
+          if (!createErr && newUserData) {
+            // Vincular agencias
+            await (supabase.from("user_agencies") as any).insert(
+              normalizedAgencies.map((agencyId: string) => ({
+                user_id: (newUserData as any).id,
+                agency_id: agencyId,
+              }))
+            )
+            return NextResponse.json({
+              success: true,
+              user: newUserData,
+              message: `${email} fue vinculado a la agencia exitosamente.`
+            })
+          }
+        }
+
+        return NextResponse.json({
+          error: "Este email ya está registrado. Intentá nuevamente."
         }, { status: 400 })
       }
       
