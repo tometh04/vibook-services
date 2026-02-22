@@ -6,9 +6,9 @@ export async function GET(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const userAgencies = await getUserAgencies(user.id)
-    const agencyId = userAgencies[0]?.agency_id
+    const agencyIds = userAgencies.map((ua) => ua.agency_id).filter(Boolean)
 
-    if (!agencyId) {
+    if (agencyIds.length === 0) {
       return NextResponse.json({ channels: [] })
     }
 
@@ -34,9 +34,10 @@ export async function GET(request: Request) {
       const { data: generalChannel } = await (supabase as any)
         .from("team_channels")
         .select("id")
-        .eq("agency_id", agencyId)
+        .in("agency_id", agencyIds)
         .eq("type", "channel")
         .eq("name", "general")
+        .limit(1)
         .single()
 
       if (generalChannel) {
@@ -99,7 +100,7 @@ export async function GET(request: Request) {
       .filter((m: any) => {
         if (!m.team_channels) return false
         if (typeFilter && m.team_channels.type !== typeFilter) return false
-        if (m.team_channels.agency_id !== agencyId) return false
+        if (!agencyIds.includes(m.team_channels.agency_id)) return false
         return true
       })
       .map((m: any) => {

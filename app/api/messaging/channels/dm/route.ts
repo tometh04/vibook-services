@@ -6,9 +6,9 @@ export async function POST(request: Request) {
   try {
     const { user } = await getCurrentUser()
     const userAgencies = await getUserAgencies(user.id)
-    const agencyId = userAgencies[0]?.agency_id
+    const agencyIds = userAgencies.map((ua) => ua.agency_id).filter(Boolean)
 
-    if (!agencyId) {
+    if (agencyIds.length === 0) {
       return NextResponse.json({ error: "No se encontró agencia" }, { status: 400 })
     }
 
@@ -24,17 +24,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No puedes enviarte un DM a ti mismo" }, { status: 400 })
     }
 
-    // Verificar que el target pertenece a la misma agencia
+    // Verificar que el target pertenece a alguna agencia en común
     const { data: targetAgency } = await (supabase as any)
       .from("user_agencies")
       .select("agency_id")
       .eq("user_id", target_user_id)
-      .eq("agency_id", agencyId)
+      .in("agency_id", agencyIds)
+      .limit(1)
       .single()
 
     if (!targetAgency) {
       return NextResponse.json({ error: "El usuario no pertenece a tu agencia" }, { status: 403 })
     }
+
+    const sharedAgencyId = targetAgency.agency_id
 
     // Buscar DM existente entre estos 2 usuarios
     const { data: existingDMs } = await (supabase as any)
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
         id,
         team_channel_members(user_id)
       `)
-      .eq("agency_id", agencyId)
+      .eq("agency_id", sharedAgencyId)
       .eq("type", "dm")
 
     let existingDM = null
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
     const { data: channel, error } = await (supabase as any)
       .from("team_channels")
       .insert({
-        agency_id: agencyId,
+        agency_id: sharedAgencyId,
         type: "dm",
         name: null,
         created_by: user.id,
