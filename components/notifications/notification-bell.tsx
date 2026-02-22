@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { createBrowserClient } from "@supabase/ssr"
-import { Bell, ChevronRight, Check, Calendar, DollarSign, FileText, AlertTriangle } from "lucide-react"
+import { Bell, ChevronRight, Check, Calendar, DollarSign, FileText, AlertTriangle, ClipboardList, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -39,6 +39,10 @@ const alertTypeConfig: Record<string, { icon: any; color: string }> = {
   PASSPORT_EXPIRY: { icon: FileText, color: "text-muted-foreground" },
   GENERIC: { icon: Bell, color: "text-muted-foreground" },
   BIRTHDAY: { icon: Calendar, color: "text-muted-foreground" },
+  TASK_ASSIGNED: { icon: ClipboardList, color: "text-blue-500" },
+  TASK_REMINDER: { icon: Clock, color: "text-orange-500" },
+  TASK_DUE_TODAY: { icon: AlertTriangle, color: "text-red-500" },
+  OTHER: { icon: Bell, color: "text-muted-foreground" },
 }
 
 export function NotificationBell() {
@@ -198,15 +202,23 @@ export function NotificationBell() {
                         <Check className="h-3 w-3" />
                       </Button>
                     </div>
-                    {alert.operation_id && (
-                      <Link 
+                    {alert.type?.startsWith("TASK_") ? (
+                      <Link
+                        href="/tools/tasks"
+                        onClick={() => setOpen(false)}
+                        className="text-xs text-primary hover:underline ml-7 mt-1 block"
+                      >
+                        Ver tareas →
+                      </Link>
+                    ) : alert.operation_id ? (
+                      <Link
                         href={`/operations/${alert.operation_id}`}
                         onClick={() => setOpen(false)}
                         className="text-xs text-primary hover:underline ml-7 mt-1 block"
                       >
                         Ver operación →
                       </Link>
-                    )}
+                    ) : null}
                   </div>
                 )
               })}

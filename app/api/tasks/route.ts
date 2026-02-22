@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { getCurrentUser, getUserAgencies } from "@/lib/auth"
+import { sendPushToUser } from "@/lib/push"
 
 const TASK_SELECT = `
   *,
@@ -277,6 +278,45 @@ export async function POST(request: Request) {
     if (error) {
       console.error("Error creating task:", error)
       return NextResponse.json({ error: "Error al crear tarea" }, { status: 500 })
+    }
+
+    // Crear alerta y push notification si la tarea fue asignada a otro usuario
+    if (assigned_to !== user.id) {
+      try {
+        const alertData = {
+          user_id: assigned_to,
+          agency_id,
+          operation_id: operation_id || null,
+          customer_id: customer_id || null,
+          type: "TASK_ASSIGNED",
+          description: `📋 ${user.name || "Alguien"} te asignó una tarea: ${title.trim()}`,
+          date_due: taskData.due_date || new Date().toISOString(),
+          status: "PENDING",
+          priority: taskData.priority.toLowerCase(),
+        }
+
+        // Intentar con TASK_ASSIGNED, fallback a OTHER si el constraint no lo permite aún
+        const { error: alertError } = await (supabase as any)
+          .from("alerts")
+          .insert(alertData)
+
+        if (alertError && alertError.code === "23514") {
+          await (supabase as any)
+            .from("alerts")
+            .insert({ ...alertData, type: "OTHER" })
+        }
+
+        // Enviar push notification
+        await sendPushToUser(supabase, assigned_to, {
+          title: "📋 Nueva tarea asignada",
+          body: `${user.name || "Alguien"} te asignó: ${title.trim()}`,
+          url: "/tools/tasks",
+          tag: `task-assigned-${task.id}`,
+        })
+      } catch (notifError) {
+        // No fallar la creación de tarea por error de notificación
+        console.error("Error sending task assignment notification:", notifError)
+      }
     }
 
     return NextResponse.json({ task })
