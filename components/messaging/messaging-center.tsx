@@ -123,6 +123,47 @@ export function MessagingCenter({
     }
   }, [channels.length, currentUserId])
 
+  // Polling fallback: cada 5s refrescar mensajes del canal activo + unread counts
+  useEffect(() => {
+    if (!selectedChannelId) return
+
+    const interval = setInterval(async () => {
+      try {
+        // Refrescar mensajes del canal activo
+        const res = await fetch(`/api/messaging/channels/${selectedChannelId}/messages?limit=50`)
+        const data = await res.json()
+        if (res.ok && data.messages) {
+          setMessages((prev) => {
+            // Solo actualizar si hay mensajes nuevos
+            const lastPrev = prev[prev.length - 1]
+            const lastNew = data.messages[data.messages.length - 1]
+            if (lastPrev?.id === lastNew?.id) return prev
+            return data.messages
+          })
+        }
+
+        // Refrescar unread counts de los canales
+        const chRes = await fetch("/api/messaging/channels")
+        const chData = await chRes.json()
+        if (chRes.ok && chData.channels) {
+          setChannels((prev) =>
+            prev.map((ch) => {
+              const updated = chData.channels.find((c: any) => c.id === ch.id)
+              if (updated) {
+                return { ...ch, unread_count: updated.unread_count, last_message: updated.last_message }
+              }
+              return ch
+            })
+          )
+        }
+      } catch {
+        // Silenciar errores de polling
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [selectedChannelId])
+
   const fetchChannels = async () => {
     try {
       const res = await fetch("/api/messaging/channels")
