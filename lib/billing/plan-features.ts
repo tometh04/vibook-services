@@ -15,6 +15,7 @@ const FEATURE_TO_PLAN_MAP: Record<string, { plan: string, displayName: string }>
   reports: { plan: 'STARTER', displayName: 'Starter' },
   cerebro: { plan: 'PRO', displayName: 'Pro' },
   emilia: { plan: 'PRO', displayName: 'Pro' },
+  messaging: { plan: 'PRO', displayName: 'Pro' },
   marketing_ads: { plan: 'BUSINESS', displayName: 'Business' },
 }
 
@@ -46,6 +47,7 @@ export function getFeatureDisplayName(feature: string): string {
     reports: 'Reportes Avanzados',
     cerebro: 'Cerebro (Asistente IA)',
     emilia: 'Emilia (Asistente IA)',
+    messaging: 'Centro de Mensajería',
     marketing_ads: 'Marketing y Ads',
   }
   return names[feature] || feature

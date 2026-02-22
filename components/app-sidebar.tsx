@@ -182,6 +182,7 @@ const allNavigation: NavItem[] = [
     icon: Bot,
     items: [
       { title: "Tareas", url: "/tools/tasks" },
+      { title: "Mensajería", url: "/tools/messaging" },
       { title: "Cerebro", url: "/tools/cerebro" },
       { title: "Emilia", url: "/emilia" },
     ],
