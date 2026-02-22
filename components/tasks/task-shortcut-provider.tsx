@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { usePathname } from "next/navigation"
 import { TaskDialog } from "./task-dialog"
 import { TaskFAB } from "./task-fab"
 import { VoiceTaskRecorder } from "./voice-task-recorder"
@@ -11,9 +12,13 @@ interface TaskShortcutProviderProps {
 }
 
 export function TaskShortcutProvider({ currentUserId, agencyId }: TaskShortcutProviderProps) {
+  const pathname = usePathname()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [prefill, setPrefill] = useState<any>(null)
+
+  // Ocultar FAB en páginas que tienen su propia UI de input en la misma zona
+  const hideFAB = pathname?.startsWith("/tools/messaging")
 
   const openDialog = useCallback(() => {
     setPrefill(null)
@@ -50,7 +55,7 @@ export function TaskShortcutProvider({ currentUserId, agencyId }: TaskShortcutPr
 
   return (
     <>
-      <TaskFAB onClick={openDialog} />
+      {!hideFAB && <TaskFAB onClick={openDialog} />}
 
       <TaskDialog
         open={dialogOpen}
