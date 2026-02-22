@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getCurrentUser } from "@/lib/auth"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 
 export async function GET() {
   try {
@@ -9,12 +10,15 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 })
     }
 
-    const supabase = await createServerClient()
-    
-    // SUPER_ADMIN (admin@vibook.ai) ve TODOS los usuarios
-    // ADMIN y otros roles solo ven usuarios de sus agencias
-    let usersQuery = supabase
-      .from("users")
+    // Usar admin client para bypass RLS en user_agencies
+    // La RLS de user_agencies solo permite ver registros propios,
+    // pero un ADMIN necesita ver los registros de todos los usuarios de su agencia
+    const supabaseAdmin = createAdminSupabaseClient()
+
+    // SUPER_ADMIN ve TODOS los usuarios
+    // ADMIN solo ve usuarios de sus agencias
+    let usersQuery = (supabaseAdmin
+      .from("users") as any)
       .select(`
         *,
         user_agencies(
@@ -22,64 +26,40 @@ export async function GET() {
           agencies(id, name)
         )
       `)
-    
+
     if (user.role !== "SUPER_ADMIN") {
-      // Filtrar por agencias del usuario
-      const { getUserAgencyIds } = await import("@/lib/permissions-api")
-      const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
-      
+      // Obtener agencias del usuario actual usando admin client
+      const { data: currentUserAgencies } = await (supabaseAdmin
+        .from("user_agencies") as any)
+        .select("agency_id")
+        .eq("user_id", user.id)
+
+      const agencyIds = (currentUserAgencies || []).map((ua: any) => ua.agency_id) as string[]
+
       if (agencyIds.length === 0) {
         return NextResponse.json({ users: [] })
       }
-      
-      // Obtener IDs de usuarios de las agencias del usuario actual
-      const { data: userAgenciesData } = await supabase
-        .from("user_agencies")
+
+      // Obtener IDs de todos los usuarios de esas agencias
+      const { data: userAgenciesData } = await (supabaseAdmin
+        .from("user_agencies") as any)
         .select("user_id")
         .in("agency_id", agencyIds)
-      
+
       const userIds = Array.from(new Set((userAgenciesData || []).map((ua: any) => ua.user_id))) as string[]
-      
+
       if (userIds.length === 0) {
         return NextResponse.json({ users: [] })
       }
-      
+
       usersQuery = usersQuery.in("id", userIds)
     }
-    
+
     const { data: users, error: usersError } = await usersQuery.order("created_at", { ascending: false })
 
     if (usersError) {
       console.error("Error fetching users:", usersError)
-      // Si hay error con la relación, intentar sin user_agencies pero manteniendo filtro de tenant
-      let fallbackQuery = supabase
-        .from("users")
-        .select("*")
-
-      if (user.role !== "SUPER_ADMIN") {
-        const { getUserAgencyIds } = await import("@/lib/permissions-api")
-        const agencyIds = await getUserAgencyIds(supabase, user.id, user.role as any)
-        if (agencyIds.length === 0) {
-          return NextResponse.json({ users: [] })
-        }
-        const { data: userAgenciesData } = await supabase
-          .from("user_agencies")
-          .select("user_id")
-          .in("agency_id", agencyIds)
-        const userIds = Array.from(new Set((userAgenciesData || []).map((ua: any) => ua.user_id))) as string[]
-        if (userIds.length === 0) {
-          return NextResponse.json({ users: [] })
-        }
-        fallbackQuery = fallbackQuery.in("id", userIds)
-      }
-
-      const { data: usersSimple, error: simpleError } = await fallbackQuery.order("created_at", { ascending: false })
-
-      if (simpleError) {
-        return NextResponse.json({ error: "Error al cargar usuarios", details: simpleError.message }, { status: 500 })
-      }
-
-      return NextResponse.json({ users: usersSimple || [] })
+      return NextResponse.json({ error: "Error al cargar usuarios", details: usersError.message }, { status: 500 })
     }
 
     return NextResponse.json({ users: users || [] })
