@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   '/auth/verify-email',
   '/auth/verified',
   '/auth/callback',
+  '/auth/reset-password',
   '/privacy',
   '/terms',
   '/api/webhooks', // Webhooks tienen su propia autenticación
