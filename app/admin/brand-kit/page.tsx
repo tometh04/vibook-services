@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import Image from "next/image"
 import {
   Plane,
@@ -27,12 +27,14 @@ import {
   X,
   AlertTriangle,
   Info,
+  Loader2,
 } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { exportElementToPDF } from "@/lib/pdf-export"
 
 const SECTIONS = [
   { id: "logo", label: "Logo" },
@@ -217,14 +219,46 @@ const TYPE_SCALE = [
 
 export default function BrandKitPage() {
   const [activeSection, setActiveSection] = useState("logo")
+  const [exporting, setExporting] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const handleExportPDF = useCallback(async () => {
+    if (!contentRef.current || exporting) return
+    setExporting(true)
+    try {
+      await exportElementToPDF(contentRef.current, "Vibook-Brand-Kit", {
+        title: "Vibook — Brand Kit",
+        subtitle: "Guía de identidad visual y directrices de marca",
+      })
+    } catch (err) {
+      console.error("Error exporting PDF:", err)
+    } finally {
+      setExporting(false)
+    }
+  }, [exporting])
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Brand Kit</h1>
-        <p className="text-muted-foreground">
-          Guia de identidad visual y directrices de marca de Vibook
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Brand Kit</h1>
+          <p className="text-muted-foreground">
+            Guia de identidad visual y directrices de marca de Vibook
+          </p>
+        </div>
+        <Button onClick={handleExportPDF} disabled={exporting} variant="outline" className="gap-2">
+          {exporting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Exportando...
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4" />
+              Descargar PDF
+            </>
+          )}
+        </Button>
       </div>
 
       <div className="flex gap-8">
@@ -249,7 +283,7 @@ export default function BrandKitPage() {
         </nav>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 space-y-10">
+        <div ref={contentRef} className="flex-1 min-w-0 space-y-10">
 
           {/* LOGO */}
           <Section id="logo" title="Logo" description="Logotipo oficial de Vibook y sus variantes">

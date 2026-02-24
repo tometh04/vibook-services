@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import {
   Plus,
   Search,
@@ -131,6 +131,7 @@ import {
   RadioGroupItem,
 } from "@/components/ui/radio-group"
 import { toast } from "sonner"
+import { exportElementToPDF } from "@/lib/pdf-export"
 
 const SECTIONS = [
   { id: "typography", label: "Tipografia" },
@@ -200,15 +201,47 @@ const COLOR_SWATCHES = [
 
 export default function UIKitPage() {
   const [activeSection, setActiveSection] = useState("typography")
+  const [exporting, setExporting] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const handleExportPDF = useCallback(async () => {
+    if (!contentRef.current || exporting) return
+    setExporting(true)
+    try {
+      await exportElementToPDF(contentRef.current, "Vibook-UI-Kit", {
+        title: "Vibook — UI Kit",
+        subtitle: "Catálogo visual de componentes del sistema de diseño",
+      })
+    } catch (err) {
+      console.error("Error exporting PDF:", err)
+    } finally {
+      setExporting(false)
+    }
+  }, [exporting])
 
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">UI Kit</h1>
-          <p className="text-muted-foreground">
-            Catalogo visual de todos los componentes del sistema de diseno
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">UI Kit</h1>
+            <p className="text-muted-foreground">
+              Catalogo visual de todos los componentes del sistema de diseno
+            </p>
+          </div>
+          <Button onClick={handleExportPDF} disabled={exporting} variant="outline" className="gap-2">
+            {exporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Exportando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Descargar PDF
+              </>
+            )}
+          </Button>
         </div>
 
         <div className="flex gap-8">
@@ -233,7 +266,7 @@ export default function UIKitPage() {
           </nav>
 
           {/* Content */}
-          <div className="flex-1 min-w-0 space-y-10">
+          <div ref={contentRef} className="flex-1 min-w-0 space-y-10">
 
             {/* TYPOGRAPHY */}
             <Section id="typography" title="Tipografia" description="Escala tipografica basada en Inter (Google Fonts)">
