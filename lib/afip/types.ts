@@ -7,6 +7,7 @@ export type TipoComprobante =
   | 1 | 2 | 3      // Factura / ND / NC  — A
   | 6 | 7 | 8      // Factura / ND / NC  — B
   | 11 | 12 | 13   // Factura / ND / NC  — C
+  | 19 | 20 | 21   // Factura / ND / NC  — E (Exportación)
   | 51 | 52 | 53   // Factura / ND / NC  — M
 
 /** Tipos de documento del receptor */
@@ -66,6 +67,9 @@ export interface CreateInvoiceRequest {
   MonId: string
   MonCotiz: number
   Iva?: { Id: TipoIVA; BaseImp: number; Importe: number }[]
+  Tributos?: any[]
+  CbtesAsoc?: any[]
+  Opcionales?: any[]
   FchServDesde?: string
   FchServHasta?: string
   FchVtoPago?: string
@@ -78,7 +82,11 @@ export interface CreateInvoiceResponse {
     CAEFchVto: string
     CbteDesde: number
     CbteHasta: number
+    FchProceso?: string
+    Resultado?: string
     Errores?: any
+    Observaciones?: any
+    [key: string]: any
   }
   error?: string
 }
@@ -90,7 +98,7 @@ export interface GetLastVoucherRequest {
 
 export interface GetLastVoucherResponse {
   success: boolean
-  data?: { CbteNro: number }
+  data?: { CbteNro: number; PtoVta?: number; CbteTipo?: TipoComprobante }
   error?: string
 }
 
@@ -101,9 +109,17 @@ export interface GetTaxpayerDataRequest {
 export interface GetTaxpayerDataResponse {
   success: boolean
   data?: {
-    razonSocial: string
-    condicionIva: string
-    domicilioFiscal: string
+    cuit?: number | string
+    nombre?: string
+    razonSocial?: string
+    condicionIva?: string
+    domicilioFiscal?: string
+    domicilio?: any
+    tipoPersona?: string
+    monotributo?: any
+    empleador?: any
+    actividades?: any
+    [key: string]: any
   }
   error?: string
 }
