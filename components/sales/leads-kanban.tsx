@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -60,6 +60,39 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null)
   const [selectedLeadFromSearch, setSelectedLeadFromSearch] = useState<Lead | null>(null)
   const [showLeadDetailFromSearch, setShowLeadDetailFromSearch] = useState(false)
+
+  // Auto-scroll horizontal durante drag
+  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollIntervalRef = useRef<number | null>(null)
+
+  const stopAutoScroll = () => {
+    if (scrollIntervalRef.current !== null) {
+      clearInterval(scrollIntervalRef.current)
+      scrollIntervalRef.current = null
+    }
+  }
+
+  const handleContainerDragOver = (e: React.DragEvent) => {
+    if (!containerRef.current || !draggedLead) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const threshold = 80
+
+    if (e.clientX < rect.left + threshold) {
+      if (scrollIntervalRef.current === null) {
+        scrollIntervalRef.current = window.setInterval(() => {
+          containerRef.current?.scrollBy({ left: -8 })
+        }, 16)
+      }
+    } else if (e.clientX > rect.right - threshold) {
+      if (scrollIntervalRef.current === null) {
+        scrollIntervalRef.current = window.setInterval(() => {
+          containerRef.current?.scrollBy({ left: 8 })
+        }, 16)
+      }
+    } else {
+      stopAutoScroll()
+    }
+  }
 
   // Sincronizar con props cuando cambien
   useEffect(() => {
@@ -142,6 +175,7 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
     target.style.opacity = '1'
     setDraggedLead(null)
     setDragOverColumn(null)
+    stopAutoScroll()
   }
 
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
@@ -199,7 +233,12 @@ export function LeadsKanban({ leads: initialLeads, agencies = [], sellers = [], 
   }
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div
+      ref={containerRef}
+      className="flex gap-4 overflow-x-auto pb-4"
+      onDragOver={handleContainerDragOver}
+      onDragEnd={stopAutoScroll}
+    >
       {statusColumns.map((column) => (
         <div key={column.id} className="flex min-w-[300px] flex-col">
           <div className={`rounded-t-lg p-3 ${column.color} border-b-2 ${column.borderColor}`}>
