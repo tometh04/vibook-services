@@ -119,8 +119,8 @@ export async function POST(request: Request) {
 
     const trialDays = trialConfig ? parseInt(trialConfig.value) : 7 // Default 7 días
 
-    // Verificar si ya tiene una suscripción activa
-    const { data: existingSubscription } = await supabase
+    // Verificar si ya tiene una suscripción activa (usar admin para evitar RLS)
+    const { data: existingSubscription } = await supabaseAdmin
       .from("subscriptions")
       .select("id, status, trial_end, plan_id")
       .eq("agency_id", agencyId)
