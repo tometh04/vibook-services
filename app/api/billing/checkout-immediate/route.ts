@@ -12,7 +12,7 @@ export const runtime = 'nodejs'
  */
 export async function POST(request: Request) {
   try {
-    const { user } = await getCurrentUser()
+    const { user, session } = await getCurrentUser()
 
     // Rate limiting
     const { checkRateLimit } = await import("@/lib/rate-limit")
@@ -86,6 +86,15 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validar email para MercadoPago
+    const payerEmail = user.email || session.user.email
+    if (!payerEmail) {
+      return NextResponse.json(
+        { error: "No se encontró un email asociado a tu cuenta." },
+        { status: 400 }
+      )
+    }
+
     // Crear Preapproval con pago inmediato (sin trial)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vibook.ai'
     const backUrl = new URL('/api/billing/preapproval-callback', appUrl)
@@ -108,6 +117,7 @@ export async function POST(request: Request) {
         currency_id: 'ARS',
         start_date: startDate.toISOString()
       },
+      payer_email: payerEmail,
       external_reference: JSON.stringify({
         agency_id: agencyId,
         plan_id: planId,
