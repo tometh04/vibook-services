@@ -62,42 +62,79 @@ export async function createPreference(data: {
 }
 
 // Helper para crear preapproval (suscripción recurrente)
+// Usa llamada directa a la API REST de MercadoPago para evitar problemas con el SDK
 export async function createPreApproval(data: {
   reason: string
   auto_recurring: {
-    frequency: number // días entre pagos
-    frequency_type: 'days'
+    frequency: number
+    frequency_type: string
     transaction_amount: number
     currency_id: 'ARS'
-    start_date?: string // ISO date
-    end_date?: string // ISO date (opcional)
+    start_date?: string
+    end_date?: string
   }
-  payer_email?: string // Opcional: si no se envía, MP usa el email de la cuenta del pagador
+  payer_email: string
   card_token_id?: string
   external_reference?: string
   back_url?: string
 }) {
-  if (!preApproval || !client) {
+  if (!accessToken) {
     throw new Error('Mercado Pago no está configurado. Verifica MERCADOPAGO_ACCESS_TOKEN')
   }
 
-  try {
-    const body: any = {
-      reason: data.reason,
-      auto_recurring: data.auto_recurring,
-      external_reference: data.external_reference,
-      back_url: data.back_url,
-    }
-    // Solo enviar payer_email si se proporciona explícitamente
-    if (data.payer_email) body.payer_email = data.payer_email
-    if (data.card_token_id) body.card_token_id = data.card_token_id
+  // Construir body limpio (sin campos undefined)
+  const body: Record<string, any> = {
+    reason: data.reason,
+    payer_email: data.payer_email,
+    auto_recurring: {
+      frequency: data.auto_recurring.frequency,
+      frequency_type: data.auto_recurring.frequency_type,
+      transaction_amount: data.auto_recurring.transaction_amount,
+      currency_id: data.auto_recurring.currency_id,
+    },
+  }
 
-    const result = await preApproval.create({ body })
-    
-    return result as any
+  if (data.auto_recurring.start_date) {
+    body.auto_recurring.start_date = data.auto_recurring.start_date
+  }
+  if (data.auto_recurring.end_date) {
+    body.auto_recurring.end_date = data.auto_recurring.end_date
+  }
+  if (data.card_token_id) {
+    body.card_token_id = data.card_token_id
+  }
+  if (data.external_reference) {
+    body.external_reference = data.external_reference
+  }
+  if (data.back_url) {
+    body.back_url = data.back_url
+  }
+
+  console.log('[MP] Creando preapproval con body:', JSON.stringify(body, null, 2))
+
+  try {
+    const response = await fetch('https://api.mercadopago.com/preapproval', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      console.error('[MP] Error response:', JSON.stringify(result, null, 2))
+      console.error('[MP] Status:', response.status)
+      throw new Error(result.message || result.error || `HTTP ${response.status}`)
+    }
+
+    console.log('[MP] Preapproval creado OK:', result.id, '- init_point:', result.init_point ? 'presente' : 'ausente')
+    return result
   } catch (error: any) {
-    console.error('Error creando preapproval:', error)
-    console.error('Datos enviados:', JSON.stringify(data, null, 2))
+    console.error('[MP] Error creando preapproval:', error.message)
+    console.error('[MP] Datos enviados:', JSON.stringify({ ...body, payer_email: body.payer_email?.substring(0, 3) + '***' }, null, 2))
     throw new Error(`Error al crear preapproval: ${error.message || 'Error desconocido'}`)
   }
 }

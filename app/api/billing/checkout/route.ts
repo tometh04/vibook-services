@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   try {
-    const { user } = await getCurrentUser()
+    const { user, session } = await getCurrentUser()
     
     // CRÍTICO: Rate limiting
     const { checkRateLimit } = await import("@/lib/rate-limit")
@@ -155,6 +155,15 @@ export async function POST(request: Request) {
       })
     }
 
+    // Validar que tengamos un email para MercadoPago
+    const payerEmail = user.email || session.user.email
+    if (!payerEmail) {
+      return NextResponse.json(
+        { error: "No se encontró un email asociado a tu cuenta. Por favor, contactanos." },
+        { status: 400 }
+      )
+    }
+
     // Crear Preapproval dinámicamente usando la API de Mercado Pago
     // Esto evita problemas de autorización de dominio
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vibook.ai'
@@ -187,6 +196,7 @@ export async function POST(request: Request) {
         currency_id: 'ARS',
         start_date: startDate.toISOString()
       },
+      payer_email: payerEmail,
       external_reference: JSON.stringify({
         agency_id: agencyId,
         plan_id: planId,
